@@ -1,0 +1,4 @@
+NETCDF_LIB = /apps/netcdff-4.4.1/with-$(COMPILER)/lib
+NETCDF_INC = /apps/netcdff-4.4.1/with-$(COMPILER)/include
+BLAS_LIB = /apps/blas-3.7.0
+LAPACK_LIB = /apps/lapack-3.7.0
