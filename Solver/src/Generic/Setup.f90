@@ -18,6 +18,7 @@ module Setup_class
         real(kind=RP)                :: reynolds_number           = 1600.0_RP
         real(kind=RP)                :: prandtl_number            = 0.72_RP
         real(kind=RP)                :: Mach_number               = 0.01_RP
+        character(len=STR_LEN_SETUP) :: Gas                       = "Air"
 !
 !       -------------------------------------------------------------------------------------
 !              Spatial discretization parameters

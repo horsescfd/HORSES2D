@@ -81,7 +81,7 @@ module PhysicsNS
     end interface
 
     type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
-    type(Thermodynamics_t), pointer            :: thermodynamics => thermodynamicsAir
+    type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
 
@@ -98,6 +98,17 @@ module PhysicsNS
 
        subroutine InitializePhysics()
          implicit none
+!
+!        *******************************
+!        Select fluid
+!        *******************************
+!
+         if (trim(Setup % Gas) == "Air") then
+            thermodynamics => thermodynamicsAir
+         else
+            print*, "Unknown fluid ", trim(Setup % Gas),"."
+            stop "Stopped."
+         end if
 !
 !        *******************************
 !        Initialize the reference values
@@ -257,19 +268,24 @@ module PhysicsNS
          call Section_header("Loading " // solver // " physics module")
          write(STD_OUT,'(/)')
          call Subsection_header("Fluid data")
-         write(STD_OUT,'(30X,A,A25,A,A)') "-> ","Fluid: ",trim(thermodynamics % fluid)
+         write(STD_OUT,'(30X,A,A25,A15,A)') "-> ","Gas: ",trim(thermodynamics % fluid)
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Gas constant: ",thermodynamics % R," S.I."
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Specific heat ratio: ",thermodynamics % gamma,"."
          write(STD_OUT,'(/)')
          call Subsection_header("Reference quantities")
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference Temperature: ",refValues % T," K."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference pressure: ",refValues % p," Pa."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference density: ",refValues % rho," kg/m^3."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference velocity: ",refValues % V," m/s."
+         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reynolds length: ",refValues % L," m."
          write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference viscosity: ",refValues % mu," Pa·s."
          write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference conductivity: ",refValues % kappa," W/(m·K)."
          write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference time: ",refValues % tc," s."
          write(STD_OUT,'(/)')
          call Subsection_header("Dimensionless quantities")
          write(STD_OUT,'(30X,A,A25,F15.3)') "-> ","Reynolds number: ",dimensionless % Re
+         write(STD_OUT,'(30X,A,A25,F15.3)') "-> ","Prandtl number: ",dimensionless % Pr
+         write(STD_OUT,'(30X,A,A25,F15.3)') "-> ","Mach number: " , dimensionless % Mach
  
        end subroutine Describe
 end module PhysicsNS
