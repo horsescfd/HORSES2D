@@ -12,6 +12,7 @@ module PhysicsNS
 !
     integer, parameter              :: NEC = 4
     integer, parameter              :: NDIM = 2
+    integer, parameter              :: STR_LEN_PHYSICS = 128
 !
 !   *****************************************
 !        Parameter to control dimensions
@@ -36,6 +37,7 @@ module PhysicsNS
     character(LEN=*), PARAMETER     :: solver = "Navier-Stokes"
 
     type Thermodynamics_t  
+      character(len=STR_LEN_PHYSICS)       :: fluid
       real(kind=RP)        :: R
       real(kind=RP)        :: gamma       ! Specific heat ratio
       real(kind=RP)        :: gm1         ! (gamma - 1)
@@ -78,7 +80,8 @@ module PhysicsNS
       end function RiemannSolverFunction
     end interface
 
-    type(Thermodynamics_t), parameter  :: thermodynamics = Thermodynamics_t(287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
+    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
+    type(Thermodynamics_t), pointer            :: thermodynamics => thermodynamicsAir
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
 
@@ -121,6 +124,9 @@ module PhysicsNS
          dimensionless % Re         = Setup % reynolds_number
          dimensionless % Pr         = Setup % prandtl_number
          dimensionless % Mach       = Setup % Mach_number
+
+
+         call Describe
 
        end subroutine InitializePhysics
 !
@@ -233,4 +239,37 @@ module PhysicsNS
 !         val = 0.25_RP * (uL*uL + uR*uR) - 0.5_RP*max(abs(uL),abs(uR))*(uR-uL)*n
 !
 !      end function LocalLaxFriedrichsFlux
+
+!
+!      ***************************************************************************
+!           Subroutine for the module description
+!      ***************************************************************************
+!
+       subroutine Describe()
+         use Headers
+         implicit none
+!
+!        *************************
+!        Show reference quantities
+!        *************************
+!
+         write(STD_OUT,'(/,/)')
+         call Section_header("Loading " // solver // " physics module")
+         write(STD_OUT,'(/)')
+         call Subsection_header("Fluid data")
+         write(STD_OUT,'(30X,A,A25,A,A)') "-> ","Fluid: ",trim(thermodynamics % fluid)
+         write(STD_OUT,'(/)')
+         call Subsection_header("Reference quantities")
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference Temperature: ",refValues % T," K."
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference pressure: ",refValues % p," Pa."
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference density: ",refValues % rho," kg/m^3."
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference velocity: ",refValues % V," m/s."
+         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference viscosity: ",refValues % mu," Pa·s."
+         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference conductivity: ",refValues % kappa," W/(m·K)."
+         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference time: ",refValues % tc," s."
+         write(STD_OUT,'(/)')
+         call Subsection_header("Dimensionless quantities")
+         write(STD_OUT,'(30X,A,A25,F15.3)') "-> ","Reynolds number: ",dimensionless % Re
+ 
+       end subroutine Describe
 end module PhysicsNS

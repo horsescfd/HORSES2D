@@ -5,6 +5,7 @@ program main
     use MeshFileClass
     use DGSEM_Class
     use Setup_class
+    use Headers
     implicit none
     type(MeshFile_t)            :: meshFile
     type(DGSEM_t)             :: sem
@@ -24,12 +25,13 @@ program main
       end subroutine checks
     end interface
 
-    write(STD_OUT , * ) "Current solver: " , solver
 
 !   =====================
 !   The REAL main program
 !   =====================
 !
+    call Main_Header("High-order discontinuous Galerkin CFD 2D Solver")
+
     call InitializePhysics
 
 !
@@ -42,19 +44,19 @@ program main
 !   Initialize and build the DGSem structure
 !   ****************************************
 !
-    sem = DGSEM_Initialize()
-    call sem % construct(meshFile)
+!    sem = DGSEM_Initialize()
+!    call sem % construct(meshFile)
 !   
 !   ***********************************************
 !   Set the initial condition to all flow variables
 !   ***********************************************
 !
-    call sem % SetInitialCondition()
+!    call sem % SetInitialCondition()
 
     
-    call checks( sem ) 
+!    call checks( sem ) 
 
-    call sem % Integrate()
+!    call sem % Integrate()
 
     write(STD_OUT , '(/,/,A)') "\x1B[1;32m ****************** \x1B[0m"
     write(STD_OUT , '(A)' ) "\x1B[1;32m Program finished! \x1B[0m"

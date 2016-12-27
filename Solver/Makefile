@@ -17,8 +17,8 @@ GLOB_MACROS ?= -D_USE_LAPACK
 # --------------- DEPENDENCIES ---------------------------------------------------
 
 
-Physics: PhysicsNS
-PhysicsNS: Setup SMConstants
+Physics: PhysicsNS Headers
+PhysicsNS: Setup SMConstants Headers
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup Mesh1D MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
 InterpolationAndDerivatives: SMConstants
@@ -29,6 +29,7 @@ Element1DClass: NodeClass SMConstants Physics NodesAndWeightsClass Storage
 NodeClass: SMConstants
 FaceClass: Element1DClass NodeClass SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup Mesh1D MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
+Headers: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants
