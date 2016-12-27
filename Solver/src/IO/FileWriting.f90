@@ -3,6 +3,7 @@ module FileWriting
    use NetCDF
    use Physics
    use Mesh1DClass
+   use Storage_module
    use Setup_class
 
    integer, parameter         :: STR_FILENAME_LENGTH = 128
@@ -31,21 +32,24 @@ module FileWriting
    contains
 
       subroutine FileWriting_SaveSolution( mesh , fileName , t , Storage)
+         use NetCDF
          implicit none
          class(Mesh1D_t)  :: mesh
-         character(len=:) :: fileName
+         character(len=*) :: fileName
          real(kind=RP)    :: t
+         class(Storage_t) :: Storage
          type(NetCDF_File)    :: file
       
          file % fileName = fileName
          
 
          call file % create() 
-         call file % writeDimensions()
+         call file % writeDimensions(mesh)
       
       end subroutine FileWriting_SaveSolution
 
       subroutine FileWriting_createFile( self ) 
+         use NetCDF
          implicit none
          class(NetCDF_File)         :: self
 
@@ -54,6 +58,7 @@ module FileWriting
       end subroutine FileWriting_createFile
 
       subroutine FileWriting_writeDimensions( self , mesh )
+         use NetCDF
          use Physics
          implicit none
          class(NetCDF_File)                     :: self 
@@ -79,7 +84,7 @@ module FileWriting
 !
 !        Number of degrees of freedom
 !
-         current % value = 
+         current % value = 1  ! TODO
          current % Name = "nDOF"
          call check ( NF90_DEF_DIM ( self % fID , trim(current % Name) , current % Value , current % dimID ) )
 

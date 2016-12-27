@@ -3,6 +3,7 @@ module DGSecondOrderMethods
    use FaceClass
    use Element1DClass
    use Physics
+   use Setup_class
    implicit none
 !
 !  *******************************************************************
@@ -301,8 +302,8 @@ module DGSecondOrderMethods
                        T2 = -0.5_RP * self % epsilon * (1.0_RP / eL % hdiv2) * (face % n) * vectorOuterProduct( matmul( eL % Interp % DT , eL % Interp % lb(:,RIGHT) ) , uL - uR)
                        J0 = -0.5_RP * (self % sigma0)* (1.0_RP / el % hdiv2) * vectorOuterProduct( eL % Interp % lb(:,RIGHT) , uL - uR )
                        J1 = -(self % sigma1)* vectorOuterProduct( matmul( eL % Interp % DT , eL % Interp % lb(:,RIGHT) ) , duL - duR )
-
-                       eL % QDot = eL % QDot + viscousFlux(g = T1 + T2 + J0 + J1)
+!                          TODO
+                       eL % QDot = eL % QDot! + viscousFlux(g = T1 + T2 + J0 + J1)
 
                        deallocate( T1 , T2 , J0 , J1 )
 
@@ -317,8 +318,8 @@ module DGSecondOrderMethods
                        T2 = -0.5_RP * self % epsilon * (1.0_RP / eR % hdiv2) * (face % n) * vectorOuterProduct( matmul( eR % Interp % DT , eR % Interp % lb(:,LEFT) ) , uL - uR)
                        J0 = 0.5_RP * (self % sigma0)* (1.0_RP / el % hdiv2) * vectorOuterProduct( eR % Interp % lb(:,LEFT) , uL - uR )
                        J1 = (self % sigma1)* vectorOuterProduct( matmul( eR % Interp % DT , eR % Interp % lb(:,LEFT) ) , duL - duR )
-
-                       eR % QDot = eR % QDot + viscousFlux(g = T1 + T2 + J0 + J1)
+!                                         TODO
+                       eR % QDot = eR % QDot !+ viscousFlux(g = T1 + T2 + J0 + J1)
 
                        deallocate( T1 , T2 , J0 , J1 )
 
@@ -339,8 +340,8 @@ module DGSecondOrderMethods
                      T2 = -0.5_RP * (self % epsilon) * (1.0_RP / e % hdiv2) * (face % n) * vectorOuterProduct( matmul( e % Interp % DT , e % Interp % lb(:,face % BCLocation) ) , uE - uB )
                      J0 = -0.5_RP * (self % sigma0) * (1.0_RP / e % hdiv2) * vectorOuterProduct( e % Interp % lb(:,face % BCLocation) , uE - uB )
                      J1 = -(self % sigma1) * vectorOuterProduct( matmul( e % Interp % DT , e % Interp % lb(:, face % BCLocation) ) , duE - duB )
-               
-                     e % QDot = e % QDot + viscousFlux( T1 + T2 + J0 + J1 ) 
+!                                      TODO 
+                     e % QDot = e % QDot !+ viscousFlux( T1 + T2 + J0 + J1 ) 
 
                      deallocate( T1 , T2 , J0 , J1 )
 
@@ -359,8 +360,8 @@ module DGSecondOrderMethods
 !           Computes the IP volume loop:
 !              IPVol = - tr(D)*M*dQel 
 !        -------------------------------------------
-!                                      
-         element % QDot = element % QDot -  TransposeMat_x_NormalMat_F( element % Interp % MD , viscousFlux(g = element % dQ) )
+!                                      TODO
+         element % QDot = element % QDot! -  TransposeMat_x_NormalMat_F( element % Interp % MD , viscousFlux(g = element % dQ) )
 
      end subroutine IP_QDotVolumeLoop
 !
@@ -430,8 +431,8 @@ module DGSecondOrderMethods
 !        Perform the matrix multiplication
          associate( QDot => element % QDot , &
                     MD => element % Interp % MD)
-
-         QDot = QDot - TransposeMat_x_NormalMat_F( MD , viscousFlux(g = element % dQ ))
+!        TODO
+         QDot = QDot! - TransposeMat_x_NormalMat_F( MD , viscousFlux(g = element % dQ ))
 
          end associate
 
@@ -486,8 +487,8 @@ module DGSecondOrderMethods
             type is ( BdryFace_t )
                
                dQBdry => face % elements(1) % e % dQb( : , face % BCLocation )
-
-               val = 0.5_RP * (viscousFlux(g=dQBdry) + viscousFlux(g=face % gB))
+               ! TODO
+               val = 0.0_RP !0.5_RP * (viscousFlux(g=dQBdry) + viscousFlux(g=face % gB))
 
                dQBdry => NULL()
             
@@ -495,8 +496,8 @@ module DGSecondOrderMethods
          
                dQL => face % elements(LEFT) % e % dQb( : , RIGHT )
                dQR => face % elements(RIGHT) % e %  dQb( : , LEFT ) 
-
-               val = 0.5_RP * (viscousFlux(g=dQL) + viscousFlux(g=dQR) )
+!              TODO
+               val = 0.0_RP !0.5_RP * (viscousFlux(g=dQL) + viscousFlux(g=dQR) )
       
                dQL => NULL()
                dQR => NULL()

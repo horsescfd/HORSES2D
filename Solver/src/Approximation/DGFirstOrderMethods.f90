@@ -62,25 +62,25 @@ module DGFirstOrderMethods
 !           Prepare the first order method
 !        --------------------------------------
 !
-         if ( trim( Setup % advection_discretization ) .eq. "Standard" ) then
+         if ( trim( Setup % inviscid_discretization ) .eq. "Standard" ) then
             
             allocate(StandardDG_t   :: FirstOrderMethod)
 
-         elseif ( trim( Setup % advection_discretization ) .eq. "Over-Integration" ) then 
+         elseif ( trim( Setup % inviscid_discretization ) .eq. "Over-Integration" ) then 
 
             allocate(OverIntegrationDG_t  :: FirstOrderMethod)
 
-         elseif ( trim( Setup % advection_discretization ) .eq. "Split") then
+         elseif ( trim( Setup % inviscid_discretization ) .eq. "Split") then
       
             allocate(SplitDG_t      :: FirstOrderMethod)
       
          else
-            write(STD_OUT , *) "Method ", trim(Setup % advection_discretization), " not implemented yet."
+            write(STD_OUT , *) "Method ", trim(Setup % inviscid_discretization), " not implemented yet."
             STOP "Stopped."
 
          end if
 
-         FirstOrderMethod % method = trim( Setup % advection_discretization )
+         FirstOrderMethod % method = trim( Setup % inviscid_discretization )
 
 
          select type (FirstOrderMethod)
@@ -95,13 +95,13 @@ module DGFirstOrderMethods
 
 !        Set the Riemann flux
          if (trim( Setup % inviscid_flux ) .eq. "Roe") then
-            FirstOrderMethod % RiemannSolver => RoeFlux
+            FirstOrderMethod % RiemannSolver => NULL()
 
          elseif ( trim ( Setup % inviscid_flux) .eq. "ECON") then
-            FirstOrderMethod % RiemannSolver => ECONFlux
+            FirstOrderMethod % RiemannSolver => NULL()
 
          elseif ( trim ( Setup % inviscid_flux ) .eq. "LLF") then
-            FirstOrderMethod % RiemannSolver => LocalLaxFriedrichsFlux
+            FirstOrderMethod % RiemannSolver => NULL()
 
          else
             write(STD_OUT , *) "Solver ", trim ( Setup % inviscid_flux) ," not implemented yet."
@@ -185,7 +185,8 @@ module DGFirstOrderMethods
 !        -------------------------------------------
 !
 !        Compute fluxes
-         element % F = inviscidFlux( element % Q )
+!        TODO: Beware of this
+         element % F = 0.0_RP !inviscidFlux( element % Q )
 !
 !        Perform the matrix multiplication
          associate( QDot => element % QDot , &
@@ -210,7 +211,8 @@ module DGFirstOrderMethods
 !        ---------------------------------------------------
 !
 !        Compute fluxes
-         element % F = inviscidFlux( matmul(element % Interp % T , element % Q) )
+!        TODO: beware of this
+         element % F = 0.0_RP !inviscidFlux( matmul(element % Interp % T , element % Q) )
 !
 !        Perform the matrix multiplication
          associate( QDot => element % QDot , &
@@ -257,13 +259,14 @@ module DGFirstOrderMethods
          class(Face_t), pointer           :: face
          real(kind=RP), dimension(NEC)    :: val
          real(kind=RP), pointer  :: QL(:) , QR(:) , QBdry(:)
-         real(kind=RP), pointer  :: n
+         real(kind=RP), pointer  :: n(:)
 
          select type ( face )
             type is (BdryFace_t)
       
                QBdry => face % elements(1) % e % Qb( : , face % BCLocation  )
-               n     => face % n
+!              TODO: Beware of this
+               n     => NULL()   ! face % n
 
                val = self % RiemannSolver(QBdry , face % uB , n)
                
@@ -271,7 +274,8 @@ module DGFirstOrderMethods
       
                QL => face % elements(LEFT) % e % Qb( : , RIGHT )
                QR => face % elements(RIGHT) % e % Qb( : , LEFT )
-               n  => face % n
+!              TODO: Beware of this
+               n  => NULL()      ! face % n
 
                val = self % RiemannSolver(QL , QR , n)
 

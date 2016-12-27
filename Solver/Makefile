@@ -40,8 +40,7 @@ LAPackInterface: SMConstants
 FileWriting: SMConstants Physics Mesh1D Setup
 DGTimeIntegrator: SMConstants Mesh1D DGSpatialDiscretizationMethods Setup FileWriting
 Storage: SMConstants
-main: def_main_macros
-main: SMConstants NodesAndWeightsClass Physics MeshFile
+main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
 
 # --------------- DO NOT EDIT ----------------------------------------------------

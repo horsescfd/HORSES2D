@@ -4,6 +4,7 @@ module PhysicsNS
 
     private
     public :: NEC , NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: RiemannSolverFunction , InitializePhysics
 !
 !   *****************************************
 !        Definitions
@@ -79,6 +80,7 @@ module PhysicsNS
 
     type(Thermodynamics_t), parameter  :: thermodynamics = Thermodynamics_t(287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
     type(RefValues_t), protected       :: refValues      
+    type(Dimensionless_t), protected   :: dimensionless
 
 !
 !    interface inviscidFlux
@@ -107,6 +109,18 @@ module PhysicsNS
          refValues % mu = refValues % rho * refValues % Mach * sqrt( Thermodynamics % gamma * Thermodynamics % R * refValues % T) * refValues % L / Setup % reynolds_number
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
          refValues % tc = refValues % L / refValues % V
+!
+!        ***********************************
+!        Initialize the dimensionless values
+!        ***********************************
+!
+         dimensionless % mu         = sqrt( thermodynamics % gamma ) * refValues % Mach / Setup % reynolds_number
+         dimensionless % kappa      = dimensionless % mu * thermodynamics % gogm1 / Setup % prandtl_number
+         dimensionless % cp         = thermodynamics % gogm1
+         dimensionless % cv         = thermodynamics % invgm1
+         dimensionless % Re         = Setup % reynolds_number
+         dimensionless % Pr         = Setup % prandtl_number
+         dimensionless % Mach       = Setup % Mach_number
 
        end subroutine InitializePhysics
 !

@@ -89,7 +89,7 @@
             allocate( self % Storage % QDot( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
             allocate( self % Storage % dQ( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
                 
-            if (Setup % advection_discretization .eq. "Over-Integration") then
+            if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate( self % Storage % F( NEC * (meshFile % Nelements*(setup % integration_points + 1))))
             else
                allocate( self % Storage % F( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
@@ -100,7 +100,7 @@
 !           Construct the mesh
 !           ******************
 !
-            if (Setup % advection_discretization .eq. "Over-Integration") then
+            if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate( self % spI )
                call self % spI % init( Setup % integration_points , Setup % nodes )
             end if
@@ -111,7 +111,7 @@
 !           Construct the integration points
 !           ********************************
 !
-            if (Setup % advection_discretization .eq. "Over-Integration") then
+            if (Setup % inviscid_discretization .eq. "Over-Integration") then
 !          
 !              Set the interpolation matrices
 !

@@ -6,7 +6,7 @@ function UserDefinedInitialCondition(x) result (val)
    real(kind=RP)     :: x
    real(kind=RP)     :: val(NEC)
 
-   val = sin(pi * x / Setup % T)
+   val = 1.0_RP
 
 end function UserDefinedInitialCondition
 

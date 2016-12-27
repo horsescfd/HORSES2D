@@ -155,7 +155,7 @@ subroutine checks( sem )
       end do
    end do 
 
-   if ( Setup % advection_discretization .eq. "Over-Integration" ) then
+   if ( Setup % inviscid_discretization .eq. "Over-Integration" ) then
            allocate( aM( 0 : sem % spI % N ) )
            allocate( bM( 0 : sem % spI % N ) )
    end if
@@ -165,9 +165,9 @@ subroutine checks( sem )
          a = (sem % spA % head % xi + 0.1_RP)**(1.0_RP * i)
          b = (sem % spA % head % xi + 0.1_RP)**(1.0_RP * j)
       
-         if ( Setup % advection_discretization .eq. "Standard") then
+         if ( Setup % inviscid_discretization .eq. "Standard") then
           Mquadrature(i,j) = sum( sem % spA % head % w * a * b**2.0_RP)
-         elseif ( Setup % advection_discretization .eq. "Over-Integration") then
+         elseif ( Setup % inviscid_discretization .eq. "Over-Integration") then
             
             aM = matmul( sem % spA % head % T , a)
             bM = matmul( sem % spA % head % T , b)

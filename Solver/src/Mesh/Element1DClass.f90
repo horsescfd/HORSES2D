@@ -120,7 +120,7 @@ module Element1DClass
              self % Q    ( 0:N , 1:NEC )  => storage % Q    ( self % address: ) 
              self % QDot ( 0:N , 1:NEC )  => storage % QDot ( self % address: ) 
 
-             if ( trim(Setup % advection_discretization) .eq. "Over-Integration" ) then
+             if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
                self % F (0: self % spI % N , 1:NEC) => storage % F ( (self % ID -1)*(self % spI % N+1) + 1: self % ID * ( self % spI % N + 1) )
 
              else

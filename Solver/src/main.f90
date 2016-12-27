@@ -30,13 +30,13 @@ program main
 !   The REAL main program
 !   =====================
 !
+    call InitializePhysics
 
 !
 !   **********************************************************
-!   Construct the mesh: This will be replaced by a mesh reader
+!   Read the mesh
 !   **********************************************************
 !
-    call meshFile % construct( Setup % K , Setup % T )
 !   
 !   ****************************************
 !   Initialize and build the DGSem structure
