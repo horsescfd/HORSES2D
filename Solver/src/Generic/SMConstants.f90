@@ -32,6 +32,8 @@
 !           Constants
 !     *************************************************************************
 !
+           integer       , parameter          :: LEFT            = 2
+           integer       , parameter          :: RIGHT           = 1
            real(kind=RP) , parameter          :: PI              =  3.141592653589793238462643_RP
            complex(kind=CP)                   :: ImgI            =  ( 0.0_RP, 1.0_RP)                   !                         =  SQRT(-1.0_RP)
 !

@@ -9,6 +9,17 @@ module Setup_class
     type Setup_t
 !
 !       -------------------------------------------------------------------------------------
+!              Reference quantities
+!       -------------------------------------------------------------------------------------
+!
+        real(kind=RP)                :: pressure_ref              = 101325.0_RP
+        real(kind=RP)                :: temperature_ref           = 273.15_RP 
+        real(kind=RP)                :: reynolds_length           = 1.0_RP
+        real(kind=RP)                :: reynolds_number           = 1600.0_RP
+        real(kind=RP)                :: prandtl_number            = 0.72_RP
+        real(kind=RP)                :: Mach_number               = 0.01_RP
+!
+!       -------------------------------------------------------------------------------------
 !              Spatial discretization parameters
 !       -------------------------------------------------------------------------------------
 !
@@ -67,7 +78,7 @@ module Setup_class
         character(len=STR_LEN_SETUP) :: saveVariables             = "Q_QDot_dQ"
     end type Setup_t
 
-    type(Setup_t), target       :: setup
+    type(Setup_t), protected, target       :: setup
 
 
 end module Setup_class

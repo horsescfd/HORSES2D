@@ -34,6 +34,33 @@ module PhysicsNS
 !
     character(LEN=*), PARAMETER     :: solver = "Navier-Stokes"
 
+    type Thermodynamics_t  
+      real(kind=RP)        :: R
+      real(kind=RP)        :: gamma       ! Specific heat ratio
+      real(kind=RP)        :: gm1         ! (gamma - 1)
+      real(kind=RP)        :: gogm1       ! gamma / ( gamma - 1 )
+      real(kind=RP)        :: invgm1      ! 1.0_RP / (gamma - 1 )
+    end type Thermodynamics_t
+
+    type RefValues_t
+      real(kind=RP)        :: L
+      real(kind=RP)        :: T
+      real(kind=RP)        :: p
+      real(kind=RP)        :: rho
+      real(kind=RP)        :: V
+      real(kind=RP)        :: Mach
+      real(kind=RP)        :: mu
+      real(kind=RP)        :: kappa
+      real(kind=RP)        :: t
+    end type RefValues_t
+
+    type Dimensionless_t
+      real(kind=RP)        :: mu
+      real(kind=RP)        :: Re
+      real(kind=RP)        :: Pr
+      real(kind=RP)        :: kappa
+      real(kind=RP)        :: Mach
+    end type Dimensionless_t
 
     abstract interface
       function RiemannSolverFunction( QL , QR , n ) result ( val )
@@ -45,6 +72,10 @@ module PhysicsNS
          real(kind=RP), dimension(NEC)       :: val
       end function RiemannSolverFunction
     end interface
+
+    type(Thermodynamics_t), parameter  :: thermodynamics = Thermodynamics_t(287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP)
+    type(RefValues_t), protected       :: refValues      
+
 !
 !    interface inviscidFlux
 !      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
@@ -54,7 +85,22 @@ module PhysicsNS
 !      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
 !    end interface viscousFlux
 !
-!    contains
+    contains
+
+       subroutine InitializePhysics()
+         implicit none
+!
+!        *******************************
+!        Initialize the reference values
+!        *******************************
+!
+         refValues % p = Setup % pressure_ref
+         refValues % T = Setup % temperature_ref
+         refValues % rho = refValues % p / (thermodynamics % R * refValues % T)
+         refValues % L = Setup % reynolds_length
+         refValues %  = Setup % reynolds_number
+
+       end subroutine InitializePhysics
 !
 !      function inviscidFlux0D(u) result(val)
 !         implicit none
