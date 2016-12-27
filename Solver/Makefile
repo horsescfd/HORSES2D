@@ -76,6 +76,7 @@ else ifeq ($(COMPILER),ifort)
      FFLAGS = -cpp -O3 -mkl -assume bscc
      
    endif
+   LIBS += -L$(NETCDF_LIB) -lnetcdff
 
 endif
 
