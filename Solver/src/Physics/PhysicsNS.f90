@@ -40,6 +40,8 @@ module PhysicsNS
       real(kind=RP)        :: gm1         ! (gamma - 1)
       real(kind=RP)        :: gogm1       ! gamma / ( gamma - 1 )
       real(kind=RP)        :: invgm1      ! 1.0_RP / (gamma - 1 )
+      real(kind=RP)        :: cp
+      real(kind=RP)        :: cv
     end type Thermodynamics_t
 
     type RefValues_t
@@ -51,11 +53,13 @@ module PhysicsNS
       real(kind=RP)        :: Mach
       real(kind=RP)        :: mu
       real(kind=RP)        :: kappa
-      real(kind=RP)        :: t
+      real(kind=RP)        :: tc
     end type RefValues_t
 
     type Dimensionless_t
       real(kind=RP)        :: mu
+      real(kind=RP)        :: cp
+      real(kind=RP)        :: cv
       real(kind=RP)        :: Re
       real(kind=RP)        :: Pr
       real(kind=RP)        :: kappa
@@ -73,7 +77,7 @@ module PhysicsNS
       end function RiemannSolverFunction
     end interface
 
-    type(Thermodynamics_t), parameter  :: thermodynamics = Thermodynamics_t(287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP)
+    type(Thermodynamics_t), parameter  :: thermodynamics = Thermodynamics_t(287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
     type(RefValues_t), protected       :: refValues      
 
 !
@@ -94,11 +98,15 @@ module PhysicsNS
 !        Initialize the reference values
 !        *******************************
 !
-         refValues % p = Setup % pressure_ref
-         refValues % T = Setup % temperature_ref
-         refValues % rho = refValues % p / (thermodynamics % R * refValues % T)
          refValues % L = Setup % reynolds_length
-         refValues %  = Setup % reynolds_number
+         refValues % T = Setup % temperature_ref
+         refValues % p = Setup % pressure_ref
+         refValues % rho = refValues % p / (thermodynamics % R * refValues % T)
+         refValues % V = sqrt( refValues % p / refValues % rho )
+         refValues % Mach = Setup % Mach_number
+         refValues % mu = refValues % rho * refValues % Mach * sqrt( Thermodynamics % gamma * Thermodynamics % R * refValues % T) * refValues % L / Setup % reynolds_number
+         refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
+         refValues % tc = refValues % L / refValues % V
 
        end subroutine InitializePhysics
 !
