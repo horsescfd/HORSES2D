@@ -57,7 +57,6 @@
 !     *************************************************************************
 !
            integer, parameter                 :: FACE_INTERIOR   =  0
-           integer, parameter                 :: FACE_BOUNDARY   =  1
      
            integer, parameter                 :: PERIODIC_BC     =  0
            integer, parameter                 :: DIRICHLET_BC    =  1

@@ -122,16 +122,16 @@ module mesh1DClass
                  if (face .eq. 1) then
                     bdryE => self % elements(face)
                     rightE => NULL()
-                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % faceType(face) , bdryElement = bdryE)
+                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % edgeMarker(face) , bdryElement = bdryE)
                     self % faces(face) % f % n = -1.0_RP       ! So that the normal points towards the outside of the domain
                  elseif (face .eq. self % no_of_faces) then
                     bdryE => self % elements(face-1)
                     rightE => NULL()
-                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % faceType(face) , bdryElement = bdryE )
+                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % edgeMarker(face) , bdryElement = bdryE )
                  else
                     leftE => self % elements(face-1)
                     rightE => self % elements(face)
-                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % faceType(face) , leftElement = leftE , rightElement = rightE)
+                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % edgeMarker(face) , leftElement = leftE , rightElement = rightE)
                  end if
              end do
 

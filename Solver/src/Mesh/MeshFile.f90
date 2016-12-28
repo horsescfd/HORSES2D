@@ -17,9 +17,10 @@ module MeshFileClass
        integer, allocatable       :: points_of_elements(:,:)
        integer, allocatable       :: points_of_edges(:,:)
        integer, allocatable       :: points_of_bdryedges(:,:)
-       integer, allocatable       :: edges_of_elements(:,:)
        integer, allocatable       :: elements_of_edges(:,:)
-       integer, allocatable       :: faceType(:)
+       integer, allocatable       :: bdrymarker_of_edges(:)
+       integer, allocatable       :: curved_bdryedges(:)
+       integer, allocatable       :: edgeMarker(:)
        integer, allocatable       :: polynomialOrder(:)
        integer, allocatable       :: cumulativePolynomialOrder(:)
        real(Kind=RP), allocatable :: curvilinear_coords(:,:,:)
@@ -54,20 +55,22 @@ module MeshFileClass
             mesh % no_of_bdryedges = NetCDF_getDimension( Setup % mesh_file , "no_of_bdryedges" )
    
 !           Allocate variables
-            allocate( mesh % points_of_elements( POINTS_PER_QUAD , mesh % no_of_elements ) )
-            allocate( mesh % points_coords( NDIM , mesh % no_of_nodes ) )
-            allocate( mesh % points_of_bdryedges ( POINTS_PER_EDGE , mesh % no_of_bdryedges ) )
+            allocate ( mesh % points_of_elements  ( POINTS_PER_QUAD , mesh % no_of_elements  )  ) 
+            allocate ( mesh % points_coords       ( NDIM , mesh % no_of_nodes                )  ) 
+            allocate ( mesh % points_of_bdryedges ( POINTS_PER_EDGE , mesh % no_of_bdryedges )  ) 
+            allocate ( mesh % bdrymarker_of_edges ( mesh % no_of_bdryedges                   )  ) 
 
 !           Gather variables
             call NetCDF_getVariable( Setup % mesh_file , "points_of_quads" , mesh % points_of_elements )
             call NetCDF_getVariable( Setup % mesh_file , "points" , mesh % points_coords)
             call NetCDF_getVariable( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges )
+            call NetCDF_getVariable( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
 
 !           Gather curved boundaries
             curved_bdryedges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
 !
 !           **********************************
-!                 Curved boundaries
+!             ----> Curved boundaries <----
             if (curved_bdryedges .ne. -1) then
 !           **********************************
 !
@@ -80,6 +83,13 @@ module MeshFileClass
 
                mesh % no_of_curvedbdryedges = curved_bdryedges
                mesh % curves_polynomialorder = NetCDF_getDimension( Setup % mesh_file , "Np1" ) - 1
+!
+!              --------------------------------------
+!                 Get which edges are curved
+!              --------------------------------------
+!
+               allocate ( mesh % curved_bdryedges ( mesh % no_of_curvedbdryedges ) ) 
+               call NetCDF_getVariable ( Setup % mesh_file , "curvilinear_edges" , mesh % curved_bdryedges ) 
 !
 !              -----------------------------------------------------------------------
 !                 Get curved patches from file: An auxiliary variable "aux" is needed 
@@ -143,36 +153,122 @@ module MeshFileClass
          subroutine ComputeMesh( self )
             implicit none
             class(MeshFile_t)          :: self
-!           ----------------------------------------
+!           -----------------------------------------
             integer                    :: eID
-            integer                    :: currentFace
-            integer                    :: previousFaces
-
 !
 !           -------------------------------
 !              Compute number of edges
 !           -------------------------------
 !
-            if (mod(self % no_of_elements + self % no_of_bdryedges , 2) .eq. 0) then
-               self % no_of_edges = (self % no_of_elements + self % no_of_bdryedges) / 2 
+            if (mod(4*self % no_of_elements + self % no_of_bdryedges , 2) .eq. 0) then
+               self % no_of_edges = (4*self % no_of_elements + self % no_of_bdryedges) / 2 
                allocate( self % points_of_edges ( POINTS_PER_EDGE , self % no_of_edges ) ) 
-               allocate( self % edges_of_elements( POINTS_PER_QUAD , self % no_of_edges ) )
-               allocate( self % elements_of_edges( POINTS_PER_EDGE , self % no_of_elements ) )
+               allocate( self % elements_of_edges( POINTS_PER_EDGE , self % no_of_edges ) )
             else
                print*, "The mesh is not consistent."
                stop "Stopped."
             end if
+
+            self % points_of_edges = -1
+            self % elements_of_edges = -1
+
+            call computeFaces( self )
+            call computeFaceMarkers( self )
+
+         end subroutine ComputeMesh
+
+         subroutine computeFaces( mesh )
+            implicit none
+            class(MeshFile_t)          :: mesh
+!           ----------------------------------------
+            integer                    :: eID
+            integer                    :: elFace
+            integer                    :: currentFace
+            integer                    :: previousFaces
+            logical                    :: exists
+            integer, dimension(2)      :: face
 !
 !           -------------------------------
 !              Obtain faces      
 !           -------------------------------
 !
-            currentFace = 0
-            do eID = 1 , self % no_of_elements
-             
+            currentFace = 1
+            do eID = 1 , mesh % no_of_elements
+               do elFace = 1 , POINTS_PER_QUAD
+!
+!                 ----------------------------------------
+!                    Select face
+!                 ----------------------------------------
+!
+                  if (elFace .ne. POINTS_PER_QUAD) then
+                     face = mesh % points_of_elements([elFace , elFace + 1] , eID )
+                  else
+                     face = mesh % points_of_elements([elFace , 1] , eID ) 
+                  end if
+!
+!                 ---------------------------------------
+!                    Check if the face exists already
+!                 ---------------------------------------
+!
+                  exists = .false.
+                  do previousFaces = 1 , currentFace - 1             
+                     if ( facesEqual( mesh % points_of_edges(:,previousFaces) , face )) then    ! There is an existing face
+                        exists = .true.
+                        mesh % elements_of_edges(2 , previousFaces) = eID
+                        
+                        exit
+                     end if      ! Continue 
+                  end do
+!
+!                 -------------------------------------------
+!                    If does not exist, store it
+!                 -------------------------------------------
+!
+                  if (.not. exists) then
+                     mesh % points_of_edges( : , currentFace ) = face
+                     mesh % elements_of_edges(1 , currentFace ) = eID
+
+!                    Move to next face
+!                    -----------------
+                     currentFace = currentFace + 1
+                  end if
+               end do
+            end do
+         
+         end subroutine computeFaces
+
+         subroutine computeFaceMarkers( mesh )
+            implicit none
+            class(MeshFile_t)          :: mesh
+            integer                    :: edge
+            integer                    :: bdryface
+!           ------------------------------------------------
+            
+!
+!           --------------------------
+!           Allocate face marker array
+!           --------------------------
+!
+            allocate ( mesh % edgeMarker ( mesh % no_of_edges ) )
+
+            do edge = 1 , mesh % no_of_edges
+               if (mesh % elements_of_edges(2 , edge) .eq. -1) then   ! Is a boundary face
+
+                  do bdryface = 1 , mesh % no_of_bdryedges
+                     if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then
+                        mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)
+                        exit
+                     end if
+                  end do
+
+               else
+                  mesh % edgeMarker (edge) = FACE_INTERIOR
+               end if
+               print*, mesh % edgeMarker(edge)                              
             end do
 
-         end subroutine ComputeMesh
+         end subroutine computeFaceMarkers
+
 !
 !        ****************************************************************************************
 !           Auxiliar subroutines
