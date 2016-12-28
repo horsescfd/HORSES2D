@@ -10,9 +10,9 @@ module MeshFileClass
        integer                    :: no_of_elements
        integer                    :: no_of_edges
        integer                    :: no_of_bdryedges
-       logical                    :: curvilinear = .false.
        integer, allocatable       :: no_of_curvedbdryedges
        integer, allocatable       :: curves_polynomialorder
+       logical                    :: curvilinear = .false.
        real(kind=RP), allocatable :: points_coords(:,:)
        integer, allocatable       :: points_of_elements(:,:)
        integer, allocatable       :: points_of_edges(:,:)
@@ -22,6 +22,7 @@ module MeshFileClass
        integer, allocatable       :: faceType(:)
        integer, allocatable       :: polynomialOrder(:)
        integer, allocatable       :: cumulativePolynomialOrder(:)
+       real(Kind=RP), allocatable :: curvilinear_coords(:,:,:)
        contains
          procedure      :: Read => ReadMesh
          procedure      :: Compute => ComputeMesh
@@ -41,6 +42,7 @@ module MeshFileClass
             class(MeshFile_t)          :: mesh
 !           -----------------------------------------------------
             integer                    :: curved_bdryedges
+            real(kind=RP), allocatable :: aux(:,:)
 !
 !           ----------------------------------------------------------------------------------------------------
 !                 Read nodes, elements, and boundary edges
@@ -60,20 +62,54 @@ module MeshFileClass
             call NetCDF_getVariable( Setup % mesh_file , "points_of_quads" , mesh % points_of_elements )
             call NetCDF_getVariable( Setup % mesh_file , "points" , mesh % points_coords)
             call NetCDF_getVariable( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges )
+
 !           Gather curved boundaries
             curved_bdryedges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
-
+!
+!           **********************************
+!                 Curved boundaries
             if (curved_bdryedges .ne. -1) then
-
+!           **********************************
+!
+!              ===========================
                mesh % curvilinear = .true.
+!              ===========================
+!
                allocate( mesh % no_of_curvedbdryedges )
                allocate( mesh % curves_polynomialorder )
 
                mesh % no_of_curvedbdryedges = curved_bdryedges
                mesh % curves_polynomialorder = NetCDF_getDimension( Setup % mesh_file , "Np1" ) - 1
-   
+!
+!              -----------------------------------------------------------------------
+!                 Get curved patches from file: An auxiliary variable "aux" is needed 
+!              -----------------------------------------------------------------------
+!
+               allocate ( mesh % curvilinear_coords ( NDIM , mesh % curves_polynomialorder + 1 , mesh % no_of_curvedbdryedges )  ) 
+               allocate ( aux                       (        mesh % curves_polynomialorder + 1 , mesh % no_of_curvedbdryedges )  ) 
+!
+!              Obtain x-coordinates
+!              --------------------
+               call NetCDF_getVariable( Setup % mesh_file , "x_curvilinear_edges" , aux )
+               mesh % curvilinear_coords(1,:,:) = aux
+!
+!              Obtain y-coordinates
+!              --------------------
+               call NetCDF_getVariable( Setup % mesh_file , "y_curvilinear_edges" , aux )
+               mesh % curvilinear_coords(2,:,:) = aux
+!
+!              ------------------------------------
+!                 Free the auxiliary variable
+!              ------------------------------------
+!
+               deallocate( aux )
+            
             end if
-       
+!
+!           ***************************
+!              Compute the mesh       
+!           ***************************
+!
             call mesh % Compute
             call mesh % Describe
 
