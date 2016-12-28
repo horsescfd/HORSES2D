@@ -1,16 +1,31 @@
 module MeshFileClass
     use SMConstants
+
+
+    integer, parameter           :: POINTS_PER_EDGE = 2
+    integer, parameter           :: POINTS_PER_QUAD = 4
+
     type MeshFile_t
-       integer                        :: no_of_nodes
-       integer                        :: no_of_elements
-       integer                        :: no_of_bdryedges
-       real(kind=RP), allocatable     :: nodes(:)
-       integer, allocatable  :: elements(:,:)
-       integer, allocatable  :: faceType(:) 
-       integer, allocatable  :: polynomialOrder(:)
-       integer, allocatable  :: cumulativePolynomialOrder(:)
+       integer                    :: no_of_nodes
+       integer                    :: no_of_elements
+       integer                    :: no_of_edges
+       integer                    :: no_of_bdryedges
+       logical                    :: curvilinear = .false.
+       integer, allocatable       :: no_of_curvedbdryedges
+       integer, allocatable       :: curves_polynomialorder
+       real(kind=RP), allocatable :: points_coords(:,:)
+       integer, allocatable       :: points_of_elements(:,:)
+       integer, allocatable       :: points_of_edges(:,:)
+       integer, allocatable       :: points_of_bdryedges(:,:)
+       integer, allocatable       :: edges_of_elements(:,:)
+       integer, allocatable       :: elements_of_edges(:,:)
+       integer, allocatable       :: faceType(:)
+       integer, allocatable       :: polynomialOrder(:)
+       integer, allocatable       :: cumulativePolynomialOrder(:)
        contains
-         procedure      :: read => ReadMesh
+         procedure      :: Read => ReadMesh
+         procedure      :: Compute => ComputeMesh
+         procedure      :: Describe => DescribeMesh
     end type MeshFile_t
 
     private
@@ -20,17 +35,126 @@ module MeshFileClass
 
          subroutine ReadMesh( mesh )
             use Setup_class
+            use Physics
             use NetCDFInterface
             implicit none
             class(MeshFile_t)          :: mesh
+!           -----------------------------------------------------
+            integer                    :: curved_bdryedges
+!
+!           ----------------------------------------------------------------------------------------------------
+!                 Read nodes, elements, and boundary edges
+!           ----------------------------------------------------------------------------------------------------
+!
+!           Dimensions
+            mesh % no_of_nodes     = NetCDF_getDimension( Setup % mesh_file , "no_of_nodes" )
+            mesh % no_of_elements  = NetCDF_getDimension( Setup % mesh_file , "no_of_elements" )
+            mesh % no_of_bdryedges = NetCDF_getDimension( Setup % mesh_file , "no_of_bdryedges" )
+   
+!           Allocate variables
+            allocate( mesh % points_of_elements( POINTS_PER_QUAD , mesh % no_of_elements ) )
+            allocate( mesh % points_coords( NDIM , mesh % no_of_nodes ) )
+            allocate( mesh % points_of_bdryedges ( POINTS_PER_EDGE , mesh % no_of_bdryedges ) )
 
-            mesh % no_of_nodes = NetCDF_getDimension( Setup % mesh_file , "no_of_nodes" )            
+!           Gather variables
+            call NetCDF_getVariable( Setup % mesh_file , "points_of_quads" , mesh % points_of_elements )
+            call NetCDF_getVariable( Setup % mesh_file , "points" , mesh % points_coords)
+            call NetCDF_getVariable( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges )
+!           Gather curved boundaries
+            curved_bdryedges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
 
-            print*, "no_of_nodes: " , mesh % no_of_nodes
+            if (curved_bdryedges .ne. -1) then
 
+               mesh % curvilinear = .true.
+               allocate( mesh % no_of_curvedbdryedges )
+               allocate( mesh % curves_polynomialorder )
 
+               mesh % no_of_curvedbdryedges = curved_bdryedges
+               mesh % curves_polynomialorder = NetCDF_getDimension( Setup % mesh_file , "Np1" ) - 1
+   
+            end if
+       
+            call mesh % Compute
+            call mesh % Describe
 
          end subroutine ReadMesh
+
+         subroutine DescribeMesh( mesh )
+            use Setup_class
+            use Headers
+            implicit none
+            class(MeshFile_t)          :: mesh
+
+            write(STD_OUT,'(/)')
+            call Section_Header("Reading mesh")
+            write(STD_OUT,'(/)')
+
+            call SubSection_Header('Mesh file "' // trim(Setup % mesh_file) //'"')
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of nodes: ", mesh % no_of_nodes ,"."
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of elements: ", mesh % no_of_elements ,"."
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of edges: ", mesh % no_of_edges ,"."
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of boundary edges: ", mesh % no_of_bdryedges ,"."
+
+            if (mesh % curvilinear) then
+
+               write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of curved edges: ", mesh % no_of_curvedbdryedges ,"."
+               write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Curved edges polynomial order: ", mesh % curves_polynomialorder ,"."
+               
+            end if
+
+         end subroutine DescribeMesh
+
+         subroutine ComputeMesh( self )
+            implicit none
+            class(MeshFile_t)          :: self
+!           ----------------------------------------
+            integer                    :: eID
+            integer                    :: currentFace
+            integer                    :: previousFaces
+
+!
+!           -------------------------------
+!              Compute number of edges
+!           -------------------------------
+!
+            if (mod(self % no_of_elements + self % no_of_bdryedges , 2) .eq. 0) then
+               self % no_of_edges = (self % no_of_elements + self % no_of_bdryedges) / 2 
+               allocate( self % points_of_edges ( POINTS_PER_EDGE , self % no_of_edges ) ) 
+               allocate( self % edges_of_elements( POINTS_PER_QUAD , self % no_of_edges ) )
+               allocate( self % elements_of_edges( POINTS_PER_EDGE , self % no_of_elements ) )
+            else
+               print*, "The mesh is not consistent."
+               stop "Stopped."
+            end if
+!
+!           -------------------------------
+!              Obtain faces      
+!           -------------------------------
+!
+            currentFace = 0
+            do eID = 1 , self % no_of_elements
+             
+            end do
+
+         end subroutine ComputeMesh
+!
+!        ****************************************************************************************
+!           Auxiliar subroutines
+!        ****************************************************************************************
+!
+         function facesEqual(face1 , face2) result(val)
+            implicit none
+            integer, dimension(2), intent(in)      :: face1
+            integer, dimension(2), intent(in)      :: face2
+            logical                                :: val
+
+            if (((face1(1) .eq. face2(1)) .and. (face1(2) .eq. face2(2))) .or. (((face1(2) .eq. face2(1)) .and. (face1(1) .eq. face2(2))))) then
+               val = .true.      ! They are equal
+            else
+               val = .false.     ! They are not equal
+            end if
+
+         end function facesEqual
 
 !         subroutine NewMesh(mesh,K,T)
 !             use Setup_class

@@ -64,7 +64,7 @@ MODULE Headers
            DO i = 1 , siz - LEN_TRIM(title)
               dotted_title = TRIM(dotted_title) // '.'
            END DO   
-           WRITE(*,'(10X,A,A)') "\\\\ ",TRIM(dotted_title)
+           WRITE(*,'(5X,A,A)') "\\\\ ",TRIM(dotted_title)
            FLUSH(6)
            
         END SUBROUTINE Section_header

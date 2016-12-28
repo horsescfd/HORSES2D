@@ -1,12 +1,13 @@
 module nodeClass
      use SMConstants
+     use Physics
      implicit none
 
      private
      public Node_t , Node_p
 
      type node_t
-          real(kind=RP)   :: x
+          real(kind=RP), dimension(NDIM)   :: x
           integer         :: ID
           contains
               procedure :: construct => constructNode
@@ -19,9 +20,9 @@ module nodeClass
      contains
           subroutine constructNode(self , x , ID)
               implicit none
-              class(Node_t)  :: self
-              integer        :: ID
-              real(kind=RP)  :: x
+              class(Node_t)                  :: self
+              integer                        :: ID
+              real(kind=RP), dimension(NDIM) :: x
 !
 !             **************
 !             Construct node 

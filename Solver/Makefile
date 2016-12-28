@@ -24,9 +24,9 @@ NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms
 InterpolationAndDerivatives: SMConstants
 LegendreAlgorithms: SMConstants
 Mesh1D: FaceClass NodeClass Element1DClass MeshFile Setup InitialConditions Storage
-MeshFile: Setup SMConstants NetCDF_Interface
+MeshFile: Setup SMConstants NetCDF_Interface Headers
 Element1DClass: NodeClass SMConstants Physics NodesAndWeightsClass Storage
-NodeClass: SMConstants
+NodeClass: SMConstants Physics
 FaceClass: Element1DClass NodeClass SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup Mesh1D MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
 Headers: SMConstants
@@ -91,9 +91,17 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC)
 
 all: 	$(EXECUTABLE)
 
-run: 	
+runcyl: 	
 	./libraries.gfortran
 	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE))		
+
+runvortex: 	
+	./libraries.gfortran
+	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE))		
+
+runchan: 	
+	./libraries.gfortran
+	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE))		
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \

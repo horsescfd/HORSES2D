@@ -96,7 +96,7 @@ module mesh1DClass
 !            ================
 !
              do node = 1 , self % no_of_nodes
-                 call self % nodes(node) % construct( ID = node, x = meshFile % nodes(node))
+                 call self % nodes(node) % construct( ID = node, x = meshFile % points_coords(1:NDIM,node))
              end do
 !
 !            ===================
@@ -104,8 +104,8 @@ module mesh1DClass
 !            ===================
 !
              do eID = 1 , self % no_of_elements
-                 leftNode => self % nodes( meshFile % elements(eID , LEFT) )
-                 rightNode => self % nodes ( meshFile % elements( eID , RIGHT) )
+                 leftNode => self % nodes( meshFile % points_of_elements(eID , LEFT) )
+                 rightNode => self % nodes ( meshFile % points_of_elements( eID , RIGHT) )
                  address = ( meshFile % cumulativePolynomialOrder(eID-1) + eID-1 ) * NEC + 1 
                  call self % elements(eID) % construct( eID , leftNode , rightNode , leftNode % ID , rightNode % ID , &
                         meshFile % polynomialOrder(eID) , Setup % nodes , spA , address  , storage , spI)  

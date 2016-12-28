@@ -102,7 +102,8 @@ module Element1DClass
 !            **********
 !
              self % x = 0.5_RP * (self % nodes(LEFT) % n % x + self % nodes(RIGHT) % n % x + self % Interp % xi * (self % nodes(RIGHT) % n % x - self % nodes(LEFT) % n % x ) )
-             self % hdiv2 = 0.5_RP*abs(self % nodes(LEFT) % n % x - self % nodes(RIGHT) % n % x)
+            ! TODO
+             self % hdiv2 = 0.0_RP !0.5_RP*abs(self % nodes(LEFT) % n % x - self % nodes(RIGHT) % n % x)
              
 #ifdef ADVECTION 
              allocate( self % A(0:N) )
