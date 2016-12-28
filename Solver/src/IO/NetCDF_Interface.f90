@@ -5,6 +5,9 @@ module NetCDFInterface
    private
    public NetCDF_getDimension , NetCDF_getVariable
 
+
+   integer, parameter            :: STR_LEN_NETCDF    = 128
+
    interface NetCDF_getDimension
       module procedure getDimension
    end interface NetCDF_getDimension
@@ -14,15 +17,40 @@ module NetCDFInterface
    end interface NetCDF_getVariable
 
    contains
-      function getDimension(file , name) result(dim)
+      function getDimension(file , name) result(value)
          implicit none
          character(len=*), intent(in)                 :: file
          character(len=*), intent(in)                 :: name
-         integer                                      :: dim
+         integer                                      :: value
 !        ------------------------------------------------------------------
          integer                                      :: ncid
+         integer                                      :: ndim , nvar
+         integer                                      :: dim
+         integer                                      :: currentVal
+         character(len=STR_LEN_NETCDF)                :: currentName
          
-!         call check
+!        Default value
+         value = -1   
+
+!        Open file
+         call check ( NF90_OPEN( trim(file) , NF90_NOWRITE , ncid ) )
+
+!        Inquire number of variables and dimensions
+         call check ( NF90_INQUIRE( ncid , ndim , nvar ) )
+
+!        Search for the desired dimension
+         do dim = 1 , ndim
+            call check ( NF90_INQUIRE_DIMENSION( ncid , dim , currentName , currentVal ) )
+      
+            if (trim(currentName) .eq. trim(name)) then
+               value = currentVal
+               return
+            end if
+
+         end do
+
+!        Close file
+         call check ( NF90_CLOSE( ncid ) )
 
       end function getDimension
       subroutine getDouble1DVariable( file , name , var )
