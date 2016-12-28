@@ -6,24 +6,30 @@ module MeshFileClass
     integer, parameter           :: POINTS_PER_QUAD = 4
 
     type MeshFile_t
-       integer                    :: no_of_nodes
-       integer                    :: no_of_elements
-       integer                    :: no_of_edges
-       integer                    :: no_of_bdryedges
-       integer, allocatable       :: no_of_curvedbdryedges
-       integer, allocatable       :: curves_polynomialorder
-       logical                    :: curvilinear = .false.
-       real(kind=RP), allocatable :: points_coords(:,:)
-       integer, allocatable       :: points_of_elements(:,:)
-       integer, allocatable       :: points_of_edges(:,:)
-       integer, allocatable       :: points_of_bdryedges(:,:)
-       integer, allocatable       :: elements_of_edges(:,:)
-       integer, allocatable       :: bdrymarker_of_edges(:)
-       integer, allocatable       :: curved_bdryedges(:)
-       integer, allocatable       :: edgeMarker(:)
-       integer, allocatable       :: polynomialOrder(:)
-       integer, allocatable       :: cumulativePolynomialOrder(:)
-       real(Kind=RP), allocatable :: curvilinear_coords(:,:,:)
+       integer                    :: no_of_nodes                        ! Number of nodes in the mesh
+       integer                    :: no_of_elements                     ! Number of elements in the mesh
+       integer                    :: no_of_edges                        ! Number of edges in the mesh
+       integer                    :: no_of_bdryedges                    ! Number of edges which are boundaries
+       integer                    :: no_of_markers                      ! Number of markers
+       integer, allocatable       :: no_of_curvedbdryedges              ! Number of boundary edges which are curved
+       integer, allocatable       :: curves_polynomialorder             ! Curved edges polynomial order
+       logical                    :: curvilinear = .false.              ! Flag for curvilinear/not curvilinear meshes
+       real(kind=RP), allocatable :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
+       integer, allocatable       :: points_of_elements(:,:)            ! Array with the points for each element ( # , element )
+       integer, allocatable       :: points_of_bdryedges(:,:)           ! Array with the points for each boundary edge ( # , edge ). Do not use it.
+       integer, allocatable       :: elements_of_edges(:,:)             ! Array with the elements which share an edge ( #el , edge ) (-1 for the second point if boundary)
+       integer, allocatable       :: curved_bdryedges(:)                ! Which edges are curved   
+       integer, allocatable       :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
+       real(kind=RP), allocatable :: curvilinear_coords(:,:,:)          ! Array with the coordinates of curvilinear edges (x/y , 0:N , edge)
+!
+!      --------------------------------------------------------------------------------------------------------------------------------------
+!              Intermediate arrays 
+!      --------------------------------------------------------------------------------------------------------------------------------------
+!
+       integer, allocatable       :: points_of_edges(:,:)               ! Intermediate Array with the points for each edge ( # , edge ) 
+       integer, allocatable       :: bdrymarker_of_edges(:)             ! Intermediate variable. Do not use it.
+       integer, allocatable       :: polynomialOrder(:)                 ! TODO: these two must dissapear
+       integer, allocatable       :: cumulativePolynomialOrder(:)       !     TODO
        contains
          procedure      :: Read => ReadMesh
          procedure      :: Compute => ComputeMesh
@@ -61,10 +67,10 @@ module MeshFileClass
             allocate ( mesh % bdrymarker_of_edges ( mesh % no_of_bdryedges                   )  ) 
 
 !           Gather variables
-            call NetCDF_getVariable( Setup % mesh_file , "points_of_quads" , mesh % points_of_elements )
-            call NetCDF_getVariable( Setup % mesh_file , "points" , mesh % points_coords)
-            call NetCDF_getVariable( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges )
-            call NetCDF_getVariable( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
+            call NetCDF_getVariable ( Setup % mesh_file , "points_of_quads"     , mesh % points_of_elements  ) 
+            call NetCDF_getVariable ( Setup % mesh_file , "points"              , mesh % points_coords       ) 
+            call NetCDF_getVariable ( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges ) 
+            call NetCDF_getVariable ( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
 
 !           Gather curved boundaries
             curved_bdryedges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
@@ -78,10 +84,10 @@ module MeshFileClass
                mesh % curvilinear = .true.
 !              ===========================
 !
-               allocate( mesh % no_of_curvedbdryedges )
-               allocate( mesh % curves_polynomialorder )
+               allocate ( mesh % no_of_curvedbdryedges  ) 
+               allocate ( mesh % curves_polynomialorder ) 
 
-               mesh % no_of_curvedbdryedges = curved_bdryedges
+               mesh % no_of_curvedbdryedges  = curved_bdryedges
                mesh % curves_polynomialorder = NetCDF_getDimension( Setup % mesh_file , "Np1" ) - 1
 !
 !              --------------------------------------
@@ -257,6 +263,11 @@ module MeshFileClass
                   do bdryface = 1 , mesh % no_of_bdryedges
                      if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then
                         mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)
+!        
+!                       --------------------------------------------------------------------
+!                          Change the edge in curved_bdryedges to the new numeration
+!                       --------------------------------------------------------------------
+                        call changeEntry( array = mesh % curved_bdryedges , old = bdryface , new = edge )
                         exit
                      end if
                   end do
@@ -264,7 +275,6 @@ module MeshFileClass
                else
                   mesh % edgeMarker (edge) = FACE_INTERIOR
                end if
-               print*, mesh % edgeMarker(edge)                              
             end do
 
          end subroutine computeFaceMarkers
@@ -287,6 +297,26 @@ module MeshFileClass
             end if
 
          end function facesEqual
+
+         subroutine changeEntry( array , old , new ) 
+            implicit none
+            integer,    intent(inout)        :: array(:)
+            integer,    intent(in)           :: old
+            integer,    intent(in)           :: new
+!           -----------------------------------------------
+            integer                          :: pos
+
+            do pos = 1 , size(array)
+
+               if (array(pos) .eq. old) then
+                  array(pos) = new
+                  return
+               end if
+
+            end do
+
+
+         end subroutine
 
 !         subroutine NewMesh(mesh,K,T)
 !             use Setup_class
