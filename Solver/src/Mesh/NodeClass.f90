@@ -2,6 +2,8 @@ module nodeClass
      use SMConstants
      implicit none
 
+     private
+     public Node_t , Node_p
 
      type node_t
           real(kind=RP)   :: x

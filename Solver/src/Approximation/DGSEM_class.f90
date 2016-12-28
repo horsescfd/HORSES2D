@@ -72,6 +72,7 @@
          
         subroutine DGSEM_construct( self ,  meshFile )
             use Setup_class
+            use FaceClass
             implicit none
             class(DGSEM_t)                                               :: self
             class(MeshFile_t)                                            :: meshFile

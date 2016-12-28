@@ -1,4 +1,5 @@
 module DGSpatialDiscretizationMethods
+   use SMConstants
    use Mesh1DClass
    use DGSecondOrderMethods
    use DGFirstOrderMethods

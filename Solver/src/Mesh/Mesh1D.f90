@@ -6,6 +6,9 @@ module mesh1DClass
     use Element1DClass
     use Storage_module
 
+    private
+    public Mesh1D_t , InitializeMesh
+
     type Mesh1D_t
          integer                               :: no_of_nodes
          integer                               :: no_of_faces
@@ -52,6 +55,7 @@ module mesh1DClass
              use MeshFileClass
              use Setup_class
              use Physics
+             use NodesAndWeights_Class
              implicit none
              class(Mesh1D_t)                   :: self
              class(MeshFile_t)                 :: meshFile

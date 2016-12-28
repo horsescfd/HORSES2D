@@ -5,6 +5,9 @@ module Element1DClass
     use Storage_module
     implicit none
 
+    private
+    public  Element1D_t , Element1D_p 
+
     type Element1D_t
         class(Node_p) , pointer           :: nodes(:)
         integer                           :: ID

@@ -108,6 +108,7 @@ module DGTimeIntegrator
       end subroutine TimeIntegrator_Integrate
       
       subroutine TimeIntegrator_Display( self, mesh, Storage )
+         use Storage_module
          implicit none  
          class(TimeIntegrator_t)          :: self
          class(Mesh1D_t)                  :: mesh

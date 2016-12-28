@@ -4,6 +4,8 @@ module FaceClass
     use Element1DClass
     implicit none
 
+    private
+    public  Face_t , BdryFace_t , Face_p , constructFace
 !
 !   *****************
 !   Face_t definition
@@ -29,8 +31,6 @@ module FaceClass
         class(Face_t),   pointer           :: f
     end type Face_p
 
-    private
-    public  Face_t , BdryFace_t , Face_p , constructFace
 
 !
 !   ========
