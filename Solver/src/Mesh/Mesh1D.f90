@@ -74,9 +74,9 @@ module mesh1DClass
 !            Set dimensions
 !            **************
 !
-             self % no_of_nodes = meshFile % Npoints
-             self % no_of_faces = meshFile % Npoints
-             self % no_of_elements = meshFile % Nelements
+             self % no_of_nodes = meshFile % no_of_nodes
+             self % no_of_faces = meshFile % no_of_nodes
+             self % no_of_elements = meshFile % no_of_elements
 !
 !            *********************
 !            Allocate the contents

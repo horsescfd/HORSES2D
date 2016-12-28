@@ -86,14 +86,14 @@
 !           Allocate memory for solution and its derivative
 !           ***********************************************
 !
-            allocate( self % Storage % Q( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
-            allocate( self % Storage % QDot( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
-            allocate( self % Storage % dQ( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
+            allocate( self % Storage % Q( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
+            allocate( self % Storage % QDot( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
+            allocate( self % Storage % dQ( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
                 
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
-               allocate( self % Storage % F( NEC * (meshFile % Nelements*(setup % integration_points + 1))))
+               allocate( self % Storage % F( NEC * (meshFile % no_of_elements*(setup % integration_points + 1))))
             else
-               allocate( self % Storage % F( NEC * (meshFile % cumulativePolynomialOrder(meshFile % Nelements) + meshFile % Nelements) ) )
+               allocate( self % Storage % F( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
             end if
 
 !

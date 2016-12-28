@@ -39,6 +39,7 @@ program main
 !   Read the mesh
 !   **********************************************************
 !
+    call meshFile % read
 !   
 !   ****************************************
 !   Initialize and build the DGSem structure

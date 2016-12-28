@@ -24,7 +24,7 @@ NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms
 InterpolationAndDerivatives: SMConstants
 LegendreAlgorithms: SMConstants
 Mesh1D: FaceClass NodeClass Element1DClass MeshFile Setup InitialConditions Storage
-MeshFile: Setup SMConstants
+MeshFile: Setup SMConstants NetCDF_Interface
 Element1DClass: NodeClass SMConstants Physics NodesAndWeightsClass Storage
 NodeClass: SMConstants
 FaceClass: Element1DClass NodeClass SMConstants
@@ -90,7 +90,10 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC)
 	
 
 all: 	$(EXECUTABLE)
-	
+
+run: 	
+	./libraries.gfortran
+	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE))		
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
