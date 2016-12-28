@@ -12,6 +12,13 @@ module Setup_class
 !              Reference quantities
 !       -------------------------------------------------------------------------------------
 !
+        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/Cylinder.HiOMesh"
+        character(len=STR_LEN_SETUP) :: bdry_file                 = "./CASE/Cylinder.bmap"
+!
+!       -------------------------------------------------------------------------------------
+!              Reference quantities
+!       -------------------------------------------------------------------------------------
+!
         real(kind=RP)                :: pressure_ref              = 101325.0_RP
         real(kind=RP)                :: temperature_ref           = 273.15_RP 
         real(kind=RP)                :: reynolds_length           = 1.0_RP

@@ -30,6 +30,7 @@ NodeClass: SMConstants
 FaceClass: Element1DClass NodeClass SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup Mesh1D MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
 Headers: SMConstants
+NetCDF_Interface: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants
