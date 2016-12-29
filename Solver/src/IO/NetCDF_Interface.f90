@@ -14,6 +14,7 @@ module NetCDFInterface
    
    interface NetCDF_getVariable
       module procedure getDouble1DVariable , getInteger1DVariable , getDouble2DVariable , getInteger2DVariable
+      module procedure getCharacterVariable
    end interface NetCDF_getVariable
 
    contains
@@ -305,6 +306,54 @@ module NetCDFInterface
          end do
 
       end subroutine getInteger2DVariable
+
+      subroutine getCharacterVariable( file , name , var )
+         implicit none
+         character(len=*), intent(in)                    :: file
+         character(len=*), intent(in)                    :: name
+         character(len=*), intent(inout)                 :: var
+!        -------------------------------------------------------------------------
+         integer                                       :: ncid
+         integer                                       :: nDim , nVar
+         integer                                       :: varID
+         integer, dimension(2)                         :: dimids
+         integer                                       :: varType , varNDim
+         integer, dimension(1)                         :: dims
+         character(len=STR_LEN_NETCDF)                 :: varName , dimName
+!
+!        Initialize variable
+         var = ""
+
+!        Open file
+         call check ( NF90_OPEN( trim(file) , NF90_NOWRITE , ncid ) )
+
+!        Inquire number of variables and dimensions
+         call check ( NF90_INQUIRE( ncid , ndim , nvar ) )
+
+!
+!        **************************************
+!           Gather the variable dimensions
+!        **************************************
+!
+         do varID = 1 , nVar
+            call check ( NF90_INQUIRE_VARIABLE ( ncid , varID , varName , varType , varNDim , dimids ) ) 
+
+            if (trim(varName) .eq. trim(name) ) then        ! Is the desired variable
+
+!              Obtain dimensions
+               call check ( NF90_INQUIRE_DIMENSION( ncid , dimids(1) , dimName ,  dims(1) ) )
+              
+               call check ( NF90_GET_VAR( ncid , varID , var(1:dims(1)) ) )
+
+               return
+
+             end if
+
+         end do
+
+      end subroutine getCharacterVariable
+
+ 
 !
 !     *************************************
 !        Check subroutine

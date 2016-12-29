@@ -51,8 +51,10 @@ module MeshFileClass
             implicit none
             class(MeshFile_t)          :: mesh
 !           -----------------------------------------------------
-            integer                    :: curved_bdryedges
-            real(kind=RP), allocatable :: aux(:,:)
+            integer                     :: curved_bdryedges
+            integer                     :: marker
+            real(kind=RP), allocatable  :: aux(:,:)
+            character(len=STR_LEN_MESH) :: name
 !
 !           ----------------------------------------------------------------------------------------------------
 !                 Read nodes, elements, and boundary edges
@@ -76,6 +78,11 @@ module MeshFileClass
             call NetCDF_getVariable ( Setup % mesh_file , "points"              , mesh % points_coords       ) 
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges ) 
             call NetCDF_getVariable ( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
+
+            do marker = 1 , mesh % no_of_markers
+               write(name , '(A,I0)') "marker" , marker
+               call NetCDF_getVariable ( Setup % mesh_file , trim(name) , mesh % bdryzones_names(marker) )
+            end do
 
 !           Gather curved boundaries
             curved_bdryedges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
@@ -142,6 +149,7 @@ module MeshFileClass
             implicit none
             class(MeshFile_t)          :: mesh
             character(len=STR_LEN_MESH)   :: auxstr
+            integer                    :: zone
 
             write(STD_OUT,'(/)')
             call Section_Header("Reading mesh")
@@ -164,6 +172,10 @@ module MeshFileClass
             write(STD_OUT,'(/)')
             write(auxstr , '(I0,A)') mesh % no_of_markers , " boundary zones found"
             call SubSection_Header( trim(auxstr) )
+
+            do zone = 1 , mesh % no_of_markers
+               write(STD_OUT , '(30X,A,A,I0,A,A20)') "-> ", "Zone ",zone,": ", trim(mesh % bdryzones_names(zone))
+            end do
 
          end subroutine DescribeMesh
 
