@@ -19,28 +19,28 @@ GLOB_MACROS ?= -D_USE_LAPACK
 
 Physics: PhysicsNS Headers
 PhysicsNS: Setup SMConstants Headers
-DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup Mesh1D MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions
+DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
 InterpolationAndDerivatives: SMConstants
 LegendreAlgorithms: SMConstants
-Mesh1D: FaceClass NodeClass Element1DClass MeshFile Setup InitialConditions Storage
+QuadMesh: FaceClass NodeClass Element1DClass MeshFile Setup InitialConditions Storage
 MeshFile: Setup SMConstants NetCDF_Interface Headers
 Element1DClass: NodeClass SMConstants Physics NodesAndWeightsClass Storage
 NodeClass: SMConstants Physics
 FaceClass: Element1DClass NodeClass SMConstants
-Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup Mesh1D MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
+Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
 Headers: SMConstants
 NetCDF_Interface: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants
-DGSpatialDiscretizationMethods: SMConstants Physics Mesh1D DGSecondOrderMethods MatrixOperations DGFirstOrderMethods
+DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGSecondOrderMethods MatrixOperations DGFirstOrderMethods
 DGSecondOrderMethods: SMConstants Physics Setup FaceClass Element1DClass MatrixOperations NodesAndWeightsClass
 DGFirstOrderMethods: SMConstants Physics Setup FaceClass Element1DClass MatrixOperations NodesAndWeightsClass
 DGBoundaryConditions: SMConstants FaceClass Setup Physics
 LAPackInterface: SMConstants
-FileWriting: SMConstants Physics Mesh1D Setup
-DGTimeIntegrator: SMConstants Mesh1D DGSpatialDiscretizationMethods Setup FileWriting
+FileWriting: SMConstants Physics QuadMesh Setup
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
