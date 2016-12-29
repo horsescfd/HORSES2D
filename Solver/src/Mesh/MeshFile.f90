@@ -258,24 +258,35 @@ module MeshFileClass
             allocate ( mesh % edgeMarker ( mesh % no_of_edges ) )
 
             do edge = 1 , mesh % no_of_edges
+
                if (mesh % elements_of_edges(2 , edge) .eq. -1) then   ! Is a boundary face
 
                   do bdryface = 1 , mesh % no_of_bdryedges
+
                      if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then
                         mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)
+
+                        if (mesh % curvilinear) then
 !        
-!                       --------------------------------------------------------------------
-!                          Change the edge in curved_bdryedges to the new numeration
-!                       --------------------------------------------------------------------
-                        call changeEntry( array = mesh % curved_bdryedges , old = bdryface , new = edge )
+!                          --------------------------------------------------------------------
+!                             Change the edge in curved_bdryedges to the new numeration
+!                          --------------------------------------------------------------------
+!     
+                           call changeEntry( array = mesh % curved_bdryedges , old = bdryface , new = edge )
+                        end if
+
                         exit
+
                      end if
+
                   end do
 
                else
                   mesh % edgeMarker (edge) = FACE_INTERIOR
                end if
+               print*, mesh % edgeMarker(edge)
             end do
+
 
          end subroutine computeFaceMarkers
 
