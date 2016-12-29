@@ -260,31 +260,41 @@ module MeshFileClass
             do edge = 1 , mesh % no_of_edges
 
                if (mesh % elements_of_edges(2 , edge) .eq. -1) then   ! Is a boundary face
-
+!
+!                 ------------------------------------------------------------------------
+!                    Search for a similar face in boundary faces structure
+!                 ------------------------------------------------------------------------
+!
                   do bdryface = 1 , mesh % no_of_bdryedges
 
-                     if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then
-                        mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)
-
-                        if (mesh % curvilinear) then
+                     if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then    ! Face found
+!
+!                       ----------------------------------------------
+!                          Assign the correct marker to the face
+!                       ----------------------------------------------
+!
+                        mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)        
 !        
-!                          --------------------------------------------------------------------
-!                             Change the edge in curved_bdryedges to the new numeration
-!                          --------------------------------------------------------------------
-!     
+!                       --------------------------------------------------------------------
+!                       Change the edge in curved_bdryedges to the new numeration
+! 
+                        if (mesh % curvilinear) then
                            call changeEntry( array = mesh % curved_bdryedges , old = bdryface , new = edge )
                         end if
+!                       --------------------------------------------------------------------
 
-                        exit
+                        exit        ! Exit from bdryface loop if the face is found
 
                      end if
 
                   end do
 
-               else
+               else     ! Otherwise, an interior face is considered
+
                   mesh % edgeMarker (edge) = FACE_INTERIOR
+
                end if
-               print*, mesh % edgeMarker(edge)
+
             end do
 
 
