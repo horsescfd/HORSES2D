@@ -12,8 +12,8 @@ module Setup_class
 !              Reference quantities
 !       -------------------------------------------------------------------------------------
 !
-!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/Cylinder.HiOMesh"            ! Cylinder
-        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/2d_quad_grid2.HiOMesh"       ! Channel
+        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/Cylinder.HiOMesh"            ! Cylinder
+!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/2d_quad_grid2.HiOMesh"       ! Channel
 !        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/rp_2d_quad_grid0.HiOMesh"    ! Vortex
         character(len=STR_LEN_SETUP) :: bdry_file                 = "./CASE/Cylinder.bmap"
 !

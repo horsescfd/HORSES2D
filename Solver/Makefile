@@ -92,15 +92,12 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC)
 all: 	$(EXECUTABLE)
 
 runcyl: 	
-	./libraries.gfortran
 	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE))		
 
 runvortex: 	
-	./libraries.gfortran
 	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE))		
 
 runchan: 	
-	./libraries.gfortran
 	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE))		
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 

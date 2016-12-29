@@ -5,22 +5,25 @@ module MeshFileClass
     integer, parameter           :: POINTS_PER_EDGE = 2
     integer, parameter           :: POINTS_PER_QUAD = 4
 
+    integer, parameter           :: STR_LEN_MESH = 128
     type MeshFile_t
-       integer                    :: no_of_nodes                        ! Number of nodes in the mesh
-       integer                    :: no_of_elements                     ! Number of elements in the mesh
-       integer                    :: no_of_edges                        ! Number of edges in the mesh
-       integer                    :: no_of_bdryedges                    ! Number of edges which are boundaries
-       integer                    :: no_of_markers                      ! Number of markers
-       integer, allocatable       :: no_of_curvedbdryedges              ! Number of boundary edges which are curved
-       integer, allocatable       :: curves_polynomialorder             ! Curved edges polynomial order
-       logical                    :: curvilinear = .false.              ! Flag for curvilinear/not curvilinear meshes
-       real(kind=RP), allocatable :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
-       integer, allocatable       :: points_of_elements(:,:)            ! Array with the points for each element ( # , element )
-       integer, allocatable       :: points_of_bdryedges(:,:)           ! Array with the points for each boundary edge ( # , edge ). Do not use it.
-       integer, allocatable       :: elements_of_edges(:,:)             ! Array with the elements which share an edge ( #el , edge ) (-1 for the second point if boundary)
-       integer, allocatable       :: curved_bdryedges(:)                ! Which edges are curved   
-       integer, allocatable       :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
-       real(kind=RP), allocatable :: curvilinear_coords(:,:,:)          ! Array with the coordinates of curvilinear edges (x/y , 0:N , edge)
+       logical                                  :: curvilinear = .false.              ! Flag for curvilinear/not curvilinear meshes
+       integer                                  :: no_of_nodes                        ! Number of nodes in the mesh
+       integer                                  :: no_of_elements                     ! Number of elements in the mesh
+       integer                                  :: no_of_edges                        ! Number of edges in the mesh
+       integer                                  :: no_of_bdryedges                    ! Number of edges which are boundaries
+       integer                                  :: no_of_markers                      ! Number of markers
+       integer, allocatable                     :: no_of_curvedbdryedges              ! Number of boundary edges which are curved
+       integer, allocatable                     :: curves_polynomialorder             ! Curved edges polynomial order
+       integer, allocatable                     :: points_of_elements(:,:)            ! Array with the points for each element ( # , element )
+       integer, allocatable                     :: points_of_bdryedges(:,:)           ! Array with the points for each boundary edge ( # , edge ). Do not use it.
+       integer, allocatable                     :: elements_of_edges(:,:)             ! Array with the elements which share an edge ( #el , edge ) 
+!                                                                                                           (-1 for the second point if boundary)
+       integer, allocatable                     :: curved_bdryedges(:)                ! Which edges are curved
+       integer, allocatable                     :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
+       real(kind=RP), allocatable               :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
+       real(kind=RP), allocatable               :: curvilinear_coords(:,:,:)          ! Array with the coordinates of curvilinear edges (x/y , 0:N , edge)
+       character(len=STR_LEN_MESH), allocatable :: bdryzones_names(:)
 !
 !      --------------------------------------------------------------------------------------------------------------------------------------
 !              Intermediate arrays 
@@ -56,15 +59,17 @@ module MeshFileClass
 !           ----------------------------------------------------------------------------------------------------
 !
 !           Dimensions
-            mesh % no_of_nodes     = NetCDF_getDimension( Setup % mesh_file , "no_of_nodes" )
-            mesh % no_of_elements  = NetCDF_getDimension( Setup % mesh_file , "no_of_elements" )
-            mesh % no_of_bdryedges = NetCDF_getDimension( Setup % mesh_file , "no_of_bdryedges" )
-   
+            mesh % no_of_nodes     = NetCDF_getDimension ( Setup % mesh_file , "no_of_nodes"     ) 
+            mesh % no_of_elements  = NetCDF_getDimension ( Setup % mesh_file , "no_of_elements"  ) 
+            mesh % no_of_bdryedges = NetCDF_getDimension ( Setup % mesh_file , "no_of_bdryedges" ) 
+            mesh % no_of_markers   = NetCDF_getDimension ( Setup % mesh_file , "no_of_markers"   ) 
+
 !           Allocate variables
             allocate ( mesh % points_of_elements  ( POINTS_PER_QUAD , mesh % no_of_elements  )  ) 
             allocate ( mesh % points_coords       ( NDIM , mesh % no_of_nodes                )  ) 
             allocate ( mesh % points_of_bdryedges ( POINTS_PER_EDGE , mesh % no_of_bdryedges )  ) 
             allocate ( mesh % bdrymarker_of_edges ( mesh % no_of_bdryedges                   )  ) 
+            allocate ( mesh % bdryzones_names     ( mesh % no_of_markers                     )  )
 
 !           Gather variables
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_quads"     , mesh % points_of_elements  ) 
@@ -136,6 +141,7 @@ module MeshFileClass
             use Headers
             implicit none
             class(MeshFile_t)          :: mesh
+            character(len=STR_LEN_MESH)   :: auxstr
 
             write(STD_OUT,'(/)')
             call Section_Header("Reading mesh")
@@ -153,6 +159,11 @@ module MeshFileClass
                write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Curved edges polynomial order: ", mesh % curves_polynomialorder ,"."
                
             end if
+
+
+            write(STD_OUT,'(/)')
+            write(auxstr , '(I0,A)') mesh % no_of_markers , " boundary zones found"
+            call SubSection_Header( trim(auxstr) )
 
          end subroutine DescribeMesh
 
