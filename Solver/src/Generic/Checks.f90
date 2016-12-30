@@ -4,7 +4,7 @@ subroutine checks( sem )
     use SMConstants
     use Physics
     use NodesAndWeights_class
-    use Mesh1DClass
+    use QuadMeshClass
     use MeshFileClass
     use DGSpatialDiscretizationMethods
     use Storage_module
@@ -17,7 +17,7 @@ subroutine checks( sem )
             use SMConstants
             use Physics
             use NodesAndWeights_class
-            use Mesh1DClass
+            use QuadMeshClass
             use MeshFileClass
             use DGSpatialDiscretizationMethods
             use Storage_module
@@ -126,7 +126,7 @@ subroutine checks( sem )
     use SMConstants
     use Physics
     use NodesAndWeights_class
-    use Mesh1DClass
+    use QuadMeshClass
     use MeshFileClass
     use Setup_class
     use DGSpatialDiscretizationMethods

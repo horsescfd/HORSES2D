@@ -2,7 +2,7 @@ module FileWriting
    use SMConstants
    use NetCDF
    use Physics
-   use Mesh1DClass
+   use QuadMeshClass
    use Storage_module
    use Setup_class
 
@@ -34,7 +34,7 @@ module FileWriting
       subroutine FileWriting_SaveSolution( mesh , fileName , t , Storage)
          use NetCDF
          implicit none
-         class(Mesh1D_t)  :: mesh
+         class(QuadMesh_t)  :: mesh
          character(len=*) :: fileName
          real(kind=RP)    :: t
          class(Storage_t) :: Storage
@@ -62,7 +62,7 @@ module FileWriting
          use Physics
          implicit none
          class(NetCDF_File)                     :: self 
-         class(Mesh1D_t)                        :: mesh
+         class(QuadMesh_t)                        :: mesh
          class(Dimension_t), pointer            :: current
 !
 !        **********************************************

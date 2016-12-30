@@ -1,4 +1,4 @@
-module mesh1DClass
+module QuadMeshClass
     use SMConstants
     use NodeClass
     use FaceClass
@@ -7,22 +7,22 @@ module mesh1DClass
     use Storage_module
 
     private
-    public Mesh1D_t , InitializeMesh
+    public QuadMesh_t , InitializeMesh
 
-    type Mesh1D_t
+    type QuadMesh_t
          integer                               :: no_of_nodes
-         integer                               :: no_of_faces
+         integer                               :: no_of_edges
          integer                               :: no_of_elements
          class(Node_t)      , pointer          :: nodes(:)
-         class(Face_p)      , pointer          :: faces(:)           ! This is an array to pointers
-         class(Element1D_t) , pointer          :: elements(:)
+         class(Face_p)      , pointer          :: edges(:)           ! This is an array to pointers
+         class(QuadElement_t) , pointer          :: elements(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
          contains
              procedure  :: ConstructFromFile
              procedure  :: SetInitialCondition
              procedure  :: ApplyInitialCondition
              procedure  :: SetStorage => Mesh1D_SetStorage
-    end type Mesh1D_t
+    end type QuadMesh_t
 
     interface InitializeMesh
           module procedure newMesh
@@ -31,14 +31,14 @@ module mesh1DClass
     contains
          function newMesh()
              implicit none
-             type(Mesh1D_t)    :: newMesh
+             type(QuadMesh_t)    :: newMesh
 !
 !            **************************
 !            Set to zero all dimensions            
 !            **************************
 !
              newMesh % no_of_nodes = 0
-             newMesh % no_of_faces = 0
+             newMesh % no_of_edges = 0
              newMesh % no_of_elements = 0
 !
 !            **************************
@@ -46,7 +46,7 @@ module mesh1DClass
 !            **************************
 !
              newMesh % nodes    => NULL()
-             newMesh % faces    => NULL()
+             newMesh % edges    => NULL()
              newMesh % elements => NULL() 
 
          end function newMesh
@@ -57,7 +57,7 @@ module mesh1DClass
              use Physics
              use NodesAndWeights_Class
              implicit none
-             class(Mesh1D_t)                   :: self
+             class(QuadMesh_t)                 :: self
              class(MeshFile_t)                 :: meshFile
              class(NodalStorage)               :: spA
              class(Storage_t)                  :: storage
@@ -65,17 +65,17 @@ module mesh1DClass
 !
              integer                :: address
              integer                :: node
-             integer                :: face
+             integer                :: edge
              integer                :: eID
              class(Node_t), pointer :: leftNode , rightNode
-             class(Element1D_t), pointer :: leftE , rightE , bdryE
+             class(QuadElement_t), pointer :: leftE , rightE , bdryE
 !
 !            **************
 !            Set dimensions
 !            **************
 !
              self % no_of_nodes = meshFile % no_of_nodes
-             self % no_of_faces = meshFile % no_of_nodes
+             self % no_of_edges = meshFile % no_of_nodes
              self % no_of_elements = meshFile % no_of_elements
 !
 !            *********************
@@ -83,7 +83,7 @@ module mesh1DClass
 !            *********************
 !
              allocate( self % nodes ( self % no_of_nodes ) )
-             allocate( self % faces ( self % no_of_faces ) ) 
+             allocate( self % edges ( self % no_of_edges ) ) 
              allocate( self % elements ( self % no_of_elements ) )
 !
 !            ***********************
@@ -113,25 +113,25 @@ module mesh1DClass
 
 !
 !            ================
-!            Construct faces
+!            Construct edges
 !            ================
 !
-             do face = 1 , self % no_of_faces
+             do edge = 1 , self % no_of_edges
         
                     
-                 if (face .eq. 1) then
-                    bdryE => self % elements(face)
+                 if (edge .eq. 1) then
+                    bdryE => self % elements(edge)
                     rightE => NULL()
-                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % edgeMarker(face) , bdryElement = bdryE)
-                    self % faces(face) % f % n = -1.0_RP       ! So that the normal points towards the outside of the domain
-                 elseif (face .eq. self % no_of_faces) then
-                    bdryE => self % elements(face-1)
+                    call constructFace ( self=self % edges(edge) % f , ID=edge , faceType=meshFile % edgeMarker(edge) , bdryElement = bdryE)
+                    self % edges(edge) % f % n = -1.0_RP       ! So that the normal points towards the outside of the domain
+                 elseif (edge .eq. self % no_of_edges) then
+                    bdryE => self % elements(edge-1)
                     rightE => NULL()
-                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % edgeMarker(face) , bdryElement = bdryE )
+                    call constructFace ( self=self % edges(edge) % f , ID=edge , faceType=meshFile % edgeMarker(edge) , bdryElement = bdryE )
                  else
-                    leftE => self % elements(face-1)
-                    rightE => self % elements(face)
-                    call constructFace ( self=self % faces(face) % f , ID=face , faceType=meshFile % edgeMarker(face) , leftElement = leftE , rightElement = rightE)
+                    leftE => self % elements(edge-1)
+                    rightE => self % elements(edge)
+                    call constructFace ( self=self % edges(edge) % f , ID=edge , faceType=meshFile % edgeMarker(edge) , leftElement = leftE , rightElement = rightE)
                  end if
              end do
 
@@ -140,7 +140,7 @@ module mesh1DClass
          subroutine setInitialCondition( self )
              use InitialConditions
              implicit none
-             class(Mesh1D_t)        :: self
+             class(QuadMesh_t)        :: self
 !
 !            *******************************
 !            Get Initial Condition procedure              
@@ -160,7 +160,7 @@ module mesh1DClass
           subroutine applyInitialCondition( self )
              use Physics
              implicit none
-             class(Mesh1D_t)        :: self
+             class(QuadMesh_t)        :: self
              integer                :: eID , j
 
              do eID = 1 , self % no_of_elements
@@ -174,7 +174,7 @@ module mesh1DClass
           subroutine Mesh1D_SetStorage( self , storage )
             use Storage_module
             implicit none
-            class(Mesh1D_t)             :: self
+            class(QuadMesh_t)             :: self
             class(Storage_t)            :: storage
             integer                     :: eID
 
@@ -184,4 +184,4 @@ module mesh1DClass
 
          end subroutine Mesh1D_SetStorage
             
-end module mesh1DClass
+end module QuadMeshClass

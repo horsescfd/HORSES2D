@@ -154,7 +154,7 @@ module DGSecondOrderMethods
       subroutine BaseClass_QDotVolumeLoop( self , element ) 
          implicit none
          class(SecondOrderMethod_t)          :: self
-         class(Element1D_t)                       :: element
+         class(QuadElement_t)                       :: element
 !
 !        ------------------------------------
 !           The base class does nothing.
@@ -166,7 +166,7 @@ module DGSecondOrderMethods
          use MatrixOperations
          implicit none
          class(SecondOrderMethod_t)          :: self
-         class(Element1D_t)                       :: element
+         class(QuadElement_t)                       :: element
 !
 !        ---------------------------------------
 !           The base class consists in a 
@@ -262,7 +262,7 @@ module DGSecondOrderMethods
      subroutine IP_dQVolumeLoop( self , element )
          implicit none
          class(IPMethod_t)             :: self
-         class(Element1D_t)            :: element
+         class(QuadElement_t)            :: element
 
          element % dQ = element % dQ + matmul( element % Interp % MD , element % Q )
 
@@ -354,7 +354,7 @@ module DGSecondOrderMethods
          use MatrixOperations
          implicit none
          class(IPMethod_t)             :: self
-         class(Element1D_t)                 :: element
+         class(QuadElement_t)                 :: element
 !
 !        -------------------------------------------
 !           Computes the IP volume loop:
@@ -426,7 +426,7 @@ module DGSecondOrderMethods
          use MatrixOperations
          implicit none
          class(BR1Method_t)             :: self
-         class(Element1D_t)                 :: element
+         class(QuadElement_t)                 :: element
 
 !        Perform the matrix multiplication
          associate( QDot => element % QDot , &

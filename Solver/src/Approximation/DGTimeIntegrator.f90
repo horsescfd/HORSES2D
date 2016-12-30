@@ -1,7 +1,7 @@
 module DGTimeIntegrator
    use SMConstants
    use DGSpatialDiscretizationMethods
-   use Mesh1DClass
+   use QuadMeshClass
    use FileWriting
 
    private
@@ -35,9 +35,9 @@ module DGTimeIntegrator
       subroutine TimeScheme( mesh , dt , Storage)
          use SMConstants
          use Storage_module
-         use Mesh1DClass
+         use QuadMeshClass
          implicit none
-         class(Mesh1D_t)      :: mesh
+         class(QuadMesh_t)      :: mesh
          real(kind=RP)        :: dt
          class(Storage_t)     :: Storage
       end subroutine TimeScheme
@@ -87,7 +87,7 @@ module DGTimeIntegrator
          use Storage_module
          implicit none
          class(TimeIntegrator_t)          :: self
-         class(Mesh1D_t)                  :: mesh
+         class(QuadMesh_t)                  :: mesh
          class(Storage_t)                 :: Storage
          integer                          :: iter
 
@@ -111,7 +111,7 @@ module DGTimeIntegrator
          use Storage_module
          implicit none  
          class(TimeIntegrator_t)          :: self
-         class(Mesh1D_t)                  :: mesh
+         class(QuadMesh_t)                  :: mesh
          class(Storage_t)                 :: Storage
          integer, parameter               :: ShowLabels = 10
 
@@ -140,7 +140,7 @@ module DGTimeIntegrator
    
       subroutine TimeIntegrator_Autosave( self , mesh )
          class(TimeIntegrator_t)          :: self 
-         class(Mesh1D_t)                  :: mesh
+         class(QuadMesh_t)                  :: mesh
 
       end subroutine TimeIntegrator_Autosave
 !
@@ -151,7 +151,7 @@ module DGTimeIntegrator
       subroutine TimeIntegrator_ExplicitEuler( mesh , dt , Storage)
          use Storage_module
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
          real(kind=RP)           :: dt
          class(Storage_t)        :: Storage
 !

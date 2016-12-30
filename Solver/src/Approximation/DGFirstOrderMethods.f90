@@ -164,7 +164,7 @@ module DGFirstOrderMethods
       subroutine BaseClass_QDotVolumeLoop( self , element )
          implicit none
          class(FirstOrderMethod_t)          :: self
-         class(Element1D_t)                       :: element
+         class(QuadElement_t)                       :: element
 !
 !        ---------------------------
 !        The base class does nothing
@@ -176,7 +176,7 @@ module DGFirstOrderMethods
          use MatrixOperations
          implicit none
          class(StandardDG_t)     :: self
-         class(Element1D_t)      :: element
+         class(QuadElement_t)      :: element
 !
 !        -------------------------------------------
 !           The standard DG computes the volume
@@ -202,7 +202,7 @@ module DGFirstOrderMethods
          use MatrixOperations
          implicit none
          class(OverIntegrationDG_t)          :: self
-         class(Element1D_t)                  :: element
+         class(QuadElement_t)                  :: element
 !
 !        ---------------------------------------------------
 !           The Over-Integration DG computes the volume
@@ -227,7 +227,7 @@ module DGFirstOrderMethods
       subroutine SplitDG_QDotVolumeLoop( self , element )
          implicit none
          class(SplitDG_t)        :: self
-         class(Element1D_t)      :: element
+         class(QuadElement_t)      :: element
 
       end subroutine SplitDG_QDotVolumeLoop
 

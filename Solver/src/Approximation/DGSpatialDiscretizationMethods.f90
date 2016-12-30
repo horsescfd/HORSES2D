@@ -1,6 +1,6 @@
 module DGSpatialDiscretizationMethods
    use SMConstants
-   use Mesh1DClass
+   use QuadMeshClass
    use DGSecondOrderMethods
    use DGFirstOrderMethods
    implicit none
@@ -32,7 +32,7 @@ module DGSpatialDiscretizationMethods
 !         derivative QDot
 !        ------------------------------------------+
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
 !
 !        -------------------------------------------
 !           Prepare the mesh for a new iteration
@@ -58,7 +58,7 @@ module DGSpatialDiscretizationMethods
 !                    to boundaries.
 !        --------------------------------------------------
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
 !
 !        ----------
 !        Reset QDot
@@ -89,7 +89,7 @@ module DGSpatialDiscretizationMethods
 !
       subroutine DGSpatial_resetQDot( mesh )
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
          integer                 :: eID
 
          do eID = 1 , mesh % no_of_elements
@@ -102,7 +102,7 @@ module DGSpatialDiscretizationMethods
          use Physics
          use MatrixOperations
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
          character(len=*)        :: var
          integer                 :: eID
          real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ, (0:N , NEC)
@@ -128,7 +128,7 @@ module DGSpatialDiscretizationMethods
          use Element1DClass
          use FaceClass
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
 !        --------------------------------
          integer                 :: eID
          integer                 :: fID 
@@ -154,8 +154,8 @@ module DGSpatialDiscretizationMethods
 !        Perform face loop
 !        -----------------
 !
-         do fID = 1 , mesh % no_of_faces
-            call SecondOrderMethod % dQFaceLoop(mesh % faces(fID) % f)
+         do fID = 1 , mesh % no_of_edges
+            call SecondOrderMethod % dQFaceLoop(mesh % edges(fID) % f)
          end do
             
 !
@@ -172,7 +172,7 @@ module DGSpatialDiscretizationMethods
          use Element1DClass
          use FaceClass
          implicit none
-         class(Mesh1D_t)         :: mesh
+         class(QuadMesh_t)         :: mesh
 !        -------------------------------
          integer                 :: eID
          integer                 :: fID
@@ -187,9 +187,9 @@ module DGSpatialDiscretizationMethods
 !
 !        Face loops
 !
-         do fID = 1 , mesh % no_of_faces
-            call FirstOrderMethod % QDotFaceLoop( mesh % faces(fID) % f )
-            call SecondOrderMethod % QDotFaceLoop( mesh % faces(fID) % f)
+         do fID = 1 , mesh % no_of_edges
+            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
+            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
          end do
 !
 !        -------------------------------------------

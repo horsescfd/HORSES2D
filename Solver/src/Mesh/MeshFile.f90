@@ -6,6 +6,7 @@ module MeshFileClass
     integer, parameter           :: POINTS_PER_QUAD = 4
 
     integer, parameter           :: STR_LEN_MESH = 128
+
     type MeshFile_t
        logical                                  :: curvilinear = .false.              ! Flag for curvilinear/not curvilinear meshes
        integer                                  :: no_of_nodes                        ! Number of nodes in the mesh
@@ -18,6 +19,8 @@ module MeshFileClass
        integer, allocatable                     :: points_of_elements(:,:)            ! Array with the points for each element ( # , element )
        integer, allocatable                     :: points_of_bdryedges(:,:)           ! Array with the points for each boundary edge ( # , edge ). Do not use it.
        integer, allocatable                     :: elements_of_edges(:,:)             ! Array with the elements which share an edge ( #el , edge ) 
+       integer, allocatable                     :: polynomialOrder(:)               
+       integer, allocatable                     :: cumulativePolynomialOrder(:) 
 !                                                                                                           (-1 for the second point if boundary)
        integer, allocatable                     :: curved_bdryedges(:)                ! Which edges are curved
        integer, allocatable                     :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
@@ -31,8 +34,6 @@ module MeshFileClass
 !
        integer, allocatable       :: points_of_edges(:,:)               ! Intermediate Array with the points for each edge ( # , edge ) 
        integer, allocatable       :: bdrymarker_of_edges(:)             ! Intermediate variable. Do not use it.
-       integer, allocatable       :: polynomialOrder(:)                 ! TODO: these two must dissapear
-       integer, allocatable       :: cumulativePolynomialOrder(:)       !     TODO
        contains
          procedure      :: Read => ReadMesh
          procedure      :: Compute => ComputeMesh
@@ -53,6 +54,7 @@ module MeshFileClass
 !           -----------------------------------------------------
             integer                     :: curved_bdryedges
             integer                     :: marker
+            integer                     :: el
             real(kind=RP), allocatable  :: aux(:,:)
             character(len=STR_LEN_MESH) :: name
 !
@@ -72,12 +74,14 @@ module MeshFileClass
             allocate ( mesh % points_of_bdryedges ( POINTS_PER_EDGE , mesh % no_of_bdryedges )  ) 
             allocate ( mesh % bdrymarker_of_edges ( mesh % no_of_bdryedges                   )  ) 
             allocate ( mesh % bdryzones_names     ( mesh % no_of_markers                     )  )
+            allocate ( mesh % polynomialOrder     ( mesh % no_of_elements                    )  )
 
 !           Gather variables
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_quads"     , mesh % points_of_elements  ) 
             call NetCDF_getVariable ( Setup % mesh_file , "points"              , mesh % points_coords       ) 
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges ) 
             call NetCDF_getVariable ( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
+            mesh % polynomialOrder  = Setup % N
 
             do marker = 1 , mesh % no_of_markers
                write(name , '(A,I0)') "marker" , marker
@@ -133,6 +137,22 @@ module MeshFileClass
                deallocate( aux )
             
             end if
+!       
+!            ---------------------------------------------------------
+!                   The cumulativePolynomialOrder is an array that 
+!               goes from 0 to Nelements, and such that
+!                   cumul..(0) = 0
+!                   cumul..(i) = (polynomialOrder(i)+1)**2.0 + cumul...(i-1)
+!           ---------------------------------------------------------
+             allocate(mesh % cumulativePolynomialOrder( 0 : mesh % no_of_elements ) )
+
+            mesh % cumulativePolynomialOrder(0) = 0
+      
+            do el = 1 , mesh % no_of_elements
+               mesh % cumulativePolynomialOrder(el)   = mesh % cumulativePolynomialOrder(el-1) + (mesh % polynomialOrder(el) + 1) * (mesh % polynomialOrder(el) + 1)
+            end do
+
+
 !
 !           ***************************
 !              Compute the mesh       

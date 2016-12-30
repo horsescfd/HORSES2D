@@ -23,11 +23,11 @@ DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DG
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
 InterpolationAndDerivatives: SMConstants
 LegendreAlgorithms: SMConstants
-QuadMesh: FaceClass NodeClass Element1DClass MeshFile Setup InitialConditions Storage
+QuadMesh: FaceClass NodeClass QuadElement MeshFile Setup InitialConditions Storage
 MeshFile: Setup SMConstants NetCDF_Interface Headers
-Element1DClass: NodeClass SMConstants Physics NodesAndWeightsClass Storage
+QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage
 NodeClass: SMConstants Physics
-FaceClass: Element1DClass NodeClass SMConstants
+FaceClass: QuadElement NodeClass SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
 Headers: SMConstants
 NetCDF_Interface: SMConstants
@@ -35,8 +35,8 @@ ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants
 DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGSecondOrderMethods MatrixOperations DGFirstOrderMethods
-DGSecondOrderMethods: SMConstants Physics Setup FaceClass Element1DClass MatrixOperations NodesAndWeightsClass
-DGFirstOrderMethods: SMConstants Physics Setup FaceClass Element1DClass MatrixOperations NodesAndWeightsClass
+DGSecondOrderMethods: SMConstants Physics Setup FaceClass QuadElement MatrixOperations NodesAndWeightsClass
+DGFirstOrderMethods: SMConstants Physics Setup FaceClass QuadElement MatrixOperations NodesAndWeightsClass
 DGBoundaryConditions: SMConstants FaceClass Setup Physics
 LAPackInterface: SMConstants
 FileWriting: SMConstants Physics QuadMesh Setup

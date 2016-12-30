@@ -20,7 +20,7 @@
     use SMConstants
     use Physics
     use NodesAndWeights_class
-    use Mesh1DClass
+    use QuadMeshClass
     use MeshFileClass
     use DGSpatialDiscretizationMethods
     use DGTimeIntegrator
@@ -33,7 +33,7 @@
 !   type DEFINITION
 !   ---------------
     type DGSEM_t
-        type(Mesh1D_t)                      :: mesh
+        type(QuadMesh_t)                    :: mesh
         type(NodalStorage)                  :: spA             ! Interpolation nodes and weights structure
         class(NodesAndWeights_t), pointer   :: spI => NULL()   ! Integration nodes and weights structure
         type(Storage_t)                     :: Storage
@@ -86,14 +86,14 @@
 !           Allocate memory for solution and its derivative
 !           ***********************************************
 !
-            allocate( self % Storage % Q( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
-            allocate( self % Storage % QDot( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
-            allocate( self % Storage % dQ( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
+            allocate ( self % Storage % Q    ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
+            allocate ( self % Storage % QDot ( NDIM * NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % dQ   ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
                 
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
-               allocate( self % Storage % F( NEC * (meshFile % no_of_elements*(setup % integration_points + 1))))
+               allocate ( self % Storage % F   ( NDIM * NEC * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )
             else
-               allocate( self % Storage % F( NEC * (meshFile % cumulativePolynomialOrder(meshFile % no_of_elements) + meshFile % no_of_elements) ) )
+               allocate ( self % Storage % F   ( NDIM * NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             end if
 
 !
@@ -128,9 +128,9 @@
             allocate ( self % BoundaryConditions( size(Setup % markers) ) )
 
             do iBC = 1 , size(Setup % markers)
-               do fID = 1 , self % mesh % no_of_faces
-                  if ( self % mesh % faces(fID) % f % faceType .eq. Setup % markers(iBC) ) then 
-                     face => self % mesh % faces(fID) % f
+               do fID = 1 , self % mesh % no_of_edges
+                  if ( self % mesh % edges(fID) % f % faceType .eq. Setup % markers(iBC) ) then 
+                     face => self % mesh % edges(fID) % f
                      exit
                   end if
                end do

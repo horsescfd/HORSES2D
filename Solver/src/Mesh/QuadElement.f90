@@ -6,9 +6,9 @@ module Element1DClass
     implicit none
 
     private
-    public  Element1D_t , Element1D_p 
+    public  QuadElement_t , QuadElement_p
 
-    type Element1D_t
+    type QuadElement_t
         class(Node_p) , pointer           :: nodes(:)
         integer                           :: ID
         integer       , dimension(2)      :: facesID
@@ -20,23 +20,20 @@ module Element1DClass
         real(kind=RP), allocatable        :: x(:)
         real(kind=RP), pointer            :: Q(:,:) , QDot(:,:) , F(:,:) , dQ(:,:)
         real(kind=RP), pointer            :: Qb(:,:), dQb(:,:)
-#ifdef ADVECTION ! -------------------------------------------------------------
-        real(kind=RP), allocatable        :: A(:)
-#endif ! -----------------------------------------------------------------------
         contains
             procedure   :: construct => constructElement
-            procedure   :: SetStorage => Element1D_SetStorage
-    end type Element1D_t
+            procedure   :: SetStorage => QuadElement_SetStorage
+    end type QuadElement_t
 
-    type Element1D_p
-        type(Element1D_t),  pointer     :: e
-    end type Element1D_p
+    type QuadElement_p
+        type(QuadElement_t),  pointer     :: e
+    end type QuadElement_p
 
     contains
         subroutine ConstructElement(self , ID , leftNode , rightNode , faceLeftID , faceRightID , N , nodes , spA , address , storage , spI)
              use Setup_class
              use Physics
-             class(Element1D_t)                :: self
+             class(QuadElement_t)                :: self
              integer                           :: ID
              class(Node_t), pointer            :: leftNode
              class(Node_t), pointer            :: rightNode
@@ -105,18 +102,15 @@ module Element1DClass
             ! TODO
              self % hdiv2 = 0.0_RP !0.5_RP*abs(self % nodes(LEFT) % n % x - self % nodes(RIGHT) % n % x)
              
-#ifdef ADVECTION 
-             allocate( self % A(0:N) )
-#endif
         end subroutine ConstructElement
 
-        subroutine Element1D_SetStorage( self , storage )
+        subroutine QuadElement_SetStorage( self , storage )
             use SMConstants
             use Storage_module
             use Setup_class
             use Physics
             implicit none
-            class(Element1D_t)      :: self
+            class(QuadElement_t)      :: self
             class(Storage_t)        :: storage
         
 
@@ -137,7 +131,7 @@ module Element1DClass
 
             end associate
 
-        end subroutine Element1D_SetStorage
+        end subroutine QuadElement_SetStorage
             
 
 

@@ -13,7 +13,7 @@ module FaceClass
 !
     type Face_t
         integer                           :: ID
-        class(Element1D_p), pointer       :: elements(:)
+        class(QuadElement_p), pointer       :: elements(:)
         real(kind=RP)                     :: n = 1.0_RP       ! Normal direction, this is to prepare for 2/3D
         type(Node_t), pointer             :: node             !      In this case, it points from LEFT towards RIGHT in interior faces
         real(kind=RP)                     :: F                !      and towards the outside of the domain in boundary faces
@@ -42,9 +42,9 @@ module FaceClass
             class(Face_t), pointer      :: self
             integer                     :: ID
             integer                     :: faceType
-            class(Element1D_t), pointer, optional :: leftElement
-            class(Element1D_t), pointer, optional :: rightElement   
-            class(Element1D_t), pointer, optional :: bdryElement 
+            class(QuadElement_t), pointer, optional :: leftElement
+            class(QuadElement_t), pointer, optional :: rightElement   
+            class(QuadElement_t), pointer, optional :: bdryElement 
             
 !
 !           It needs to be allocated
