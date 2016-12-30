@@ -15,7 +15,7 @@ module QuadMeshClass
          integer                               :: no_of_elements
          class(Node_t)      , pointer          :: nodes(:)
          class(Face_p)      , pointer          :: edges(:)           ! This is an array to pointers
-         class(QuadElement_t) , pointer          :: elements(:)
+         class(QuadElement_t) , pointer        :: elements(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
          contains
              procedure  :: ConstructFromFile
@@ -50,19 +50,24 @@ module QuadMeshClass
              newMesh % elements => NULL() 
 
          end function newMesh
-
+!
+!        *********************************************************************
+!           Subroutine to build the mesh structure from the MeshFile_t
+!              Class already loaded.
+!        *********************************************************************
+!
          subroutine constructFromFile( self , meshFile , spA , Storage , spI)
              use MeshFileClass
              use Setup_class
              use Physics
              use NodesAndWeights_Class
              implicit none
-             class(QuadMesh_t)                 :: self
-             class(MeshFile_t)                 :: meshFile
-             class(NodalStorage)               :: spA
-             class(Storage_t)                  :: storage
-             class(NodesAndWeights_t), pointer :: spI
-!
+             class(QuadMesh_t),                 intent (out)                 :: self
+             class(MeshFile_t),                 intent (in )                 :: meshFile
+             class(NodalStorage),               intent (in )                 :: spA
+             class(Storage_t),                  intent (in )                 :: storage
+             class(NodesAndWeights_t), pointer, intent (in )                 :: spI
+!            ----------------------------------------------------------------------
              integer                :: address
              integer                :: node
              integer                :: edge

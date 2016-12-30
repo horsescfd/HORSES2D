@@ -9,7 +9,7 @@ MODULE Headers
 
         PRIVATE
         PUBLIC  Main_header, Ruler_Reset, Ruler_Update, Section_Header
-        PUBLIC  SubSection_Header
+        PUBLIC  SubSection_Header, Ruler_Header_Reset , Ruler_Header_Update
 !
 !       ========
         CONTAINS
@@ -84,6 +84,37 @@ MODULE Headers
            
         END SUBROUTINE SubSection_header
    
+        SUBROUTINE Ruler_Header_Reset(title , loop_in)
+                IMPLICIT NONE
+                character(len=*)          :: title
+                integer                   :: loop_in
+                integer, parameter        :: siz = 86
+      
+                iter          = 0
+                loop_size     = loop_in
+                no_of_points  = siz - len_trim(title)
+                prev          = 0
+               
+                write(* , '(/,5X,A,A)',advance = "no") "\\\\ ",trim(title)
+                flush(STD_OUT)
+
+        end subroutine Ruler_Header_Reset
+
+
+        SUBROUTINE Ruler_Header_Update()
+                IMPLICIT NONE
+        
+                iter = iter + 1     
+                IF(FLOOR(1.0d0*iter*no_of_points/loop_size) .GT. prev) THEN
+                        WRITE(*,'(A)',ADVANCE='NO') '.'
+                        prev = FLOOR(1.0d0*iter*no_of_points/loop_size)
+                        FLUSH(STD_OUT)
+                END IF
+                
+                
+        END SUBROUTINE Ruler_Header_Update
+                
+ 
         SUBROUTINE Ruler_Reset(title,n_in,loop_in)
                 IMPLICIT NONE
                 CHARACTER(LEN=*)  :: title
