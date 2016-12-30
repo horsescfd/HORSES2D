@@ -33,7 +33,7 @@
 !     *************************************************************************
 !
            integer       , parameter          :: FORWARD         = 1
-           integer       , parameter          :: BACKWARDS       = -1
+           integer       , parameter          :: BACKWARD       = -1
            integer       , parameter          :: LEFT            = 2
            integer       , parameter          :: RIGHT           = 1
            real(kind=RP) , parameter          :: PI              =  3.141592653589793238462643_RP
