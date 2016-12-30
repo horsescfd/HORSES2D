@@ -172,6 +172,8 @@ module MeshFileClass
             integer                    :: zone
 
             write(STD_OUT,'(/)')
+            call Section_Header("Reading mesh")
+            write(STD_OUT,'(/)')
 
             call SubSection_Header('Mesh file "' // trim(Setup % mesh_file) //'"')
             write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of nodes: ", mesh % no_of_nodes ,"."
@@ -240,7 +242,6 @@ module MeshFileClass
 !              Obtain faces      
 !           -------------------------------
 !
-            call Ruler_Header_Reset("Reading mesh" , mesh % no_of_elements)
             currentFace = 1
             do eID = 1 , mesh % no_of_elements
                do elFace = 1 , POINTS_PER_QUAD
@@ -282,7 +283,6 @@ module MeshFileClass
                      currentFace = currentFace + 1
                   end if
                end do
-               call Ruler_Header_Update()
             end do
          
          end subroutine computeFaces

@@ -94,9 +94,10 @@ MODULE Headers
                 loop_size     = loop_in
                 no_of_points  = siz - len_trim(title)
                 prev          = 0
-               
+                
+                call flush(STD_OUT)               
                 write(* , '(/,5X,A,A)',advance = "no") "\\\\ ",trim(title)
-                flush(STD_OUT)
+                call flush(STD_OUT)               
 
         end subroutine Ruler_Header_Reset
 
@@ -108,7 +109,7 @@ MODULE Headers
                 IF(FLOOR(1.0d0*iter*no_of_points/loop_size) .GT. prev) THEN
                         WRITE(*,'(A)',ADVANCE='NO') '.'
                         prev = FLOOR(1.0d0*iter*no_of_points/loop_size)
-                        FLUSH(STD_OUT)
+                        call flush(6)
                 END IF
                 
                 
