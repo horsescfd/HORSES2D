@@ -260,6 +260,11 @@ module QuadElementClass
                    
                   self % f % x = reshape((/( self % f % nodes(1) % n % X * (1.0_RP - self % f % spA % xi(p)) + self % f % nodes(2) % n % X * self % f % spA % xi(p) , &
                                                 p = 0 , self % f % spA % N)/),(/ NDIM , self % f % spA % N + 1 /) )
+               type is (StraightBdryEdge_t)
+
+                  self % f % x = reshape((/( self % f % nodes(1) % n % X * (1.0_RP - self % f % spA % xi(p)) + self % f % nodes(2) % n % X * self % f % spA % xi(p) , &
+                                                p = 0 , self % f % spA % N)/),(/ NDIM , self % f % spA % N + 1 /) )
+
                class default
             end select 
 
@@ -355,6 +360,9 @@ module QuadElementClass
             auxnode => self % nodes(1) % n
             self % nodes(1) % n => self % nodes(2) % n
             self % nodes(2) % n => auxnode
+
+!           Invert coordinates
+            self % X(1:NDIM , 0:self % spA % N) = self % X(1:NDIM , self % spA % N : 0 : -1)
 
          end subroutine Edge_Invert
 
