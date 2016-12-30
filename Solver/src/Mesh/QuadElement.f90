@@ -8,7 +8,6 @@ module Element1DClass
 
     private
     public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t
-    public  ConstructQuadsAndEdges
 !
 !   ********************************************************************************
 !           Quad Element derived type definition
@@ -20,9 +19,10 @@ module Element1DClass
         integer                           :: edgesID(EDGES_PER_QUAD)
         integer                           :: address
         !       Storage
-        class(NodesAndWeights_t), pointer :: Interp
+        class(NodesAndWeights_t), pointer :: spA
         class(NodesAndWeights_t), pointer :: spI
-        real(kind=RP), allocatable        :: x(:)
+        real(kind=RP), allocatable        :: x(:,:,:)
+        real(kind=RP), allocatable        :: jac(:,:)
         real(kind=RP), pointer            :: Q(:,:,:) , QDot(:,:,:) , F(:,:,:,:) , dQ(:,:,:,:)
     end type QuadElement_t
 
@@ -65,20 +65,20 @@ module Element1DClass
 
 
     contains
-        subroutine ConstructQuadsAndEdges
 
-
-        end subroutine ConstructQuadsAndEdges
-
-        subroutine ConstructElement(self , ID , nodes , faceLeftID , faceRightID , N , nodes , spA , address , storage , spI)
+        subroutine ConstructElement(self , ID , nodes , N  , spA , address , storage , spI)
+!            -----------------------------------------------------------------------------------
+!                 This function performs the following operations to "self" element:
+!                       -> Assign its ID and storage address position
+!                       -> Assign its nodal storage spA, and spI if proceeds
+!                       -> Assign its nodes
+!                       -> Assign its storage
+!            -----------------------------------------------------------------------------------
              use Setup_class
              use Physics
              class(QuadElement_t)              :: self
              integer                           :: ID
-             class(Node_p)                     :: nodes
-             integer                           :: faceLeftID
-             integer                           :: faceRightID
-             integer                           :: nodes
+             class(Node_p)                     :: nodes(:)
              integer                           :: N
              class(NodalStorage)               :: spA
              integer                           :: address
@@ -88,25 +88,17 @@ module Element1DClass
              self % ID = ID
 !
 !            ************************
-!            Point to neighbour nodes
+!            Point to nodes
 !            ************************
 !
              self % nodes = nodes
-!
-!            **************
-!            Get faces data
-!            **************
-!
-             self % edgesID(LEFT) = faceLeftID
-             self % edgesID(RIGHT) = faceRightID
-             self % edgesID(TOP)   = fa
 !
 !            *********************
 !            Get NodalStorage data       
 !            *********************
 !
-             call spA % add( N , nodes , self % Interp )
-             self % spI => spI
+             call spA % add( N , nodes , self % spA )
+             self % spI => spI                              ! Points to NULL if Standard DG is chosen
 !
 !            ************
 !            Linking data
@@ -128,17 +120,8 @@ module Element1DClass
 !            Allocate data
 !            *************
 !
-             allocate ( self % x   ( NDIM  , 0:N                   )  ) 
-             allocate ( self % Qb  ( NEC   , EDGES_PER_QUAD        )  ) 
-             allocate ( self % dQb ( NEC   , EDGES_PER_QUAD , NDIM )  ) 
-!
-!            **********
-!            Set values
-!            **********
-!
-             self % x = 0.5_RP * (self % nodes(LEFT) % n % x + self % nodes(RIGHT) % n % x + self % Interp % xi * (self % nodes(RIGHT) % n % x - self % nodes(LEFT) % n % x ) )
-            ! TODO
-             self % hdiv2 = 0.0_RP !0.5_RP*abs(self % nodes(LEFT) % n % x - self % nodes(RIGHT) % n % x)
+             allocate ( self % x        ( NDIM  , 0:N , 0:N )  ) 
+             allocate ( self % jacobian (         0:N , 0:N )  ) 
              
         end subroutine ConstructElement
 
@@ -152,20 +135,18 @@ module Element1DClass
             class(Storage_t)        :: storage
         
 
-            associate ( N => self % Interp % N )
-             self % Q    ( 0:N , 1:NEC )  => storage % Q    ( self % address: ) 
-             self % QDot ( 0:N , 1:NEC )  => storage % QDot ( self % address: ) 
+            associate ( N => self % spA % N )
+             self % Q    ( 0:N , 0:N , 1:NEC )  => storage % Q    ( self % address: ) 
+             self % QDot ( 0:N , 0:N , 1:NEC )  => storage % QDot ( self % address: ) 
 
              if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
-               self % F (0: self % spI % N , 1:NEC) => storage % F ( (self % ID -1)*(self % spI % N+1) + 1: self % ID * ( self % spI % N + 1) )
+               self % F (0: self % spI % N , 0: self % spI % N , 1:NEC , 1:NDIM) => storage % F ( (self % ID -1)*(self % spI % N+1)**2*NEC*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NEC*NDIM )
 
              else
 
-               self % F    ( 0:N , 1:NEC )  => storage % F    ( self % address: ) 
+               self % F    ( 0:N , 0:N , 1:NEC , 1:NDIM )  => storage % F ( self % address: ) 
 
              end if
-
-             self % dQ   ( 0:N , 1:NEC )  => storage % dQ   ( self % address: ) 
 
             end associate
 

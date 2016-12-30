@@ -126,6 +126,7 @@ module QuadMeshClass
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              integer                                  :: nodesID(POINTS_PER_QUAD)
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
+!            ----------------------------------------------------------------------
 !
 !
 !            ===================
