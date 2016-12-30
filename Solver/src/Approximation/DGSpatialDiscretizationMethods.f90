@@ -108,25 +108,24 @@ module DGSpatialDiscretizationMethods
          real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ, (0:N , NEC)
          real(kind=RP), pointer  :: variable_b(:,:)     ! will point to both Qb or dQb, (2 , NEC)
 !
-         do eID = 1 , mesh % no_of_elements
-            select case (trim(var))
-               case ("Q")
-                  variable => mesh % elements(eID) % Q
-                  variable_b => mesh % elements(eID) % Qb
-               case ("dQ")
-                  variable => mesh % elements(eID) % dQ
-                  variable_b => mesh % elements(eID) % dQb
-            end select
-
-            call TransposeMat_x_NormalMat( variable , mesh % elements(eID) % Interp % lb , variable_b )
-
-         end do
+!         do eID = 1 , mesh % no_of_elements
+!            select case (trim(var))
+!               case ("Q")
+!                  variable => mesh % elements(eID) % Q
+!                  variable_b => mesh % elements(eID) % Qb
+!               case ("dQ")
+!                  variable => mesh % elements(eID) % dQ
+!                  variable_b => mesh % elements(eID) % dQb
+!            end select
+!
+!            call TransposeMat_x_NormalMat( variable , mesh % elements(eID) % Interp % lb , variable_b )
+!
+!         end do
             
       end subroutine DGSpatial_interpolateToBoundaries
 
       subroutine DGSpatial_computeGradient( mesh )
-         use Element1DClass
-         use FaceClass
+         use QuadElementClass
          implicit none
          class(QuadMesh_t)         :: mesh
 !        --------------------------------
@@ -138,39 +137,38 @@ module DGSpatialDiscretizationMethods
 !        Set gradients to zero
 !        ---------------------
 !
-         do eID = 1 , mesh % no_of_elements
-            mesh % elements(eID) % dQ = 0.0_RP
-         end do 
-!
-!        -------------------
-!        Perform volume loop
-!        -------------------
-!
-         do eID = 1 , mesh % no_of_elements
-            call SecondOrderMethod % dQVolumeLoop(mesh % elements(eID))
-         end do
-!
-!        -----------------
-!        Perform face loop
-!        -----------------
-!
-         do fID = 1 , mesh % no_of_edges
-            call SecondOrderMethod % dQFaceLoop(mesh % edges(fID) % f)
-         end do
-            
-!
-!        ----------------------------------------
-!        Perform the scaling with the mass matrix
-!        ----------------------------------------
-!
-         do eID = 1 , mesh % no_of_elements
-               mesh % elements(eID) % dQ = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % dQ)
-         end do
+!         do eID = 1 , mesh % no_of_elements
+!            mesh % elements(eID) % dQ = 0.0_RP
+!         end do 
+!!
+!!        -------------------
+!!        Perform volume loop
+!!        -------------------
+!!
+!         do eID = 1 , mesh % no_of_elements
+!            call SecondOrderMethod % dQVolumeLoop(mesh % elements(eID))
+!         end do
+!!
+!!        -----------------
+!!        Perform face loop
+!!        -----------------
+!!
+!         do fID = 1 , mesh % no_of_edges
+!            call SecondOrderMethod % dQFaceLoop(mesh % edges(fID) % f)
+!         end do
+!            
+!!
+!!        ----------------------------------------
+!!        Perform the scaling with the mass matrix
+!!        ----------------------------------------
+!!
+!         do eID = 1 , mesh % no_of_elements
+!               mesh % elements(eID) % dQ = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % dQ)
+!         end do
       end subroutine DGSpatial_computeGradient
 
       subroutine DGSpatial_computeQDot( mesh )
-         use Element1DClass
-         use FaceClass
+         use QuadElementClass
          implicit none
          class(QuadMesh_t)         :: mesh
 !        -------------------------------
@@ -180,26 +178,26 @@ module DGSpatialDiscretizationMethods
 !
 !        Volume loops
 !
-         do eID = 1 , mesh % no_of_elements
-            call FirstOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
-            call SecondOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
-         end do
+!         do eID = 1 , mesh % no_of_elements
+!            call FirstOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
+!            call SecondOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
+!         end do
+!!
+!!        Face loops
+!!
+!         do fID = 1 , mesh % no_of_edges
+!            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
+!            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
+!         end do
+!!
+!!        -------------------------------------------
+!!        Perform the scaling with the mass matrix
+!!        -------------------------------------------
+!!
+!         do eID = 1 , mesh % no_of_elements
+!            mesh % elements(eID) % QDot = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % QDot)
+!         end do
 !
-!        Face loops
-!
-         do fID = 1 , mesh % no_of_edges
-            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
-            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
-         end do
-!
-!        -------------------------------------------
-!        Perform the scaling with the mass matrix
-!        -------------------------------------------
-!
-         do eID = 1 , mesh % no_of_elements
-            mesh % elements(eID) % QDot = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % QDot)
-         end do
-
       end subroutine DGSpatial_computeQDot
 
 end module DGSpatialDiscretizationMethods

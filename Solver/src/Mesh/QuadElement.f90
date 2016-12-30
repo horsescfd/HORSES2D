@@ -57,8 +57,8 @@ module QuadElementClass
         type(Node_p)                      :: nodes(POINTS_PER_EDGE)
         class(QuadElement_p), pointer     :: quads(:)
         real(kind=RP), allocatable        :: Q(:,:,:) , dQ(:,:,:,:)  ! To store the interpolation to boundaries from elements
-        integer,       allocatable        :: FaceLocation
-        integer                           :: FaceType
+        integer,       allocatable        :: edgeLocation
+        integer                           :: edgeType
         class(NodesAndWeights_t), pointer :: spA
         class(NodesAndWeights_t), pointer :: spI
     end type Edge_t
@@ -172,13 +172,13 @@ module QuadElementClass
 
         end subroutine QuadElement_SetStorage
             
-        subroutine Edge_ConstructEdge( self , ID , curvilinear , faceType , spA , spI)
+        subroutine Edge_ConstructEdge( self , ID , curvilinear , edgeType , spA , spI)
             use Setup_Class
             implicit none
             class(Edge_p)                     :: self
             integer                           :: ID
             logical                           :: curvilinear
-            integer                           :: faceType
+            integer                           :: edgeType
             class(NodalStorage)               :: spA
             class(NodesAndWeights_t), pointer :: spI
 !
@@ -188,19 +188,19 @@ module QuadElementClass
 !
 !           Interior edges
 !           --------------
-            if (faceType .EQ. FACE_INTERIOR) then
+            if (edgeType .EQ. FACE_INTERIOR) then
 
                 allocate(Edge_t :: self % f)
 
 !               Allocate its elements 
                 allocate( self % f % quads(QUADS_PER_EDGE) )
 
-                self % f % faceType = FACE_INTERIOR
+                self % f % edgeType = FACE_INTERIOR
 
 !
 !           Boundary edges
 !           --------------
-            elseif (faceType .NE. FACE_INTERIOR) then
+            elseif (edgeType .NE. FACE_INTERIOR) then
 !
 !              * Straight boundary edges
 !                -----------------------
@@ -217,7 +217,7 @@ module QuadElementClass
 
                allocate( self % f % quads(1) )
 
-               self % f % faceType = faceType
+               self % f % edgeType = edgeType
 
             end if
 

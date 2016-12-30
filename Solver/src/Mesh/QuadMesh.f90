@@ -14,7 +14,7 @@ module QuadMeshClass
          integer                               :: no_of_edges
          integer                               :: no_of_elements
          class(Node_t),         pointer        :: nodes(:)
-         class(Face_p),         pointer        :: edges(:)           ! This is an array to pointers
+         class(Edge_p),         pointer        :: edges(:)           ! This is an array to pointers
          class(QuadElement_t) , pointer        :: elements(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
          contains
@@ -68,6 +68,7 @@ module QuadMeshClass
              class(Storage_t),                  intent (in )                 :: storage
              class(NodesAndWeights_t), pointer, intent (in )                 :: spI
 !            ----------------------------------------------------------------------
+             integer                                                         :: node
 
 !            **************
 !            Set dimensions
@@ -149,33 +150,10 @@ module QuadMeshClass
 !
              do edge = 1 , self % no_of_edges
 
-               call self % edges(edge) % Construct( edge , curv , meshFile % edgeType(edge) , spA , spI )
+               call self % edges(edge) % Construct( ID = edge , curvilinear = any(meshFile % curved_bdryedges == edge)  , &
+                                                edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
 
              end do
-             do edge = 1 , self % no_of_edges
-
-
-             end do
-             do edge = 1 , self % no_of_edges
-        
-                    
-                 if (edge .eq. 1) then
-                    bdryE => self % elements(edge)
-                    rightE => NULL()
-                    call constructFace ( self=self % edges(edge) % f , ID=edge , faceType=meshFile % edgeMarker(edge) , bdryElement = bdryE)
-                    self % edges(edge) % f % n = -1.0_RP       ! So that the normal points towards the outside of the domain
-                 elseif (edge .eq. self % no_of_edges) then
-                    bdryE => self % elements(edge-1)
-                    rightE => NULL()
-                    call constructFace ( self=self % edges(edge) % f , ID=edge , faceType=meshFile % edgeMarker(edge) , bdryElement = bdryE )
-                 else
-                    leftE => self % elements(edge-1)
-                    rightE => self % elements(edge)
-                    call constructFace ( self=self % edges(edge) % f , ID=edge , faceType=meshFile % edgeMarker(edge) , leftElement = leftE , rightElement = rightE)
-                 end if
-             end do
-
-
 
          end subroutine constructElementsAndEdges
            
@@ -205,11 +183,11 @@ module QuadMeshClass
              class(QuadMesh_t)        :: self
              integer                :: eID , j
 
-             do eID = 1 , self % no_of_elements
-               do j = 0 , self % elements(eID) % Interp % N
-                  self % elements(eID) % Q(j,1:NEC)  = self % IC( self % elements(eID) % x(j) ) 
-               end do
-             end do
+!             do eID = 1 , self % no_of_elements
+!               do j = 0 , self % elements(eID) % spA % N
+!                  self % elements(eID) % Q(j,1:NEC)  = self % IC( self % elements(eID) % x(j) ) 
+!               end do
+!             end do
              
           end subroutine applyInitialCondition
 

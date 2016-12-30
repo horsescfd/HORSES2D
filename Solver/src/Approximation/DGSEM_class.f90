@@ -72,7 +72,7 @@
          
         subroutine DGSEM_construct( self ,  meshFile )
             use Setup_class
-            use FaceClass
+            use QuadElementClass
             implicit none
             class(DGSEM_t)                                               :: self
             class(MeshFile_t)                                            :: meshFile
@@ -80,7 +80,7 @@
             integer                                                      :: eID
             integer                                                      :: iBC
             integer                                                      :: fID
-            class(Face_t), pointer                                       :: face
+            class(Edge_t), pointer                                       :: face
 !
 !           ***********************************************
 !           Allocate memory for solution and its derivative
@@ -125,27 +125,27 @@
 !           Set the boundary conditions
 !           ***************************
 !
-            allocate ( self % BoundaryConditions( size(Setup % markers) ) )
-
-            do iBC = 1 , size(Setup % markers)
-               do fID = 1 , self % mesh % no_of_edges
-                  if ( self % mesh % edges(fID) % f % faceType .eq. Setup % markers(iBC) ) then 
-                     face => self % mesh % edges(fID) % f
-                     exit
-                  end if
-               end do
-
-               call self % BoundaryConditions(iBC) % construct(iBC , face , self % BoundaryConditions)
-
-            end do
-
-            do iBC = 1 , size(Setup % markers)
-               
-               call self % BoundaryConditions(iBC) % setFace()
-      
-            end do 
-            
-
+!            allocate ( self % BoundaryConditions( size(Setup % markers) ) )
+!
+!            do iBC = 1 , size(Setup % markers)
+!               do fID = 1 , self % mesh % no_of_edges
+!                  if ( self % mesh % edges(fID) % f % faceType .eq. Setup % markers(iBC) ) then 
+!                     face => self % mesh % edges(fID) % f
+!                     exit
+!                  end if
+!               end do
+!
+!               call self % BoundaryConditions(iBC) % construct(iBC , face , self % BoundaryConditions)
+!
+!            end do
+!
+!            do iBC = 1 , size(Setup % markers)
+!               
+!               call self % BoundaryConditions(iBC) % setFace()
+!      
+!            end do 
+!            
+!
 !
 !           ***************
 !           Prepare methods

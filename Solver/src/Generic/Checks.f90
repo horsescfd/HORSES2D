@@ -50,7 +50,7 @@ subroutine checks( sem )
     end do
             write(STD_OUT , *)  "IC"
              do eID = 1 , sem % mesh  % no_of_elements
-             write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % Q(:,1)
+             !write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % Q(:,1)
              end do
 
 
@@ -64,10 +64,10 @@ subroutine checks( sem )
      write(STD_OUT , '(6F24.16)') sem % Storage % Q
 
 
-    print*, "Lets check the interpolation to boundaries"
-    do eID = 1 , sem % mesh % no_of_elements
-       write(STD_OUT , '(2F24.16)') sem % mesh % elements(eID) % Qb
-    enddo
+!    print*, "Lets check the interpolation to boundaries"
+!    do eID = 1 , sem % mesh % no_of_elements
+!       write(STD_OUT , '(2F24.16)') sem % mesh % elements(eID) % Qb
+!    enddo
 
 !            print*, "Checking boundary conditions"
 
