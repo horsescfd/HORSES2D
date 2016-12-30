@@ -1,7 +1,6 @@
 module DGFirstOrderMethods
    use SMConstants
-   use FaceClass
-   use Element1DClass
+   use QuadElementClass
    use Physics
    use NodesAndWeights_class
    implicit none
@@ -112,52 +111,52 @@ module DGFirstOrderMethods
 
       end function FirstOrderMethod_Initialization
 
-      subroutine BaseClass_QDotFaceLoop( self , face )
+      subroutine BaseClass_QDotFaceLoop( self , edge )
          use MatrixOperations
          implicit none
          class(FirstOrderMethod_t)          :: self
-         class(Face_t), pointer             :: face
+         class(Edge_t), pointer             :: edge
          real(kind=RP), dimension(NEC)      :: Fstar
+!!
+!!        -------------------------------------------
+!!           This is a standard fluxes term
+!!        -------------------------------------------
+!!
+!!        Compute the averaged flux
+!         Fstar = self % RiemannFlux( edge )
+!!
+!!        Perform the loop in both elements
+!         select type ( edge )
+!            type is (Edge_t)
+!               associate(QDot => edge % quads(LEFT) % e % QDot, &
+!                   N=> edge % quads(LEFT) % e % Interp % N, &
+!                   e=> edge % quads(LEFT) % e)
+!!     
+!!                  This (-) sign comes from the equation ut = -fx !
+!                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,RIGHT) , Fstar) * edge % nb
 !
-!        -------------------------------------------
-!           This is a standard fluxes term
-!        -------------------------------------------
+!               end associate
 !
-!        Compute the averaged flux
-         Fstar = self % RiemannFlux( face )
+!               associate(QDot => edge % quads(RIGHT) % e % QDot, &
+!                   N=> edge % quads(RIGHT) % e % Interp % N, &
+!                   e=> edge % quads(RIGHT) % e)
 !
-!        Perform the loop in both elements
-         select type ( face )
-            type is (Face_t)
-               associate(QDot => face % elements(LEFT) % e % QDot, &
-                   N=> face % elements(LEFT) % e % Interp % N, &
-                   e=> face % elements(LEFT) % e)
-!     
-!                  This (-) sign comes from the equation ut = -fx !
-                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,RIGHT) , Fstar) * face % n
-
-               end associate
-
-               associate(QDot => face % elements(RIGHT) % e % QDot, &
-                   N=> face % elements(RIGHT) % e % Interp % N, &
-                   e=> face % elements(RIGHT) % e)
-
-                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,LEFT) , Fstar) * (-1.0_RP * face % n)
-
-               end associate
-
-
-            type is (BdryFace_t)
-               associate(QDot => face % elements(1) % e % QDot , &
-                  N => face % elements(1) % e % Interp % N , &
-                  e => face % elements(1) % e)
-
-                  QDot = QDot - vectorOuterProduct(e % Interp % lb(:,face % BCLocation) , Fstar)* face % n
-
-               end associate
-            class default
-         end select
-
+!                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,LEFT) , Fstar) * (-1.0_RP * edge % n)
+!
+!               end associate
+!
+!
+!            type is (BdryEdge_t)
+!               associate(QDot => edge % quads(1) % e % QDot , &
+!                  N => edge % quads(1) % e % Interp % N , &
+!                  e => edge % quads(1) % e)
+!
+!                  QDot = QDot - vectorOuterProduct(e % Interp % lb(:,edge % BCLocation) , Fstar)* edge % n
+!
+!               end associate
+!            class default
+!         end select
+!
  
       end subroutine BaseClass_QDotFaceLoop
 !
@@ -177,25 +176,25 @@ module DGFirstOrderMethods
          implicit none
          class(StandardDG_t)     :: self
          class(QuadElement_t)      :: element
+!!
+!!        -------------------------------------------
+!!           The standard DG computes the volume
+!!        terms as:
+!!              tr(D)*M*F(Q) = tr(MD)*F(Q)
+!!        -------------------------------------------
+!!
+!!        Compute fluxes
+!!        TODO: Beware of this
+!         element % F = 0.0_RP !inviscidFlux( element % Q )
+!!
+!!        Perform the matrix multiplication
+!         associate( QDot => element % QDot , &
+!                    MD => element % Interp % MD)
 !
-!        -------------------------------------------
-!           The standard DG computes the volume
-!        terms as:
-!              tr(D)*M*F(Q) = tr(MD)*F(Q)
-!        -------------------------------------------
+!         QDot = QDot + TransposeMat_x_NormalMat_F( MD , element % F )
 !
-!        Compute fluxes
-!        TODO: Beware of this
-         element % F = 0.0_RP !inviscidFlux( element % Q )
+!         end associate
 !
-!        Perform the matrix multiplication
-         associate( QDot => element % QDot , &
-                    MD => element % Interp % MD)
-
-         QDot = QDot + TransposeMat_x_NormalMat_F( MD , element % F )
-
-         end associate
-
       end subroutine StdDG_QDotVolumeLoop
 
       subroutine OIDG_QDotVolumeLoop( self , element )
@@ -203,32 +202,32 @@ module DGFirstOrderMethods
          implicit none
          class(OverIntegrationDG_t)          :: self
          class(QuadElement_t)                  :: element
+!!
+!!        ---------------------------------------------------
+!!           The Over-Integration DG computes the volume
+!!        terms as:
+!!           tr(tildeM T D) * F(tildeQ)
+!!        ---------------------------------------------------
+!!
+!!        Compute fluxes
+!!        TODO: beware of this
+!         element % F = 0.0_RP !inviscidFlux( matmul(element % Interp % T , element % Q) )
+!!
+!!        Perform the matrix multiplication
+!         associate( QDot => element % QDot , &
+!                  tildeMTD => element % Interp % tildeMTD)
 !
-!        ---------------------------------------------------
-!           The Over-Integration DG computes the volume
-!        terms as:
-!           tr(tildeM T D) * F(tildeQ)
-!        ---------------------------------------------------
+!         QDot = QDot + TransposeMat_x_NormalMat_F( tildeMTD , element % F )
 !
-!        Compute fluxes
-!        TODO: beware of this
-         element % F = 0.0_RP !inviscidFlux( matmul(element % Interp % T , element % Q) )
+!         end associate
 !
-!        Perform the matrix multiplication
-         associate( QDot => element % QDot , &
-                  tildeMTD => element % Interp % tildeMTD)
-
-         QDot = QDot + TransposeMat_x_NormalMat_F( tildeMTD , element % F )
-
-         end associate
-
       end subroutine OIDG_QDotVolumeLoop
 
       subroutine SplitDG_QDotVolumeLoop( self , element )
          implicit none
          class(SplitDG_t)        :: self
          class(QuadElement_t)      :: element
-
+!
       end subroutine SplitDG_QDotVolumeLoop
 
 
@@ -236,51 +235,51 @@ module DGFirstOrderMethods
          implicit none
          class(FirstOrderMethod_t)        :: self
 
-         write(STD_OUT , * ) "First order method description: "
-         write(STD_OUT , '(20X,A,A)') "Method: ", trim( self % method )
-
-         select type ( self ) 
-            type is ( StandardDG_t )
-   
-            type is ( OverIntegrationDG_t )
-         
-            type is ( SplitDG_t )
-               write(STD_OUT , '(20X,A,F10.4)') "Split op. coefficient: " , self % alpha
-
-            class default
-      
-         end select
+!         write(STD_OUT , * ) "First order method description: "
+!         write(STD_OUT , '(20X,A,A)') "Method: ", trim( self % method )
+!
+!         select type ( self ) 
+!            type is ( StandardDG_t )
+!   
+!            type is ( OverIntegrationDG_t )
+!         
+!            type is ( SplitDG_t )
+!               write(STD_OUT , '(20X,A,F10.4)') "Split op. coefficient: " , self % alpha
+!
+!            class default
+!      
+!         end select
 
       end subroutine FirstOrderMethod_describe
    
-      function FirstOrderMethod_RiemannFlux( self , face ) result( val )
+      function FirstOrderMethod_RiemannFlux( self , edge ) result( val )
          implicit none
          class(FirstOrderMethod_t)        :: self
-         class(Face_t), pointer           :: face
+         class(Edge_t), pointer           :: edge
          real(kind=RP), dimension(NEC)    :: val
          real(kind=RP), pointer  :: QL(:) , QR(:) , QBdry(:)
          real(kind=RP), pointer  :: n(:)
-
-         select type ( face )
-            type is (BdryFace_t)
-      
-               QBdry => face % elements(1) % e % Qb( : , face % BCLocation  )
-!              TODO: Beware of this
-               n     => NULL()   ! face % n
-
-               val = self % RiemannSolver(QBdry , face % uB , n)
-               
-            type is (Face_t)
-      
-               QL => face % elements(LEFT) % e % Qb( : , RIGHT )
-               QR => face % elements(RIGHT) % e % Qb( : , LEFT )
-!              TODO: Beware of this
-               n  => NULL()      ! face % n
-
-               val = self % RiemannSolver(QL , QR , n)
-
-            class default
-         end select
+!
+!         select type ( edge )
+!            type is (StraightBdryEdge_t)
+!      
+!               QBdry => edge % quads(1) % e % Qb( : , edge % BCLocation  )
+!!              TODO: Beware of this
+!               n     => NULL()   ! face % n
+!
+!               val = self % RiemannSolver(QBdry , edge % uB , n)
+!               
+!            type is (Edge_t)
+!      
+!               QL => edge % quads(LEFT) % e % Qb( : , RIGHT )
+!               QR => edge % quads(RIGHT) % e % Qb( : , LEFT )
+!!              TODO: Beware of this
+!               n  => NULL()      ! face % n
+!
+!               val = self % RiemannSolver(QL , QR , n)
+!
+!            class default
+!         end select
       end function FirstOrderMethod_RiemannFlux
 
 end module DGFirstOrderMethods

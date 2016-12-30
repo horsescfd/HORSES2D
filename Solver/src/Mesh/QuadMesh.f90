@@ -1,9 +1,8 @@
 module QuadMeshClass
     use SMConstants
     use NodeClass
-    use FaceClass
+    use QuadElementClass
     use InitialConditions
-    use Element1DClass
     use Storage_module
     use QuadMeshDefinitions
 
@@ -124,7 +123,6 @@ module QuadMeshClass
              integer                                  :: edge
              integer                                  :: eID
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
-             integer                                  :: nodesID(POINTS_PER_QUAD)
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
 !            ----------------------------------------------------------------------
 !
@@ -138,11 +136,10 @@ module QuadMeshClass
                     nodes(node) % n => self % nodes ( meshFile % points_of_elements(eID , node) ) 
                  end do
 
-                 nodesID(:) = meshFile % points_of_elements(eID , :)
 
                  address = ( meshFile % cumulativePolynomialOrder(eID-1) + eID-1 ) * NEC + 1 
-                 call self % elements(eID) % construct( eID , nodes , nodesID , &
-                        meshFile % polynomialOrder(eID) , Setup % nodes , spA , address  , storage , spI)  
+                 call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
+
              end do
 
 !
@@ -150,6 +147,11 @@ module QuadMeshClass
 !            Construct edges
 !            ================
 !
+             do edge = 1 , self % no_of_edges
+
+               call self % edges(edge) % Construct( edge , curv , meshFile % edgeType(edge) , spA , spI )
+
+             end do
              do edge = 1 , self % no_of_edges
 
 

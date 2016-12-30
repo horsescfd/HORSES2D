@@ -1,6 +1,6 @@
 module DGBoundaryConditions
    use SMConstants
-   use FaceClass
+   use QuadElementClass
    implicit none
 
    private
@@ -10,7 +10,7 @@ module DGBoundaryConditions
       integer        :: marker
       integer        :: type
       class(BoundaryCondition_t), pointer    :: periodicPair => NULL()
-      class(Face_t), pointer                 :: face => NULL()
+      class(Edge_t), pointer                 :: edge => NULL()
       real(kind=RP), pointer                 :: uBC => NULL()
       real(kind=RP), pointer                 :: gBC => NULL()
       contains
@@ -19,17 +19,17 @@ module DGBoundaryConditions
    end type BoundaryCondition_t
 
    contains
-      subroutine DGBoundaryConditions_construct( self , ID , face , BCset)
+      subroutine DGBoundaryConditions_construct( self , ID , edge , BCset)
          use Setup_class
          implicit none
          class(BoundaryCondition_t)          :: self
          integer                             :: ID
-         class(Face_t), pointer              :: face
+         class(Edge_t), pointer              :: edge
          class(BoundaryCondition_t), pointer :: BCset(:)
 
          self % marker = ID
          self % type   = Setup % BCTypes(ID)
-         self % face   => face
+         self % edge   => edge
 
          if ( self % type .eq. PERIODIC_BC) then
 
@@ -52,24 +52,24 @@ module DGBoundaryConditions
          implicit none
          class(BoundaryCondition_t)       :: self
 
-         select type (f1=>self % face)
-            type is (BdryFace_t)
+         select type (f1=>self % edge)
+            type is (StraightBdryEdge_t)
                if (self % type  .eq. PERIODIC_BC) then
 !                 -------------------------------
 !                    Look for its pairing
 !                 -------------------------------
-                  select type (f2=>self % periodicPair % face)
-                     type is (BdryFace_t)
-                        f1 % uB => f2 % elements(1) % e % Qb( : , f2 % BCLocation )  
-                        f1 % gB => f2 % elements(1) % e % dQb( : , f2 % BCLocation )  
+                  select type (f2=>self % periodicPair % edge)
+                     type is (StraightBdryEdge_t)
+                        f1 % uB => NULL()    ! TODO f2 % quads(1) % e % Qb( : , f2 % BCLocation )  
+                        f1 % gB => NULL()    ! TODO f2 % quads(1) % e % dQb( : , f2 % BCLocation )  
                   end select
                elseif ( self % type .eq. DIRICHLET_BC) then
 !                 -------------------------------
 !                    Allocate data and set values
 !                 -------------------------------
-                        allocate( f1 % uB (NEC) )
+                        allocate( f1 % uB (NEC , 0 : f1 % N) )
                         f1 % uB = Setup % dirichletBC( f1 % faceType )
-                        f1 % gB => f1 % elements(1) % e % dQb( : , f1 % BCLocation )
+                        f1 % gB => NULL()    ! TODO f1 % quads(1) % e % dQb( : , f1 % BCLocation )
 
                end if
          end select
