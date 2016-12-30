@@ -54,8 +54,6 @@ module QuadElementClass
         integer                           :: edgeType
         class(NodesAndWeights_t), pointer :: spA
         class(NodesAndWeights_t), pointer :: spI
-        contains
-            procedure   :: linkWithElements => Edge_linkWithElements
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -72,6 +70,7 @@ module QuadElementClass
         class(Edge_t),   pointer           :: f
         contains
             procedure      :: Construct => Edge_ConstructEdge
+            procedure      :: linkWithElements => Edge_linkWithElements
     end type Edge_p
 !
 !  -------------------------------------------------------------------------------------------------------------------------
@@ -98,6 +97,8 @@ module QuadElementClass
              integer                           :: address
              class(Storage_t)                  :: storage
              class(NodesAndWeights_t), pointer :: spI
+!            --------------------------------------------------------
+             integer                           :: edge
 !
              self % ID = ID
 !
@@ -137,6 +138,10 @@ module QuadElementClass
              allocate ( self % x   ( NDIM  , 0:N , 0:N  )  ) 
              allocate ( self % jac (         0:N , 0:N  )  ) 
              allocate ( self % edges ( EDGES_PER_QUAD ) )
+      
+             do edge = 1 , EDGES_PER_QUAD
+               self % edges(edge) % f => NULL()
+             end do
              
         end subroutine QuadElement_Construct
 
@@ -180,6 +185,8 @@ module QuadElementClass
             integer                           :: node
             class(NodalStorage)               :: spA
             class(NodesAndWeights_t), pointer :: spI
+!           --------------------------------------------------
+            integer                           :: quad
 !
 !           *************************************************
 !              Allocate the edge depending on its type
@@ -193,6 +200,10 @@ module QuadElementClass
 
 !               Allocate its elements 
                 allocate( self % f % quads(QUADS_PER_EDGE) )
+
+                do quad = 1 , QUADS_PER_EDGE
+                  self % f % quads(quad) % e => NULL()
+                end do
 
                 self % f % edgeType = FACE_INTERIOR
 
@@ -215,6 +226,7 @@ module QuadElementClass
                end if
 
                allocate( self % f % quads(1) )
+               self % f % quads(1) % e => NULL()
 
                self % f % edgeType = edgeType
 
@@ -233,12 +245,12 @@ module QuadElementClass
 
         end subroutine Edge_ConstructEdge 
    
-        subroutine Edge_linkWithElements( self , el1 , el2 , elb)
+        subroutine Edge_LinkWithElements( self , el1 , el2 , elb)
             implicit none
-            class(Edge_t)                  :: self
-            class(QuadElement_t), optional :: el1
-            class(QuadElement_t), optional :: el2
-            class(QuadElement_t), optional :: elb
+            class(Edge_p)                           :: self
+            class(QuadElement_t), target, optional :: el1
+            class(QuadElement_t), target, optional :: el2
+            class(QuadElement_t), target, optional :: elb
 !           ----------------------------------------------------------------------
             integer                        :: nodesID(POINTS_PER_EDGE)
             integer                        :: nodesEl1(POINTS_PER_QUAD)
@@ -251,7 +263,7 @@ module QuadElementClass
             integer                        :: edgeDirection
 
             do node = 1 , POINTS_PER_EDGE
-               nodesID(node) = self % nodes(node) % n %ID
+               nodesID(node) = self % f % nodes(node) % n %ID
             end do
 
             if (present(el1) .and. present(el2) .and. (.not. present(elb)) ) then             ! Interior edge            
@@ -266,6 +278,23 @@ module QuadElementClass
 !              Search for the edge in element1
 !              -------------------------------
                call searchEdge( nodesEl = nodesEl1 , nodesEdge = nodesID , edgePosition = edgePosition , quadPosition = quadPosition , edgeDirection = edgeDirection)
+!
+!              Link the items
+!              --------------
+               el1  % edges          ( edgePosition )  % f  => self % f
+               el1  % edgesDirection ( edgePosition )       =  edgeDirection
+               self % f % quads      ( quadPosition )  % e  => el1
+!
+!              Search for the edge in element2
+!              -------------------------------
+               call searchEdge( nodesEl = nodesEl2 , nodesEdge = nodesID , edgePosition = edgePosition , quadPosition = quadPosition , edgeDirection = edgeDirection)
+!
+!              Link the items
+!              --------------
+               el2  % edges          ( edgePosition )  % f  => self % f
+               el2  % edgesDirection ( edgePosition )       =  edgeDirection
+               self % f % quads          ( quadPosition )  % e  => el2
+               
 
             elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
                do node = 1 , POINTS_PER_QUAD 
@@ -276,7 +305,7 @@ module QuadElementClass
 
             end if
 
-         end subroutine Edge_linkWithElements
+         end subroutine Edge_LinkWithElements
 !
 !        **********************************************************************************
 !                 Auxiliar subroutines

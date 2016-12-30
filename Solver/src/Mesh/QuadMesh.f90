@@ -178,12 +178,12 @@ module QuadMeshClass
                      el1 = meshFile % elements_of_edges( 1 , edge )
                      el2 = meshFile % elements_of_edges( 2 , edge )
 
-                     call self % edges(edge) % f % linkWithElements( el1 = self % elements(el1) , el2 = self % elements(el2) )
+                     call self % edges(edge) % linkWithElements( el1 = self % elements(el1) , el2 = self % elements(el2) )
 
                   else
    
                      elb = meshFile % elements_of_edges( 1 , edge )
-                     call self % edges(edge) % f % linkWithElements( elb = self % elements(elb) )
+                     call self % edges(edge)  % linkWithElements( elb = self % elements(elb) )
 
                   end if
                end do
