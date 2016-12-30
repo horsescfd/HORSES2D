@@ -87,8 +87,8 @@
 !           ***********************************************
 !
             allocate ( self % Storage % Q    ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
-            allocate ( self % Storage % QDot ( NDIM * NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-            allocate ( self % Storage % dQ   ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
+            allocate ( self % Storage % QDot ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % dQ   ( NDIM * NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
                 
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate ( self % Storage % F   ( NDIM * NEC * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )

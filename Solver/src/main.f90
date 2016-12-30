@@ -52,7 +52,7 @@ program main
 !   Set the initial condition to all flow variables
 !   ***********************************************
 !
-!    call sem % SetInitialCondition()
+    call sem % SetInitialCondition()
 
     
 !    call checks( sem ) 

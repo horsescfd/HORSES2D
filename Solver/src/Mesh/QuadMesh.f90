@@ -82,9 +82,9 @@ module QuadMeshClass
 !            Allocate the contents
 !            *********************
 !
-             allocate( self % nodes ( self % no_of_nodes ) )
-             allocate( self % edges ( self % no_of_edges ) ) 
-             allocate( self % elements ( self % no_of_elements ) )
+             allocate ( self % nodes    ( self % no_of_nodes    )  ) 
+             allocate ( self % edges    ( self % no_of_edges    )  ) 
+             allocate ( self % elements ( self % no_of_elements )  ) 
 !
 !            ***********************
 !            Construct the contents
@@ -113,7 +113,7 @@ module QuadMeshClass
              use Physics
              use NodesAndWeights_Class
              implicit none
-             class(QuadMesh_t),                 intent (out)                 :: self
+             class(QuadMesh_t),                 intent (inout)                 :: self
              class(MeshFile_t),                 intent (in )                 :: meshFile
              class(NodalStorage),               intent (in )                 :: spA
              class(Storage_t),                  intent (in )                 :: storage
@@ -127,18 +127,18 @@ module QuadMeshClass
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
 !            ----------------------------------------------------------------------
 !
-!
 !            ===================
 !            Construct elements
 !            ===================
 !
              do eID = 1 , self % no_of_elements
+                 
                  do node = 1 , POINTS_PER_QUAD
-                    nodes(node) % n => self % nodes ( meshFile % points_of_elements(eID , node) ) 
+                    nodes(node) % n => self % nodes ( meshFile % points_of_elements(node , eID) ) 
                  end do
 
 
-                 address = ( meshFile % cumulativePolynomialOrder(eID-1) + eID-1 ) * NEC + 1 
+                 address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NEC + 1 
                  call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
 
              end do
@@ -166,7 +166,7 @@ module QuadMeshClass
 !            Get Initial Condition procedure              
 !            *******************************
 !
-             call InitialCondition( self % IC )
+!             call InitialCondition( self % IC )
 !
 !            *******************************************
 !            Apply the initial condition to the solution
@@ -181,13 +181,11 @@ module QuadMeshClass
              use Physics
              implicit none
              class(QuadMesh_t)        :: self
-             integer                :: eID , j
+             integer                  :: eID
 
-!             do eID = 1 , self % no_of_elements
-!               do j = 0 , self % elements(eID) % spA % N
-!                  self % elements(eID) % Q(j,1:NEC)  = self % IC( self % elements(eID) % x(j) ) 
-!               end do
-!             end do
+             do eID = 1 , self % no_of_elements
+                  self % elements(eID) % Q(:,:,1:NEC)  = 0.0_RP !self % IC( self % elements(eID) % x(j) ) 
+             end do
              
           end subroutine applyInitialCondition
 
