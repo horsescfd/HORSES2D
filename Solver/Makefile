@@ -25,7 +25,7 @@ InterpolationAndDerivatives: SMConstants
 LegendreAlgorithms: SMConstants
 QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions
 MeshFile: Setup SMConstants NetCDF_Interface Headers
-QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions
+QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives
 QuadDefinitions: SMConstants
 NodeClass: SMConstants Physics
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions

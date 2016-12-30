@@ -49,11 +49,14 @@ module QuadElementClass
         real(kind=RP)                     :: nb(NDIM)          !   n always points from LEFT towards RIGHT and outside the domain for bdryedges
         type(Node_p)                      :: nodes(POINTS_PER_EDGE)
         class(QuadElement_p), pointer     :: quads(:)
+        real(kind=RP), allocatable        :: X(:,:)
         real(kind=RP), allocatable        :: Q(:,:,:) , dQ(:,:,:,:)  ! To store the interpolation to boundaries from elements
-        integer,       allocatable        :: edgeLocation
+        integer,       allocatable        :: edgeLocation(:)
         integer                           :: edgeType
         class(NodesAndWeights_t), pointer :: spA
         class(NodesAndWeights_t), pointer :: spI
+        contains
+            procedure      :: Invert => Edge_Invert
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -64,13 +67,16 @@ module QuadElementClass
     type, extends(Edge_t)  :: CurvedBdryEdge_t
         real(kind=RP), pointer            :: uB(:,:)           ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
+        contains
+            procedure      :: SetCurve => CurvilinearEdge_SetCurve
+            procedure      :: Invert => CurvilinearEdge_Invert
     end type CurvedBdryEdge_t
 
     type Edge_p
         class(Edge_t),   pointer           :: f
         contains
             procedure      :: Construct => Edge_ConstructEdge
-            procedure      :: linkWithElements => Edge_linkWithElements
+            procedure      :: LinkWithElements => Edge_linkWithElements
     end type Edge_p
 !
 !  -------------------------------------------------------------------------------------------------------------------------
@@ -187,6 +193,7 @@ module QuadElementClass
             class(NodesAndWeights_t), pointer :: spI
 !           --------------------------------------------------
             integer                           :: quad
+            integer                           :: p
 !
 !           *************************************************
 !              Allocate the edge depending on its type
@@ -199,7 +206,8 @@ module QuadElementClass
                 allocate(Edge_t :: self % f)
 
 !               Allocate its elements 
-                allocate( self % f % quads(QUADS_PER_EDGE) )
+                allocate ( self % f % quads        ( QUADS_PER_EDGE )  ) 
+                allocate ( self % f % edgeLocation ( QUADS_PER_EDGE )  ) 
 
                 do quad = 1 , QUADS_PER_EDGE
                   self % f % quads(quad) % e => NULL()
@@ -225,7 +233,8 @@ module QuadElementClass
 
                end if
 
-               allocate( self % f % quads(1) )
+               allocate ( self % f % quads         ( 1 )  ) 
+               allocate ( self % f % edgeLocation ( 1 )  ) 
                self % f % quads(1) % e => NULL()
 
                self % f % edgeType = edgeType
@@ -242,12 +251,23 @@ module QuadElementClass
             call spA % add( self % f % N , Setup % nodes , self % f % spA )
             self % f % spI    => spI
 
+            allocate( self % f % X(NDIM , 0 : self % f % spA % N ) )
+
+!
+!           If rectilinear edge, compute the points
+            select type (f => self % f)
+               type is (Edge_t)
+                   
+                  self % f % x = reshape((/( self % f % nodes(1) % n % X * (1.0_RP - self % f % spA % xi(p)) + self % f % nodes(2) % n % X * self % f % spA % xi(p) , &
+                                                p = 0 , self % f % spA % N)/),(/ NDIM , self % f % spA % N + 1 /) )
+               class default
+            end select 
 
         end subroutine Edge_ConstructEdge 
-   
+
         subroutine Edge_LinkWithElements( self , el1 , el2 , elb)
             implicit none
-            class(Edge_p)                           :: self
+            class(Edge_p)                          :: self
             class(QuadElement_t), target, optional :: el1
             class(QuadElement_t), target, optional :: el2
             class(QuadElement_t), target, optional :: elb
@@ -281,9 +301,10 @@ module QuadElementClass
 !
 !              Link the items
 !              --------------
-               el1  % edges          ( edgePosition )  % f  => self % f
-               el1  % edgesDirection ( edgePosition )       =  edgeDirection
-               self % f % quads      ( quadPosition )  % e  => el1
+               el1  % edges            ( edgePosition ) % f  => self % f
+               el1  % edgesDirection   ( edgePosition ) =  edgeDirection
+               self % f % quads        ( quadPosition ) % e  => el1
+               self % f % edgeLocation ( quadPosition ) = edgePosition
 !
 !              Search for the edge in element2
 !              -------------------------------
@@ -291,21 +312,86 @@ module QuadElementClass
 !
 !              Link the items
 !              --------------
-               el2  % edges          ( edgePosition )  % f  => self % f
-               el2  % edgesDirection ( edgePosition )       =  edgeDirection
-               self % f % quads          ( quadPosition )  % e  => el2
+               el2  % edges            ( edgePosition ) % f  => self % f
+               self % f % quads        ( quadPosition ) % e  => el2
+               el2  % edgesDirection   ( edgePosition ) =  edgeDirection
+               self % f % edgeLocation ( quadPosition ) = edgePosition
                
 
             elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
+
                do node = 1 , POINTS_PER_QUAD 
                   nodesElb(node)  = elb % nodes(node) % n % ID 
                end do
 
+!              Search for the edge in element1
+!              -------------------------------
+               call searchEdge( nodesEl = nodesElb , nodesEdge = nodesID , edgePosition = edgePosition , quadPosition = quadPosition , edgeDirection = edgeDirection)
+!
+!              Link the items: Now always the direction is FORWARD
+!              --------------
+               elb  % edges            ( edgePosition ) % f  => self % f
+               self % f % quads        ( 1            ) % e  => elb
+
+               elb  % edgesDirection   ( edgePosition ) =  FORWARD
+               self % f % edgeLocation ( 1            ) =  edgePosition
+
+               if (edgeDirection .eq. BACKWARD) then ! The edge must be inverted
+                  call self % f % Invert()
+               end if
 
 
             end if
 
          end subroutine Edge_LinkWithElements
+
+         subroutine Edge_Invert ( self )
+            implicit none
+            class(Edge_t)           :: self
+!           --------------------------------------
+            class(Node_t), pointer  :: auxnode
+
+!           Invert nodes
+            auxnode => self % nodes(1) % n
+            self % nodes(1) % n => self % nodes(2) % n
+            self % nodes(2) % n => auxnode
+
+         end subroutine Edge_Invert
+
+         subroutine CurvilinearEdge_Invert ( self )
+            implicit none
+            class(CurvedBdryEdge_t)     :: self
+
+            call Edge_Invert ( self = self )
+
+         end subroutine CurvilinearEdge_Invert
+
+         subroutine Edge_SetCurve ( self )
+            implicit none
+            class(Edge_t)        :: self
+
+         end subroutine Edge_SetCurve 
+
+         subroutine CurvilinearEdge_SetCurve( self , points , order )
+            use InterpolationAndDerivatives
+            implicit none
+            class(CurvedBdryEdge_t)                            :: self
+            real(kind=RP)               , intent(in)           :: points(:,:)
+            integer                     , intent(in)           :: order
+!           -----------------------------------------------------------------------------
+            real(kind=RP), allocatable                         :: CGLnodes(:)
+            real(kind=RP), allocatable                         :: T(:,:)
+            real(kind=RP), allocatable                         :: wb(:)
+            integer                                            :: node
+
+            allocate( CGLnodes(0 : order ) )
+            allocate( wb(0 : order ) )
+            allocate( T(0: self % spA % N , 0: order ) )
+            CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
+            call BarycentricWeights( order , CGLnodes , wb )
+            call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
+
+         end subroutine CurvilinearEdge_SetCurve
 !
 !        **********************************************************************************
 !                 Auxiliar subroutines

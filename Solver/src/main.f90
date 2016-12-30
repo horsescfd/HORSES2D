@@ -54,7 +54,6 @@ program main
 !
     call sem % SetInitialCondition()
 
-    
 !    call checks( sem ) 
 
 !    call sem % Integrate()

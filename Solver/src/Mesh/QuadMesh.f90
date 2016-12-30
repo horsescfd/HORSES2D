@@ -113,7 +113,7 @@ module QuadMeshClass
              use Physics
              use NodesAndWeights_Class
              implicit none
-             class(QuadMesh_t),                 intent (inout)                 :: self
+             class(QuadMesh_t),                 intent (inout)               :: self
              class(MeshFile_t),                 intent (in )                 :: meshFile
              class(NodalStorage),               intent (in )                 :: spA
              class(Storage_t),                  intent (in )                 :: storage
@@ -174,20 +174,18 @@ module QuadMeshClass
               do edge = 1 , self % no_of_edges
 
                   if (self % edges(edge) % f % edgeType .eq. FACE_INTERIOR) then
-
                      el1 = meshFile % elements_of_edges( 1 , edge )
                      el2 = meshFile % elements_of_edges( 2 , edge )
 
                      call self % edges(edge) % linkWithElements( el1 = self % elements(el1) , el2 = self % elements(el2) )
 
                   else
-   
+                     
                      elb = meshFile % elements_of_edges( 1 , edge )
                      call self % edges(edge)  % linkWithElements( elb = self % elements(elb) )
 
                   end if
                end do
-
          end subroutine constructElementsAndEdges
            
          subroutine setInitialCondition( self )
