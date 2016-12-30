@@ -8,8 +8,10 @@ module QuadMeshDefinitions
    integer, parameter         :: EDGES_PER_QUAD  = 4
    integer, parameter         :: QUADS_PER_EDGE  = 2
 
-   integer, parameter         :: TOP = 3
-   integer ,parameter         :: BOTTOM = 4
+   integer, parameter         :: EBOTTOM = 1
+   integer, parameter         :: ERIGHT = 2
+   integer, parameter         :: ETOP = 3
+   integer, parameter         :: ELEFT = 4
 
 
 end module QuadMeshDefinitions

@@ -17,24 +17,17 @@ module QuadElementClass
     type QuadElement_t
         integer                           :: ID
         integer                           :: address
-!
-!       -----------------------------------------------------------------
-!              Connectivities
-!       -----------------------------------------------------------------
-!
-        type(Node_p)                      :: nodes(POINTS_PER_QUAD)
-        class(Edge_p), pointer            :: edges(:)
-!
-!       -----------------------------------------------------------------
-!              Storage
-!       -----------------------------------------------------------------
-!
-        class(NodesAndWeights_t), pointer :: spA
-        class(NodesAndWeights_t), pointer :: spI
+        integer                           :: edgesDirection(EDGES_PER_QUAD)
         real(kind=RP), allocatable        :: x(:,:,:)
         real(kind=RP), allocatable        :: jac(:,:)
         real(kind=RP), pointer            :: Q(:,:,:) , QDot(:,:,:) , F(:,:,:,:) , dQ(:,:,:,:)
+        type(Node_p)                      :: nodes(POINTS_PER_QUAD)
+        class(Edge_p), pointer            :: edges(:)
+        class(NodesAndWeights_t), pointer :: spA
+        class(NodesAndWeights_t), pointer :: spI
+!       ========
         contains
+!       ========
             procedure      :: Construct  => QuadElement_Construct
             procedure      :: SetStorage => QuadElement_SetStorage
     end type QuadElement_t
@@ -61,6 +54,8 @@ module QuadElementClass
         integer                           :: edgeType
         class(NodesAndWeights_t), pointer :: spA
         class(NodesAndWeights_t), pointer :: spI
+        contains
+            procedure   :: linkWithElements => Edge_linkWithElements
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -141,6 +136,7 @@ module QuadElementClass
 !
              allocate ( self % x   ( NDIM  , 0:N , 0:N  )  ) 
              allocate ( self % jac (         0:N , 0:N  )  ) 
+             allocate ( self % edges ( EDGES_PER_QUAD ) )
              
         end subroutine QuadElement_Construct
 
@@ -229,6 +225,16 @@ module QuadElementClass
 
 
         end subroutine Edge_ConstructEdge 
+   
+        subroutine Edge_linkWithElements( self , el1 , el2 , elb)
+            implicit none
+            class(Edge_t)                  :: self
+            class(QuadElement_t), optional :: el1
+            class(QuadElement_t), optional :: el2
+            class(QuadElement_t), optional :: elb
+            
+
+         end subroutine Edge_linkWithElements
 
 
 end module QuadElementClass

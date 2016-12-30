@@ -75,7 +75,7 @@ module QuadMeshClass
 !            **************
 !
              self % no_of_nodes    = meshFile % no_of_nodes
-             self % no_of_edges    = meshFile % no_of_nodes
+             self % no_of_edges    = meshFile % no_of_edges
              self % no_of_elements = meshFile % no_of_elements
 !
 !            *********************
@@ -123,6 +123,7 @@ module QuadMeshClass
              integer                                  :: node
              integer                                  :: edge
              integer                                  :: eID
+             integer                                  :: el1 , el2 , elb
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
 !            ----------------------------------------------------------------------
@@ -154,6 +155,38 @@ module QuadMeshClass
                                                 edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
 
              end do
+!
+!             ========================
+!             Link elements with edges
+!             ========================
+!
+              do edge = 1 , self % no_of_edges
+                  if (self % edges(edge) % f % edgeType .eq. FACE_INTERIOR) then
+
+                     el1 = meshFile % elements_of_edges( 1 , edge )
+                     el2 = meshFile % elements_of_edges( 2 , edge )
+
+                     call self % edges(edge) % f % linkWithElements( el1 = self % elements(el1) , el2 = self % elements(el2) )
+
+                  else
+   
+                     elb = meshFile % elements_of_edges( 1 , edge )
+                     call self % edges(edge) % f % linkWithElements( elb = self % elements(elb) )
+
+                  end if
+               end do
+
+               do edge = 1 , self % no_of_edges
+                  select type ( f=> self % edges(edge) % f )
+                     type is (Edge_t)
+                        print*, self %edges(edge) % f % edgeType , 1
+                     type is (StraightBdryEdge_t)
+                        print*, self %edges(edge) % f % edgeType , 2
+                     type is (CurvedBdryEdge_t)
+                        print*, self %edges(edge) % f % edgeType , 3
+                  end select
+               end do
+
 
          end subroutine constructElementsAndEdges
            
