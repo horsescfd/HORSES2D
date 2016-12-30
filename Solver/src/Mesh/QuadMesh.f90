@@ -126,6 +126,7 @@ module QuadMeshClass
              integer                                  :: el1 , el2 , elb
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
+             logical                                  :: curvilinear
 !            ----------------------------------------------------------------------
 !
 !            ===================
@@ -151,7 +152,13 @@ module QuadMeshClass
 !
              do edge = 1 , self % no_of_edges
 
-               call self % edges(edge) % Construct( ID = edge , curvilinear = any(meshFile % curved_bdryedges == edge)  , &
+               if (meshFile % curvilinear) then
+                  curvilinear = any(meshFile % curved_bdryedges == edge)
+               else
+                  curvilinear = .false.
+               end if
+
+               call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , &
                                                 edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
 
              end do
