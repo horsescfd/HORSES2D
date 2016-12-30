@@ -152,6 +152,10 @@ module QuadMeshClass
 !
              do edge = 1 , self % no_of_edges
 
+               do node = 1 , POINTS_PER_EDGE
+                  nodes(node) % n => self % nodes ( meshFile % points_of_edges(node , edge) )
+               end do
+
                if (meshFile % curvilinear) then
                   curvilinear = any(meshFile % curved_bdryedges == edge)
                else
@@ -159,7 +163,7 @@ module QuadMeshClass
                end if
 
                call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , &
-                                                edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
+                                                nodes = nodes , edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
 
              end do
 !
@@ -168,6 +172,7 @@ module QuadMeshClass
 !             ========================
 !
               do edge = 1 , self % no_of_edges
+
                   if (self % edges(edge) % f % edgeType .eq. FACE_INTERIOR) then
 
                      el1 = meshFile % elements_of_edges( 1 , edge )
@@ -182,18 +187,6 @@ module QuadMeshClass
 
                   end if
                end do
-
-               do edge = 1 , self % no_of_edges
-                  select type ( f=> self % edges(edge) % f )
-                     type is (Edge_t)
-                        print*, self %edges(edge) % f % edgeType , 1
-                     type is (StraightBdryEdge_t)
-                        print*, self %edges(edge) % f % edgeType , 2
-                     type is (CurvedBdryEdge_t)
-                        print*, self %edges(edge) % f % edgeType , 3
-                  end select
-               end do
-
 
          end subroutine constructElementsAndEdges
            

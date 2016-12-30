@@ -156,7 +156,8 @@ module QuadElementClass
              self % dQ   ( 0:N , 0:N , 1:NEC , 1:NDIM ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
 
              if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
-               self % F (0: self % spI % N , 0: self % spI % N , 1:NEC , 1:NDIM) => storage % F ( (self % ID -1)*(self % spI % N+1)**2*NEC*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NEC*NDIM )
+               self % F (0: self % spI % N , 0: self % spI % N , 1:NEC , 1:NDIM) => &
+                           storage % F ( (self % ID -1)*(self % spI % N+1)**2*NEC*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NEC*NDIM )
 
              else
 
@@ -168,13 +169,15 @@ module QuadElementClass
 
         end subroutine QuadElement_SetStorage
             
-        subroutine Edge_ConstructEdge( self , ID , curvilinear , edgeType , spA , spI)
+        subroutine Edge_ConstructEdge( self , ID , curvilinear , nodes , edgeType , spA , spI)
             use Setup_Class
             implicit none
             class(Edge_p)                     :: self
             integer                           :: ID
+            class(Node_p)                     :: nodes(:)
             logical                           :: curvilinear
             integer                           :: edgeType
+            integer                           :: node
             class(NodalStorage)               :: spA
             class(NodesAndWeights_t), pointer :: spI
 !
@@ -220,6 +223,10 @@ module QuadElementClass
             self % f % ID = ID
             self % f % N  = Setup % N
 
+            do node = 1 , POINTS_PER_EDGE
+               self % f % nodes(node) % n => nodes(node) % n
+            end do
+
             call spA % add( self % f % N , Setup % nodes , self % f % spA )
             self % f % spI    => spI
 
@@ -232,7 +239,31 @@ module QuadElementClass
             class(QuadElement_t), optional :: el1
             class(QuadElement_t), optional :: el2
             class(QuadElement_t), optional :: elb
-            
+            integer                        :: nodesID(POINTS_PER_EDGE)
+            integer                        :: nodesEl1(POINTS_PER_QUAD)
+            integer                        :: nodesEl2(POINTS_PER_QUAD)
+            integer                        :: nodesElb(POINTS_PER_QUAD)
+            integer                        :: node
+            integer                        :: edgeID
+
+            do node = 1 , POINTS_PER_EDGE
+               nodesID(node) = self % nodes(node) % n %ID
+            end do
+
+            if (present(el1) .and. present(el2) .and. (.not. present(elb)) ) then             ! Interior edge            
+               do node = 1 , POINTS_PER_QUAD 
+                  nodesEl1(node)  = el1 % nodes(node) % n % ID 
+                  nodesEl2(node)  = el2 % nodes(node) % n % ID
+               end do
+
+            elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
+               do node = 1 , POINTS_PER_QUAD 
+                  nodesElb(node)  = elb % nodes(node) % n % ID 
+               end do
+
+
+
+            end if
 
          end subroutine Edge_linkWithElements
 
