@@ -5,6 +5,7 @@ module QuadMeshClass
     use InitialConditions
     use Element1DClass
     use Storage_module
+    use QuadMeshDefinitions
 
     private
     public QuadMesh_t , InitializeMesh
@@ -13,15 +14,15 @@ module QuadMeshClass
          integer                               :: no_of_nodes
          integer                               :: no_of_edges
          integer                               :: no_of_elements
-         class(Node_t)      , pointer          :: nodes(:)
-         class(Face_p)      , pointer          :: edges(:)           ! This is an array to pointers
+         class(Node_t),         pointer        :: nodes(:)
+         class(Face_p),         pointer        :: edges(:)           ! This is an array to pointers
          class(QuadElement_t) , pointer        :: elements(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
          contains
              procedure  :: ConstructFromFile
              procedure  :: SetInitialCondition
              procedure  :: ApplyInitialCondition
-             procedure  :: SetStorage => Mesh1D_SetStorage
+             procedure  :: SetStorage => QuadMesh_SetStorage
     end type QuadMesh_t
 
     interface InitializeMesh
@@ -68,19 +69,13 @@ module QuadMeshClass
              class(Storage_t),                  intent (in )                 :: storage
              class(NodesAndWeights_t), pointer, intent (in )                 :: spI
 !            ----------------------------------------------------------------------
-             integer                :: address
-             integer                :: node
-             integer                :: edge
-             integer                :: eID
-             class(Node_t), pointer :: leftNode , rightNode
-             class(QuadElement_t), pointer :: leftE , rightE , bdryE
-!
+
 !            **************
 !            Set dimensions
 !            **************
 !
-             self % no_of_nodes = meshFile % no_of_nodes
-             self % no_of_edges = meshFile % no_of_nodes
+             self % no_of_nodes    = meshFile % no_of_nodes
+             self % no_of_edges    = meshFile % no_of_nodes
              self % no_of_elements = meshFile % no_of_elements
 !
 !            *********************
@@ -104,15 +99,48 @@ module QuadMeshClass
                  call self % nodes(node) % construct( ID = node, x = meshFile % points_coords(1:NDIM,node))
              end do
 !
+!            ============================
+!            Construct edges and elements
+!            ============================
+!
+             call constructElementsAndEdges( self , meshFile , spA, Storage , spI )
+
+         end subroutine constructFromFile
+
+         subroutine constructElementsAndEdges( self  , meshFile , spA , Storage , spI)
+             use MeshFileClass
+             use Setup_class
+             use Physics
+             use NodesAndWeights_Class
+             implicit none
+             class(QuadMesh_t),                 intent (out)                 :: self
+             class(MeshFile_t),                 intent (in )                 :: meshFile
+             class(NodalStorage),               intent (in )                 :: spA
+             class(Storage_t),                  intent (in )                 :: storage
+             class(NodesAndWeights_t), pointer, intent (in )                 :: spI
+!            ----------------------------------------------------------------------
+             integer                                  :: address
+             integer                                  :: node
+             integer                                  :: edge
+             integer                                  :: eID
+             type(Node_p)                             :: nodes(POINTS_PER_QUAD)
+             integer                                  :: nodesID(POINTS_PER_QUAD)
+             class(QuadElement_t), pointer            :: leftE , rightE , bdryE
+!
+!
 !            ===================
 !            Construct elements
 !            ===================
 !
              do eID = 1 , self % no_of_elements
-                 leftNode => self % nodes( meshFile % points_of_elements(eID , LEFT) )
-                 rightNode => self % nodes ( meshFile % points_of_elements( eID , RIGHT) )
+                 do node = 1 , POINTS_PER_QUAD
+                    nodes(node) % n => self % nodes ( meshFile % points_of_elements(eID , node) ) 
+                 end do
+
+                 nodesID(:) = meshFile % points_of_elements(eID , :)
+
                  address = ( meshFile % cumulativePolynomialOrder(eID-1) + eID-1 ) * NEC + 1 
-                 call self % elements(eID) % construct( eID , leftNode , rightNode , leftNode % ID , rightNode % ID , &
+                 call self % elements(eID) % construct( eID , nodes , nodesID , &
                         meshFile % polynomialOrder(eID) , Setup % nodes , spA , address  , storage , spI)  
              end do
 
@@ -121,6 +149,10 @@ module QuadMeshClass
 !            Construct edges
 !            ================
 !
+             do edge = 1 , self % no_of_edges
+
+
+             end do
              do edge = 1 , self % no_of_edges
         
                     
@@ -140,7 +172,9 @@ module QuadMeshClass
                  end if
              end do
 
-         end subroutine constructFromFile
+
+
+         end subroutine constructElementsAndEdges
            
          subroutine setInitialCondition( self )
              use InitialConditions
@@ -176,7 +210,7 @@ module QuadMeshClass
              
           end subroutine applyInitialCondition
 
-          subroutine Mesh1D_SetStorage( self , storage )
+          subroutine QuadMesh_SetStorage( self , storage )
             use Storage_module
             implicit none
             class(QuadMesh_t)             :: self
@@ -187,6 +221,6 @@ module QuadMeshClass
                 call self % elements(eID) % SetStorage( storage )
             end do
 
-         end subroutine Mesh1D_SetStorage
+         end subroutine QuadMesh_SetStorage
             
 end module QuadMeshClass

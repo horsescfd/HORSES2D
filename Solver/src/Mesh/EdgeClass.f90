@@ -1,17 +1,18 @@
-module FaceClass
+module EdgeClass
     use SMConstants
     use NodeClass
     use Element1DClass
+    use QuadMeshDefinitions
     implicit none
 
     private
-    public  Face_t , BdryFace_t , Face_p , constructFace
+    public  Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p , constructFace
 !
 !   *****************
 !   Face_t definition
 !   *****************
 !
-    type Face_t
+    type Edge_t
         integer                           :: ID
         class(QuadElement_p), pointer       :: elements(:)
         real(kind=RP)                     :: n = 1.0_RP       ! Normal direction, this is to prepare for 2/3D
@@ -19,17 +20,23 @@ module FaceClass
         real(kind=RP)                     :: F                !      and towards the outside of the domain in boundary faces
         real(kind=RP)                     :: G
         integer                           :: FaceType
-    end type Face_t
+    end type Edge_t
 
-    type, extends(Face_t)  :: BdryFace_t
+    type, extends(Edge_t)  :: StraightBdryEdge_t
         real(kind=RP), pointer            :: uB(:)
         real(kind=RP), pointer            :: gB(:)
         integer                           :: BCLocation
-    end type BdryFace_t 
+    end type StraightBdryEdge_t 
 
-    type Face_p
-        class(Face_t),   pointer           :: f
-    end type Face_p
+    type, extends(Edge_t)  :: CurvedBdryEdge_t
+
+    end type CurvedBdryEdge_t
+
+    type Edge_p
+        class(Edge_t),   pointer           :: f
+        contains
+            procedure         :: construct => constructFace
+    end type Edge_p
 
 
 !
@@ -37,34 +44,45 @@ module FaceClass
     contains
 !   ========
 !
-        subroutine constructFace( self , ID , faceType , leftElement , rightElement , bdryElement)
+        subroutine constructFace( self , ID , curvilinear , faceType , leftElement , rightElement , bdryElement)
             implicit none
-            class(Face_t), pointer      :: self
+            class(Edge_p)               :: self
             integer                     :: ID
             integer                     :: faceType
+            logical                     :: curvilinear
             class(QuadElement_t), pointer, optional :: leftElement
             class(QuadElement_t), pointer, optional :: rightElement   
             class(QuadElement_t), pointer, optional :: bdryElement 
             
 !
-!           It needs to be allocated
+!           *************************************************
+!              Allocate the edge depending on its type
+!           *************************************************
 !
             if (faceType .EQ. FACE_INTERIOR) then
 
-                allocate(Face_t :: self)
+                allocate(Face_t :: self % f)
 
 !               Allocate its elements and point to the objects
-                allocate( self % elements(2) )
+                allocate( self % elements(QUADS_PER_EDGE) )
                 if (present(leftElement) .and. present(rightElement) ) then
-                  self % elements(LEFT) % e   => leftElement
-                  self % elements(RIGHT) % e  => rightElement
+                  self % f % elements(LEFT) % e   => leftElement
+                  self % f % elements(RIGHT) % e  => rightElement
                 end if
                   self % faceType = FACE_INTERIOR
+
             elseif (faceType .NE. FACE_INTERIOR) then
 
-                allocate(Bdryface_t :: self)
+               if ( .NOT. curvilinear ) then
+                  allocate(StraightBdryEdge_t   :: self % f)
 
-                allocate( self % elements(1) ) 
+               else
+                  allocate(CurvedBdryEdge_t     :: self % f)
+
+               end if
+
+               allocate( self % f % elements(1) )
+
                 if (present(bdryElement)) then
                   self % elements(1) % e => bdryElement
                 end if 
@@ -90,7 +108,6 @@ module FaceClass
 
             end if
 
-            self % ID = ID 
 
 
         end subroutine constructFace            
@@ -100,4 +117,4 @@ module FaceClass
 
 
 
-end module FaceClass
+end module EdgeClass

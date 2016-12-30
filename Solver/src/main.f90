@@ -45,8 +45,8 @@ program main
 !   Initialize and build the DGSem structure
 !   ****************************************
 !
-!    sem = DGSEM_Initialize()
-!    call sem % construct(meshFile)
+    sem = DGSEM_Initialize()
+    call sem % construct(meshFile)
 !   
 !   ***********************************************
 !   Set the initial condition to all flow variables

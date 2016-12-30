@@ -3,40 +3,79 @@ module Element1DClass
     use NodeClass
     use NodesAndWeights_class
     use Storage_module
+    use QuadMeshDefinitions
     implicit none
 
     private
-    public  QuadElement_t , QuadElement_p
-
+    public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t
+    public  ConstructQuadsAndEdges
+!
+!   ********************************************************************************
+!           Quad Element derived type definition
+!   ********************************************************************************
+!
     type QuadElement_t
-        class(Node_p) , pointer           :: nodes(:)
+        type(Node_p)                      :: nodes(POINTS_PER_QUAD)
         integer                           :: ID
-        integer       , dimension(2)      :: facesID
+        integer                           :: edgesID(EDGES_PER_QUAD)
         integer                           :: address
         !       Storage
         class(NodesAndWeights_t), pointer :: Interp
         class(NodesAndWeights_t), pointer :: spI
-        real(kind=RP)                     :: hdiv2
         real(kind=RP), allocatable        :: x(:)
-        real(kind=RP), pointer            :: Q(:,:) , QDot(:,:) , F(:,:) , dQ(:,:)
-        real(kind=RP), pointer            :: Qb(:,:), dQb(:,:)
-        contains
-            procedure   :: construct => constructElement
-            procedure   :: SetStorage => QuadElement_SetStorage
+        real(kind=RP), pointer            :: Q(:,:,:) , QDot(:,:,:) , F(:,:,:,:) , dQ(:,:,:,:)
     end type QuadElement_t
 
     type QuadElement_p
         type(QuadElement_t),  pointer     :: e
     end type QuadElement_p
+!
+!   *********************************************************************************
+!           Edge derived type definition:
+!                 Edge_t:  For interior edges
+!                 StraightBdryEdge_t: For straight boundary edges
+!                 CurvedBdryEdge_t: For curved boundary edges
+!   *********************************************************************************
+!
+    type Edge_t
+        integer                           :: ID
+        class(QuadElement_p), pointer     :: elements(:)
+        real(kind=RP)                     :: n(NDIM)          !   n always points from LEFT towards RIGHT and outside the domain for bdryedges
+        type(Node_t), pointer             :: node             
+        real(kind=RP), allocatable        :: Q(:,:,:) , dQ(:,:,:,:)  ! To store the interpolation to boundaries from elements
+        integer,       allocatable        :: FaceLocation
+        integer                           :: FaceType
+    end type Edge_t
+
+    type, extends(Edge_t)  :: StraightBdryEdge_t
+        real(kind=RP), pointer            :: uB(:,:)
+        real(kind=RP), pointer            :: gB(:,:,:)
+    end type StraightBdryEdge_t 
+
+    type, extends(Edge_t)  :: CurvedBdryEdge_t
+        real(kind=RP), pointer            :: uB(:,:)
+        real(kind=RP), pointer            :: gB(:,:,:)
+    end type CurvedBdryEdge_t
+
+    type Edge_p
+        class(Edge_t),   pointer           :: f
+    end type Edge_p
+!
+!  -------------------------------------------------------------------------------------------------------------------------
+
 
     contains
-        subroutine ConstructElement(self , ID , leftNode , rightNode , faceLeftID , faceRightID , N , nodes , spA , address , storage , spI)
+        subroutine ConstructQuadsAndEdges
+
+
+        end subroutine ConstructQuadsAndEdges
+
+        subroutine ConstructElement(self , ID , nodes , faceLeftID , faceRightID , N , nodes , spA , address , storage , spI)
              use Setup_class
              use Physics
-             class(QuadElement_t)                :: self
+             class(QuadElement_t)              :: self
              integer                           :: ID
-             class(Node_t), pointer            :: leftNode
-             class(Node_t), pointer            :: rightNode
+             class(Node_p)                     :: nodes
              integer                           :: faceLeftID
              integer                           :: faceRightID
              integer                           :: nodes
@@ -52,16 +91,15 @@ module Element1DClass
 !            Point to neighbour nodes
 !            ************************
 !
-             allocate( self % nodes(2) )
-             self % nodes(LEFT) % n => leftNode
-             self % nodes(RIGHT) % n => rightNode
+             self % nodes = nodes
 !
 !            **************
 !            Get faces data
 !            **************
 !
-             self % facesID(LEFT) = faceLeftID
-             self % facesID(RIGHT) = faceRightID
+             self % edgesID(LEFT) = faceLeftID
+             self % edgesID(RIGHT) = faceRightID
+             self % edgesID(TOP)   = fa
 !
 !            *********************
 !            Get NodalStorage data       
@@ -90,9 +128,9 @@ module Element1DClass
 !            Allocate data
 !            *************
 !
-             allocate ( self % x    ( 0:N       )  ) 
-             allocate ( self % Qb   ( NEC   , 2 )  ) 
-             allocate ( self % dQb  ( NEC   , 2 )  ) 
+             allocate ( self % x   ( NDIM  , 0:N                   )  ) 
+             allocate ( self % Qb  ( NEC   , EDGES_PER_QUAD        )  ) 
+             allocate ( self % dQb ( NEC   , EDGES_PER_QUAD , NDIM )  ) 
 !
 !            **********
 !            Set values
