@@ -20,8 +20,6 @@ module QuadElementClass
         integer                           :: edgesDirection(EDGES_PER_QUAD)
         real(kind=RP), allocatable        :: x(:,:,:)
         real(kind=RP), allocatable        :: dx(:,:,:,:)
-        real(kind=RP), allocatable        :: dxiX(:,:,:)    ! TODO
-        real(kind=RP), allocatable        :: detaX(:,:,:)   ! TODO
         real(kind=RP), allocatable        :: jac(:,:)
         real(kind=RP), pointer            :: Q(:,:,:) , QDot(:,:,:) , F(:,:,:,:) , dQ(:,:,:,:)
         type(Node_p)                      :: nodes(POINTS_PER_QUAD)
@@ -155,8 +153,6 @@ module QuadElementClass
 !
              allocate ( self % x     ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % dx    ( NDIM  , 0:N , 0:N , NDIM )  ) 
-             allocate ( self % dxix  ( NDIM  , 0:N , 0:N        )  ) 
-             allocate ( self % detax ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % jac   ( 0:N , 0:N                )  ) 
              allocate ( self % edges ( EDGES_PER_QUAD           )  ) 
       
@@ -557,16 +553,6 @@ module QuadElementClass
                                                     (1.0_RP - xi(iXi) )  * gLEFT % getX(N-iEta,dLEFT) + eta(iEta)*gTOP % getX(N-iXi,dTOP)  &
                                                     -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                                     -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
-                     self % dxix(iX:iY,ixi,ieta) = (1.0_RP - eta(iEta)) * gBOT % getdX(iXi,dBOT) + gRIGHT % getX(iEta,dRIGHT)  &
-                                                    - gLEFT % getX(N-iEta,dLEFT) - eta(iEta)*gTOP % getdX(N-iXi,dTOP)  &
-                                                    +n1*(1.0_RP - eta(iEta)) - n2 * (1.0_RP - eta(iEta)) & 
-                                                    -n3 * eta(iEta) + n4 * eta(iEta)
-
-
-                     self % detax(iX:iY, ixi , ieta) =  - gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getdX(iEta,dRIGHT) -&
-                                                    (1.0_RP - xi(iXi) )  * gLEFT % getdX(N-iEta,dLEFT) + gTOP % getX(N-iXi,dTOP)  &
-                                                    +n1*(1.0_RP - xi(iXi)) + n2 * xi(iXi)  & 
-                                                    -n3* xi(iXi) - n4 * (1.0_RP - xi(iXi)) 
                   end do
                end do
 
