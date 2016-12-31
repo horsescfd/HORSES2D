@@ -124,6 +124,7 @@ module QuadMeshClass
              integer                                  :: edge
              integer                                  :: eID
              integer                                  :: el1 , el2 , elb
+             integer                                  :: curve
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
              logical                                  :: curvilinear
@@ -165,6 +166,22 @@ module QuadMeshClass
                call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , &
                                                 nodes = nodes , edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
 
+               if (curvilinear) then
+!
+!              Add the curve to the edge
+!              -------------------------
+                  select type ( f => self % edges(edge) % f )
+
+                     type is (CurvedBdryEdge_t) 
+
+                        curve = minloc(meshFile % curved_bdryedges -  edge , 1)
+                        call self % edges(edge) % f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
+
+                     class default
+
+                  end select
+
+               end if
              end do
 !
 !             ========================

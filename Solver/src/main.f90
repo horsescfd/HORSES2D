@@ -9,6 +9,7 @@ program main
     implicit none
     type(MeshFile_t)            :: meshFile
     type(DGSEM_t)             :: sem
+      integer           :: edge
     interface
       subroutine checks( sem )
          use DGSEM_Class
@@ -54,6 +55,10 @@ program main
 !
     call sem % SetInitialCondition()
 
+    do edge = 1 , sem % mesh % no_of_edges
+      write(*,'(F24.16)') sem % mesh % edges(edge) % f % X(iY,0:2)
+   end do
+      
 !    call checks( sem ) 
 
 !    call sem % Integrate()

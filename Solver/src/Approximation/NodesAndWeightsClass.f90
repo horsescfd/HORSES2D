@@ -233,6 +233,7 @@ module nodesAndWeights_class
 
             end if
                 
+            self % xi = 0.5_RP + 0.5_RP * self % xi
             
 !
 !           ---------------------------

@@ -56,6 +56,7 @@ module QuadElementClass
         class(NodesAndWeights_t), pointer :: spA
         class(NodesAndWeights_t), pointer :: spI
         contains
+            procedure      :: SetCurve => Edge_SetCurve
             procedure      :: Invert => Edge_Invert
     end type Edge_t
 
@@ -69,7 +70,6 @@ module QuadElementClass
         real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
         contains
             procedure      :: SetCurve => CurvilinearEdge_SetCurve
-            procedure      :: Invert => CurvilinearEdge_Invert
     end type CurvedBdryEdge_t
 
     type Edge_p
@@ -366,22 +366,21 @@ module QuadElementClass
 
          end subroutine Edge_Invert
 
-         subroutine CurvilinearEdge_Invert ( self )
+         subroutine Edge_SetCurve( self , points , order )
             implicit none
-            class(CurvedBdryEdge_t)     :: self
-
-            call Edge_Invert ( self = self )
-
-         end subroutine CurvilinearEdge_Invert
-
-         subroutine Edge_SetCurve ( self )
-            implicit none
-            class(Edge_t)        :: self
-
-         end subroutine Edge_SetCurve 
+            class(Edge_t)                :: self
+            real(kind=RP), intent(in)    :: points(:,:)
+            integer      , intent(in)    :: order
+!
+!           **************************************
+!              The base class does nothing
+!           **************************************
+!
+         end subroutine Edge_SetCurve
 
          subroutine CurvilinearEdge_SetCurve( self , points , order )
             use InterpolationAndDerivatives
+            use MatrixOperations
             implicit none
             class(CurvedBdryEdge_t)                            :: self
             real(kind=RP)               , intent(in)           :: points(:,:)
@@ -395,9 +394,14 @@ module QuadElementClass
             allocate( CGLnodes(0 : order ) )
             allocate( wb(0 : order ) )
             allocate( T(0: self % spA % N , 0: order ) )
+
             CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
-            call BarycentricWeights( order , CGLnodes , wb )
+
+            call BarycentricWeights( N = order , x = CGLnodes , w = wb )
             call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
+
+            !self % X = NormalMat_x_TransposeMat_F( points , T )
+            self % X = matmul( points , transpose(T) )
 
          end subroutine CurvilinearEdge_SetCurve
 !

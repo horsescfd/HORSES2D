@@ -100,6 +100,46 @@ module MatrixOperations
 
       end function TransposeMat_x_NormalMat_F
 
+      function NormalMat_x_TransposeMat_F( A , B ) result( C )
+!     -----------------------------
+!        Computes the product
+!           C = A * tr(B)
+!     -----------------------------
+         implicit none
+         real(kind=RP), intent(in)        :: A(:,:)
+         real(kind=RP), intent(in)        :: B(:,:)
+         real(kind=RP), allocatable       :: C(:,:)
+!
+!        ----------------------------------------
+!           Variables for lapack dgemm
+!        ----------------------------------------
+!
+#ifdef _USE_LAPACK  ! ---------------------------------------
+         integer                 :: N , M , K 
+         integer                 :: LDA , LDB , LDC
+#endif ! ----------------------------------------------------
+!
+
+         allocate(C(size(A,1) , size(B,1)) )
+
+#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
+
+!           Set dimensions
+            M = size(A,2)
+            K = size(A,1)
+            N = size(B,2)
+            LDA = K
+            LDB = K
+            LDC = M
+
+            call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+
+#else ! ------------------------------------------------------------------------------------------------------------
+            C = MATMUL(  A  , transpose(B) ) 
+#endif ! -------------------------------------------------------------------------------------------------------------
+
+      end function NormalMat_x_TransposeMat_F
+
       subroutine TripleMatrixProduct( A , B , C , val )
 !
 !        ***********************************

@@ -364,9 +364,6 @@
          END IF
       END DO
 
-      DO k=0,M
-         print*, T(k,:)
-      end do
       END SUBROUTINE PolynomialInterpolationMatrix
 !
 !////////////////////////////////////////////////////////////////////////
