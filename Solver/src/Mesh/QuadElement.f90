@@ -9,34 +9,46 @@ module QuadElementClass
 
     private
     public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !   ********************************************************************************
 !           Quad Element derived type definition
 !   ********************************************************************************
 !
     type QuadElement_t
-        integer                           :: ID
-        integer                           :: address
-        integer                           :: edgesDirection(EDGES_PER_QUAD)
-        real(kind=RP), allocatable        :: x(:,:,:)
-        real(kind=RP), allocatable        :: dx(:,:,:,:)
-        real(kind=RP), allocatable        :: jac(:,:)
-        real(kind=RP), pointer            :: Q(:,:,:) , QDot(:,:,:) , F(:,:,:,:) , dQ(:,:,:,:)
-        type(Node_p)                      :: nodes(POINTS_PER_QUAD)
-        class(Edge_p), pointer            :: edges(:)
-        class(NodesAndWeights_t), pointer :: spA
-        class(NodesAndWeights_t), pointer :: spI
+        integer                           :: ID                                                    ! ID of the element
+        integer                           :: address                                               ! Memory address of the first position in the mesh
+        integer                           :: edgesDirection(EDGES_PER_QUAD)                        ! Direction (FORWARD/REVERSE) of the edges
+        real(kind=RP), allocatable        :: x(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
+        real(kind=RP), allocatable        :: dx(:,:,:,:)                                           ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
+        real(kind=RP), allocatable        :: jac(:,:)                                              ! Mapping jacobian ( xi , eta )
+        real(kind=RP), pointer            :: Q(:,:,:)                                              ! Pointers to the main storage:
+        real(kind=RP), pointer            :: QDot(:,:,:)                                           !  *   Q, QDot ( EQ , xi , eta ): solution and time derivative
+        real(kind=RP), pointer            :: F(:,:,:,:)                                            !  *   F ( EQ , xi , eta , X/Y) : contravariant fluxes
+        real(kind=RP), pointer            :: dQ(:,:,:,:)                                           !  *   dQ( EQ , xi ,eta , X/Y):   solution gradient
+        type(Node_p)                      :: nodes(POINTS_PER_QUAD)                                ! Pointer to neighbour nodes
+        class(Edge_p), pointer            :: edges(:)                                              ! Pointer to neighbour eges
+        class(NodesAndWeights_t), pointer :: spA                                                   ! Pointer to the Nodal Storage
+        class(NodesAndWeights_t), pointer :: spI                                                   ! Pointer to the Over-Integration Nodal Storage (If proceeds)
 !       ========
         contains
 !       ========
-            procedure      :: Construct  => QuadElement_Construct
-            procedure      :: SetStorage => QuadElement_SetStorage
-            procedure      :: SetMappings => QuadElement_SetMappings
+            procedure      :: Construct   => QuadElement_Construct                                 ! Constructs/allocates data and points to the address in Storage
+            procedure      :: SetStorage  => QuadElement_SetStorage                                ! Function to set the storage distribution
+            procedure      :: SetMappings => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
     end type QuadElement_t
 
+!
+!   ********************************************************************************
+!           Pointer to Quad Element derived type
+!   ********************************************************************************
+!
     type QuadElement_p
-        type(QuadElement_t),  pointer     :: e
+        type(QuadElement_t),  pointer     :: e                                                     ! Pointer to a quad element
     end type QuadElement_p
+
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !   *********************************************************************************
 !           Edge derived type definition:
@@ -46,24 +58,24 @@ module QuadElementClass
 !   *********************************************************************************
 !
     type Edge_t
-        integer                           :: ID
-        integer                           :: N
-        real(kind=RP), allocatable        :: nb(:,:)          !   n always points from LEFT towards RIGHT and outside the domain for bdryedges
-        type(Node_p)                      :: nodes(POINTS_PER_EDGE)
-        class(QuadElement_p), pointer     :: quads(:)
-        real(kind=RP), allocatable        :: X(:,:)
-        real(kind=RP), allocatable        :: dX(:,:)
-        real(kind=RP), allocatable        :: dS(:,:)
-        real(kind=RP), allocatable        :: Q(:,:,:) , dQ(:,:,:,:)  ! To store the interpolation to boundaries from elements
-        integer,       allocatable        :: edgeLocation(:)
-        integer                           :: edgeType
-        class(NodesAndWeights_t), pointer :: spA
-        class(NodesAndWeights_t), pointer :: spI
+        integer                                 :: ID                         ! Edge ID
+        integer                                 :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
+        integer,                    allocatable :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        real(kind=RP),              allocatable :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
+        real(kind=RP),              allocatable :: X(:,:)                     ! Coordinates: (X/Y, xi)
+        real(kind=RP),              allocatable :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
+        real(kind=RP),              allocatable :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
+        real(kind=RP),              allocatable :: Q(:,:,:)                   ! Solution interpolation to boundaries ( NEC , xi , LEFT/RIGHT )
+        real(kind=RP),              allocatable :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary (NEC , xi , X/Y , LEFT/RIGHT)
+        type(Node_p)                            :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
+        class(QuadElement_p),       pointer     :: quads(:)                   ! Pointers to the two (or one) shared quads
+        class(NodesAndWeights_t),   pointer     :: spA                        ! Pointer to the approximation nodal storage
+        class(NodesAndWeights_t),   pointer     :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
         contains
-            procedure      :: SetCurve    => Edge_SetCurve
-            procedure      :: Invert      => Edge_Invert
-            procedure      :: XF          => Edge_AnalyticalX
-            procedure      :: getX        => Edge_getX
+            procedure      :: SetCurve    => Edge_SetCurve                    ! Function to compute the boundaries coordinates "x".
+            procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
+            procedure      :: XF          => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: getX        => Edge_getX                        ! 
             procedure      :: getdX       => Edge_getdX
             procedure      :: dSF         => Edge_AnalyticaldS
     end type Edge_t
@@ -82,12 +94,19 @@ module QuadElementClass
             procedure      :: dSF      => Curvilinear_InterpolantdS
     end type CurvedBdryEdge_t
 
+!
+!   ********************************************************************************
+!           Pointer to Edge derived type
+!   ********************************************************************************
+!
     type Edge_p
         class(Edge_t),   pointer           :: f
         contains
             procedure      :: Construct => Edge_ConstructEdge
             procedure      :: LinkWithElements => Edge_linkWithElements
     end type Edge_p
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !  -------------------------------------------------------------------------------------------------------------------------
 !
@@ -253,19 +272,18 @@ module QuadElementClass
             end if
 
             self % f % ID = ID
-            self % f % N  = Setup % N
 
             do node = 1 , POINTS_PER_EDGE
                self % f % nodes(node) % n => nodes(node) % n
             end do
 
-            call spA % add( self % f % N , Setup % nodes , self % f % spA )
+            call spA % add( Setup % N , Setup % nodes , self % f % spA )
             self % f % spI    => spI
 
             allocate ( self % f % X  ( NDIM , 0 : self % f % spA % N )  ) 
             allocate ( self % f % dX ( NDIM , 0 : self % f % spA % N )  ) 
             allocate ( self % f % dS ( NDIM , 0 : self % f % spA % N )  ) 
-            allocate ( self % f % nb ( NDIM , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % n  ( NDIM , 0 : self % f % spA % N )  ) 
 
         end subroutine Edge_ConstructEdge 
 

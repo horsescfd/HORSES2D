@@ -67,7 +67,7 @@ module DGBoundaryConditions
 !                 -------------------------------
 !                    Allocate data and set values
 !                 -------------------------------
-                        allocate( f1 % uB (NEC , 0 : f1 % N) )
+                        allocate( f1 % uB (NEC , 0 : f1 % spA % N) )
                         f1 % uB = Setup % dirichletBC( f1 % edgeType )
                         f1 % gB => NULL()    ! TODO f1 % quads(1) % e % dQb( : , f1 % BCLocation )
 
