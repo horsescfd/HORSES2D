@@ -22,6 +22,46 @@ module MatrixOperations
 
       end function vectorOuterProduct
 
+      function MatrixMultiply_F( A , B ) result( C )
+!     -----------------------------
+!        Computes the product
+!           C = A * B
+!     -----------------------------
+         implicit none
+         real(kind=RP), intent(in)        :: A(:,:)
+         real(kind=RP), intent(in)        :: B(:,:)
+         real(kind=RP), allocatable       :: C(:,:)
+!
+!        ----------------------------------------
+!           Variables for lapack dgemm
+!        ----------------------------------------
+!
+#ifdef _USE_LAPACK  ! ---------------------------------------
+         integer                 :: N , M , K 
+         integer                 :: LDA , LDB , LDC
+#endif ! ----------------------------------------------------
+!
+
+         allocate(C(size(A,1) , size(B,2)) )
+
+#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
+
+!           Set dimensions
+            M = size(A,1)
+            K = size(A,2)
+            N = size(B,2)
+            LDA = M
+            LDB = K
+            LDC = M
+
+            call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+
+#else ! ------------------------------------------------------------------------------------------------------------
+            C = MATMUL(  A  , B ) 
+#endif ! -------------------------------------------------------------------------------------------------------------
+
+      end function MatrixMultiply_F
+
       subroutine TransposeMat_x_NormalMat( A , B , C )
 !     -----------------------------
 !        Computes the product

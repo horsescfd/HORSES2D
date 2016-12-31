@@ -19,6 +19,7 @@ module QuadElementClass
         integer                           :: address
         integer                           :: edgesDirection(EDGES_PER_QUAD)
         real(kind=RP), allocatable        :: x(:,:,:)
+        real(kind=RP), allocatable        :: dx(:,:,:,:)
         real(kind=RP), allocatable        :: jac(:,:)
         real(kind=RP), pointer            :: Q(:,:,:) , QDot(:,:,:) , F(:,:,:,:) , dQ(:,:,:,:)
         type(Node_p)                      :: nodes(POINTS_PER_QUAD)
@@ -46,10 +47,11 @@ module QuadElementClass
     type Edge_t
         integer                           :: ID
         integer                           :: N
-        real(kind=RP)                     :: nb(NDIM)          !   n always points from LEFT towards RIGHT and outside the domain for bdryedges
+        real(kind=RP), allocatable        :: nb(:,:)          !   n always points from LEFT towards RIGHT and outside the domain for bdryedges
         type(Node_p)                      :: nodes(POINTS_PER_EDGE)
         class(QuadElement_p), pointer     :: quads(:)
         real(kind=RP), allocatable        :: X(:,:)
+        real(kind=RP), allocatable        :: dS(:,:)
         real(kind=RP), allocatable        :: Q(:,:,:) , dQ(:,:,:,:)  ! To store the interpolation to boundaries from elements
         integer,       allocatable        :: edgeLocation(:)
         integer                           :: edgeType
@@ -58,6 +60,8 @@ module QuadElementClass
         contains
             procedure      :: SetCurve => Edge_SetCurve
             procedure      :: Invert => Edge_Invert
+            procedure      :: XF       => Edge_AnalyticalX
+            procedure      :: dSF      => Edge_AnalyticaldS
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -70,6 +74,8 @@ module QuadElementClass
         real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
         contains
             procedure      :: SetCurve => CurvilinearEdge_SetCurve
+            procedure      :: XF       => Curvilinear_InterpolantX
+ !           procedure      :: dSF      => Curvilinear_InterpolantdS
     end type CurvedBdryEdge_t
 
     type Edge_p
@@ -251,7 +257,9 @@ module QuadElementClass
             call spA % add( self % f % N , Setup % nodes , self % f % spA )
             self % f % spI    => spI
 
-            allocate( self % f % X(NDIM , 0 : self % f % spA % N ) )
+            allocate ( self % f % X  ( NDIM , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % dS ( NDIM , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % nb ( NDIM , 0 : self % f % spA % N )  ) 
 
 !
 !           If rectilinear edge, compute the points
@@ -404,6 +412,115 @@ module QuadElementClass
             !self % X = matmul( points , transpose(T) )
 
          end subroutine CurvilinearEdge_SetCurve
+      
+         function Edge_AnalyticalX( self , xi , direction ) result( p )
+            implicit none
+            class(Edge_t), intent(in)           :: self
+            real(kind=RP), intent(in)           :: xi
+            integer      , intent(in)           :: direction
+            real(kind=RP)                       :: p(2)
+!           ------------------------------------------------------------
+            real(kind=RP)                       :: correctedXi
+            
+            if (direction .eq. BACKWARD) then
+              correctedXi = 1.0_RP - xi
+            elseif (direction .eq. FORWARD) then
+              correctedXi = xi
+            end if 
+
+            p = self % nodes(1) % n % X * (1.0_RP - correctedXi) + self % nodes(2) % n % X * correctedXi
+
+         end function Edge_AnalyticalX
+
+         function Curvilinear_InterpolantX( self , xi , direction ) result( p )
+            use MatrixOperations
+            implicit none
+            class(CurvedBdryEdge_t), intent (in) :: self
+            real(kind=RP),           intent (in) :: xi
+            integer      ,           intent (in) :: direction
+            real(kind=RP)                        :: p(2)
+!           ------------------------------------------------------------
+            real(kind=RP), allocatable           :: auxp(:,:)
+            real(kind=RP)                        :: correctedXi
+            real(kind=RP), allocatable           :: lj(:,:)
+            
+            if (direction .eq. BACKWARD) then
+              correctedXi = 1.0_RP - xi
+            elseif (direction .eq. FORWARD) then
+              correctedXi = xi
+            end if 
+
+            allocate(lj( 0 : self % spA % N , 1 ) )
+            allocate(auxp(NDIM , 1) )
+            lj(:,1) = self % spA % lj(correctedXi)
+
+            auxp(1:NDIM,1:) = MatrixMultiply_F( self % X , lj )
+
+            p = auxp(1:NDIM,1)
+            
+            deallocate(lj , auxp)
+
+         end function Curvilinear_InterpolantX
+
+         function Edge_AnalyticaldS( self , xi , direction ) result( dS )
+            implicit none
+            class(Edge_t), intent(in)        :: self
+            real(kind=RP), intent(in)        :: xi
+            integer,       intent(in)        :: direction
+            real(kind=RP)                    :: dS(2)
+!           --------------------------------------------------------------
+
+            associate( n1 => self % nodes(1) % n % X , &
+                       n2 => self % nodes(2) % n % X )
+
+               dS(1) = n2(2) - n1(2)
+               dS(2) = n2(1) - n1(1)
+
+            end associate
+
+         end function Edge_AnalyticaldS
+
+         function Curvilinear_InterpolantdS( self , xi , direction ) result( dS )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)        :: self
+            real(kind=RP), intent(in)        :: xi
+            integer,       intent(in)        :: direction
+            real(kind=RP)                    :: dS(2)
+!           --------------------------------------------------------------
+            real(kind=RP), allocatable           :: dP(:,:)
+            real(kind=RP), allocatable           :: auxdS(:,:)
+            real(kind=RP), allocatable           :: lj(:,:)
+            real(kind=RP)                        :: correctedXi
+            
+            if (direction .eq. BACKWARD) then
+              correctedXi = 1.0_RP - xi
+            elseif (direction .eq. FORWARD) then
+              correctedXi = xi
+            end if 
+
+            allocate(dP(NDIM , 0 : self % spA % N) )
+            allocate(lj(0 : self % spA % N , 1 ) )
+            allocate(auxdS(NDIM , 1) )
+
+            lj(:,1) = self % spA % lj(correctedXi)
+
+            associate ( D => self % spA % D )
+            
+               dP = NormalMat_x_TransposeMat_F( self % X , D )
+               auxdS(1:NDIM,1:) = MatrixMultiply_F( dP , lj ) 
+            
+            end associate
+
+            dS = auxdS(1:NDIM , 1)
+         
+            deallocate( lj , dP , auxdS )
+
+         end function Curvilinear_InterpolantdS
+
+
+
+
 !
 !        **********************************************************************************
 !                 Auxiliar subroutines
