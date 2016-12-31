@@ -62,6 +62,58 @@ module MatrixOperations
 
       end function MatrixMultiply_F
 
+      function MatrixMultiplyInIndex_F( A , B , index) result( C )
+!     -----------------------------
+!        Computes the product
+!           C = A * B
+!     -----------------------------
+         implicit none
+         real(kind=RP), intent(in)        :: A(:,:,:)
+         real(kind=RP), intent(in)        :: B(:,:)
+         integer                          :: index
+         real(kind=RP), allocatable       :: C(:,:,:)
+         integer                          :: I1 , I2 , I3
+         integer                          :: i , j
+         
+         I1 = size(A,1)
+         I2 = size(A,2)
+         I3 = size(A,3)
+         
+         if (index .eq. 1) then
+            I1 = size(B,2)
+         elseif ( index .eq. 2) then
+            I2 = size(B,2)
+         elseif ( index .eq. 3) then
+            I3 = size(B,2)
+         end if
+
+         
+         allocate(C(I1,I2,I3))
+
+         if (index .eq. 1) then
+            do i = 1 , I2
+               do j = 1 , I3
+                  C(:,i,j) = matmul(A(:,i,j) , B) 
+               end do
+            end do
+         
+         elseif (index .eq. 2) then
+            do i = 1 , I1
+               do j = 1 , I3
+                  C(i,:,j) = matmul(A(i,:,j) , B) 
+               end do
+            end do
+         elseif (index .eq. 3) then
+            do i = 1 , I1
+               do j = 1 , I2
+                  C(i,j,:) = matmul(A(i,j,:) , B) 
+               end do
+            end do
+         end if
+
+      end function MatrixMultiplyInIndex_F
+
+
       subroutine TransposeMat_x_NormalMat( A , B , C )
 !     -----------------------------
 !        Computes the product

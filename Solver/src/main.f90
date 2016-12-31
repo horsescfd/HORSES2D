@@ -11,6 +11,8 @@ program main
     implicit none
     type(MeshFile_t)            :: meshFile
     type(DGSEM_t)             :: sem
+      real(kind=RP)  , pointer      :: a(:) , b(:)
+   integer :: counter = 0
       integer           :: edge
     interface
       subroutine checks( sem )
@@ -67,6 +69,14 @@ program main
       end do
       close(111)
 
+      a(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements) % dX(:,:,:,2)
+      b(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements ) % detaX(:,:,:)
+      do  
+         counter = counter + 1 
+         write(*,'(2F24.16)') a(counter) , b(counter)
+
+      end do
+      
       
 !    call checks( sem ) 
 
