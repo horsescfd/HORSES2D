@@ -34,7 +34,7 @@ module Setup_class
 !       -------------------------------------------------------------------------------------
 !
         integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
-        integer                      :: N                         =  10         ! Polynomial order (generic)
+        integer                      :: N                         =  4         ! Polynomial order (generic)
         real(kind=RP)                :: nu                        =  0.1_RP ! Viscous coefficient
 !
 !       --------------------------------------------------------------------------------------

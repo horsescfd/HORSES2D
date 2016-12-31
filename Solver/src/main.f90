@@ -67,17 +67,6 @@ program main
       end do
       close(111)
 
-      select type ( f => sem % mesh % elements(sem % mesh % no_of_elements) % edges(3) % f )
-
-         type is (CurvedBdryEdge_t) 
-
-            print*, sem % mesh % elements(sem % mesh % no_of_elements) % edgesDirection(3)
-            write(*,'(2F24.16)') f % X(iX:iY,:)
-   
-         class default
-      end select
-
-      
       
 !    call checks( sem ) 
 
