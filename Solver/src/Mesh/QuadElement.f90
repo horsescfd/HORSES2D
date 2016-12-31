@@ -400,8 +400,8 @@ module QuadElementClass
             call BarycentricWeights( N = order , x = CGLnodes , w = wb )
             call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
 
-            !self % X = NormalMat_x_TransposeMat_F( points , T )
-            self % X = matmul( points , transpose(T) )
+            self % X = NormalMat_x_TransposeMat_F( points , T )
+            !self % X = matmul( points , transpose(T) )
 
          end subroutine CurvilinearEdge_SetCurve
 !

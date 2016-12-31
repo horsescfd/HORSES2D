@@ -125,11 +125,11 @@ module MatrixOperations
 #ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
 
 !           Set dimensions
-            M = size(A,2)
-            K = size(A,1)
-            N = size(B,2)
-            LDA = K
-            LDB = K
+            M = size(A,1)
+            K = size(A,2)
+            N = size(B,1)
+            LDA = M
+            LDB = N
             LDC = M
 
             call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )

@@ -174,7 +174,7 @@ module QuadMeshClass
 
                      type is (CurvedBdryEdge_t) 
 
-                        curve = minloc(meshFile % curved_bdryedges -  edge , 1)
+                        curve = minloc(abs(meshFile % curved_bdryedges -  edge) , 1)
                         call self % edges(edge) % f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
 
                      class default

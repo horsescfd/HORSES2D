@@ -56,7 +56,7 @@ program main
     call sem % SetInitialCondition()
 
     do edge = 1 , sem % mesh % no_of_edges
-      write(*,'(F24.16)') sem % mesh % edges(edge) % f % X(iY,0:2)
+      write(*,'(F24.16)') sem % mesh % edges(edge) % f % X(iY,0:5)
    end do
       
 !    call checks( sem ) 
