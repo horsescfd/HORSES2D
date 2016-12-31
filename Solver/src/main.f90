@@ -55,9 +55,14 @@ program main
 !
     call sem % SetInitialCondition()
 
-    do edge = 1 , sem % mesh % no_of_edges
-      write(*,'(F24.16)') sem % mesh % edges(edge) % f % X(iX,:)
-   end do
+    open (111 , FILE = "coords.dat" , status = "unknown" , action = "write" )
+!    do edge = 1 , sem % mesh % no_of_edges
+!      write(111,'(2F24.16)') sem % mesh % edges(edge) % f % X(iX:iY,:)
+!   end do
+      do edge = 1 , sem % mesh % no_of_elements
+         write(111, '(2F24.16)') sem % mesh % elements(edge) % X(iX:iY,:,:)
+      end do
+      close(111)
       
 !    call checks( sem ) 
 

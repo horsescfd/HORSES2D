@@ -31,6 +31,7 @@ module QuadElementClass
 !       ========
             procedure      :: Construct  => QuadElement_Construct
             procedure      :: SetStorage => QuadElement_SetStorage
+            procedure      :: SetMappings => QuadElement_SetMappings
     end type QuadElement_t
 
     type QuadElement_p
@@ -61,6 +62,7 @@ module QuadElementClass
             procedure      :: SetCurve => Edge_SetCurve
             procedure      :: Invert => Edge_Invert
             procedure      :: XF       => Edge_AnalyticalX
+            procedure      :: getX     => Edge_getX
             procedure      :: dSF      => Edge_AnalyticaldS
     end type Edge_t
 
@@ -75,7 +77,7 @@ module QuadElementClass
         contains
             procedure      :: SetCurve => CurvilinearEdge_SetCurve
             procedure      :: XF       => Curvilinear_InterpolantX
- !           procedure      :: dSF      => Curvilinear_InterpolantdS
+            procedure      :: dSF      => Curvilinear_InterpolantdS
     end type CurvedBdryEdge_t
 
     type Edge_p
@@ -262,16 +264,19 @@ module QuadElementClass
             allocate ( self % f % nb ( NDIM , 0 : self % f % spA % N )  ) 
 
 !
-!           If rectilinear edge, compute the points
+!           If rectilinear edge, compute the points , the dS , and the normal
             select type (f => self % f)
                type is (Edge_t)
-                   
-                  self % f % x = reshape((/( self % f % nodes(1) % n % X * (1.0_RP - self % f % spA % xi(p)) + self % f % nodes(2) % n % X * self % f % spA % xi(p) , &
-                                                p = 0 , self % f % spA % N)/),(/ NDIM , self % f % spA % N + 1 /) )
-               type is (StraightBdryEdge_t)
+                 type is (StraightBdryEdge_t)
 
                   self % f % x = reshape((/( self % f % nodes(1) % n % X * (1.0_RP - self % f % spA % xi(p)) + self % f % nodes(2) % n % X * self % f % spA % xi(p) , &
                                                 p = 0 , self % f % spA % N)/),(/ NDIM , self % f % spA % N + 1 /) )
+
+
+                  associate( n1 => self % f % nodes(1) % n % X , n2 => self % f % nodes(2) % n % X )
+                     self % f % dS(iX,:) = n2(iY) - n1(iY)
+                     self % f % dS(iY,:) = n2(iX) - n1(iX)
+                  end associate
 
                class default
             end select 
@@ -376,14 +381,19 @@ module QuadElementClass
 
          subroutine Edge_SetCurve( self , points , order )
             implicit none
-            class(Edge_t)                :: self
-            real(kind=RP), intent(in)    :: points(:,:)
-            integer      , intent(in)    :: order
-!
-!           **************************************
-!              The base class does nothing
-!           **************************************
-!
+            class(Edge_t)                       :: self
+            real(kind=RP), intent(in), optional :: points(:,:)
+            integer      , intent(in), optional :: order
+            integer                             :: p
+                 
+            self % x = reshape((/( self % nodes(1) % n % X * (1.0_RP - self % spA % xi(p)) + self % nodes(2) % n % X * self % spA % xi(p) , &
+                                                p = 0 , self % spA % N)/),(/ NDIM , self % spA % N + 1 /) )
+
+            associate( n1 => self % nodes(1) % n % X , n2 => self % nodes(2) % n % X )
+               self % dS(iX,:) = n2(iY) - n1(iY)
+               self % dS(iY,:) = n2(iX) - n1(iX)
+            end associate
+
          end subroutine Edge_SetCurve
 
          subroutine CurvilinearEdge_SetCurve( self , points , order )
@@ -391,26 +401,27 @@ module QuadElementClass
             use MatrixOperations
             implicit none
             class(CurvedBdryEdge_t)                            :: self
-            real(kind=RP)               , intent(in)           :: points(:,:)
-            integer                     , intent(in)           :: order
+            real(kind=RP)               , intent(in), optional :: points(:,:)
+            integer                     , intent(in), optional :: order
 !           -----------------------------------------------------------------------------
             real(kind=RP), allocatable                         :: CGLnodes(:)
             real(kind=RP), allocatable                         :: T(:,:)
             real(kind=RP), allocatable                         :: wb(:)
             integer                                            :: node
 
-            allocate( CGLnodes(0 : order ) )
-            allocate( wb(0 : order ) )
-            allocate( T(0: self % spA % N , 0: order ) )
-
-            CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
-
-            call BarycentricWeights( N = order , x = CGLnodes , w = wb )
-            call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
-
-            self % X = NormalMat_x_TransposeMat_F( points , T )
-            !self % X = matmul( points , transpose(T) )
-
+            if ( present(points) .and. present(order) ) then
+               allocate( CGLnodes(0 : order ) )
+               allocate( wb(0 : order ) )
+               allocate( T(0: self % spA % N , 0: order ) )
+   
+               CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
+   
+               call BarycentricWeights( N = order , x = CGLnodes , w = wb )
+               call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
+   
+               self % X = NormalMat_x_TransposeMat_F( points , T )
+   
+            end if
          end subroutine CurvilinearEdge_SetCurve
       
          function Edge_AnalyticalX( self , xi , direction ) result( p )
@@ -483,7 +494,7 @@ module QuadElementClass
          function Curvilinear_InterpolantdS( self , xi , direction ) result( dS )
             use MatrixOperations
             implicit none
-            class(Edge_t), intent(in)        :: self
+            class(CurvedBdryEdge_t), intent(in)        :: self
             real(kind=RP), intent(in)        :: xi
             integer,       intent(in)        :: direction
             real(kind=RP)                    :: dS(2)
@@ -518,8 +529,61 @@ module QuadElementClass
 
          end function Curvilinear_InterpolantdS
 
+         subroutine QuadElement_SetMappings ( self ) 
+            implicit none
+            class(QuadElement_t)          :: self 
+            integer                       :: ixi , ieta
+!
+!           **************************************
+!           Set the mapping for the inner points X
+!              Also, compute dX, the derivatives
+!           **************************************
+!
+            associate ( N => self % spA % N , xi => self % spA % xi , eta => self % spA % xi , &
+                        gBOT => self % edges(EBOTTOM) % f , & 
+                        gTOP => self % edges(ETOP) % f  , & 
+                        gLEFT => self % edges(ELEFT) % f , & 
+                        gRIGHT => self % edges(ERIGHT) % f , & 
+                        dBOT => self % edgesDirection(EBOTTOM) , &
+                        dTOP => self % edgesDirection(ETOP) , & 
+                        dLEFT => self % edgesDirection(ELEFT) , & 
+                        dRIGHT => self % edgesDirection(ERIGHT) , & 
+                        n1 => self % nodes(1) % n % X , n2 => self % nodes(2) % n % X , n3 => self % nodes(3) % n % X , n4 => self % nodes(4) % n % X ) 
 
+               do ixi = 0 , N
+                  do ieta = 0 , N 
+                     
+                     self % x(iX:iY, ixi , ieta) =  (1.0_RP - eta(iEta)) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getX(iEta,dRIGHT) + &
+                                                    (1.0_RP - xi(iXi) )  * gLEFT % getX(iEta,dLEFT) + eta(iEta)*gTOP % getX(iXi,dTOP)  &
+                                                    -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
+                                                    -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
+                  end do
+               end do
 
+            end associate
+
+         end subroutine QuadElement_SetMappings
+
+         function Edge_getX( self , iXi , direction ) result ( X ) 
+            implicit none
+            class(Edge_t), intent(in)                 :: self
+            integer      , intent(in)                 :: iXi
+            integer      , intent(in)                 :: direction
+            real(kind=RP)                             :: X (NDIM)
+!           -------------------------------------------------------------
+            integer                                   :: correctediXi
+
+            if (direction .eq. FORWARD) then
+               correctediXi = iXi
+            
+            elseif (direction .eq. BACKWARD) then
+               correctediXi = self % spA % N - iXi
+      
+            end if
+
+            X = self % X(iX:iY,correctediXi)
+
+         end function Edge_getX
 
 !
 !        **********************************************************************************

@@ -172,6 +172,12 @@ module QuadMeshClass
 !              -------------------------
                   select type ( f => self % edges(edge) % f )
 
+                     type is (Edge_t)
+                        call self % edges(edge) % f % SetCurve()
+
+                     type is (StraightBdryEdge_t) 
+                        call self % edges(edge) % f % SetCurve()
+
                      type is (CurvedBdryEdge_t) 
 
                         curve = minloc(abs(meshFile % curved_bdryedges -  edge) , 1)
@@ -180,6 +186,9 @@ module QuadMeshClass
                      class default
 
                   end select
+
+               else
+                  call self % edges(edge) % f % SetCurve()
 
                end if
              end do
@@ -202,6 +211,15 @@ module QuadMeshClass
                      call self % edges(edge)  % linkWithElements( elb = self % elements(elb) )
 
                   end if
+               end do
+
+!
+!              =================================
+!              Compute the geometry of the quads
+!              =================================
+!
+               do eID = 1 , self % no_of_elements
+                  call self % elements(eID) % SetMappings
                end do
          end subroutine constructElementsAndEdges
            
