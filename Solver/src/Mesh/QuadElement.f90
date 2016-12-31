@@ -554,7 +554,7 @@ module QuadElementClass
                   do ieta = 0 , N 
                      
                      self % x(iX:iY, ixi , ieta) =  (1.0_RP - eta(iEta)) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getX(iEta,dRIGHT) + &
-                                                    (1.0_RP - xi(iXi) )  * gLEFT % getX(iEta,dLEFT) + eta(iEta)*gTOP % getX(iXi,dTOP)  &
+                                                    (1.0_RP - xi(iXi) )  * gLEFT % getX(N-iEta,dLEFT) + eta(iEta)*gTOP % getX(N-iXi,dTOP)  &
                                                     -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                                     -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
                   end do

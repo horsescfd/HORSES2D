@@ -5,6 +5,8 @@ program main
     use MeshFileClass
     use DGSEM_Class
     use Setup_class
+    use QuadMeshClass
+    use QuadElementClass
     use Headers
     implicit none
     type(MeshFile_t)            :: meshFile
@@ -61,8 +63,21 @@ program main
 !   end do
       do edge = 1 , sem % mesh % no_of_elements
          write(111, '(2F24.16)') sem % mesh % elements(edge) % X(iX:iY,:,:)
+
       end do
       close(111)
+
+      select type ( f => sem % mesh % elements(sem % mesh % no_of_elements) % edges(3) % f )
+
+         type is (CurvedBdryEdge_t) 
+
+            print*, sem % mesh % elements(sem % mesh % no_of_elements) % edgesDirection(3)
+            write(*,'(2F24.16)') f % X(iX:iY,:)
+   
+         class default
+      end select
+
+      
       
 !    call checks( sem ) 
 
