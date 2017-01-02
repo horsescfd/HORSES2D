@@ -68,11 +68,13 @@ module MatrixOperations
 !           C = tr(A) * B
 !     -----------------------------
          implicit none
-         logical                          :: trA
-         logical                          :: trB
+         logical      , optional          :: trA
+         logical      , optional          :: trB
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
          real(kind=RP), intent(out)       :: C(:,:)
+         logical                          :: tA
+         logical                          :: tB
 !
 !        ----------------------------------------
 !           Variables for lapack dgemm
@@ -84,34 +86,46 @@ module MatrixOperations
 #endif 
 !
 
+         if (present(trA)) then
+            tA = trA
+         else
+            tA = .false.
+         end if
+
+         if (present(trB)) then
+            tB = trB
+         else
+            tB = .false.
+         end if
+
 #ifdef _USE_LAPACK  
 
 !           Set dimensions
-            if (trA) then
+            if (tA) then
                M = size(A,2)
             else 
                M = size(A,1)
             end if
 
-            if (trB) then
+            if (tB) then
                N = size(B,1)
             else
                N = size(B,2)
             end if
 
-            if (trA) then
+            if (tA) then
                K = size(A,1)
             else
                K = size(A,2)
             end if
 
-            if (trA) then
+            if (tA) then
                LDA = K
             else
                LDA = M
             end if
 
-            if (trB) then
+            if (tB) then
                LDB = N
             else
                LDB = K
@@ -119,40 +133,41 @@ module MatrixOperations
 
             LDC = M
 
-            if ( (.not. trA) .and. (.not. trB) ) then
+            if ( (.not. tA) .and. (.not. tB) ) then
                call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( (.not. trA) .and. ( trB ) ) then
+            elseif ( (.not. tA) .and. ( tB ) ) then
                call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( ( trA ) .and. (.not. trB) ) then
+            elseif ( ( tA ) .and. (.not. tB) ) then
                call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( ( trA ) .and. ( trB ) ) then
+            elseif ( ( tA ) .and. ( tB ) ) then
                call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
             end if
 #else 
-            if ( (.not. trA) .and. (.not. trB) ) then
+            if ( (.not. tA) .and. (.not. tB) ) then
                C = matmul(A,B)
-            elseif ( (.not. trA) .and. ( trB ) ) then
+            elseif ( (.not. tA) .and. ( tB ) ) then
                C = matmul(A,transpose(B))
-            elseif ( ( trA ) .and. (.not. trB) ) then
+            elseif ( ( tA ) .and. (.not. tB) ) then
                C = matmul(transpose(A),B)
-            elseif ( ( trA ) .and. ( trB ) ) then
+            elseif ( ( tA ) .and. ( tB ) ) then
                C = matmul(transpose(A),transpose(B))
             end if
 #endif 
 
       end subroutine Mat_x_Mat
 
-      function Mat_x_Mat_F( trA , trB , A , B ) result ( C )
+      function Mat_x_Mat_F( A , B , trA , trB) result ( C )
 !     -----------------------------
 !        Computes the product
 !           C = tr(A) * B
 !     -----------------------------
          implicit none
-         logical                          :: trA
-         logical                          :: trB
+         logical      , optional          :: trA
+         logical      , optional          :: trB
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
          real(kind=RP), allocatable       :: C(:,:)
+         logical                          :: tA , tB
 !
 !        ----------------------------------------
 !           Variables for lapack dgemm
@@ -164,20 +179,32 @@ module MatrixOperations
 #endif 
 !
 
+         if (present(trA)) then
+            tA = trA
+         else
+            tA = .false.
+         end if
+
+         if (present(trB)) then
+            tB = trB
+         else
+            tB = .false.
+         end if
+
 !           Set dimensions
-            if (trA) then
+            if (tA) then
                M = size(A,2)
             else 
                M = size(A,1)
             end if
 
-            if (trB) then
+            if (tB) then
                N = size(B,1)
             else
                N = size(B,2)
             end if
 
-            if (trA) then
+            if (tA) then
                K = size(A,1)
             else
                K = size(A,2)
@@ -188,13 +215,13 @@ module MatrixOperations
 
 #ifdef _USE_LAPACK
 
-            if (trA) then
+            if (tA) then
                LDA = K
             else
                LDA = M
             end if
 
-            if (trB) then
+            if (tB) then
                LDB = N
             else
                LDB = K
@@ -202,24 +229,24 @@ module MatrixOperations
 
             LDC = M
 
-            if ( (.not. trA) .and. (.not. trB) ) then
+            if ( (.not. tA) .and. (.not. tB) ) then
                call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( (.not. trA) .and. ( trB ) ) then
+            elseif ( (.not. tA) .and. ( tB ) ) then
                call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( ( trA ) .and. (.not. trB) ) then
+            elseif ( ( tA ) .and. (.not. tB) ) then
                call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( ( trA ) .and. ( trB ) ) then
+            elseif ( ( tA ) .and. ( tB ) ) then
                call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
             end if
 #else
 
-            if ( (.not. trA) .and. (.not. trB) ) then
+            if ( (.not. tA) .and. (.not. tB) ) then
                C = matmul(A,B)
-            elseif ( (.not. trA) .and. ( trB ) ) then
+            elseif ( (.not. tA) .and. ( tB ) ) then
                C = matmul(A,transpose(B))
-            elseif ( ( trA ) .and. (.not. trB) ) then
+            elseif ( ( tA ) .and. (.not. tB) ) then
                C = matmul(transpose(A),B)
-            elseif ( ( trA ) .and. ( trB ) ) then
+            elseif ( ( tA ) .and. ( tB ) ) then
                C = matmul(transpose(A),transpose(B))
             end if
 #endif
@@ -239,7 +266,7 @@ module MatrixOperations
          real(kind=RP), intent(in)        :: C(:,:)
          real(kind=RP), intent(out)       :: val(:,:)
 
-         val = matmul(matmul(A,B),C)
+         val = Mat_X_Mat_F( Mat_X_Mat_F( A,B ) , C)
 
       end subroutine TripleMatrixProduct
 
@@ -276,20 +303,20 @@ module MatrixOperations
          if (index .eq. 1) then
             do i = 1 , I2
                do j = 1 , I3
-                  C(:,i,j) = matmul(A(:,i,j) , B) 
+                  C(:,i,j) = matmul( A(:,i,j) , B ) 
                end do
             end do
          
          elseif (index .eq. 2) then
             do i = 1 , I1
                do j = 1 , I3
-                  C(i,:,j) = matmul(A(i,:,j) , B) 
+                  C(i,:,j) = matmul( A(i,:,j) , B ) 
                end do
             end do
          elseif (index .eq. 3) then
             do i = 1 , I1
                do j = 1 , I2
-                  C(i,j,:) = matmul(A(i,j,:) , B) 
+                  C(i,j,:) = matmul( A(i,j,:) , B ) 
                end do
             end do
          end if
