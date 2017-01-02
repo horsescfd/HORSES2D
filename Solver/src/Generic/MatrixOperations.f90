@@ -78,13 +78,13 @@ module MatrixOperations
 !           Variables for lapack dgemm
 !        ----------------------------------------
 !
-#ifdef _USE_LAPACK  ! ---------------------------------------
+#ifdef _USE_LAPACK  
          integer                 :: N , M , K 
          integer                 :: LDA , LDB , LDC
-#endif ! ----------------------------------------------------
+#endif 
 !
 
-#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
+#ifdef _USE_LAPACK  
 
 !           Set dimensions
             if (trA) then
@@ -105,8 +105,18 @@ module MatrixOperations
                K = size(A,2)
             end if
 
-            LDA = K
-            LDB = K
+            if (trA) then
+               LDA = K
+            else
+               LDA = M
+            end if
+
+            if (trB) then
+               LDB = N
+            else
+               LDB = K
+            end if
+
             LDC = M
 
             if ( (.not. trA) .and. (.not. trB) ) then
@@ -118,19 +128,17 @@ module MatrixOperations
             elseif ( ( trA ) .and. ( trB ) ) then
                call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
             end if
-#else ! ------------------------------------------------------------------------------------------------------------
-            C = MATMUL( TRANSPOSE( A ) , B ) 
+#else 
             if ( (.not. trA) .and. (.not. trB) ) then
                C = matmul(A,B)
             elseif ( (.not. trA) .and. ( trB ) ) then
                C = matmul(A,transpose(B))
             elseif ( ( trA ) .and. (.not. trB) ) then
-               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
                C = matmul(transpose(A),B)
             elseif ( ( trA ) .and. ( trB ) ) then
                C = matmul(transpose(A),transpose(B))
             end if
-#endif ! -------------------------------------------------------------------------------------------------------------
+#endif 
 
       end subroutine Mat_x_Mat
 
@@ -151,11 +159,10 @@ module MatrixOperations
 !        ----------------------------------------
 !
          integer                 :: N , M , K 
-#ifdef _USE_LAPACK  ! ---------------------------------------
+#ifdef _USE_LAPACK  
          integer                 :: LDA , LDB , LDC
-#endif ! ----------------------------------------------------
+#endif 
 !
-
 
 !           Set dimensions
             if (trA) then
@@ -179,9 +186,20 @@ module MatrixOperations
 
             allocate( C(M,N) )
 
-#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
-            LDA = K
-            LDB = K
+#ifdef _USE_LAPACK
+
+            if (trA) then
+               LDA = K
+            else
+               LDA = M
+            end if
+
+            if (trB) then
+               LDB = N
+            else
+               LDB = K
+            end if
+
             LDC = M
 
             if ( (.not. trA) .and. (.not. trB) ) then
@@ -193,19 +211,18 @@ module MatrixOperations
             elseif ( ( trA ) .and. ( trB ) ) then
                call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
             end if
-#else ! ------------------------------------------------------------------------------------------------------------
-            C = MATMUL( TRANSPOSE( A ) , B ) 
+#else
+
             if ( (.not. trA) .and. (.not. trB) ) then
                C = matmul(A,B)
             elseif ( (.not. trA) .and. ( trB ) ) then
                C = matmul(A,transpose(B))
             elseif ( ( trA ) .and. (.not. trB) ) then
-               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
                C = matmul(transpose(A),B)
             elseif ( ( trA ) .and. ( trB ) ) then
                C = matmul(transpose(A),transpose(B))
             end if
-#endif ! -------------------------------------------------------------------------------------------------------------
+#endif
 
       end function Mat_x_Mat_F
 
