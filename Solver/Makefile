@@ -46,7 +46,12 @@ main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
 # --------------- DO NOT EDIT ----------------------------------------------------
 
-OBJS_F90 = $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
+F90_REMOVE=QuadAuxiliar.f90 QuadMappings.f90
+F90_INCLUDE=$(SRC_DIR)/Mesh/
+
+OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
+OBJS_F90:= $(filter-out $(F90_REMOVE),$(OBJS_F90))
+$(info $(OBJS_F90) )
 OBJS= $(patsubst %.f90,%,$(OBJS_F90))
 OBJS_EXEC = $(foreach obj,$(OBJS),$(BUILD_DIR)/$(obj).o) 
 
@@ -83,7 +88,7 @@ endif
 
 
 # ------------- LIBRARIES ------------------------
-INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC)
+INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 
 # ------------- Main rules -----------------------
 	
