@@ -179,9 +179,9 @@ module MatrixOperations
 #ifdef _USE_LAPACK  
 
             if (rst) then
-               beta = 0.0_RP
+               beta = 0.0_RP        ! Do not add its current value
             else
-               beta = 1.0_RP
+               beta = 1.0_RP        ! Add its current value
             end if
 !           Set dimensions
             if (tA) then
@@ -231,6 +231,7 @@ module MatrixOperations
                   C = matmul(A,B)
                else
                   C = C + matmul(A,B)
+               end if
             elseif ( (.not. tA) .and. ( tB ) ) then
                if (rst) then
                   C = matmul(A,transpose(B))
@@ -354,20 +355,20 @@ module MatrixOperations
          if (index .eq. 1) then
             do i = 1 , I2
                do j = 1 , I3
-                  C(:,i,j) = matmul( A(:,i,j) , B ) 
+                  C(:,i,j) = MatrixTimesVector_F ( A=B , X=A(:,i,j) , trA=.true. ) 
                end do
             end do
          
          elseif (index .eq. 2) then
             do i = 1 , I1
                do j = 1 , I3
-                  C(i,:,j) = matmul( A(i,:,j) , B ) 
+                  C(i,:,j) = MatrixTimesVector_F( A=B , X=A(i,:,j) , trA=.true. ) 
                end do
             end do
          elseif (index .eq. 3) then
             do i = 1 , I1
                do j = 1 , I2
-                  C(i,j,:) = matmul( A(i,j,:) , B ) 
+                  C(i,j,:) = MatrixTimesVector_F( A=B , X = A(i,j,:) , trA=.true. ) 
                end do
             end do
          end if
