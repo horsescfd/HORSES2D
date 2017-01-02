@@ -1,1 +1,1 @@
-This is a two dimensional discontinuous Galerkin spectral element method solver for Navier-Stokes equations.
+This is a two dimensional discontinuous Galerkin spectral element method solver for Navier-Stokes equations. This code has been developed in the Madrid Technical University.
