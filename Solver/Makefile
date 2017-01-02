@@ -69,10 +69,10 @@ ifeq ($(COMPILER),gfortran)
    MOD_FLAG :=-J
    FC=gfortran
    ifeq ($(MODE),DEBUG)
-      $(info Compiling in DEBUG mode.)
+      $(info Compiling with gfortran in DEBUG mode.)
       FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
    else 
-  	$(info Compiling in RELEASE mode.)
+  	$(info Compiling with gfortran in RELEASE mode.)
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
    LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
@@ -81,10 +81,10 @@ else ifeq ($(COMPILER),ifort)
    MOD_FLAG := -module 
    FC=ifort
    ifeq ($(MODE),DEBUG)
-     $(info Compiling in DEBUG mode.)
+     $(info Compiling with intel fortran in DEBUG mode.)
      FFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
    else ifeq ($(MODE),RELEASE)
-     $(info Compiling in RELEASE mode.)
+     $(info Compiling with intel fortran in RELEASE mode.)
      FFLAGS = -cpp -O3 -mkl -assume bscc
      
    endif
@@ -93,6 +93,8 @@ else ifeq ($(COMPILER),ifort)
 endif
 
 
+$(info )
+$(info )
 # ------------- LIBRARIES ------------------------
 INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 
@@ -120,6 +122,7 @@ $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
 
 
 clean:
+	$(info Removing installation:)
 	rm -f $(BUILD_DIR)/*
 	rm -f $(INC_DIR)/*
 
