@@ -22,6 +22,7 @@ module QuadElementClass
         integer                           :: edgesDirection(EDGES_PER_QUAD)                        ! Direction (FORWARD/REVERSE) of the edges
         real(kind=RP), allocatable        :: x(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable        :: dxix(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
+        real(kind=RP), allocatable        :: detax(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable        :: dx(:,:,:,:)                                           ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
         real(kind=RP), allocatable        :: jac(:,:)                                              ! Mapping jacobian ( xi , eta )
         real(kind=RP), pointer            :: Q(:,:,:)                                              ! Pointers to the main storage:
@@ -92,9 +93,10 @@ module QuadElementClass
         real(kind=RP), pointer            :: uB(:,:)           ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
         contains
-            procedure      :: SetCurve => CurvilinearEdge_SetCurve
-            procedure      :: XF       => Curvilinear_InterpolantX
-            procedure      :: dSF      => Curvilinear_InterpolantdS
+            procedure      :: SetCurve   => CurvilinearEdge_SetCurve
+            procedure      :: evaluateX  => Curvilinear_InterpolantX
+            procedure      :: evaluatedX => Curvilinear_InterpolantdX
+            procedure      :: evaluatedS => Curvilinear_InterpolantdS
     end type CurvedBdryEdge_t
 
 !
@@ -183,6 +185,7 @@ module QuadElementClass
              allocate ( self % x     ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % dx    ( NDIM  , 0:N , 0:N , NDIM )  ) 
              allocate ( self % dxix     ( NDIM  , 0:N , 0:N        )  ) 
+             allocate ( self % detax     ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % jac   ( 0:N , 0:N                )  ) 
              allocate ( self % edges ( EDGES_PER_QUAD           )  ) 
       
@@ -439,8 +442,9 @@ module QuadElementClass
                call BarycentricWeights( N = order , x = CGLnodes , w = wb )
                call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
    
-               self % X = NormalMat_x_TransposeMat_F( points , T )
-               self % dX = NormalMat_x_TransposeMat_F( self % X , self % spA % D)
+               self % X  = Mat_x_Mat_F ( trA = .false. , trB = .true. , A = points   , B = T              ) 
+               self % dX = Mat_x_Mat_F ( trA = .false. , trB = .true. , A = self % X , B = self % spA % D ) 
+
                self % dS(1,:) =   self % dX(2,:)
                self % dS(2,:) = - self % dX(1,:)
    

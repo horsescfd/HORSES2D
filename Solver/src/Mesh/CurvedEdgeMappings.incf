@@ -1,10 +1,10 @@
-   function Curvilinear_InterpolantX( self , xi , direction ) result( p )
+  function Curvilinear_InterpolantX( self , xi , direction ) result( p )
       use MatrixOperations
       implicit none
-      class(CurvedBdryEdge_t), intent (in) :: self
-      real(kind=RP),           intent (in) :: xi
-      integer      ,           intent (in) :: direction
-      real(kind=RP)                        :: p(2)
+      class(CurvedBdryEdge_t), intent (in)           :: self
+      real(kind=RP),           intent (in)           :: xi
+      integer      ,           intent (in), optional :: direction
+      real(kind=RP)                                  :: p(2)
 !     ------------------------------------------------------------
       real(kind=RP), allocatable           :: auxp(:,:)
       real(kind=RP)                        :: correctedXi
@@ -20,21 +20,21 @@
       allocate(auxp(NDIM , 1) )
       lj(:,1) = self % spA % lj(correctedXi)
 
-      auxp(1:NDIM,1:) = MatrixMultiply_F( self % X , lj )
+      auxp(1:NDIM,1:) = Mat_X_Mat_F( trA = .false. , trB = .false. , A = self % X , B = lj )
 
       p = auxp(1:NDIM,1)
       
       deallocate(lj , auxp)
 
-   end function Curvilinear_InterpolantX
+  end function Curvilinear_InterpolantX
 
   function Curvilinear_InterpolantdS( self , xi , direction ) result( dS )
       use MatrixOperations
       implicit none
-      class(CurvedBdryEdge_t), intent(in)        :: self
-      real(kind=RP), intent(in)        :: xi
-      integer,       intent(in)        :: direction
-      real(kind=RP)                    :: dS(2)
+      class(CurvedBdryEdge_t), intent (in)           :: self
+      real(kind=RP),           intent (in)           :: xi
+      integer,                 intent (in), optional :: direction
+      real(kind=RP)                                  :: dS(2)
 !     --------------------------------------------------------------
       real(kind=RP), allocatable           :: dP(:,:)
       real(kind=RP), allocatable           :: auxdS(:,:)
@@ -55,8 +55,8 @@
 
       associate ( D => self % spA % D )
       
-         dP = NormalMat_x_TransposeMat_F( self % X , D )
-         auxdS(1:NDIM,1:) = MatrixMultiply_F( dP , lj ) 
+         dP               = Mat_X_Mat_F( trA = .false. , trB = .true.  , A = self % X , B = D  )
+         auxdS(1:NDIM,1:) = Mat_x_Mat_F( trA = .false. , trB = .false. , A = dP       , B = lj )
       
       end associate
 
@@ -67,4 +67,35 @@
 
    end function Curvilinear_InterpolantdS
 
+  function Curvilinear_InterpolantdX( self , xi , direction ) result( p )
+      use MatrixOperations
+      implicit none
+      class(CurvedBdryEdge_t), intent (in)           :: self
+      real(kind=RP),           intent (in)           :: xi
+      integer      ,           intent (in), optional :: direction
+      real(kind=RP)                                  :: p(2)
+!     ------------------------------------------------------------
+      real(kind=RP), allocatable           :: auxp(:,:)
+      real(kind=RP)                        :: correctedXi
+      real(kind=RP), allocatable           :: lj(:,:)
+      
+      if (direction .eq. BACKWARD) then
+        correctedXi = 1.0_RP - xi
+      elseif (direction .eq. FORWARD) then
+        correctedXi = xi
+      end if 
 
+      allocate(lj( 0 : self % spA % N , 1 ) )
+      allocate(auxp(NDIM , 1) )
+      lj(:,1) = self % spA % lj(correctedXi)
+
+!     TODO
+      auxp(1:NDIM,1:) = Mat_X_Mat_F( trA = .false. , trB = .true.  , A = self % X , B = lj  )
+
+      p = auxp(1:NDIM,1)
+      
+      deallocate(lj , auxp)
+
+  end function Curvilinear_InterpolantdX
+
+ 

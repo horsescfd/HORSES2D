@@ -22,15 +22,57 @@ module MatrixOperations
 
       end function vectorOuterProduct
 
-      function MatrixMultiply_F( A , B ) result( C )
+!      function MatrixTimesVector_F( A , V ) result( C )
+!!     -----------------------------
+!!        Computes the product
+!!           C = A * B
+!!     -----------------------------
+!         implicit none
+!         real(kind=RP), intent(in)        :: A(:,:)
+!         real(kind=RP), intent(in)        :: V(:,:)
+!         real(kind=RP), allocatable       :: C(:,:)
+!!
+!!        ----------------------------------------
+!!           Variables for lapack dgemm
+!!        ----------------------------------------
+!!
+!#ifdef _USE_LAPACK  ! ---------------------------------------
+!         integer                 :: N , M , K 
+!         integer                 :: LDA , LDB , LDC
+!#endif ! ----------------------------------------------------
+!!
+!
+!         allocate(C(size(A,1) , size(B,2)) )
+!
+!#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
+!
+!!           Set dimensions
+!            M = size(A,1)
+!            K = size(A,2)
+!            N = size(B,2)
+!            LDA = M
+!            LDB = K
+!            LDC = M
+!
+!            call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+!
+!#else ! ------------------------------------------------------------------------------------------------------------
+!            C = MATMUL(  A  , B ) 
+!#endif ! -------------------------------------------------------------------------------------------------------------
+!
+!      end function MatrixTimesVector_F
+!
+      subroutine Mat_x_Mat( trA , trB , A , B , C )
 !     -----------------------------
 !        Computes the product
-!           C = A * B
+!           C = tr(A) * B
 !     -----------------------------
          implicit none
+         logical                          :: trA
+         logical                          :: trB
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), allocatable       :: C(:,:)
+         real(kind=RP), intent(out)       :: C(:,:)
 !
 !        ----------------------------------------
 !           Variables for lapack dgemm
@@ -42,25 +84,130 @@ module MatrixOperations
 #endif ! ----------------------------------------------------
 !
 
-         allocate(C(size(A,1) , size(B,2)) )
-
 #ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
 
 !           Set dimensions
-            M = size(A,1)
-            K = size(A,2)
-            N = size(B,2)
-            LDA = M
+            if (trA) then
+               M = size(A,2)
+            else 
+               M = size(A,1)
+            end if
+
+            if (trB) then
+               N = size(B,1)
+            else
+               N = size(B,2)
+            end if
+
+            if (trA) then
+               K = size(A,1)
+            else
+               K = size(A,2)
+            end if
+
+            LDA = K
             LDB = K
             LDC = M
 
-            call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-
+            if ( (.not. trA) .and. (.not. trB) ) then
+               call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            elseif ( (.not. trA) .and. ( trB ) ) then
+               call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            elseif ( ( trA ) .and. (.not. trB) ) then
+               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            elseif ( ( trA ) .and. ( trB ) ) then
+               call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            end if
 #else ! ------------------------------------------------------------------------------------------------------------
-            C = MATMUL(  A  , B ) 
+            C = MATMUL( TRANSPOSE( A ) , B ) 
+            if ( (.not. trA) .and. (.not. trB) ) then
+               C = matmul(A,B)
+            elseif ( (.not. trA) .and. ( trB ) ) then
+               C = matmul(A,transpose(B))
+            elseif ( ( trA ) .and. (.not. trB) ) then
+               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+               C = matmul(transpose(A),B)
+            elseif ( ( trA ) .and. ( trB ) ) then
+               C = matmul(transpose(A),transpose(B))
+            end if
 #endif ! -------------------------------------------------------------------------------------------------------------
 
-      end function MatrixMultiply_F
+      end subroutine Mat_x_Mat
+
+      function Mat_x_Mat_F( trA , trB , A , B ) result ( C )
+!     -----------------------------
+!        Computes the product
+!           C = tr(A) * B
+!     -----------------------------
+         implicit none
+         logical                          :: trA
+         logical                          :: trB
+         real(kind=RP), intent(in)        :: A(:,:)
+         real(kind=RP), intent(in)        :: B(:,:)
+         real(kind=RP), allocatable       :: C(:,:)
+!
+!        ----------------------------------------
+!           Variables for lapack dgemm
+!        ----------------------------------------
+!
+         integer                 :: N , M , K 
+#ifdef _USE_LAPACK  ! ---------------------------------------
+         integer                 :: LDA , LDB , LDC
+#endif ! ----------------------------------------------------
+!
+
+
+!           Set dimensions
+            if (trA) then
+               M = size(A,2)
+            else 
+               M = size(A,1)
+            end if
+
+            if (trB) then
+               N = size(B,1)
+            else
+               N = size(B,2)
+            end if
+
+            if (trA) then
+               K = size(A,1)
+            else
+               K = size(A,2)
+            end if
+
+
+            allocate( C(M,N) )
+
+#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
+            LDA = K
+            LDB = K
+            LDC = M
+
+            if ( (.not. trA) .and. (.not. trB) ) then
+               call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            elseif ( (.not. trA) .and. ( trB ) ) then
+               call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            elseif ( ( trA ) .and. (.not. trB) ) then
+               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            elseif ( ( trA ) .and. ( trB ) ) then
+               call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+            end if
+#else ! ------------------------------------------------------------------------------------------------------------
+            C = MATMUL( TRANSPOSE( A ) , B ) 
+            if ( (.not. trA) .and. (.not. trB) ) then
+               C = matmul(A,B)
+            elseif ( (.not. trA) .and. ( trB ) ) then
+               C = matmul(A,transpose(B))
+            elseif ( ( trA ) .and. (.not. trB) ) then
+               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+               C = matmul(transpose(A),B)
+            elseif ( ( trA ) .and. ( trB ) ) then
+               C = matmul(transpose(A),transpose(B))
+            end if
+#endif ! -------------------------------------------------------------------------------------------------------------
+
+      end function Mat_x_Mat_F
 
       function MatrixMultiplyInIndex_F( A , B , index) result( C )
 !     -----------------------------
@@ -112,142 +259,6 @@ module MatrixOperations
          end if
 
       end function MatrixMultiplyInIndex_F
-
-
-      subroutine TransposeMat_x_NormalMat( A , B , C )
-!     -----------------------------
-!        Computes the product
-!           C = tr(A) * B
-!     -----------------------------
-         implicit none
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), intent(out)       :: C(:,:)
-!
-!        ----------------------------------------
-!           Variables for lapack dgemm
-!        ----------------------------------------
-!
-#ifdef _USE_LAPACK  ! ---------------------------------------
-         integer                 :: N , M , K 
-         integer                 :: LDA , LDB , LDC
-#endif ! ----------------------------------------------------
-!
-
-#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
-
-!           Set dimensions
-            M = size(A,2)
-            K = size(A,1)
-            N = size(B,2)
-            LDA = K
-            LDB = K
-            LDC = M
-
-            call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-
-#else ! ------------------------------------------------------------------------------------------------------------
-            C = MATMUL( TRANSPOSE( A ) , B ) 
-#endif ! -------------------------------------------------------------------------------------------------------------
-
-      end subroutine TransposeMat_x_NormalMat
-
-      function TransposeMat_x_NormalMat_F( A , B ) result( C )
-!     -----------------------------
-!        Computes the product
-!           C = tr(A) * B
-!     -----------------------------
-         implicit none
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), allocatable       :: C(:,:)
-!
-!        ----------------------------------------
-!           Variables for lapack dgemm
-!        ----------------------------------------
-!
-#ifdef _USE_LAPACK  ! ---------------------------------------
-         integer                 :: N , M , K 
-         integer                 :: LDA , LDB , LDC
-#endif ! ----------------------------------------------------
-!
-
-         allocate(C(size(A,2) , size(B,2)) )
-
-#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
-
-!           Set dimensions
-            M = size(A,2)
-            K = size(A,1)
-            N = size(B,2)
-            LDA = K
-            LDB = K
-            LDC = M
-
-            call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-
-#else ! ------------------------------------------------------------------------------------------------------------
-            C = MATMUL( TRANSPOSE( A ) , B ) 
-#endif ! -------------------------------------------------------------------------------------------------------------
-
-      end function TransposeMat_x_NormalMat_F
-
-      function NormalMat_x_TransposeMat_F( A , B ) result( C )
-!     -----------------------------
-!        Computes the product
-!           C = A * tr(B)
-!     -----------------------------
-         implicit none
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), allocatable       :: C(:,:)
-!
-!        ----------------------------------------
-!           Variables for lapack dgemm
-!        ----------------------------------------
-!
-#ifdef _USE_LAPACK  ! ---------------------------------------
-         integer                 :: N , M , K 
-         integer                 :: LDA , LDB , LDC
-#endif ! ----------------------------------------------------
-!
-
-         allocate(C(size(A,1) , size(B,1)) )
-
-#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
-
-!           Set dimensions
-            M = size(A,1)
-            K = size(A,2)
-            N = size(B,1)
-            LDA = M
-            LDB = N
-            LDC = M
-
-            call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-
-#else ! ------------------------------------------------------------------------------------------------------------
-            C = MATMUL(  A  , transpose(B) ) 
-#endif ! -------------------------------------------------------------------------------------------------------------
-
-      end function NormalMat_x_TransposeMat_F
-
-      subroutine TripleMatrixProduct( A , B , C , val )
-!
-!        ***********************************
-!           Computes the product 
-!              val = A B C
-!        ***********************************
-!
-         implicit none
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), intent(in)        :: C(:,:)
-         real(kind=RP), intent(out)       :: val(:,:)
-
-         val = matmul(matmul(A,B),C)
-
-      end subroutine TripleMatrixProduct
 
       subroutine innerProduct2D( A , M , val )
 !     
