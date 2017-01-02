@@ -20,7 +20,7 @@
       allocate(auxp(NDIM , 1) )
       lj(:,1) = self % spA % lj(correctedXi)
 
-      auxp(1:NDIM,1:) = Mat_X_Mat_F( trA = .false. , trB = .false. , A = self % X , B = lj )
+      auxp(1:NDIM,1:) = Mat_X_Mat_F( self % X , lj )
 
       p = auxp(1:NDIM,1)
       
@@ -56,7 +56,7 @@
       associate ( D => self % spA % D )
       
          dP               = Mat_X_Mat_F( trA = .false. , trB = .true.  , A = self % X , B = D  )
-         auxdS(1:NDIM,1:) = Mat_x_Mat_F( trA = .false. , trB = .false. , A = dP       , B = lj )
+         auxdS(1:NDIM,1:) = Mat_x_Mat_F( A = dP       , B = lj )
       
       end associate
 
