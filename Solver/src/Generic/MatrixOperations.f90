@@ -22,46 +22,115 @@ module MatrixOperations
 
       end function vectorOuterProduct
 
-!      function MatrixTimesVector_F( A , V ) result( C )
-!!     -----------------------------
-!!        Computes the product
-!!           C = A * B
-!!     -----------------------------
-!         implicit none
-!         real(kind=RP), intent(in)        :: A(:,:)
-!         real(kind=RP), intent(in)        :: V(:,:)
-!         real(kind=RP), allocatable       :: C(:,:)
-!!
-!!        ----------------------------------------
-!!           Variables for lapack dgemm
-!!        ----------------------------------------
-!!
-!#ifdef _USE_LAPACK  ! ---------------------------------------
-!         integer                 :: N , M , K 
-!         integer                 :: LDA , LDB , LDC
-!#endif ! ----------------------------------------------------
-!!
+      subroutine MatrixTimesVector( A , X , Y , trA , reset )
 !
-!         allocate(C(size(A,1) , size(B,2)) )
+!     -------------------------------------------------------------
+!        Computes the product
+!           Y = A * X (+ Y)? , to compute X*A just set trA to .true.
+!     -------------------------------------------------------------
 !
-!#ifdef _USE_LAPACK  ! ------------------------------------------------------------------------------------------
+         implicit none
+         real(kind=RP), intent(in)           :: A(:,:)
+         real(kind=RP), intent(in)           :: X(:)
+         logical      , intent(in), optional :: trA
+         logical      , intent(in), optional :: reset
+         real(kind=RP), intent(inout)        :: Y(:)
+         logical                             :: tA , rst
+         integer                 :: N , M , K 
 !
-!!           Set dimensions
-!            M = size(A,1)
-!            K = size(A,2)
-!            N = size(B,2)
-!            LDA = M
-!            LDB = K
-!            LDC = M
+!        ----------------------------------------
+!           Variables for lapack dgemv
+!        ----------------------------------------
 !
-!            call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+#ifdef _USE_LAPACK  
+         integer                 :: LDA , INCX , INCY
+         real(kind=RP)           :: beta
+#endif 
 !
-!#else ! ------------------------------------------------------------------------------------------------------------
-!            C = MATMUL(  A  , B ) 
-!#endif ! -------------------------------------------------------------------------------------------------------------
+
+         if (present(trA)) then
+            tA = trA
+         else
+            tA = .false.
+         end if
+
+         if ( present(reset) ) then
+            rst = reset
+         else
+            rst = .true.
+         end if 
+
+!           Set dimensions
+            M = size(A,1)
+            N = size(A,2)
+
+            if (tA) then
+               K = size(A,2)
+            else
+               K = size(A,1)
+            end if
+
+            if ( size(Y) .ne. K ) then
+               print*, "Matrices sizes are not consistent"
+               stop "Stopped."
+            end if
+
+
+#ifdef _USE_LAPACK
+
+            LDA = M
+            INCX = 1
+            INCY = 1
+
+            if ( rst ) then
+               beta = 0.0_RP
+            else
+               beta = 1.0_RP
+            end if
+
+            if (.not. tA) then
+               call dgemv( "N" , M , N , 1.0_RP , A , LDA , X , INCX , beta , Y , INCY )
+            elseif ( tA ) then
+               call dgemv( "T" , M , N , 1.0_RP , A , LDA , X , INCX , beta , Y , INCY )
+            end if
+#else
+
+            if ((.not. tA) .and. rst) then
+               Y = matmul(A,X)
+            elseif ((.not. tA) .and. (.not. rst) ) then
+               Y = matmul(A,X) + Y
+            elseif ((tA) .and. rst) then
+               Y = matmul(X,A)
+            elseif (tA .and. (.not. rst)) then
+               Y = matmul(X,A) + Y
+            end if
+#endif
+
+      end subroutine MatrixTimesVector
+
+      function MatrixTimesVector_F( A , X , trA ) result( Y )
 !
-!      end function MatrixTimesVector_F
+!     -------------------------------------------------------------
+!        Computes the product
+!           Y = A * X, to compute X*A just set trA to .true.
+!     -------------------------------------------------------------
 !
+         implicit none
+         real(kind=RP), intent(in)           :: A(:,:)
+         real(kind=RP), intent(in)           :: X(:)
+         logical      , intent(in), optional :: trA
+         real(kind=RP), allocatable          :: Y(:)
+
+         if (.not. trA) then
+            allocate(Y(size(A,1)))
+         elseif (trA) then
+            allocate(Y(size(A,2)))
+         end if
+
+         call MatrixTimesVector( A=A , X=X , Y=Y , trA = trA , reset = .true. )
+
+      end function MatrixTimesVector_F
+
       subroutine Mat_x_Mat( trA , trB , A , B , C )
 !     -----------------------------
 !        Computes the product
@@ -273,10 +342,13 @@ module MatrixOperations
 
 
       function MatrixMultiplyInIndex_F( A , B , index) result( C )
-!     -----------------------------
+!
+!     ----------------------------------------------------
 !        Computes the product
-!           C = A * B
-!     -----------------------------
+!           C = A(:,...i,...,:) * B(i,:)
+!        for a chosen index position within 1 and 3
+!     ----------------------------------------------------
+!
          implicit none
          real(kind=RP), intent(in)        :: A(:,:,:)
          real(kind=RP), intent(in)        :: B(:,:)
@@ -335,7 +407,8 @@ module MatrixOperations
          real(kind=RP), intent(in)     :: M(:,:)
          real(kind=RP), intent(out)     :: val(:,:)
 
-         val = matmul(matmul(transpose(A) , M ) , A)
+      
+         val = Mat_x_Mat_F( Mat_x_Mat_F( trA=.true. , trB=.false. , A=A, B=M ) , A )
 
       end subroutine innerProduct2D
 
