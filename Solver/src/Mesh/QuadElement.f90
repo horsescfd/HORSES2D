@@ -114,6 +114,13 @@ module QuadElementClass
     contains
 !   ========
 !
+
+        include 'QuadMappings.incf'
+        include 'EdgeMappings.incf'
+        include 'CurvedEdgeMappings.incf'
+        include 'QuadAuxiliar.incf'
+
+
         subroutine QuadElement_Construct(self , ID , nodes , N  , spA , address , storage , spI)
 !            -----------------------------------------------------------------------------------
 !                 This function performs the following operations to "self" element:
@@ -437,13 +444,5 @@ module QuadElementClass
          end subroutine CurvilinearEdge_SetCurve
       
 
-         include 'QuadMappings.incf'
-
-!
-!        **********************************************************************************
-!                 Auxiliar subroutines
-!        **********************************************************************************
-!
-         include 'QuadAuxiliar.incf'
 
 end module QuadElementClass

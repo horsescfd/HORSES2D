@@ -1,0 +1,38 @@
+   function Edge_AnalyticalX( self , xi , direction ) result( p )
+      implicit none
+      class(Edge_t), intent(in)           :: self
+      real(kind=RP), intent(in)           :: xi
+      integer      , intent(in)           :: direction
+      real(kind=RP)                       :: p(2)
+!     ------------------------------------------------------------
+      real(kind=RP)                       :: correctedXi
+      
+      if (direction .eq. BACKWARD) then
+        correctedXi = 1.0_RP - xi
+      elseif (direction .eq. FORWARD) then
+        correctedXi = xi
+      end if 
+
+      p = self % nodes(1) % n % X * (1.0_RP - correctedXi) + self % nodes(2) % n % X * correctedXi
+
+   end function Edge_AnalyticalX
+
+   function Edge_AnalyticaldS( self , xi , direction ) result( dS )
+      implicit none
+      class(Edge_t), intent(in)        :: self
+      real(kind=RP), intent(in)        :: xi
+      integer,       intent(in)        :: direction
+      real(kind=RP)                    :: dS(2)
+!     --------------------------------------------------------------
+
+      associate( n1 => self % nodes(1) % n % X , &
+                 n2 => self % nodes(2) % n % X )
+
+         dS(1) = n2(2) - n1(2)
+         dS(2) = -(n2(1) - n1(1))
+
+      end associate
+
+   end function Edge_AnalyticaldS
+
+ 
