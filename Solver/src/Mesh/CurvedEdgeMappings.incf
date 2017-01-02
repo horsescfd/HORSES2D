@@ -22,9 +22,16 @@
         call BarycentricWeights( N = order , x = CGLnodes , w = wb )
         call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
   
+!       Compute points
+!       --------------
         self % X  = Mat_x_Mat_F ( A = points   , B = T              , trB = .true. ) 
+
+!       Compute tangent vector
+!       ----------------------
         self % dX = Mat_x_Mat_F ( A = self % X , B = self % spA % D , trB = .true. ) 
 
+!       Compute normal vector
+!       ---------------------
         self % dS(iX,:) =   self % dX(iY,:)
         self % dS(iY,:) = - self % dX(iX,:)
   
@@ -85,15 +92,22 @@
       integer      ,           intent (in), optional :: direction
       real(kind=RP)                                  :: dX(NDIM)
 !     ------------------------------------------------------------
-      real(kind=RP)                        :: correctedXi
+      integer                                        :: dir
+      real(kind=RP)                                  :: correctedXi
       
-      if (direction .eq. BACKWARD) then
+      if (present(direction)) then
+         dir = direction
+      else 
+         dir = FORWARD
+      end if
+
+      if (dir .eq. BACKWARD) then
         correctedXi = 1.0_RP - xi
-      elseif (direction .eq. FORWARD) then
+      elseif (dir .eq. FORWARD) then
         correctedXi = xi
       end if 
-
-      dX = real(direction,kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) )
+   
+      dX = real(dir , kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) )
 
   end function Curvilinear_InterpolantdX
 

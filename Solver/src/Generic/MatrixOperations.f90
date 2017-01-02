@@ -119,11 +119,18 @@ module MatrixOperations
          real(kind=RP), intent(in)           :: A(:,:)
          real(kind=RP), intent(in)           :: X(:)
          logical      , intent(in), optional :: trA
+         logical                             :: tA
          real(kind=RP), allocatable          :: Y(:)
 
-         if (.not. trA) then
+         if (present(trA)) then
+            tA = trA
+         else
+            tA = .false.
+         end if
+
+         if (.not. tA) then
             allocate(Y(size(A,1)))
-         elseif (trA) then
+         elseif (tA) then
             allocate(Y(size(A,2)))
          end if
 
