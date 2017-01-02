@@ -68,6 +68,7 @@ program main
       end do
       close(111)
 
+
       
 !    call checks( sem ) 
 

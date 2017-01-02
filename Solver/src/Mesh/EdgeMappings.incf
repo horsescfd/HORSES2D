@@ -143,11 +143,11 @@
    
          end if
    
-         dS = real(direction,kind=RP) * self % dS(iX:iY,correctediXi)
+         dS = self % dS(iX:iY,correctediXi)
    
       else
   
-         dS = real(direction,kind=RP) * self % dS(iX:iY,iXi)
+         dS = self % dS(iX:iY,iXi)
  
       end if
 

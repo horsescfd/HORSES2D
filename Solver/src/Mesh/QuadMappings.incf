@@ -27,6 +27,11 @@
                                               (1.0_RP - xi(iXi) )  * gLEFT % getX(N-iEta,dLEFT) + eta(iEta)*gTOP % getX(N-iXi,dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                               -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
+      
+               self % dxiX(iX:iY, ixi , ieta) = (1.0_RP - eta(iEta)) * gBOT % getdX(iXi,dBOT) + gRIGHT % getX(iEta,dRIGHT) + &
+                                                   eta(iEta) * gTOP % getdX(iXi,-dTOP) + (-1.0_RP) * gLEFT % getX(iEta,-dLEFT) + &
+                                              -n1 *(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
+                                              -n3 * eta(iEta) - n4 * (-1.0_RP) * eta(iEta)
             end do
          end do
 
