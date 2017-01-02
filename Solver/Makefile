@@ -25,7 +25,7 @@ InterpolationAndDerivatives: SMConstants
 LegendreAlgorithms: SMConstants
 QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions
 MeshFile: Setup SMConstants NetCDF_Interface Headers
-QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives MatrixOperations
+QuadElement: src/Mesh/QuadAuxiliar.incf src/Mesh/QuadMappings.incf NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives MatrixOperations
 QuadDefinitions: SMConstants
 NodeClass: SMConstants Physics
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
@@ -46,7 +46,7 @@ main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
 # --------------- DO NOT EDIT ----------------------------------------------------
 
-F90_REMOVE=QuadAuxiliar.f90 QuadMappings.f90
+F90_REMOVE=
 F90_INCLUDE=$(SRC_DIR)/Mesh/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))

@@ -437,13 +437,13 @@ module QuadElementClass
          end subroutine CurvilinearEdge_SetCurve
       
 
-         include 'QuadMappings.f90'
+         include 'QuadMappings.incf'
 
 !
 !        **********************************************************************************
 !                 Auxiliar subroutines
 !        **********************************************************************************
 !
-         include 'QuadAuxiliar.f90'
+         include 'QuadAuxiliar.incf'
 
 end module QuadElementClass
