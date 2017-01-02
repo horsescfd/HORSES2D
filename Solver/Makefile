@@ -102,13 +102,13 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 all: 	$(EXECUTABLE)
 
 runcyl: 	
-	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE))		
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE))		
 
 runvortex: 	
-	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE))		
+	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE))		
 
 runchan: 	
-	(cd /Users/juanmanzanero/Dropbox/Research/DGSEM/Codes/FORTRAN/HiODG2D/TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE))		
+	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE))		
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
