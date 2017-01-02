@@ -12,6 +12,7 @@
      integer                                            :: node
 
      if ( present(points) .and. present(order) ) then
+
         allocate( CGLnodes(0 : order ) )
         allocate( wb(0 : order ) )
         allocate( T(0: self % spA % N , 0: order ) )
@@ -21,13 +22,19 @@
         call BarycentricWeights( N = order , x = CGLnodes , w = wb )
         call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
   
-        self % X  = Mat_x_Mat_F ( trA = .false. , trB = .true. , A = points   , B = T              ) 
-        self % dX = Mat_x_Mat_F ( trA = .false. , trB = .true. , A = self % X , B = self % spA % D ) 
+        self % X  = Mat_x_Mat_F ( A = points   , B = T              , trB = .true. ) 
+        self % dX = Mat_x_Mat_F ( A = self % X , B = self % spA % D , trB = .true. ) 
 
-        self % dS(1,:) =   self % dX(2,:)
-        self % dS(2,:) = - self % dX(1,:)
+        self % dS(iX,:) =   self % dX(iY,:)
+        self % dS(iY,:) = - self % dX(iX,:)
   
+     else
+
+         print*, "Missing curve interpolation data"
+         stop "Stopped."
+
      end if
+
   end subroutine CurvilinearEdge_SetCurve
 
   function Curvilinear_InterpolantX( self , xi , direction ) result( p )
@@ -56,11 +63,8 @@
       class(CurvedBdryEdge_t), intent (in)           :: self
       real(kind=RP),           intent (in)           :: xi
       integer,                 intent (in), optional :: direction
-      real(kind=RP)                                  :: dS(2)
+      real(kind=RP)                                  :: dS(NDIM)
 !     --------------------------------------------------------------
-      real(kind=RP), allocatable           :: dP(:,:)
-      real(kind=RP), allocatable           :: auxdS(:,:)
-      real(kind=RP), allocatable           :: lj(:,:)
       real(kind=RP)                        :: correctedXi
       
       if (direction .eq. BACKWARD) then
@@ -69,33 +73,19 @@
         correctedXi = xi
       end if 
 
-      allocate(dP(NDIM , 0 : self % spA % N) )
-
-      associate ( D => self % spA % D )
-      
-         dP               = Mat_X_Mat_F( trA = .false. , trB = .true.  , A = self % X , B = D  )
-         auxdS(1:NDIM,1:) = Mat_x_Mat_F( A = dP       , B = lj )
-      
-      end associate
-
-      dS(1) = -auxdS(2 , 1)
-      dS(2) = auxdS(1,1)
-   
-      deallocate( lj , dP , auxdS )
+      dS = MatrixTimesVector_F( self % dS , self % spA % lj(correctedXi) )
 
    end function Curvilinear_InterpolantdS
 
-  function Curvilinear_InterpolantdX( self , xi , direction ) result( p )
+  function Curvilinear_InterpolantdX( self , xi , direction ) result( dX )
       use MatrixOperations
       implicit none
       class(CurvedBdryEdge_t), intent (in)           :: self
       real(kind=RP),           intent (in)           :: xi
       integer      ,           intent (in), optional :: direction
-      real(kind=RP)                                  :: p(2)
+      real(kind=RP)                                  :: dX(NDIM)
 !     ------------------------------------------------------------
-      real(kind=RP), allocatable           :: auxp(:,:)
       real(kind=RP)                        :: correctedXi
-      real(kind=RP), allocatable           :: lj(:,:)
       
       if (direction .eq. BACKWARD) then
         correctedXi = 1.0_RP - xi
@@ -103,16 +93,7 @@
         correctedXi = xi
       end if 
 
-      allocate(lj( 0 : self % spA % N , 1 ) )
-      allocate(auxp(NDIM , 1) )
-      lj(:,1) = self % spA % lj(correctedXi)
-
-!     TODO
-      auxp(1:NDIM,1:) = Mat_X_Mat_F( trA = .false. , trB = .true.  , A = self % X , B = lj  )
-
-      p = auxp(1:NDIM,1)
-      
-      deallocate(lj , auxp)
+      dX = real(direction,kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) )
 
   end function Curvilinear_InterpolantdX
 
