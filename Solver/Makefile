@@ -1,3 +1,8 @@
+$(info High-Order Discontinuous Galerkin 2D Solver Compilation.)
+$(info )
+$(info )
+
+
 COMPILER ?=gfortran
 INC_DIR=./include
 BUILD_DIR=./build
@@ -5,7 +10,6 @@ BIN_DIR=./bin
 SRC_DIR=./src
 EXECUTABLE = HiODG2D
 MODE ?=DEBUG
-$(info $(MODE))
 BLAS_LIB = 
 LAPACK_LIB = 
 LIBS=
@@ -51,7 +55,9 @@ F90_INCLUDE=$(SRC_DIR)/Mesh/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
 OBJS_F90:= $(filter-out $(F90_REMOVE),$(OBJS_F90))
-$(info $(OBJS_F90) )
+$(info )
+$(info ***Files: $(OBJS_F90) )
+$(info )
 OBJS= $(patsubst %.f90,%,$(OBJS_F90))
 OBJS_EXEC = $(foreach obj,$(OBJS),$(BUILD_DIR)/$(obj).o) 
 
@@ -63,10 +69,10 @@ ifeq ($(COMPILER),gfortran)
    MOD_FLAG :=-J
    FC=gfortran
    ifeq ($(MODE),DEBUG)
-      $(info MODE = DEBUG)
+      $(info Compiling in DEBUG mode.)
       FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
    else 
-  	$(info MODE = RELEASE)
+  	$(info Compiling in RELEASE mode.)
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
    LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
@@ -75,10 +81,10 @@ else ifeq ($(COMPILER),ifort)
    MOD_FLAG := -module 
    FC=ifort
    ifeq ($(MODE),DEBUG)
-     $(info MODE = DEBUG)
+     $(info Compiling in DEBUG mode.)
      FFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
    else ifeq ($(MODE),RELEASE)
-     $(info MODE = RELEASE)
+     $(info Compiling in RELEASE mode.)
      FFLAGS = -cpp -O3 -mkl -assume bscc
      
    endif
