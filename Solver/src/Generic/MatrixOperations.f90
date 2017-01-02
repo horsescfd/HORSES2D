@@ -209,6 +209,25 @@ module MatrixOperations
 
       end function Mat_x_Mat_F
 
+      subroutine TripleMatrixProduct( A , B , C , val )
+!
+!        ***********************************
+!           Computes the product 
+!              val = A B C
+!        ***********************************
+!
+         implicit none
+         real(kind=RP), intent(in)        :: A(:,:)
+         real(kind=RP), intent(in)        :: B(:,:)
+         real(kind=RP), intent(in)        :: C(:,:)
+         real(kind=RP), intent(out)       :: val(:,:)
+
+         val = matmul(matmul(A,B),C)
+
+      end subroutine TripleMatrixProduct
+
+
+
       function MatrixMultiplyInIndex_F( A , B , index) result( C )
 !     -----------------------------
 !        Computes the product
