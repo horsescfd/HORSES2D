@@ -35,4 +35,47 @@
 
    end function Edge_AnalyticaldS
 
- 
+    function Edge_getX( self , iXi , direction ) result ( X ) 
+      implicit none
+      class(Edge_t), intent(in)                 :: self
+      integer      , intent(in)                 :: iXi
+      integer      , intent(in)                 :: direction
+      real(kind=RP)                             :: X (NDIM)
+!     -------------------------------------------------------------
+      integer                                   :: correctediXi
+
+      if (direction .eq. FORWARD) then
+         correctediXi = iXi
+      
+      elseif (direction .eq. BACKWARD) then
+         correctediXi = self % spA % N - iXi
+
+      end if
+
+      X = self % X(iX:iY,correctediXi)
+
+   end function Edge_getX
+
+   function Edge_getdX( self , iXi , direction ) result ( dX ) 
+      implicit none
+      class(Edge_t), intent(in)                 :: self
+      integer      , intent(in)                 :: iXi
+      integer      , intent(in)                 :: direction
+      real(kind=RP)                             :: dX (NDIM)
+!     -------------------------------------------------------------
+      integer                                   :: correctediXi
+      real(kind=RP)                             :: newsign
+
+      if (direction .eq. FORWARD) then
+         correctediXi = iXi
+         newsign = 1.0_RP
+      
+      elseif (direction .eq. BACKWARD) then
+         correctediXi = self % spA % N - iXi
+         newsign = -1.0_RP
+
+      end if
+
+      dX = newsign * self % dX(iX:iY,correctediXi)
+
+   end function Edge_getdX
