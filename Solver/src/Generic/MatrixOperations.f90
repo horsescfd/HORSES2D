@@ -131,17 +131,20 @@ module MatrixOperations
 
       end function MatrixTimesVector_F
 
-      subroutine Mat_x_Mat( trA , trB , A , B , C )
+      subroutine Mat_x_Mat( A , B , C , trA , trB , reset )
 !     -----------------------------
 !        Computes the product
 !           C = tr(A) * B
 !     -----------------------------
          implicit none
-         logical      , optional          :: trA
-         logical      , optional          :: trB
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
          real(kind=RP), intent(out)       :: C(:,:)
+         logical      , optional          :: trA
+         logical      , optional          :: trB
+         logical      , optional          :: reset
+!        -----------------------------------------------
+         logical                          :: rst
          logical                          :: tA
          logical                          :: tB
 !
@@ -152,8 +155,14 @@ module MatrixOperations
 #ifdef _USE_LAPACK  
          integer                 :: N , M , K 
          integer                 :: LDA , LDB , LDC
+         real(kind=RP)           :: beta
 #endif 
 !
+         if (present(reset)) then
+            rst = reset
+         else
+            rst = .true.
+         end if
 
          if (present(trA)) then
             tA = trA
@@ -169,6 +178,11 @@ module MatrixOperations
 
 #ifdef _USE_LAPACK  
 
+            if (rst) then
+               beta = 0.0_RP
+            else
+               beta = 1.0_RP
+            end if
 !           Set dimensions
             if (tA) then
                M = size(A,2)
@@ -203,23 +217,38 @@ module MatrixOperations
             LDC = M
 
             if ( (.not. tA) .and. (.not. tB) ) then
-               call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+               call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , beta , C , LDC )
             elseif ( (.not. tA) .and. ( tB ) ) then
-               call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+               call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , beta , C , LDC )
             elseif ( ( tA ) .and. (.not. tB) ) then
-               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , beta , C , LDC )
             elseif ( ( tA ) .and. ( tB ) ) then
-               call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
+               call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , beta , C , LDC )
             end if
 #else 
             if ( (.not. tA) .and. (.not. tB) ) then
-               C = matmul(A,B)
+               if (rst) then
+                  C = matmul(A,B)
+               else
+                  C = C + matmul(A,B)
             elseif ( (.not. tA) .and. ( tB ) ) then
-               C = matmul(A,transpose(B))
+               if (rst) then
+                  C = matmul(A,transpose(B))
+               else
+                  C = C + matmul(A,transpose(B))
+               end if
             elseif ( ( tA ) .and. (.not. tB) ) then
-               C = matmul(transpose(A),B)
+               if (rst) then
+                  C = matmul(transpose(A),B)
+               else
+                  C = C + matmul(transpose(A),B)
+               end if
             elseif ( ( tA ) .and. ( tB ) ) then
-               C = matmul(transpose(A),transpose(B))
+               if (rst) then
+                  C = matmul(transpose(A),transpose(B))
+               else
+                  C = C + matmul(transpose(A),transpose(B))
+               end if   
             end if
 #endif 
 
@@ -228,7 +257,7 @@ module MatrixOperations
       function Mat_x_Mat_F( A , B , trA , trB) result ( C )
 !     -----------------------------
 !        Computes the product
-!           C = tr(A) * B
+!           C = op(A) * op(B)
 !     -----------------------------
          implicit none
          logical      , optional          :: trA
@@ -236,17 +265,9 @@ module MatrixOperations
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
          real(kind=RP), allocatable       :: C(:,:)
-         logical                          :: tA , tB
-!
-!        ----------------------------------------
-!           Variables for lapack dgemm
-!        ----------------------------------------
-!
-         integer                 :: N , M , K 
-#ifdef _USE_LAPACK  
-         integer                 :: LDA , LDB , LDC
-#endif 
-!
+!        ---------------------------------------------------------------
+         logical                 :: tA , tB
+         integer                 :: N , M 
 
          if (present(trA)) then
             tA = trA
@@ -260,65 +281,23 @@ module MatrixOperations
             tB = .false.
          end if
 
-!           Set dimensions
-            if (tA) then
-               M = size(A,2)
-            else 
-               M = size(A,1)
-            end if
 
-            if (tB) then
-               N = size(B,1)
-            else
-               N = size(B,2)
-            end if
+!        Set dimensions
+         if (tA) then
+            M = size(A,2)
+         else 
+            M = size(A,1)
+         end if
 
-            if (tA) then
-               K = size(A,1)
-            else
-               K = size(A,2)
-            end if
+         if (tB) then
+            N = size(B,1)
+         else
+            N = size(B,2)
+         end if
 
-
-            allocate( C(M,N) )
-
-#ifdef _USE_LAPACK
-
-            if (tA) then
-               LDA = K
-            else
-               LDA = M
-            end if
-
-            if (tB) then
-               LDB = N
-            else
-               LDB = K
-            end if
-
-            LDC = M
-
-            if ( (.not. tA) .and. (.not. tB) ) then
-               call dgemm( "N" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( (.not. tA) .and. ( tB ) ) then
-               call dgemm( "N" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( ( tA ) .and. (.not. tB) ) then
-               call dgemm( "T" , "N" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            elseif ( ( tA ) .and. ( tB ) ) then
-               call dgemm( "T" , "T" , M , N , K , 1.0_RP , A , LDA , B , LDB , 0.0_RP , C , LDC )
-            end if
-#else
-
-            if ( (.not. tA) .and. (.not. tB) ) then
-               C = matmul(A,B)
-            elseif ( (.not. tA) .and. ( tB ) ) then
-               C = matmul(A,transpose(B))
-            elseif ( ( tA ) .and. (.not. tB) ) then
-               C = matmul(transpose(A),B)
-            elseif ( ( tA ) .and. ( tB ) ) then
-               C = matmul(transpose(A),transpose(B))
-            end if
-#endif
+         allocate( C(M,N) )
+      
+         call Mat_x_Mat( A=A , B=B , C=C , trA=trA , trB=trB , reset=.true. )
 
       end function Mat_x_Mat_F
 
