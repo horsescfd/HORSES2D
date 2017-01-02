@@ -52,14 +52,21 @@
       integer      ,           intent (in), optional :: direction
       real(kind=RP)                                  :: p(NDIM)
 !     ------------------------------------------------------------
-      real(kind=RP)                        :: correctedXi
+      real(kind=RP)                                  :: correctedXi
+      integer                                        :: dir
       
-      if (direction .eq. BACKWARD) then
+      if (present(direction)) then
+         dir = direction
+      else 
+         dir = FORWARD
+      end if
+
+      if (dir .eq. BACKWARD) then
         correctedXi = 1.0_RP - xi
-      elseif (direction .eq. FORWARD) then
+      elseif (dir .eq. FORWARD) then
         correctedXi = xi
       end if 
-
+       
       p = MatrixTimesVector_F( self % X , self % spA % lj(correctedXi) )
       
   end function Curvilinear_InterpolantX
@@ -73,13 +80,20 @@
       real(kind=RP)                                  :: dS(NDIM)
 !     --------------------------------------------------------------
       real(kind=RP)                        :: correctedXi
-      
-      if (direction .eq. BACKWARD) then
+      integer                                      :: dir
+
+      if (present(direction)) then
+         dir = direction
+      else 
+         dir = FORWARD
+      end if
+
+      if (dir .eq. BACKWARD) then
         correctedXi = 1.0_RP - xi
-      elseif (direction .eq. FORWARD) then
+      elseif (dir .eq. FORWARD) then
         correctedXi = xi
       end if 
-
+        
       dS = MatrixTimesVector_F( self % dS , self % spA % lj(correctedXi) )
 
    end function Curvilinear_InterpolantdS
