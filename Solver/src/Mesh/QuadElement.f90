@@ -74,10 +74,12 @@ module QuadElementClass
         contains
             procedure      :: SetCurve    => Edge_SetCurve                    ! Function to compute the boundaries coordinates "x".
             procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
-            procedure      :: XF          => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluateX   => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedX  => Edge_AnalyticaldX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedS  => Edge_AnalyticaldS
             procedure      :: getX        => Edge_getX                        ! 
             procedure      :: getdX       => Edge_getdX
-            procedure      :: dSF         => Edge_AnalyticaldS
+            procedure      :: getdS       => Edge_getdS
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
