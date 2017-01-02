@@ -74,7 +74,7 @@ module QuadElementClass
         class(NodesAndWeights_t),   pointer     :: spA                        ! Pointer to the approximation nodal storage
         class(NodesAndWeights_t),   pointer     :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
         contains
-            procedure      :: SetCurve    => Edge_SetCurve                    ! Function to compute the boundaries coordinates "x".
+            procedure      :: SetCurve    => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
             procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
             procedure      :: evaluateX   => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
             procedure      :: evaluatedX  => Edge_AnalyticaldX                 ! Function to compute an edge point in a local coordinate "xi"
@@ -93,7 +93,7 @@ module QuadElementClass
         real(kind=RP), pointer            :: uB(:,:)           ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
         contains
-            procedure      :: SetCurve   => CurvilinearEdge_SetCurve
+            procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
             procedure      :: evaluateX  => Curvilinear_InterpolantX
             procedure      :: evaluatedX => Curvilinear_InterpolantdX
             procedure      :: evaluatedS => Curvilinear_InterpolantdS
@@ -398,59 +398,5 @@ module QuadElementClass
             self % dS ( 1:NDIM , 0:self % spA % N ) = self % dS ( 1:NDIM , self % spA % N : 0 : -1 ) 
 
          end subroutine Edge_Invert
-
-         subroutine Edge_SetCurve( self , points , order )
-            implicit none
-            class(Edge_t)                       :: self
-            real(kind=RP), intent(in), optional :: points(:,:)
-            integer      , intent(in), optional :: order
-            integer                             :: p
-
-            self % x = reshape((/( self % nodes(1) % n % X * (1.0_RP - self % spA % xi(p)) + self % nodes(2) % n % X * self % spA % xi(p) , &
-                                                p = 0 , self % spA % N)/),(/ NDIM , self % spA % N + 1 /) )
-
-            associate( n1 => self % nodes(1) % n % X , n2 => self % nodes(2) % n % X )
-               self % dS(iX,:) = n2(iY) - n1(iY)
-               self % dS(iY,:) = -(n2(iX) - n1(iX))
-
-               self % dX(iX,:) = n2(iX) - n1(iX)
-               self % dX(iY,:) = n2(iY) - n1(iY)
-            end associate
-
-         end subroutine Edge_SetCurve
-
-         subroutine CurvilinearEdge_SetCurve( self , points , order )
-            use InterpolationAndDerivatives
-            use MatrixOperations
-            implicit none
-            class(CurvedBdryEdge_t)                            :: self
-            real(kind=RP)               , intent(in), optional :: points(:,:)
-            integer                     , intent(in), optional :: order
-!           -----------------------------------------------------------------------------
-            real(kind=RP), allocatable                         :: CGLnodes(:)
-            real(kind=RP), allocatable                         :: T(:,:)
-            real(kind=RP), allocatable                         :: wb(:)
-            integer                                            :: node
-
-            if ( present(points) .and. present(order) ) then
-               allocate( CGLnodes(0 : order ) )
-               allocate( wb(0 : order ) )
-               allocate( T(0: self % spA % N , 0: order ) )
-   
-               CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
-   
-               call BarycentricWeights( N = order , x = CGLnodes , w = wb )
-               call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
-   
-               self % X  = Mat_x_Mat_F ( trA = .false. , trB = .true. , A = points   , B = T              ) 
-               self % dX = Mat_x_Mat_F ( trA = .false. , trB = .true. , A = self % X , B = self % spA % D ) 
-
-               self % dS(1,:) =   self % dX(2,:)
-               self % dS(2,:) = - self % dX(1,:)
-   
-            end if
-         end subroutine CurvilinearEdge_SetCurve
-      
-
 
 end module QuadElementClass

@@ -1,3 +1,24 @@
+   subroutine Edge_SetCurve( self , points , order )
+      implicit none
+      class(Edge_t)                       :: self
+      real(kind=RP), intent(in), optional :: points(:,:)
+      integer      , intent(in), optional :: order
+      integer                             :: p
+
+      self % x = reshape((/( self % nodes(1) % n % X * (1.0_RP - self % spA % xi(p)) + self % nodes(2) % n % X * self % spA % xi(p) , &
+                                          p = 0 , self % spA % N)/),(/ NDIM , self % spA % N + 1 /) )
+
+      associate( n1 => self % nodes(1) % n % X , n2 => self % nodes(2) % n % X )
+         self % dS(iX,:) = n2(iY) - n1(iY)
+         self % dS(iY,:) = -(n2(iX) - n1(iX))
+
+         self % dX(iX,:) = n2(iX) - n1(iX)
+         self % dX(iY,:) = n2(iY) - n1(iY)
+      end associate
+
+   end subroutine Edge_SetCurve
+
+
    function Edge_AnalyticalX( self , xi , direction ) result( p )
       implicit none
       class(Edge_t), intent(in)           :: self
