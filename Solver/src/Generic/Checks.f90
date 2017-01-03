@@ -124,16 +124,18 @@ module ChecksModule
             use QuadElementClass
             use Headers
             use QuadMeshClass
+            use QuadMeshDefinitions
             use MatrixOperations
             implicit none
             type(QuadMesh_t)           :: mesh
 !           ---------------------------------------
-            integer                    :: eID
+            integer                    :: eID , edID
             real(kind=RP), allocatable :: dxiX(:,:,:)
             real(kind=RP), allocatable :: detaX(:,:,:)
             real(kind=RP)              :: error
             integer                    :: current
             integer                    :: zone
+            real(kind=RP), allocatable :: dSx(:) , dSy(:)
 
             call SubSection_Header("Testing the mappings")
             
@@ -176,9 +178,80 @@ module ChecksModule
 !
 !           This is to test the extrapolation to boundaries of the normal vectors from elements
 !           -----------------------------------------------------------------------------------
+            error = 0.0_RP
+            current = 0
+
             do eID = 1 , mesh % no_of_elements
+               if ( allocated(dSx) ) deallocate(dSx) 
+               if ( allocated(dSy) ) deallocate(dSy) 
+            
+               associate( e => mesh % elements(eID) )
                
+               allocate( dSx ( 0 : e % spA % N ) )
+               allocate( dSy ( 0 : e % spA % N ) )
+
+!              BOTTOM Edge
+!              -----------
+               dSx = -MatrixTimesVector_F( e % Ja([1,2]) , e % spA % lj(0.0_RP)  )
+               dSy = -MatrixTimesVector_F( e % Ja([2,2]) , e % spA % lj(0.0_RP)  )
+               
+               if ( maxval(abs(dSx - real(e % edgesDirection(EBOTTOM) , kind=RP)  * e % edges(EBOTTOM) % f % dS(iX,:)) ) .gt. error ) then
+                  error = maxval(abs(dSx - real(e % edgesDirection(EBOTTOM) , kind=RP)  * e % edges(EBOTTOM) % f % dS(iX,:))) 
+                  current = eID
+               end if
+               if ( maxval(abs(dSy - real(e % edgesDirection(EBOTTOM) , kind=RP) * e % edges(EBOTTOM) % f % dS(iY,:) ) ) .gt. error ) then
+                  error =  maxval(abs(dSy - real(e % edgesDirection(EBOTTOM) , kind=RP) * e % edges(EBOTTOM) % f % dS(iY,:) ) )  
+                  current = eID 
+               end if
+
+!              RIGHT Edge
+!              -----------
+               dSx = MatrixTimesVector_F( e % Ja([1,1]) , e % spA % lj(1.0_RP) , trA = .true.  )
+               dSy = MatrixTimesVector_F( e % Ja([2,1]) , e % spA % lj(1.0_RP) , trA = .true.  )
+               
+               if ( maxval(abs(dSx - real(e % edgesDirection(ERIGHT) , kind=RP)  * e % edges(ERIGHT) % f % dS(iX,:)) ) .gt. error ) then
+                  error = maxval(abs(dSx - real(e % edgesDirection(ERIGHT) , kind=RP)  * e % edges(ERIGHT) % f % dS(iX,:))) 
+                  current = eID
+               end if
+               if ( maxval(abs(dSy - real(e % edgesDirection(ERIGHT) , kind=RP) * e % edges(ERIGHT) % f % dS(iY,:) ) ) .gt. error ) then
+                  error =  maxval(abs(dSy - real(e % edgesDirection(ERIGHT) , kind=RP) * e % edges(ERIGHT) % f % dS(iY,:) ) )  
+                  current = eID 
+               end if
+
+!              TOP Edge
+!              -----------
+               dSx = MatrixTimesVector_F( e % Ja([1,2]) , e % spA % lj(1.0_RP)  )
+               dSy = MatrixTimesVector_F( e % Ja([2,2]) , e % spA % lj(1.0_RP)  )
+               
+               if ( maxval(abs(dSx - real(e % edgesDirection(ETOP) , kind=RP)  * e % edges(ETOP) % f % dS(iX,:)) ) .gt. error ) then
+                  error = maxval(abs(dSx - real(e % edgesDirection(ETOP) , kind=RP)  * e % edges(ETOP) % f % dS(iX,:))) 
+                  current = eID
+               end if
+               if ( maxval(abs(dSy - real(e % edgesDirection(ETOP) , kind=RP) * e % edges(ETOP) % f % dS(iY,:) ) ) .gt. error ) then
+                  error =  maxval(abs(dSy - real(e % edgesDirection(ETOP) , kind=RP) * e % edges(ETOP) % f % dS(iY,:) ) )  
+                  current = eID 
+               end if
+
+
+!              LEFT Edge
+!              -----------
+               dSx = -MatrixTimesVector_F( e % Ja([1,1]) , e % spA % lj(0.0_RP)  , trA = .true.)
+               dSy = -MatrixTimesVector_F( e % Ja([2,1]) , e % spA % lj(0.0_RP)  , trA = .true.)
+               
+               if ( maxval(abs(dSx - real(e % edgesDirection(ELEFT) , kind=RP)  * e % edges(ELEFT) % f % dS(iX,:)) ) .gt. error ) then
+                  error = maxval(abs(dSx - real(e % edgesDirection(ELEFT) , kind=RP)  * e % edges(ELEFT) % f % dS(iX,:))) 
+                  current = eID
+               end if
+               if ( maxval(abs(dSy - real(e % edgesDirection(ELEFT) , kind=RP) * e % edges(ELEFT) % f % dS(iY,:) ) ) .gt. error ) then
+                  error =  maxval(abs(dSy - real(e % edgesDirection(ELEFT) , kind=RP) * e % edges(ELEFT) % f % dS(iY,:) ) )  
+                  current = eID 
+               end if
+
+
+               end associate
             end do
+
+            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,")."
 
 !           Compute the volume of the domain
             write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."

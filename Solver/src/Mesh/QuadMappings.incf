@@ -63,10 +63,10 @@
 
          if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
             val = self % dX(iY,iXi,iEta,iY)
-         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -X_eta            
-            val = -self % dX(iX,iXi,iEta,iY)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -Y_xi
+         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -Y_xi            
             val = -self % dX(iY,iXi,iEta,iX)
+         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -X_eta
+            val = -self % dX(iX,iXi,iEta,iY)
          elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
             val = self % dX(iX,iXi,iEta,iX)
          end if
@@ -77,10 +77,10 @@
 
          if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
             val = self % dX(iY,:,:,iY)
-         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -X_eta            
-            val = -self % dX(iX,:,:,iY)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -Y_xi
+         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -Y_xi            
             val = -self % dX(iY,:,:,iX)
+         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -X_eta
+            val = -self % dX(iX,:,:,iY)
          elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
             val = self % dX(iX,:,:,iX)
          end if
