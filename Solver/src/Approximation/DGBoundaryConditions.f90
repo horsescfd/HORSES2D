@@ -4,7 +4,12 @@ module DGBoundaryConditions
    implicit none
 
    private
-   public BoundaryCondition_t , DGBoundaryConditions_setFace
+   public BdryZone_t , BoundaryCondition_t , DGBoundaryConditions_setFace
+
+   type BdryZone_t
+      integer        :: marker
+      class(Edge_p), pointer        :: edges(:)
+   end type BdryZone_t
 
    type BoundaryCondition_t
       integer        :: marker

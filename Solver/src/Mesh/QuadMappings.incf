@@ -28,22 +28,23 @@
                                               -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                               -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
 
-               self % dxiX(iX:iY, ixi , ieta) = (1.0_RP - eta(iEta)) * gBOT % evaluatedX(xi(iXi),dBOT) + gRIGHT % evaluateX(eta(iEta),dRIGHT) + &
-                                                   eta(iEta) * gTOP % evaluatedX(xi(iXi),-dTOP) + (-1.0_RP) * gLEFT % evaluateX(eta(iEta),-dLEFT) + &
+               self % dx(iX:iY,ixi,ieta,iX) = (1.0_RP - eta(iEta)) * gBOT % getdX(iXi,dBOT) + gRIGHT % getX(iEta,dRIGHT) + &
+                                                   eta(iEta) * gTOP % getdX(iXi,-dTOP) + (-1.0_RP) * gLEFT % getX(iEta,-dLEFT) + &
                                               -n1 *(1.0_RP - eta(iEta))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
                                               -n3 * eta(iEta) - n4 * (-1.0_RP) * eta(iEta)
 
-               self % detaX(iX:iY, ixi , ieta) =  (-1.0_RP) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getdX(iEta,dRIGHT) + &
+               self % dx(iX:iY,iXi,iEta,iY) =  (-1.0_RP) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getdX(iEta,dRIGHT) + &
                                               (1.0_RP - xi(iXi) )  * gLEFT % getdX(iEta,-dLEFT) + gTOP % getX(iXi,-dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * xi(iXi) * (-1.0_RP) & 
                                               -n3* xi(iXi) - n4 * (1.0_RP - xi(iXi))
+
+               self % jac(iXi,iEta)         = self % dX(iX,iXi,iEta,iX) * self % dX(iY,iXi,iEta,iY) - self % dX(iX,iXi,iEta,iY) * self % dX(iY,iXi,iEta,iX)
+
             end do
          end do
 
       end associate
 
-      self % dx(:,:,:,iX) = MatrixMultiplyInIndex_F( self % x , transpose(self % spA % D) , 2)
-      self % dx(:,:,:,iY) = MatrixMultiplyInIndex_F( self % x , transpose(self % spA % D) , 3)
 
    end subroutine QuadElement_SetMappings
 

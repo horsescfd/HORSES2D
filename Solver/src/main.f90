@@ -8,27 +8,13 @@ program main
     use QuadMeshClass
     use QuadElementClass
     use Headers
+    use ChecksModule
     implicit none
-    type(MeshFile_t)            :: meshFile
-    type(DGSEM_t)             :: sem
-   real(kind=RP), pointer     :: a(:) , b(:)
-   integer :: counter = 0
-      integer           :: edge
-    interface
-      subroutine checks( sem )
-         use DGSEM_Class
-         use SMConstants
-         use Physics
-         use NodesAndWeights_class
-         use QuadMeshClass
-         use MeshFileClass
-         use DGSpatialDiscretizationMethods
-         use Storage_module
-         use DGBoundaryConditions  
-         implicit none
-         class(DGSEM_t) :: sem
-      end subroutine checks
-    end interface
+    type(MeshFile_t)       :: meshFile
+    type(DGSEM_t)          :: sem
+    real(kind=RP), pointer :: a(:) , b(:)
+    integer                :: counter = 0
+    integer                :: edge
 
 
 !   =====================
@@ -69,18 +55,18 @@ program main
       end do
       close(111)
 
-      a(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements) % dX(:,:,:,1)
-      b(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements ) % dxiX(:,:,:)
-      do counter = 1 , 32 
-         write(*,'(2F24.16)') a(counter) , b(counter)
+!      a(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements) % dX(:,:,:,2)
+!      b(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements ) % detaX(:,:,:)
+!      do counter = 1 , 32 
+!         write(*,'(2F24.16)') a(counter) , b(counter)
 
-      end do
+!      end do
       
  
    
 
       
-!    call checks( sem ) 
+    call checks( sem ) 
 
 !    call sem % Integrate()
 

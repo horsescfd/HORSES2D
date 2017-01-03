@@ -232,8 +232,13 @@ module nodesAndWeights_class
                 call LegendreGaussLobattoNodesAndWeights( N, self % xi, self % w )
 
             end if
-                
+!                
+!           -------------------------------
+!           Adation to (0,1) domain
+!           -------------------------------
+!
             self % xi = 0.5_RP + 0.5_RP * self % xi
+            self % w  = 0.5_RP * self % w
             
 !
 !           ---------------------------

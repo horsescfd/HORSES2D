@@ -22,6 +22,7 @@ module QuadMeshClass
              procedure  :: SetInitialCondition
              procedure  :: ApplyInitialCondition
              procedure  :: SetStorage => QuadMesh_SetStorage
+             procedure  :: VolumeIntegral => Compute_VolumeIntegral
     end type QuadMesh_t
 
     interface InitializeMesh
@@ -267,5 +268,33 @@ module QuadMeshClass
             end do
 
          end subroutine QuadMesh_SetStorage
+
+         function Compute_volumeIntegral( self , var ) result ( val )
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_T)          :: self
+            character(len=*)           :: var
+            real(kind=RP)              :: val
+            real(kind=RP), allocatable :: variable(:,:)
+!           ----------------------------------------------            
+            integer                    :: eID
             
-end module QuadMeshClass
+            val = 0.0_RP
+            do eID = 1 , self % no_of_elements
+               associate( e => self % elements(eID) )
+               if ( trim(var) .eq. "One" ) then
+                  if (allocated(variable) ) deallocate(variable)
+                  allocate(variable(0:e % spA % N , 0:e % spA % N))
+                  variable = 1.0_RP
+               end if
+
+               variable = variable * e % jac
+
+               val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
+
+               end associate
+            end do
+               
+         end function Compute_volumeIntegral
+
+end module QuadMeshClass   

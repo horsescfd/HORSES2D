@@ -1,4 +1,4 @@
-$(info High-Order Discontinuous Galerkin 2D Solver Compilation.)
+$(info High-Order Discontinuous Galerkin 2D Solver Compilation. Madrid TU.)
 $(info )
 $(info )
 
@@ -16,7 +16,7 @@ LIBS=
 
 # --------------- MACROS ---------------------------------------------------
 
-GLOB_MACROS ?= # -D_USE_LAPACK
+GLOB_MACROS ?=  -D_USE_LAPACK
 
 # --------------- DEPENDENCIES ---------------------------------------------------
 
@@ -104,13 +104,13 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 all: 	$(EXECUTABLE)
 
 runcyl: 	
-	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE))		
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) -check)		
 
 runvortex: 	
-	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE))		
+	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE) -check)		
 
 runchan: 	
-	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE))		
+	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) -check)		
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \

@@ -138,6 +138,53 @@ module MatrixOperations
 
       end function MatrixTimesVector_F
 
+      subroutine BilinearForm( A , X , Y , B , trA )
+!     -----------------------------
+!        Computes the product
+!           B = X^T A Y
+!     -----------------------------
+         implicit none
+         real(kind=RP), intent(in)           :: A(:,:)
+         real(kind=RP), intent(in)           :: X(:)
+         real(kind=RP), intent(in)           :: Y(:)
+         real(kind=RP)                       :: B
+         logical,       intent(in), optional :: trA
+         logical                             :: tA
+
+         if (present(trA)) then
+            tA = trA
+         else
+            tA = .false.
+         end if 
+          
+         if (.not. tA) then
+            B = dot_product(X , MatrixTimesVector_F(A,Y) ) 
+         else
+            B = dot_product(Y , MatrixTimesVector_F(A,X) )
+         end if
+      end subroutine BilinearForm
+
+      function BilinearForm_F( A , X , Y , trA ) result( B )
+!     -----------------------------
+!        Computes the product
+!           B = X^T A Y
+!     -----------------------------
+         implicit none
+         real(kind=RP), intent(in)           :: A(:,:)
+         real(kind=RP), intent(in)           :: X(:)
+         real(kind=RP), intent(in)           :: Y(:)
+         real(kind=RP)                       :: B
+         logical,       intent(in), optional :: trA
+         logical                             :: tA
+
+         if (present(trA) ) then
+            call BilinearForm(A , X , Y , B , trA )
+         else
+            call BilinearForm(A , X , Y , B )
+         end if
+
+      end function BilinearForm_F
+       
       subroutine Mat_x_Mat( A , B , C , trA , trB , reset )
 !     -----------------------------
 !        Computes the product
