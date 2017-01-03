@@ -133,9 +133,10 @@ module ChecksModule
             real(kind=RP), allocatable :: dxiX(:,:,:)
             real(kind=RP), allocatable :: detaX(:,:,:)
             real(kind=RP)              :: error
-            integer                    :: current
+            integer                    :: current , location
             integer                    :: zone
             real(kind=RP), allocatable :: dSx(:) , dSy(:)
+            real(kind=RP), allocatable :: dSe(:,:)
 
             call SubSection_Header("Testing the mappings")
             
@@ -184,24 +185,33 @@ module ChecksModule
             do eID = 1 , mesh % no_of_elements
                if ( allocated(dSx) ) deallocate(dSx) 
                if ( allocated(dSy) ) deallocate(dSy) 
-            
+               if ( allocated(dSe) ) deallocate(dSe) 
                associate( e => mesh % elements(eID) )
                
                allocate( dSx ( 0 : e % spA % N ) )
                allocate( dSy ( 0 : e % spA % N ) )
+               allocate( dSe ( NDIM , 0 : e % spA % N ) )
 
 !              BOTTOM Edge
 !              -----------
                dSx = -MatrixTimesVector_F( e % Ja([1,2]) , e % spA % lj(0.0_RP)  )
                dSy = -MatrixTimesVector_F( e % Ja([2,2]) , e % spA % lj(0.0_RP)  )
-               
-               if ( maxval(abs(dSx - real(e % edgesDirection(EBOTTOM) , kind=RP)  * e % edges(EBOTTOM) % f % dS(iX,:)) ) .gt. error ) then
-                  error = maxval(abs(dSx - real(e % edgesDirection(EBOTTOM) , kind=RP)  * e % edges(EBOTTOM) % f % dS(iX,:))) 
-                  current = eID
+
+               if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
+                  dSe = e % edges(EBOTTOM) % f % dS 
+               else
+                  dSe = - e % edges(EBOTTOM) % f % dS(iX:iY , e % spA % N : 0 : -1 )
                end if
-               if ( maxval(abs(dSy - real(e % edgesDirection(EBOTTOM) , kind=RP) * e % edges(EBOTTOM) % f % dS(iY,:) ) ) .gt. error ) then
-                  error =  maxval(abs(dSy - real(e % edgesDirection(EBOTTOM) , kind=RP) * e % edges(EBOTTOM) % f % dS(iY,:) ) )  
+               
+               if ( maxval(abs(dSx - dSe(iX,:) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(iX,:) ) )
+                  current = eID
+                  location = EBOTTOM
+               end if
+               if (  maxval(abs(dSy - dSe(iY,:) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(iY,:) ) )
                   current = eID 
+                  location = EBOTTOM
                end if
 
 !              RIGHT Edge
@@ -209,49 +219,72 @@ module ChecksModule
                dSx = MatrixTimesVector_F( e % Ja([1,1]) , e % spA % lj(1.0_RP) , trA = .true.  )
                dSy = MatrixTimesVector_F( e % Ja([2,1]) , e % spA % lj(1.0_RP) , trA = .true.  )
                
-               if ( maxval(abs(dSx - real(e % edgesDirection(ERIGHT) , kind=RP)  * e % edges(ERIGHT) % f % dS(iX,:)) ) .gt. error ) then
-                  error = maxval(abs(dSx - real(e % edgesDirection(ERIGHT) , kind=RP)  * e % edges(ERIGHT) % f % dS(iX,:))) 
+               if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
+                  dSe = e % edges(ERIGHT) % f % dS 
+               else
+                  dSe = - e % edges(ERIGHT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+               end if
+               
+               if ( maxval(abs(dSx - dSe(iX,:) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(iX,:) ) )
                   current = eID
+                  location = ERIGHT
                end if
-               if ( maxval(abs(dSy - real(e % edgesDirection(ERIGHT) , kind=RP) * e % edges(ERIGHT) % f % dS(iY,:) ) ) .gt. error ) then
-                  error =  maxval(abs(dSy - real(e % edgesDirection(ERIGHT) , kind=RP) * e % edges(ERIGHT) % f % dS(iY,:) ) )  
+               if (  maxval(abs(dSy - dSe(iY,:) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(iY,:) ) )
                   current = eID 
-               end if
+                  location = ERIGHT
+               end if              
 
 !              TOP Edge
 !              -----------
                dSx = MatrixTimesVector_F( e % Ja([1,2]) , e % spA % lj(1.0_RP)  )
                dSy = MatrixTimesVector_F( e % Ja([2,2]) , e % spA % lj(1.0_RP)  )
-               
-               if ( maxval(abs(dSx - real(e % edgesDirection(ETOP) , kind=RP)  * e % edges(ETOP) % f % dS(iX,:)) ) .gt. error ) then
-                  error = maxval(abs(dSx - real(e % edgesDirection(ETOP) , kind=RP)  * e % edges(ETOP) % f % dS(iX,:))) 
-                  current = eID
-               end if
-               if ( maxval(abs(dSy - real(e % edgesDirection(ETOP) , kind=RP) * e % edges(ETOP) % f % dS(iY,:) ) ) .gt. error ) then
-                  error =  maxval(abs(dSy - real(e % edgesDirection(ETOP) , kind=RP) * e % edges(ETOP) % f % dS(iY,:) ) )  
-                  current = eID 
-               end if
 
+               if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
+                  dSe = e % edges(ETOP) % f % dS 
+               else
+                  dSe = - e % edges(ETOP) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+               end if
+               
+               if ( maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) ) )
+                  current = eID
+                  location = ETOP
+               end if
+               if (  maxval(abs(dSy - dSe(iY,e % spA % N:0:-1) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(iY,e % spA % N : 0 : -1) ) )
+                  current = eID 
+                  location = ETOP
+               end if              
 
 !              LEFT Edge
 !              -----------
                dSx = -MatrixTimesVector_F( e % Ja([1,1]) , e % spA % lj(0.0_RP)  , trA = .true.)
                dSy = -MatrixTimesVector_F( e % Ja([2,1]) , e % spA % lj(0.0_RP)  , trA = .true.)
+
+               if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
+                  dSe = e % edges(ELEFT) % f % dS 
+               else
+                  dSe = - e % edges(ELEFT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+               end if
                
-               if ( maxval(abs(dSx - real(e % edgesDirection(ELEFT) , kind=RP)  * e % edges(ELEFT) % f % dS(iX,:)) ) .gt. error ) then
-                  error = maxval(abs(dSx - real(e % edgesDirection(ELEFT) , kind=RP)  * e % edges(ELEFT) % f % dS(iX,:))) 
+               if ( maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) 
                   current = eID
+                  location = ELEFT
                end if
-               if ( maxval(abs(dSy - real(e % edgesDirection(ELEFT) , kind=RP) * e % edges(ELEFT) % f % dS(iY,:) ) ) .gt. error ) then
-                  error =  maxval(abs(dSy - real(e % edgesDirection(ELEFT) , kind=RP) * e % edges(ELEFT) % f % dS(iY,:) ) )  
+               if (  maxval(abs(dSy - dSe(iY,e % spA % N : 0 : -1) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(iY,e % spA % N : 0 : -1) ) )
                   current = eID 
-               end if
+                  location = ELEFT
+               end if              
 
-
+              
                end associate
             end do
 
-            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,")."
+            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,", in " , location , ")."
 
 !           Compute the volume of the domain
             write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."
@@ -260,6 +293,16 @@ module ChecksModule
             do zone = 1 , size(mesh % Zones) - 1
                write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % SurfaceIntegral("One",zone) ,"." 
             end do
+
+            print*, MatrixTimesVector_F( mesh % elements(640) % Ja([1,2]) , mesh % elements(640) % spA % lj(1.0_RP) )
+               if ( mesh % elements(ETOP) % edgesDirection(ETOP) .eq. FORWARD ) then
+                  print*, "FORWARD"
+                  dSe = mesh %elements(640) % edges(ETOP) % f % dS 
+               else
+                  print*, "BACKWARD"
+                  dSe = - mesh % elements(640) % edges(ETOP) % f % dS(iX:iY , mesh % elements(640) % spA % N : 0 : -1 )
+               end if
+            print*, dSe(iX,:)
 
         end subroutine CheckMappings
       
