@@ -287,11 +287,11 @@ module ChecksModule
             write(STD_OUT , '(30X,A,A,E10.3,A,I0,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,", in " , location , ")."
 
 !           Compute the volume of the domain
-            write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."
+            write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One") * RefValues % L**2.0_RP,"."
 
 !           Compute faces surface            
             do zone = 1 , size(mesh % Zones) - 1
-               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % SurfaceIntegral("One",zone) ,"." 
+               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % SurfaceIntegral("One",zone) * RefValues % L ,"." 
             end do
 
         end subroutine CheckMappings

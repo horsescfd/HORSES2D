@@ -21,8 +21,6 @@ module QuadElementClass
         integer                            :: address                        ! Memory address of the first position in the mesh
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
-        real(kind=RP), allocatable         :: dxix(:,:,:)                    ! Coordinates of the nodes ( X/Y , xi , eta )
-        real(kind=RP), allocatable         :: detax(:,:,:)                   ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
         real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
@@ -185,8 +183,6 @@ module QuadElementClass
 !
              allocate ( self % x     ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % dx    ( NDIM  , 0:N , 0:N , NDIM )  ) 
-             allocate ( self % dxix     ( NDIM  , 0:N , 0:N        )  ) 
-             allocate ( self % detax     ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % jac   ( 0:N , 0:N                )  ) 
              allocate ( self % edges ( EDGES_PER_QUAD           )  ) 
       

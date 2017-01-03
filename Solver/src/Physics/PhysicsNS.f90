@@ -4,6 +4,7 @@ module PhysicsNS
 
     private
     public :: NEC , NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: RefValues
     public :: RiemannSolverFunction , InitializePhysics
 !
 !   *****************************************

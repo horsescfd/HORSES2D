@@ -83,6 +83,8 @@ module MeshFileClass
             call NetCDF_getVariable ( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
             mesh % polynomialOrder  = Setup % N
 
+            mesh % points_coords = mesh % points_coords / RefValues % L 
+
             do marker = 1 , mesh % no_of_markers
                write(name , '(A,I0)') "marker" , marker
                call NetCDF_getVariable ( Setup % mesh_file , trim(name) , mesh % bdryzones_names(marker) )
@@ -123,12 +125,12 @@ module MeshFileClass
 !              Obtain x-coordinates
 !              --------------------
                call NetCDF_getVariable( Setup % mesh_file , "x_curvilinear_edges" , aux )
-               mesh % curvilinear_coords(1,:,:) = aux
+               mesh % curvilinear_coords(1,:,:) = aux / RefValues % L
 !
 !              Obtain y-coordinates
 !              --------------------
                call NetCDF_getVariable( Setup % mesh_file , "y_curvilinear_edges" , aux )
-               mesh % curvilinear_coords(2,:,:) = aux
+               mesh % curvilinear_coords(2,:,:) = aux / RefValues % L
 !
 !              ------------------------------------
 !                 Free the auxiliary variable
