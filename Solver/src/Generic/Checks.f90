@@ -168,10 +168,10 @@ module ChecksModule
 
             end do
 
-            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found: ",error,"  (Cell ",current,")."
+            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found in elements mapping: ",error,"  (Cell ",current,")."
 
 !           Compute the volume of the domain
-            write(STD_OUT , '(30X,A,A,F16.10,A)') "-> ", "Domain volume: " , mesh % VolumeIntegral("One"),"."
+            write(STD_OUT , '(30X,A,A,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."
         end subroutine CheckMappings
       
         subroutine Integration_checks( sem ) 

@@ -1,22 +1,12 @@
 module DGBoundaryConditions
    use SMConstants
    use QuadElementClass
-   use QuadMeshClass
    implicit none
 
    private
-   public Zone_t , BoundaryCondition_t , DGBoundaryConditions_setFace
+   public BoundaryCondition_t , DGBoundaryConditions_setFace
 
    integer, parameter         :: STR_LEN_BC = 128
-
-   type Zone_t
-      integer                   :: marker
-      character(len=STR_LEN_BC) :: Name
-      integer                   :: no_of_edges
-      class(Edge_p), pointer    :: edges(:)
-      contains
-         procedure      :: Construct => Zone_Construct
-   end type Zone_t
 
    type BoundaryCondition_t
       integer        :: marker
@@ -31,45 +21,6 @@ module DGBoundaryConditions
    end type BoundaryCondition_t
 
    contains
-      subroutine Zone_construct( self , mesh , marker , name)
-         implicit none
-         class(Zone_t)           :: self
-         class(QuadMesh_t)       :: mesh
-         integer                 :: marker
-         character(len=*)        :: name
-         integer                 :: edID
-         integer                 :: current
-
-         self % marker = marker
-         self % Name = trim(Name)
-
-         self % no_of_edges = 0
-!
-!        ***************************************
-!        Gather the number of edges for a marker
-!        ***************************************
-!
-         do edID = 1 , mesh % no_of_edges
-            if ( mesh % edges(edID) % f % edgeType .eq. marker) then
-               self % no_of_edges = self % no_of_edges + 1
-            end if
-         end do
-!
-!        Allocate the structure
-         allocate( self % edges( self % no_of_edges ) )
-
-!
-!        Point to all edges in the zone
-         current = 0
-         do edID = 1 , mesh % no_of_edges
-            if ( mesh % edges(edID) % f % edgeType .eq. marker) then
-               current = current + 1
-               self % edges( current ) % f => mesh % edges(edID) % f
-            end if
-         end do
-
-      end subroutine Zone_construct
-
       subroutine DGBoundaryConditions_construct( self , ID , edge , BCset)
          use Setup_class
          implicit none

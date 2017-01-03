@@ -7,7 +7,9 @@ module QuadMeshClass
     use QuadMeshDefinitions
 
     private
-    public QuadMesh_t , InitializeMesh
+    public Zone_t , QuadMesh_t , InitializeMesh
+
+    integer, parameter        :: STR_LEN_MESH = 128
 
     type QuadMesh_t
          integer                               :: no_of_nodes
@@ -16,14 +18,26 @@ module QuadMeshClass
          class(Node_t),         pointer        :: nodes(:)
          class(Edge_p),         pointer        :: edges(:)           ! This is an array to pointers
          class(QuadElement_t) , pointer        :: elements(:)
+         class(Zone_t)        , pointer        :: zones(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
          contains
              procedure  :: ConstructFromFile
+             procedure  :: ConstructZones          => Mesh_ConstructZones
              procedure  :: SetInitialCondition
              procedure  :: ApplyInitialCondition
              procedure  :: SetStorage => QuadMesh_SetStorage
              procedure  :: VolumeIntegral => Compute_VolumeIntegral
     end type QuadMesh_t
+
+    type Zone_t
+       integer                   :: marker
+       character(len=STR_LEN_MESH) :: Name
+       integer                   :: no_of_edges
+       class(Edge_p), pointer    :: edges(:)
+       contains
+          procedure      :: Construct => Zone_Construct
+    end type Zone_t
+ 
 
     interface InitializeMesh
           module procedure newMesh
@@ -169,6 +183,7 @@ module QuadMeshClass
 
                if (curvilinear) then
 !
+            
 !              Add the curve to the edge
 !              -------------------------
                   select type ( f => self % edges(edge) % f )
@@ -297,4 +312,65 @@ module QuadMeshClass
                
          end function Compute_volumeIntegral
 
+         subroutine Mesh_ConstructZones( self , meshFile  )
+            use MeshFileClass
+            implicit none
+            class(QuadMesh_t)                        :: self
+            class(MeshFile_t)                        :: meshFile
+            character(len=STR_LEN_MESH), allocatable :: zoneNames(:)
+            integer                                  :: zone
+
+            allocate( self % Zones( 0 : meshFile % no_of_markers ) )
+            allocate( zoneNames( 0 :  meshFile % no_of_markers) )
+
+            zoneNames(0) = "Interior"
+            zoneNames(1 : meshFile % no_of_markers) = meshFile % bdryzones_names
+
+            do zone = 0 , meshFile % no_of_markers
+               call self % Zones(zone) % Construct( self , zone , zoneNames(zone) )
+            end do
+
+!
+         end subroutine Mesh_ConstructZones
+
+         subroutine Zone_construct( self , mesh , marker , name)
+            implicit none
+            class(Zone_t)           :: self
+            class(QuadMesh_t)       :: mesh
+            integer                 :: marker
+            character(len=*)        :: name
+            integer                 :: edID
+            integer                 :: current
+   
+            self % marker = marker
+            self % Name = trim(Name)
+   
+            self % no_of_edges = 0
+!   
+!           ***************************************
+!           Gather the number of edges for a marker
+!           ***************************************
+!   
+            do edID = 1 , mesh % no_of_edges
+               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
+                  self % no_of_edges = self % no_of_edges + 1
+               end if
+            end do
+!   
+!           Allocate the structure
+            allocate( self % edges( self % no_of_edges ) )
+   
+!   
+!           Point to all edges in the zone
+            current = 0
+            do edID = 1 , mesh % no_of_edges
+               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
+                  current = current + 1
+                  self % edges( current ) % f => mesh % edges(edID) % f
+               end if
+            end do
+   
+         end subroutine Zone_construct
+   
+   
 end module QuadMeshClass   
