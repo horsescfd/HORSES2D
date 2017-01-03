@@ -294,16 +294,6 @@ module ChecksModule
                write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % SurfaceIntegral("One",zone) ,"." 
             end do
 
-            print*, MatrixTimesVector_F( mesh % elements(640) % Ja([1,2]) , mesh % elements(640) % spA % lj(1.0_RP) )
-               if ( mesh % elements(ETOP) % edgesDirection(ETOP) .eq. FORWARD ) then
-                  print*, "FORWARD"
-                  dSe = mesh %elements(640) % edges(ETOP) % f % dS 
-               else
-                  print*, "BACKWARD"
-                  dSe = - mesh % elements(640) % edges(ETOP) % f % dS(iX:iY , mesh % elements(640) % spA % N : 0 : -1 )
-               end if
-            print*, dSe(iX,:)
-
         end subroutine CheckMappings
       
         subroutine Integration_checks( sem ) 
