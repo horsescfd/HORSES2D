@@ -28,6 +28,7 @@
     use DGBoundaryConditions
     implicit none
 
+    integer, parameter           :: STR_LEN_DGSEM = 128
 
 !   ---------------
 !   type DEFINITION
@@ -35,9 +36,10 @@
     type DGSEM_t
         type(QuadMesh_t)                    :: mesh
         type(NodalStorage)                  :: spA             ! Interpolation nodes and weights structure
-        class(NodesAndWeights_t), pointer   :: spI => NULL()   ! Integration nodes and weights structure
+        class(NodesAndWeights_t),   pointer :: spI => NULL()   ! Integration nodes and weights structure
         type(Storage_t)                     :: Storage
         class(BoundaryCondition_t), pointer :: BoundaryConditions(:)
+        class(Zone_t),              pointer :: Zones(:)
         type(TimeIntegrator_t)              :: Integrator
         contains
             procedure       :: construct => DGSEM_construct
@@ -76,11 +78,14 @@
             implicit none
             class(DGSEM_t)                                               :: self
             class(MeshFile_t)                                            :: meshFile
+!           ----------------------------------------------------------------------------------------------
             integer                                                      :: total_polyorder
             integer                                                      :: eID
             integer                                                      :: iBC
             integer                                                      :: fID
             class(Edge_t), pointer                                       :: face
+            integer                                                      :: zone
+            character(len=STR_LEN_DGSEM), allocatable                    :: zoneNames(:)
 !
 !           ***********************************************
 !           Allocate memory for solution and its derivative
@@ -125,6 +130,13 @@
 !           Set the boundary conditions
 !           ***************************
 !
+            allocate( self % Zones( 0 : meshFile % no_of_markers ) )
+            allocate( zoneNames( 0 : meshFile % no_of_markers) )
+            zoneNames(0) = "Interior"
+            zoneNames(1 : meshFile % no_of_markers) = meshFile % bdryzones_names
+            do zone = 0 , meshFile % no_of_markers
+               call self % Zones(zone) % Construct( self % mesh , zone , zoneNames(zone) )
+            end do
 !            allocate ( self % BoundaryConditions( size(Setup % markers) ) )
 !
 !            do iBC = 1 , size(Setup % markers)
