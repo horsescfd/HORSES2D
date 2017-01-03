@@ -17,28 +17,29 @@ module QuadElementClass
 !   ********************************************************************************
 !
     type QuadElement_t
-        integer                           :: ID                                                    ! ID of the element
-        integer                           :: address                                               ! Memory address of the first position in the mesh
-        integer                           :: edgesDirection(EDGES_PER_QUAD)                        ! Direction (FORWARD/REVERSE) of the edges
-        real(kind=RP), allocatable        :: x(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
-        real(kind=RP), allocatable        :: dxix(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
-        real(kind=RP), allocatable        :: detax(:,:,:)                                              ! Coordinates of the nodes ( X/Y , xi , eta )
-        real(kind=RP), allocatable        :: dx(:,:,:,:)                                           ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
-        real(kind=RP), allocatable        :: jac(:,:)                                              ! Mapping jacobian ( xi , eta )
-        real(kind=RP), pointer            :: Q(:,:,:)                                              ! Pointers to the main storage:
-        real(kind=RP), pointer            :: QDot(:,:,:)                                           !  *   Q, QDot ( EQ , xi , eta ): solution and time derivative
-        real(kind=RP), pointer            :: F(:,:,:,:)                                            !  *   F ( EQ , xi , eta , X/Y) : contravariant fluxes
-        real(kind=RP), pointer            :: dQ(:,:,:,:)                                           !  *   dQ( EQ , xi ,eta , X/Y):   solution gradient
-        type(Node_p)                      :: nodes(POINTS_PER_QUAD)                                ! Pointer to neighbour nodes
-        class(Edge_p), pointer            :: edges(:)                                              ! Pointer to neighbour eges
-        class(NodesAndWeights_t), pointer :: spA                                                   ! Pointer to the Nodal Storage
-        class(NodesAndWeights_t), pointer :: spI                                                   ! Pointer to the Over-Integration Nodal Storage (If proceeds)
+        integer                            :: ID                             ! ID of the element
+        integer                            :: address                        ! Memory address of the first position in the mesh
+        integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
+        real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
+        real(kind=RP), allocatable         :: dxix(:,:,:)                    ! Coordinates of the nodes ( X/Y , xi , eta )
+        real(kind=RP), allocatable         :: detax(:,:,:)                   ! Coordinates of the nodes ( X/Y , xi , eta )
+        real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
+        real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
+        real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
+        real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( EQ , xi , eta ): solution and time derivative
+        real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( EQ , xi , eta , X/Y) : contravariant fluxes
+        real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( EQ , xi ,eta , X/Y):   solution gradient
+        type(Node_p)                       :: nodes(POINTS_PER_QUAD)         ! Pointer to neighbour nodes
+        class(Edge_p), pointer             :: edges(:)                       ! Pointer to neighbour eges
+        class(NodesAndWeights_t), pointer  :: spA                            ! Pointer to the Nodal Storage
+        class(NodesAndWeights_t), pointer  :: spI                            ! Pointer to the Over-Integration Nodal Storage (If proceeds)
 !       ========
         contains
 !       ========
             procedure      :: Construct   => QuadElement_Construct                                 ! Constructs/allocates data and points to the address in Storage
             procedure      :: SetStorage  => QuadElement_SetStorage                                ! Function to set the storage distribution
             procedure      :: SetMappings => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
+            procedure      :: Ja          => QuadElement_MetricMatrix
     end type QuadElement_t
 
 !

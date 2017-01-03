@@ -137,6 +137,8 @@ module ChecksModule
 
             call SubSection_Header("Testing the mappings")
             
+!           This is to test the elements mappings derivatives formula
+!           ---------------------------------------------------------
             do eID = 1 , mesh % no_of_elements
                associate (e => mesh % elements(eID) )
 
@@ -170,6 +172,13 @@ module ChecksModule
             end do
 
             write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found in elements mapping: ",error,"  (Cell ",current,")."
+
+!
+!           This is to test the extrapolation to boundaries of the normal vectors from elements
+!           -----------------------------------------------------------------------------------
+            do eID = 1 , mesh % no_of_elements
+               
+            end do
 
 !           Compute the volume of the domain
             write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."

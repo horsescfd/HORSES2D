@@ -48,4 +48,46 @@
 
    end subroutine QuadElement_SetMappings
 
+   function QuadElement_MetricMatrix ( self , which , iXi , iEta ) result (val)
+      implicit none
+      class(QuadElement_t),intent(in)           :: self
+      integer,             intent(in)           :: which(NDIM)
+      integer,             intent(in), optional :: iXi(:)
+      integer,             intent(in), optional :: iEta(:)
+      real(kind=RP), allocatable                :: val(:,:)
+      real(kind=RP)                             :: newsign
 
+      if (present(iXi) .and. present(iEta)) then
+
+         allocate ( val(size(iXi,1) , size(iEta,1) ) )
+
+         if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
+            val = self % dX(iY,iXi,iEta,iY)
+         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -X_eta            
+            val = -self % dX(iX,iXi,iEta,iY)
+         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -Y_xi
+            val = -self % dX(iY,iXi,iEta,iX)
+         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
+            val = self % dX(iX,iXi,iEta,iX)
+         end if
+
+      else
+
+         allocate( val(size(self % dX,2),size(self % dX,3) ) )
+
+         if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
+            val = self % dX(iY,:,:,iY)
+         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -X_eta            
+            val = -self % dX(iX,:,:,iY)
+         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -Y_xi
+            val = -self % dX(iY,:,:,iX)
+         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
+            val = self % dX(iX,:,:,iX)
+         end if
+
+
+      end if
+
+      
+   end function QuadElement_MetricMatrix
+   
