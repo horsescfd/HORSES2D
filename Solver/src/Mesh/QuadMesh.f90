@@ -27,13 +27,14 @@ module QuadMeshClass
              procedure  :: ApplyInitialCondition
              procedure  :: SetStorage => QuadMesh_SetStorage
              procedure  :: VolumeIntegral => Compute_VolumeIntegral
+             procedure  :: SurfaceIntegral => Compute_SurfaceIntegral
     end type QuadMesh_t
 
     type Zone_t
-       integer                   :: marker
+       integer                     :: marker
        character(len=STR_LEN_MESH) :: Name
-       integer                   :: no_of_edges
-       class(Edge_p), pointer    :: edges(:)
+       integer                     :: no_of_edges
+       class(Edge_p), pointer      :: edges(:)
        contains
           procedure      :: Construct => Zone_Construct
     end type Zone_t
@@ -284,35 +285,7 @@ module QuadMeshClass
 
          end subroutine QuadMesh_SetStorage
 
-         function Compute_volumeIntegral( self , var ) result ( val )
-            use MatrixOperations
-            implicit none
-            class(QuadMesh_T)          :: self
-            character(len=*)           :: var
-            real(kind=RP)              :: val
-            real(kind=RP), allocatable :: variable(:,:)
-!           ----------------------------------------------            
-            integer                    :: eID
-            
-            val = 0.0_RP
-            do eID = 1 , self % no_of_elements
-               associate( e => self % elements(eID) )
-               if ( trim(var) .eq. "One" ) then
-                  if (allocated(variable) ) deallocate(variable)
-                  allocate(variable(0:e % spA % N , 0:e % spA % N))
-                  variable = 1.0_RP
-               end if
-
-               variable = variable * e % jac
-
-               val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
-
-               end associate
-            end do
-               
-         end function Compute_volumeIntegral
-
-         subroutine Mesh_ConstructZones( self , meshFile  )
+        subroutine Mesh_ConstructZones( self , meshFile  )
             use MeshFileClass
             implicit none
             class(QuadMesh_t)                        :: self
@@ -371,6 +344,63 @@ module QuadMeshClass
             end do
    
          end subroutine Zone_construct
+ 
+         function Compute_volumeIntegral( self , var ) result ( val )
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_T)          :: self
+            character(len=*)           :: var
+            real(kind=RP)              :: val
+            real(kind=RP), allocatable :: variable(:,:)
+!           ----------------------------------------------            
+            integer                    :: eID
+            
+            val = 0.0_RP
+            do eID = 1 , self % no_of_elements
+               associate( e => self % elements(eID) )
+               if ( trim(var) .eq. "One" ) then
+                  if (allocated(variable) ) deallocate(variable)
+                  allocate(variable(0:e % spA % N , 0:e % spA % N))
+                  variable = 1.0_RP
+               end if
+
+               variable = variable * e % jac
+
+               val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
+
+               end associate
+            end do
+               
+         end function Compute_volumeIntegral
+   
+         function Compute_surfaceIntegral( self , var , zone ) result ( val )
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_t)             :: self
+            character(len=*)              :: var
+            real(kind=RP)                 :: val
+            real(kind=RP), allocatable    :: variable(:)
+!           --------------------------------------------------------------
+            integer                       :: edID
+
+            val = 0.0_RP
+
+            do edID = 1 , self % Zones(zone) % no_of_edges
+               associate( f => self % Zones(zone) % edges(edID) % f )
+
+               if ( trim(var) .eq. "One" ) then
+                  if (allocated(variable) ) deallocate( variable )
+                  allocate (variable(0 : f % spA % N) )
+                  variable = 1.0_RP
+               end if
+
+               variable = variable * norm2( f % dS , dim = 1 )
+               val = val + dot_product(variable , f % spA % w)
+               
+               end associate
+            end do
+
+         end function Compute_surfaceIntegral
    
    
 end module QuadMeshClass   
