@@ -378,9 +378,10 @@ module QuadMeshClass
             implicit none
             class(QuadMesh_t)             :: self
             character(len=*)              :: var
+            integer                       :: zone
             real(kind=RP)                 :: val
-            real(kind=RP), allocatable    :: variable(:)
 !           --------------------------------------------------------------
+            real(kind=RP), allocatable    :: variable(:)
             integer                       :: edID
 
             val = 0.0_RP

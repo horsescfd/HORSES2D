@@ -133,6 +133,7 @@ module ChecksModule
             real(kind=RP), allocatable :: detaX(:,:,:)
             real(kind=RP)              :: error
             integer                    :: current
+            integer                    :: zone
 
             call SubSection_Header("Testing the mappings")
             
@@ -171,7 +172,13 @@ module ChecksModule
             write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found in elements mapping: ",error,"  (Cell ",current,")."
 
 !           Compute the volume of the domain
-            write(STD_OUT , '(30X,A,A,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."
+            write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One"),"."
+
+!           Compute faces surface            
+            do zone = 1 , size(mesh % Zones) - 1
+               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % SurfaceIntegral("One",zone) ,"." 
+            end do
+
         end subroutine CheckMappings
       
         subroutine Integration_checks( sem ) 
