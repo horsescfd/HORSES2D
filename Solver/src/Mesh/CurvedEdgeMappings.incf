@@ -7,24 +7,45 @@
      integer                     , intent(in), optional :: order
 !    -----------------------------------------------------------------------------
      real(kind=RP), allocatable                         :: CGLnodes(:)
+     real(kind=RP), allocatable                         :: CGLintermediate(:)             ! These nodes are needed since curve order .ne. interpolation order
+     real(kind=RP), allocatable                         :: Xintermediate(:,:)
      real(kind=RP), allocatable                         :: T(:,:)
-     real(kind=RP), allocatable                         :: wb(:)
+     real(kind=RP), allocatable                         :: wb(:) 
      integer                                            :: node
 
      if ( present(points) .and. present(order) ) then
 
+      associate ( N => self % spA % N ) 
+
         allocate( CGLnodes(0 : order ) )
-        allocate( wb(0 : order ) )
-        allocate( T(0: self % spA % N , 0: order ) )
-  
+        allocate( CGLintermediate(0 : N ) )
+
         CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
+        CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(N - node)/(1.0_RP*N)),node = 0,N)/),(/N+1/) )
+
+        allocate( Xintermediate(NDIM , 0:N) )
+  
+        allocate( wb ( 0 : order ) )
+        allocate( T ( 0 : N , 0 : order ) )
   
         call BarycentricWeights( N = order , x = CGLnodes , w = wb )
-        call PolynomialInterpolationMatrix( N = order , M = self % spA % N, oldNodes = CGLnodes, weights = wb, newNodes = self % spA % xi , T = T)
+        call PolynomialInterpolationMatrix( N = order , M = N , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
+!
+!       Compute intermediate points
+!       ---------------------------
+        Xintermediate = Mat_x_Mat_F ( A = points , B = T , trB = .true. ) 
+
+        deallocate( wb , T )
+   
+        allocate ( wb ( 0 : N         )  ) 
+        allocate ( T  ( 0 : N , 0 : N )  ) 
+
+        call BarycentricWeights( N = N , x = CGLintermediate , w = wb )
+        call PolynomialInterpolationMatrix( N = N , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
   
 !       Compute points
 !       --------------
-        self % X  = Mat_x_Mat_F ( A = points   , B = T              , trB = .true. ) 
+        self % X  = Mat_x_Mat_F ( A = Xintermediate  , B = T              , trB = .true. ) 
 
 !       Compute tangent vector
 !       ----------------------
@@ -35,6 +56,7 @@
         self % dS(iX,:) =   self % dX(iY,:)
         self % dS(iY,:) = - self % dX(iX,:)
   
+      end associate
      else
 
          print*, "Missing curve interpolation data"

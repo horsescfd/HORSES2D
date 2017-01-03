@@ -156,7 +156,7 @@ module ChecksModule
 
                if (eID .eq. 1) then
                   current = eID
-                  error = maxval(abs(dxiX - e % dX(:,:,:,iX)))
+                  error = maxval(abs(dxiX - e % dX(:,:,:,iX))) 
                    
                else
 
@@ -167,7 +167,7 @@ module ChecksModule
                end if
                      
                if ( maxval(abs(detaX - e % dX(:,:,:,iY)) ) .gt. error) then
-                     error = maxval(abs(detaX - e % dX(:,:,:,iY) ) )
+                     error = maxval(abs(detaX - e % dX(:,:,:,iY) ) ) 
                      current = eID
                end if
                end associate
