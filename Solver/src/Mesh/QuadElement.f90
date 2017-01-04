@@ -60,19 +60,19 @@ module QuadElementClass
 !   *********************************************************************************
 !
     type Edge_t
-        integer                                 :: ID                         ! Edge ID
-        integer                                 :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
-        integer,                    allocatable :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
-        real(kind=RP),              allocatable :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
-        real(kind=RP),              allocatable :: X(:,:)                     ! Coordinates: (X/Y, xi)
-        real(kind=RP),              allocatable :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
-        real(kind=RP),              allocatable :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
-        real(kind=RP),              allocatable :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
-        real(kind=RP),              allocatable :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
-        type(Node_p)                            :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
-        class(QuadElement_p),       pointer     :: quads(:)                   ! Pointers to the two (or one) shared quads
-        class(NodesAndWeights_t),   pointer     :: spA                        ! Pointer to the approximation nodal storage
-        class(NodesAndWeights_t),   pointer     :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
+        integer                             :: ID                         ! Edge ID
+        integer                             :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
+        integer,                    pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
+        real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
+        real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
+        real(kind=RP),              pointer :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
+        real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
+        real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
+        type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
+        class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
+        class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage
+        class(NodesAndWeights_t),   pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
         contains
             procedure      :: SetCurve    => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
             procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
@@ -82,6 +82,7 @@ module QuadElementClass
             procedure      :: getX        => Edge_getX                        ! 
             procedure      :: getdX       => Edge_getdX
             procedure      :: getdS       => Edge_getdS
+            procedure      :: QPointer    => Edge_QPointer
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -413,5 +414,20 @@ module QuadElementClass
             self % dS ( 1:NDIM , 0:self % spA % N ) = self % dS ( 1:NDIM , self % spA % N : 0 : -1 ) 
 
          end subroutine Edge_Invert
+
+         function Edge_QPointer( self , eq , quad , direction )  result (Q)
+            implicit none
+            class(Edge_t)           :: self
+            integer                 :: eq
+            integer                 :: quad  
+            integer                 :: direction
+            real(kind=RP), pointer  :: Q(:)
+            
+            if (direction .eq. FORWARD) then
+               Q(0:) => self % Q(0:,eq,quad)
+            elseif ( direction .eq. BACKWARD ) then
+               Q(0:) => self % Q(self % spA % N::-1,eq,quad)
+            end if
+         end function Edge_QPointer
 
 end module QuadElementClass

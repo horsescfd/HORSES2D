@@ -182,10 +182,14 @@ module InitialConditions
          real(kind=RP)              :: x(NDIM)
          real(kind=RP)              :: val(NEC)
 
-         val(IRHO)   = x(iX) ** 4.0_RP
-         val(IRHOU)  = x(iY) ** 4.0_RP
-         val(IRHOV)  = (x(iX)** 2.0_RP + x(iY)**2.0_RP)
-         val(IRHOE)  = x(iX) ** 4.0_RP * x(iY) ** 4.0_RP
+!         val(IRHO)   = x(iX) ** 4.0_RP
+!         val(IRHOU)  = x(iY) ** 4.0_RP
+!         val(IRHOV)  = (x(iX)** 2.0_RP + x(iY)**2.0_RP)
+!         val(IRHOE)  = x(iX) ** 4.0_RP * x(iY) ** 4.0_RP
+          val(IRHO) = x(iX)
+          val(IRHOU) = x(iY)
+          val(IRHOV) = x(iX) + x(iY)
+          val(IRHOE) = x(iX) - x(iY)
          
       end function ChecksInitialCondition
 

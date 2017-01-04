@@ -119,7 +119,13 @@ module DGSpatialDiscretizationMethods
                   select case (trim(var))
                      case ("Q")
                         variable(0: , 0: )   => e % Q(0:,0:,eq)
-                        variable_b(0:)       => ed % Q(0:, eq , e % quadPosition(edID))
+               
+                        if ( (edID .eq. EBOTTOM) .or. (edID .eq. ERIGHT) ) then              ! Positive oriented edges
+                           variable_b(0:)       => ed % QPointer(eq, e % quadPosition(edID) , e % edgesDirection(edID) )
+                        else                                                                 ! Negative oriented edges
+                           variable_b(0:)       => ed % QPointer(eq , e % quadPosition(edID) , -e % edgesDirection(edID) )
+                        end if
+
                      case ("dxiQ")
 
                      case ("detaQ")
