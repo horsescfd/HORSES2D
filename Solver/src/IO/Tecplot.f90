@@ -221,6 +221,15 @@ module Tecplot
                      case ("rho")
                         write(self % fID,'(1X,E16.10)',advance="no") rho(iXi,iEta) * refValues % rho
 
+                     case ("rhou")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho
+
+                     case ("rhov")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho
+
+                     case ("rhoe")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhoe(iXi,iEta) * refValues % rho
+
                      case ("u")
                         write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % V
 

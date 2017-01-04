@@ -56,7 +56,7 @@ program main
       end do
       close(111)
 
-!    call checks( sem ) 
+    call checks( sem ) 
 
     call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')
 !    call sem % Integrate()
