@@ -272,7 +272,7 @@ module nodesAndWeights_class
 !           Compute the boundary lagrange interpolations
 !           --------------------------------------------
 !
-            call LagrangeInterpolatingPolynomialBarycentric( -1.0_RP, N, self % xi, self % wb, self % lb(: ,LEFT) )
+            call LagrangeInterpolatingPolynomialBarycentric(  0.0_RP, N, self % xi, self % wb, self % lb(: ,LEFT) )
             call LagrangeInterpolatingPolynomialBarycentric(  1.0_RP, N, self % xi, self % wb, self % lb(:,RIGHT) )
             
 

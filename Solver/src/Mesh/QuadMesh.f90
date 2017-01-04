@@ -249,7 +249,7 @@ module QuadMeshClass
 !            Get Initial Condition procedure              
 !            *******************************
 !
-!             call InitialCondition( self % IC )
+             call InitialCondition( self % IC )
 !
 !            *******************************************
 !            Apply the initial condition to the solution
@@ -265,9 +265,15 @@ module QuadMeshClass
              implicit none
              class(QuadMesh_t)        :: self
              integer                  :: eID
+             integer                  :: iXi
+             integer                  :: iEta
 
              do eID = 1 , self % no_of_elements
-                  self % elements(eID) % Q(:,:,1:NEC)  = 0.0_RP !self % IC( self % elements(eID) % x(j) ) 
+               do iXi = 0 , self % elements(eID) % spA % N
+                  do iEta = 0 , self % elements(eID) % spA % N
+                     self % elements(eID) % Q(iXi,iEta,1:NEC)  = self % IC( self % elements(eID) % x(iX:iY,iXi,iEta) ) 
+                  end do
+               end do
              end do
              
           end subroutine applyInitialCondition

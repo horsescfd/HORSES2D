@@ -41,7 +41,7 @@ module Setup_class
 !              Initialization
 !       --------------------------------------------------------------------------------------
 !
-        character(len=STR_LEN_SETUP) :: IC                        =  "Wave"    ! Initial condition type
+        character(len=STR_LEN_SETUP) :: IC                        =  "Uniform"    ! Initial condition type
 !
 !       -----------------------------------------------------------------------------------------
 !              Advective flux discretization

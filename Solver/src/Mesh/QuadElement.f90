@@ -20,13 +20,14 @@ module QuadElementClass
         integer                            :: ID                             ! ID of the element
         integer                            :: address                        ! Memory address of the first position in the mesh
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
+        integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
         real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
-        real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( EQ , xi , eta ): solution and time derivative
-        real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( EQ , xi , eta , X/Y) : contravariant fluxes
-        real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( EQ , xi ,eta , X/Y):   solution gradient
+        real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
+        real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( xi , eta , eq , X/Y) : contravariant fluxes
+        real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( xi ,eta , eq , X/Y):   solution gradient
         type(Node_p)                       :: nodes(POINTS_PER_QUAD)         ! Pointer to neighbour nodes
         class(Edge_p), pointer             :: edges(:)                       ! Pointer to neighbour eges
         class(NodesAndWeights_t), pointer  :: spA                            ! Pointer to the Nodal Storage
@@ -66,8 +67,8 @@ module QuadElementClass
         real(kind=RP),              allocatable :: X(:,:)                     ! Coordinates: (X/Y, xi)
         real(kind=RP),              allocatable :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
         real(kind=RP),              allocatable :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
-        real(kind=RP),              allocatable :: Q(:,:,:)                   ! Solution interpolation to boundaries ( NEC , xi , LEFT/RIGHT )
-        real(kind=RP),              allocatable :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary (NEC , xi , X/Y , LEFT/RIGHT)
+        real(kind=RP),              allocatable :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
+        real(kind=RP),              allocatable :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
         type(Node_p)                            :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
         class(QuadElement_p),       pointer     :: quads(:)                   ! Pointers to the two (or one) shared quads
         class(NodesAndWeights_t),   pointer     :: spA                        ! Pointer to the approximation nodal storage
@@ -168,10 +169,10 @@ module QuadElementClass
 !               These two arrays were before 
 !               allocated inside each element.
 !               Now they are just linked.
-!                   allocate ( self % Q    ( 0:N , NEC )  ) 
-!                   allocate ( self % QDot ( 0:N , NEC )  ) 
-!                   allocate ( self % F    ( 0:N , NEC )  ) 
-!                   allocate ( self % dQ   ( 0:N , NEC )  ) 
+!                   allocate ( self % Q    ( 0:N , 0:N , NEC )  ) 
+!                   allocate ( self % QDot ( 0:N , 0:N , NEC )  ) 
+!                   allocate ( self % F    ( 0:N , 0:N , NEC )  ) 
+!                   allocate ( self % dQ   ( 0:N , 0:N , NEC )  ) 
 !            ---------------------------------------
 !
              self % address = address
@@ -256,6 +257,8 @@ module QuadElementClass
 
                 self % f % edgeType = FACE_INTERIOR
 
+                allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE        )  ) 
+                allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , QUADS_PER_EDGE )  ) 
 !
 !           Boundary edges
 !           --------------
@@ -280,6 +283,9 @@ module QuadElementClass
                self % f % quads(1) % e => NULL()
                self % f % edgeType = edgeType
 
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , 1        )  ) 
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , 1 )  ) 
+
             end if
 
             self % f % ID = ID
@@ -291,10 +297,14 @@ module QuadElementClass
             call spA % add( Setup % N , Setup % nodes , self % f % spA )
             self % f % spI    => spI
 
+!           Geometry
+!           --------
             allocate ( self % f % X  ( NDIM , 0 : self % f % spA % N )  ) 
             allocate ( self % f % dX ( NDIM , 0 : self % f % spA % N )  ) 
             allocate ( self % f % dS ( NDIM , 0 : self % f % spA % N )  ) 
             allocate ( self % f % n  ( NDIM , 0 : self % f % spA % N )  ) 
+
+
 
         end subroutine Edge_ConstructEdge 
 
@@ -336,6 +346,7 @@ module QuadElementClass
 !              --------------
                el1  % edges            ( edgePosition ) % f  => self % f
                el1  % edgesDirection   ( edgePosition ) =  edgeDirection
+               el1  % quadPosition     ( edgePosition ) = quadPosition
                self % f % quads        ( quadPosition ) % e  => el1
                self % f % edgeLocation ( quadPosition ) = edgePosition
 !
@@ -347,6 +358,7 @@ module QuadElementClass
 !              --------------
                el2  % edges            ( edgePosition ) % f  => self % f
                self % f % quads        ( quadPosition ) % e  => el2
+               el2  % quadPosition     ( edgePosition ) = quadPosition
                el2  % edgesDirection   ( edgePosition ) =  edgeDirection
                self % f % edgeLocation ( quadPosition ) = edgePosition
                
@@ -365,7 +377,7 @@ module QuadElementClass
 !              --------------
                elb  % edges            ( edgePosition ) % f  => self % f
                self % f % quads        ( 1            ) % e  => elb
-
+               elb % quadPosition      ( edgePosition ) = 1
                elb  % edgesDirection   ( edgePosition ) =  FORWARD
                self % f % edgeLocation ( 1            ) =  edgePosition
 

@@ -1,6 +1,7 @@
 module DGSpatialDiscretizationMethods
    use SMConstants
    use QuadMeshClass
+   use QuadMeshDefinitions
    use DGSecondOrderMethods
    use DGFirstOrderMethods
    implicit none
@@ -104,23 +105,44 @@ module DGSpatialDiscretizationMethods
          implicit none
          class(QuadMesh_t)         :: mesh
          character(len=*)        :: var
-         integer                 :: eID
-         real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ, (0:N , NEC)
-         real(kind=RP), pointer  :: variable_b(:,:)     ! will point to both Qb or dQb, (2 , NEC)
-!
-!         do eID = 1 , mesh % no_of_elements
-!            select case (trim(var))
-!               case ("Q")
-!                  variable => mesh % elements(eID) % Q
-!                  variable_b => mesh % elements(eID) % Qb
-!               case ("dQ")
-!                  variable => mesh % elements(eID) % dQ
-!                  variable_b => mesh % elements(eID) % dQb
-!            end select
-!
-!            call TransposeMat_x_NormalMat( variable , mesh % elements(eID) % Interp % lb , variable_b )
-!
-!         end do
+         integer                 :: eID , edID , eq
+         real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
+         real(kind=RP), pointer  :: variable_b(:)     ! will point to both Q or dQ in the faces, (0:N)
+
+         do eID = 1 , mesh % no_of_elements
+   
+            associate ( N => mesh % elements(eID) % spA % N , e => mesh % elements(eID) )
+            do edID = 1 , EDGES_PER_QUAD
+               associate( ed => e % edges(edID) % f )
+
+               do eq = 1 , NEC
+                  select case (trim(var))
+                     case ("Q")
+                        variable(0:N,0:N) => e % Q(0:N,0:N,eq)
+                        variable_b(0:N) => ed % Q(0:N, eq , e % quadPosition(edID))
+                     case ("dxiQ")
+
+                     case ("detaQ")
+
+                  end select
+   
+                  if ( edID .eq. EBOTTOM ) then
+                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) )
+                  elseif ( edID .eq. ERIGHT ) then
+                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) , trA = .true. )
+                  elseif ( edID .eq. ETOP ) then
+                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) )
+                  elseif ( edID .eq. ELEFT ) then
+                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) , trA = .true. )
+                  end if
+               
+               end do
+   
+               end associate
+            end do
+      
+            end associate
+         end do
             
       end subroutine DGSpatial_interpolateToBoundaries
 

@@ -4,7 +4,7 @@ module PhysicsNS
 
     private
     public :: NEC , NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
-    public :: RefValues
+    public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
 !
 !   *****************************************
@@ -81,7 +81,7 @@ module PhysicsNS
       end function RiemannSolverFunction
     end interface
 
-    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.0_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
+    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
     type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
@@ -119,7 +119,7 @@ module PhysicsNS
          refValues % T = Setup % temperature_ref
          refValues % p = Setup % pressure_ref
          refValues % rho = refValues % p / (thermodynamics % R * refValues % T)
-         refValues % V = sqrt( refValues % p / refValues % rho )
+         refValues % V = sqrt( thermodynamics % Gamma * refValues % p / refValues % rho )
          refValues % Mach = Setup % Mach_number
          refValues % mu = refValues % rho * refValues % Mach * sqrt( Thermodynamics % gamma * Thermodynamics % R * refValues % T) * refValues % L / Setup % reynolds_number
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
