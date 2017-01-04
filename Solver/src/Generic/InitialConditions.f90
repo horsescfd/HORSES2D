@@ -8,10 +8,13 @@ module InitialConditions
    public ICFcn , InitialCondition
 !  *******
 !
+
+   integer, parameter            :: STR_LEN_IC  = 128
    character(len = *), parameter :: ConstantIC    = "Uniform"
    character(len = *), parameter :: SteadyIC      = "Steady"
    character(len = *), parameter :: VortexIC      = "Vortex transport"
    character(len = *), parameter :: UserDefinedIC = "UserDefined"
+   character(len = *), parameter :: ChecksIC      = "Checks"
 
 ! 
 !  ******************
@@ -36,11 +39,13 @@ module InitialConditions
 !  ========   
 !
 
-      subroutine InitialCondition( fcn )
+      subroutine InitialCondition( fcn , which )
          use SMConstants
          use Setup_class
          implicit none
          procedure(ICFcn), pointer     :: fcn
+         character(len=*), optional    :: which
+         character(len=STR_LEN_IC)     :: ICName
          interface
             function UserDefinedInitialCondition(x) result (val)
                use SMConstants
@@ -51,9 +56,16 @@ module InitialConditions
                real(kind=RP)     :: val(NEC)
             end function UserDefinedInitialCondition
          end interface
+         
+         if (present(which)) then
+            ICName = which
+         else
+            ICName = Setup % IC
+         end if
+
 !
 !        ********************************
-         select case ( trim(Setup % IC) )
+         select case ( trim(ICName) )
 !        ********************************
 !
 !           =========================
@@ -155,8 +167,19 @@ module InitialConditions
          val(IRHOV) = rho * v
          val(IRHOE) = Dimensionless % cv * rho * T + 0.5_RP * Thermodynamics % Gamma * rho * ( u*u + v*v )
             
-
-         
       end function InviscidVortexTransportInitialCondition
+
+      function ChecksInitialCondition (x) result (val)
+         use SMConstants
+         implicit none
+         real(kind=RP)              :: x(NDIM)
+         real(kind=RP)              :: val(NEC)
+
+         val(IRHO)   = x(iX) ** 4.0_RP
+         val(IRHOU)  = x(iY) ** 4.0_RP
+         val(IRHOV)  = (x(iX)** 2.0_RP + x(iY)**2.0_RP)
+         val(IRHOE)  = x(iX) ** 4.0_RP * x(iY) ** 4.0_RP
+         
+      end function ChecksInitialCondition
 
 end module InitialConditions
