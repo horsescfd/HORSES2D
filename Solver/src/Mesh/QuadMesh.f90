@@ -239,16 +239,23 @@ module QuadMeshClass
                end do
          end subroutine constructElementsAndEdges
            
-         subroutine setInitialCondition( self )
+         subroutine setInitialCondition( self , which)
              use InitialConditions
              implicit none
-             class(QuadMesh_t)        :: self
+             class(QuadMesh_t)            :: self
+             character(len=*), optional   :: which
 !
 !            *******************************
 !            Get Initial Condition procedure              
 !            *******************************
 !
-             call InitialCondition( self % IC )
+             if (present(which)) then
+               call InitialCondition( self % IC , which)
+
+             else
+               call InitialCondition( self % IC )
+
+             end if
 !
 !            *******************************************
 !            Apply the initial condition to the solution

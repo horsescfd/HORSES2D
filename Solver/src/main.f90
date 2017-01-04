@@ -16,6 +16,7 @@ program main
     integer                :: counter = 0
     integer                :: edge
 
+   real(kind=RP), pointer                  :: rho(:)
 
 !   =====================
 !   The REAL main program
@@ -46,24 +47,11 @@ program main
     call sem % SetInitialCondition()
 
     open (111 , FILE = "coords.dat" , status = "unknown" , action = "write" )
-!    do edge = 1 , sem % mesh % no_of_edges
-!      write(111,'(2F24.16)') sem % mesh % edges(edge) % f % X(iX:iY,:)
-!   end do
       do edge = 1 , sem % mesh % no_of_elements
          write(111, '(2F24.16)') sem % mesh % elements(edge) % X(iX:iY,:,:)
 
       end do
       close(111)
-
-!      a(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements) % dX(:,:,:,2)
-!      b(1:NDIM*(Setup % N)**2) => sem % mesh % elements( sem % mesh % no_of_elements ) % detaX(:,:,:)
-!      do counter = 1 , 32 
-!         write(*,'(2F24.16)') a(counter) , b(counter)
-
-!      end do
-      
- 
-   
 
     call checks( sem ) 
 

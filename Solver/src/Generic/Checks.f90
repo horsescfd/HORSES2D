@@ -11,13 +11,12 @@ module ChecksModule
       subroutine checks( sem )
           use DGSEM_Class
           use Headers
-          !use Physics
-          !use NodesAndWeights_class
-          !use QuadMeshClass
-          !use MeshFileClass
-          !use DGSpatialDiscretizationMethods
-          !use Storage_module
-          !use DGBoundaryConditions  
+          use NodesAndWeights_class
+          use QuadMeshClass
+          use MeshFileClass
+          use DGSpatialDiscretizationMethods
+          use Storage_module
+          use DGBoundaryConditions  
           implicit none
           class(DGSEM_t)                :: sem
           integer, parameter            :: STR_LEN_CHECKS = 128
@@ -45,6 +44,7 @@ module ChecksModule
             write(STD_OUT , '(/)')
    
             call CheckMappings( sem % mesh )
+            call CheckInterpolationToBoundaries( sem % mesh ) 
       !    do eID = 1 , sem % mesh % no_of_elements
       !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
       !    end do
@@ -54,7 +54,6 @@ module ChecksModule
        !            end do
       
       
-      !    call DGSpatial_interpolateToBoundaries( sem % mesh ,"Q")
       
       !    call DGSpatial_computeGradient( sem % mesh )
       
@@ -295,6 +294,61 @@ module ChecksModule
             end do
 
         end subroutine CheckMappings
+
+        subroutine CheckInterpolationToBoundaries( mesh ) 
+          use HEaders
+          use DGSpatialDiscretizationMethods
+          use QuadMeshClass
+          use QuadElementClass
+          implicit none
+          class(QuadMesh_t)            :: mesh
+          integer                      :: eID , edID , quad
+          real(kind=RP)                :: error = 0.0_RP
+          real(kind=RP)                :: currentError = 0.0_RP
+          integer                      :: iXi , iEta 
+ 
+          write(STD_OUT,'(/)')
+          call SubSection_Header("Checking the interpolation to boundaries")
+          write(STD_OUT,'(/)')
+
+          call mesh % SetInitialCondition( "Checks" )          
+          call mesh % ApplyInitialCondition 
+
+          call DGSpatial_interpolateToBoundaries( mesh ,"Q")
+
+          do eID = 1 , mesh % no_of_elements
+            do iXi = 0 , mesh % elements(eID) % spA % N
+               do iEta = 0 , mesh % elements(eiD) % spA % N
+               
+                  currentError = norm2( mesh % elements(eID) % Q(iXi,iEta,:) - mesh % IC(mesh % elements(eID) % x(:,iXi,iEta) ) ) 
+                  if (currentError .gt. error) then
+                     error = currentError
+                  end if
+
+               end do
+            end do
+            
+          end do
+
+          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
+
+          error = 0.0_RP
+      
+          do edID = 1 , mesh % no_of_edges
+            do quad = 1 , size(mesh % edges(edID) % f % quads)
+               do iXi = 0 , mesh % edges(edID) % f % spA % N
+                  currentError = norm2( mesh % edges(edID) % f % Q(iXi,:,quad) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+
+                  if (currentError .gt. error) then
+                     error = currentError
+                  end if
+               end do
+            end do
+          end do
+      
+          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
+
+        end subroutine CheckInterpolationToBoundaries
       
         subroutine Integration_checks( sem ) 
           use DGSEM_Class
@@ -367,7 +421,6 @@ module ChecksModule
          write(STD_OUT , '(20X , A , I0)' ) "Quadrature points: " , sem % spA % head % N
          endif 
          print*, "Maximum error found in quadratures: " , maxval( abs( (Manalytical - Mquadrature) / (Manalytical + Mquadrature )) ) 
-      
-      
+
         end subroutine Integration_checks
 end module

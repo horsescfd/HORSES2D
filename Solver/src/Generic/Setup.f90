@@ -23,7 +23,7 @@ module Setup_class
 !
         real(kind=RP)                :: pressure_ref              = 101325.0_RP
         real(kind=RP)                :: temperature_ref           = 273.15_RP 
-        real(kind=RP)                :: reynolds_length           = 1.0_RP
+        real(kind=RP)                :: reynolds_length           = 35.0_RP
         real(kind=RP)                :: reynolds_number           = 1600.0_RP
         real(kind=RP)                :: prandtl_number            = 0.72_RP
         real(kind=RP)                :: Mach_number               = 0.01_RP
