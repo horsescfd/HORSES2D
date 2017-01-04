@@ -41,7 +41,7 @@ module Setup_class
 !              Initialization
 !       --------------------------------------------------------------------------------------
 !
-        character(len=STR_LEN_SETUP) :: IC                        =  "Uniform"    ! Initial condition type
+        character(len=STR_LEN_SETUP) :: IC                        =  "Vortex transport"    ! Initial condition type
 !
 !       -----------------------------------------------------------------------------------------
 !              Advective flux discretization
@@ -85,7 +85,7 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: autosaveInterval          = 100
-        character(len=STR_LEN_SETUP) :: saveVariables             = "Q_QDot_dQ"
+        character(len=STR_LEN_SETUP) :: saveVariables             = "rho_rhou_rhov_rhoe"
     end type Setup_t
 
     type(Setup_t), protected, target       :: setup
