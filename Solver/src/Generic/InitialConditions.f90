@@ -164,8 +164,8 @@ module InitialConditions
 
          r2 = ((x(iX) - XC)*(x(iX) - XC) + (x(iY) - YC)*(x(iY) - YC)) / (R*R)
       
-         u = Dimensionless % Mach * (cos(AngleOfAttack) - Beta * (x(iY) - YC) / R )* exp(-0.5_RP * r2)
-         v = Dimensionless % Mach * (sin(AngleOfAttack) + Beta * (x(iX) - XC) / R )* exp(-0.5_RP * r2)
+         u = Dimensionless % Mach * (cos(AngleOfAttack) - Beta * (x(iY) - YC) / R * exp(-0.5_RP * r2))
+         v = Dimensionless % Mach * (sin(AngleOfAttack) + Beta * (x(iX) - XC) / R * exp(-0.5_RP * r2))
          T = 1.0_RP - Dimensionless % Mach * Dimensionless % Mach * beta * beta / (2.0_RP * Dimensionless % cv) * exp(-r2)
          rho = T**( Thermodynamics % invgm1 ) 
 

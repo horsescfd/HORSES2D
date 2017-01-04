@@ -56,9 +56,9 @@ program main
       end do
       close(111)
 
-    call checks( sem ) 
+!    call checks( sem ) 
 
-    call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.tec')
+    call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')
 !    call sem % Integrate()
 
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"

@@ -54,7 +54,6 @@ module Tecplot
 
          tec % Name = trim(auxname)
 
-         call tec % GatherVariables
 
          call tec % Open
       
@@ -175,9 +174,9 @@ module Tecplot
          write( self % fID , '(A,A,A)') 'TITLE = "',trim(self % Name),'"'
          write( self % fID , '(A)' , advance="no") 'VARIABLES = "X" "Y" "Z" '
 
-!         do var = 1 , self % no_of_variables
-!            write( self % fID , '(A,A,A)' , advance="no" ) '"',trim(self % variables(var)),'" '
-!         end do
+         do var = 1 , self % no_of_variables
+            write( self % fID , '(A,A,A)' , advance="no" ) '"',trim(self % variables(var)),'" '
+         end do
          write( self % fID , * )
 
       end subroutine Tecplot_OpenFile
@@ -191,6 +190,7 @@ module Tecplot
          integer                 :: eID 
          real(kind=RP), pointer  :: rho(:,:) , rhou(:,:) , rhov(:,:) , rhow(:,:) , rhoe(:,:)
          integer                 :: iXi , iEta
+         integer                 :: var
 
 
          associate ( N => mesh % elements(eID) % spA % N )
@@ -211,7 +211,36 @@ module Tecplot
 
          do iEta = 0 , N
             do iXi = 0 , N
-               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)') mesh % elements(eID) % x(iX,iXi,iEta) , mesh % elements(eID) % x(iY,iXi,iEta) , 0.0_RP  
+               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") mesh % elements(eID) % x(iX,iXi,iEta) , mesh % elements(eID) % x(iY,iXi,iEta) , 0.0_RP  
+!
+!              Save quantities
+!              ---------------
+               do var = 1 , self % no_of_variables
+
+                  select case ( trim( self % variables(var) ) )
+                     case ("rho")
+                        write(self % fID,'(1X,E16.10)',advance="no") rho(iXi,iEta) * refValues % rho
+
+                     case ("u")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % V
+
+                     case ("v")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % V
+   
+                     case ("p")
+                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - 0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) * refValues % p
+      
+                     case ("Mach")
+                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)
+
+                  end select                        
+
+               end do
+
+!              Jump to next line
+!              -----------------
+               write( self % fID , *)
+
             end do
          end do
 
@@ -222,7 +251,6 @@ module Tecplot
                write(self % fID , '(I0,1X,I0,1X,I0,1X,I0)')  pointPosition(iXi,iEta,N)
             end do
          end do
-
          end associate
 
 
