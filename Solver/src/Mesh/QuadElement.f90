@@ -24,7 +24,7 @@ module QuadElementClass
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
-        real(kind=RP), pointer :: Q(:,:,:)                       ! Pointers to the main storage:
+        real(kind=RP), pointer, contiguous :: Q(:,:,:)                       ! Pointers to the main storage:
         real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
         real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( xi , eta , eq , X/Y) : contravariant fluxes
         real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( xi ,eta , eq , X/Y):   solution gradient
@@ -257,8 +257,6 @@ module QuadElementClass
 
                 self % f % edgeType = FACE_INTERIOR
 
-                allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE        )  ) 
-                allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , QUADS_PER_EDGE )  ) 
 !
 !           Boundary edges
 !           --------------
@@ -283,8 +281,6 @@ module QuadElementClass
                self % f % quads(1) % e => NULL()
                self % f % edgeType = edgeType
 
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , 1        )  ) 
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , 1 )  ) 
 
             end if
 
@@ -304,7 +300,17 @@ module QuadElementClass
             allocate ( self % f % dS ( NDIM , 0 : self % f % spA % N )  ) 
             allocate ( self % f % n  ( NDIM , 0 : self % f % spA % N )  ) 
 
+            if (edgeType .eq. FACE_INTERIOR) then
+         
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , POINTS_PER_QUAD        )  ) 
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , POINTS_PER_QUAD )  ) 
 
+            else
+   
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , 1        )  ) 
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , 1 )  ) 
+
+            end if 
 
         end subroutine Edge_ConstructEdge 
 
