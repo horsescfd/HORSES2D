@@ -9,6 +9,7 @@ program main
     use QuadElementClass
     use Headers
     use ChecksModule
+    use Tecplot
     implicit none
     type(MeshFile_t)       :: meshFile
     type(DGSEM_t)          :: sem
@@ -55,6 +56,7 @@ program main
 
     call checks( sem ) 
 
+    call ExportToTecplot( sem % mesh )
 !    call sem % Integrate()
 
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"

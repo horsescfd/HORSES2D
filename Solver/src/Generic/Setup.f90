@@ -85,7 +85,7 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: autosaveInterval          = 100
-        character(len=STR_LEN_SETUP) :: saveVariables             = "Q_QDot_dQ"
+        character(len=STR_LEN_SETUP) :: saveVariables             = "rho_u_v_p"
     end type Setup_t
 
     type(Setup_t), protected, target       :: setup
