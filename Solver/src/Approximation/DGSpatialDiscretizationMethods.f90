@@ -108,6 +108,7 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID , edID , eq
          real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
          real(kind=RP), pointer  :: variable_b(:)     ! will point to both Q or dQ in the faces, (0:N)
+         real(kind=RP)           :: newsign
 
          do eID = 1 , mesh % no_of_elements
    
@@ -119,6 +120,7 @@ module DGSpatialDiscretizationMethods
                   select case (trim(var))
                      case ("Q")
                         variable(0: , 0: )   => e % Q(0:,0:,eq)
+                        newsign = 1.0_RP
                
                         if ( (edID .eq. EBOTTOM) .or. (edID .eq. ERIGHT) ) then              ! Positive oriented edges
                            variable_b(0:)       => ed % QPointer(eq, e % quadPosition(edID) , e % edgesDirection(edID) )
@@ -127,19 +129,29 @@ module DGSpatialDiscretizationMethods
                         end if
 
                      case ("dxiQ")
+                        variable(0: , 0: )   => e % dQ(0:,0:,eq,iX)
+               
+                        if ( (edID .eq. EBOTTOM) .or. (edID .eq. ERIGHT) ) then              ! Positive oriented edges
+                           variable_b(0:)       => ed % dQPointer(eq, e % quadPosition(edID) , iX , e % edgesDirection(edID) )
+                           newsign = 1.0_RP
+                        else                                                                 ! Negative oriented edges
+                           variable_b(0:)       => ed % dQPointer(eq , e % quadPosition(edID) , iX , -e % edgesDirection(edID) )
+                           newsign = -1.0_RP
+                        end if
+
 
                      case ("detaQ")
 
                   end select
    
                   if ( edID .eq. EBOTTOM ) then
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) )
+                     variable_b = newsign * MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) )
                   elseif ( edID .eq. ERIGHT ) then
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) , trA = .true. )
-                  elseif ( edID .eq. ETOP ) then
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) )
-                  elseif ( edID .eq. ELEFT ) then
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) , trA = .true. )
+                     variable_b = newsign * MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) , trA = .true. )
+                  elseif ( edID .eq. ETOP ) then    
+                     variable_b = newsign * MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) )
+                  elseif ( edID .eq. ELEFT ) then 
+                     variable_b = newsign * MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) , trA = .true. )
                   end if
                
                end do

@@ -83,6 +83,7 @@ module QuadElementClass
             procedure      :: getdX       => Edge_getdX
             procedure      :: getdS       => Edge_getdS
             procedure      :: QPointer    => Edge_QPointer
+            procedure      :: dQPointer   => Edge_dQPointer
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -429,5 +430,22 @@ module QuadElementClass
                Q(0:) => self % Q(self % spA % N::-1,eq,quad)
             end if
          end function Edge_QPointer
+
+         function Edge_dQPointer( self , eq , quad , deriv , direction )  result (dQ)
+            implicit none
+            class(Edge_t)           :: self
+            integer                 :: eq
+            integer                 :: quad  
+            integer                 :: deriv
+            integer                 :: direction
+            real(kind=RP), pointer  :: dQ(:)
+            
+            if (direction .eq. FORWARD) then
+               dQ(0:) => self % dQ(0: , eq , quad , deriv )
+            elseif ( direction .eq. BACKWARD ) then
+               dQ(0:) => self % dQ(self % spA % N::-1, eq , quad , deriv )
+            end if
+         end function Edge_dQPointer
+
 
 end module QuadElementClass
