@@ -44,6 +44,7 @@ module ChecksModule
             write(STD_OUT , '(/)')
    
             call CheckMappings( sem % mesh )
+            call CheckInterpolationToBoundaries( sem % mesh ) 
       !    do eID = 1 , sem % mesh % no_of_elements
       !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
       !    end do
@@ -53,7 +54,6 @@ module ChecksModule
        !            end do
       
       
-          call DGSpatial_interpolateToBoundaries( sem % mesh ,"Q")
       
       !    call DGSpatial_computeGradient( sem % mesh )
       
@@ -294,6 +294,20 @@ module ChecksModule
             end do
 
         end subroutine CheckMappings
+
+        subroutine CheckInterpolationToBoundaries( mesh ) 
+          use DGSpatialDiscretizationMethods
+          use QuadMeshClass
+          use QuadElementClass
+          implicit none
+          class(QuadMesh_t)            :: mesh
+ 
+          call mesh % SetInitialCondition( "Checks" )          
+          call mesh % ApplyInitialCondition 
+
+          call DGSpatial_interpolateToBoundaries( mesh ,"Q")
+
+        end subroutine CheckInterpolationToBoundaries
       
         subroutine Integration_checks( sem ) 
           use DGSEM_Class
@@ -366,7 +380,6 @@ module ChecksModule
          write(STD_OUT , '(20X , A , I0)' ) "Quadrature points: " , sem % spA % head % N
          endif 
          print*, "Maximum error found in quadratures: " , maxval( abs( (Manalytical - Mquadrature) / (Manalytical + Mquadrature )) ) 
-      
-      
+
         end subroutine Integration_checks
 end module

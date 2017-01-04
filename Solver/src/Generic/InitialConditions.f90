@@ -92,6 +92,13 @@ module InitialConditions
 !
                fcn => UserDefinedInitialCondition
 !
+!           ============================
+            case ( trim(ChecksIC) )
+!           ============================
+!
+               fcn => ChecksInitialCondition
+!
+!
 !           ============               
             case default
 !           ============               
