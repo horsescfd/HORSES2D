@@ -24,7 +24,7 @@ module QuadElementClass
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
-        real(kind=RP), pointer, contiguous :: Q(:,:,:)                       ! Pointers to the main storage:
+        real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
         real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
         real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( xi , eta , eq , X/Y) : contravariant fluxes
         real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( xi ,eta , eq , X/Y):   solution gradient
