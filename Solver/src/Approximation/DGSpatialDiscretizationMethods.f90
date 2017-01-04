@@ -118,8 +118,8 @@ module DGSpatialDiscretizationMethods
                do eq = 1 , NEC
                   select case (trim(var))
                      case ("Q")
-                        variable(0: , 0: ) => e % Q(0:,0:,eq)
-                        variable_b(0:N) => ed % Q(0:N, eq , e % quadPosition(edID))
+                        variable(0: , 0: )   => e % Q(0:,0:,eq)
+                        variable_b(0:)       => ed % Q(0:, eq , e % quadPosition(edID))
                      case ("dxiQ")
 
                      case ("detaQ")

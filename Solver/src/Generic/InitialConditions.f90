@@ -105,8 +105,8 @@ module InitialConditions
          real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
 
          val(IRHO)  = 1.0_RP
-         val(IRHOU) = sqrt( Thermodynamics % Gamma ) * Dimensionless % Mach * cos ( AngleOfAttack)
-         val(IRHOV) = sqrt( Thermodynamics % Gamma ) * Dimensionless % Mach * sin ( AngleOfAttack )
+         val(IRHOU) = Dimensionless % Mach * cos ( AngleOfAttack)
+         val(IRHOV) = Dimensionless % Mach * sin ( AngleOfAttack )
          val(IRHOE) = Dimensionless % cv + 0.5_RP * Thermodynamics % Gamma * Dimensionless % Mach * Dimensionless % Mach
 
       end function UniformInitialCondition

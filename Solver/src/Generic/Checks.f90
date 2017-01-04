@@ -11,13 +11,12 @@ module ChecksModule
       subroutine checks( sem )
           use DGSEM_Class
           use Headers
-          !use Physics
-          !use NodesAndWeights_class
-          !use QuadMeshClass
-          !use MeshFileClass
-          !use DGSpatialDiscretizationMethods
-          !use Storage_module
-          !use DGBoundaryConditions  
+          use NodesAndWeights_class
+          use QuadMeshClass
+          use MeshFileClass
+          use DGSpatialDiscretizationMethods
+          use Storage_module
+          use DGBoundaryConditions  
           implicit none
           class(DGSEM_t)                :: sem
           integer, parameter            :: STR_LEN_CHECKS = 128
@@ -54,7 +53,7 @@ module ChecksModule
        !            end do
       
       
-      !    call DGSpatial_interpolateToBoundaries( sem % mesh ,"Q")
+          call DGSpatial_interpolateToBoundaries( sem % mesh ,"Q")
       
       !    call DGSpatial_computeGradient( sem % mesh )
       

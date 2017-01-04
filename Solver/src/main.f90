@@ -16,6 +16,7 @@ program main
     integer                :: counter = 0
     integer                :: edge
 
+   real(kind=RP), pointer                  :: rho(:)
 
 !   =====================
 !   The REAL main program
@@ -67,6 +68,9 @@ program main
 
     call checks( sem ) 
 
+    do edge = 1 , sem % mesh % no_of_edges
+      write(* , '(F24.16)') sem % mesh % edges(edge) % f % Q
+    end do
 !    call sem % Integrate()
 
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
