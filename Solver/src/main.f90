@@ -47,6 +47,8 @@ program main
 !
     call sem % SetInitialCondition()
 
+    call ExportMeshToTecplot( sem % mesh , Setup % mesh_file ) 
+
     open (111 , FILE = "coords.dat" , status = "unknown" , action = "write" )
       do edge = 1 , sem % mesh % no_of_elements
          write(111, '(2F24.16)') sem % mesh % elements(edge) % X(iX:iY,:,:)
@@ -56,7 +58,7 @@ program main
 
     call checks( sem ) 
 
-    call ExportToTecplot( sem % mesh )
+    call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.tec')
 !    call sem % Integrate()
 
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
