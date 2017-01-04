@@ -296,6 +296,7 @@ module ChecksModule
         end subroutine CheckMappings
 
         subroutine CheckInterpolationToBoundaries( mesh ) 
+          use HEaders
           use DGSpatialDiscretizationMethods
           use QuadMeshClass
           use QuadElementClass
@@ -306,6 +307,10 @@ module ChecksModule
           real(kind=RP)                :: currentError = 0.0_RP
           integer                      :: iXi , iEta 
  
+          write(STD_OUT,'(/)')
+          call SubSection_Header("Checking the interpolation to boundaries")
+          write(STD_OUT,'(/)')
+
           call mesh % SetInitialCondition( "Checks" )          
           call mesh % ApplyInitialCondition 
 
@@ -325,7 +330,7 @@ module ChecksModule
             
           end do
 
-          write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
+          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
 
           error = 0.0_RP
       
@@ -333,7 +338,6 @@ module ChecksModule
             do quad = 1 , size(mesh % edges(edID) % f % quads)
                do iXi = 0 , mesh % edges(edID) % f % spA % N
                   currentError = norm2( mesh % edges(edID) % f % Q(iXi,:,quad) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
-               print*, currentError
 
                   if (currentError .gt. error) then
                      error = currentError
@@ -342,7 +346,7 @@ module ChecksModule
             end do
           end do
       
-          write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
+          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
 
         end subroutine CheckInterpolationToBoundaries
       
