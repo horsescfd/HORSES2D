@@ -82,8 +82,6 @@ module QuadElementClass
             procedure      :: getX        => Edge_getX                        ! 
             procedure      :: getdX       => Edge_getdX
             procedure      :: getdS       => Edge_getdS
-            procedure      :: QPointer    => Edge_QPointer
-            procedure      :: dQPointer   => Edge_dQPointer
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -415,37 +413,5 @@ module QuadElementClass
             self % dS ( 1:NDIM , 0:self % spA % N ) = self % dS ( 1:NDIM , self % spA % N : 0 : -1 ) 
 
          end subroutine Edge_Invert
-
-         function Edge_QPointer( self , eq , quad , direction )  result (Q)
-            implicit none
-            class(Edge_t)           :: self
-            integer                 :: eq
-            integer                 :: quad  
-            integer                 :: direction
-            real(kind=RP), pointer  :: Q(:)
-            
-            if (direction .eq. FORWARD) then
-               Q(0:) => self % Q(0:,eq,quad)
-            elseif ( direction .eq. BACKWARD ) then
-               Q(0:) => self % Q(self % spA % N::-1,eq,quad)
-            end if
-         end function Edge_QPointer
-
-         function Edge_dQPointer( self , eq , quad , deriv , direction )  result (dQ)
-            implicit none
-            class(Edge_t)           :: self
-            integer                 :: eq
-            integer                 :: quad  
-            integer                 :: deriv
-            integer                 :: direction
-            real(kind=RP), pointer  :: dQ(:)
-            
-            if (direction .eq. FORWARD) then
-               dQ(0:) => self % dQ(0: , eq , quad , deriv )
-            elseif ( direction .eq. BACKWARD ) then
-               dQ(0:) => self % dQ(self % spA % N::-1, eq , quad , deriv )
-            end if
-         end function Edge_dQPointer
-
 
 end module QuadElementClass
