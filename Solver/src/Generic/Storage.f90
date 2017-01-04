@@ -6,10 +6,10 @@ module Storage_module
     public  Storage_t , newStorage
 
     type Storage_t
-        real(kind=RP), pointer      :: Q(:)
-        real(kind=RP), pointer      :: QDot(:)
-        real(kind=RP), pointer      :: F(:)
-        real(kind=RP), pointer      :: dQ(:)
+        real(kind=RP), pointer, contiguous      :: Q(:)
+        real(kind=RP), pointer, contiguous      :: QDot(:)
+        real(kind=RP), pointer, contiguous      :: F(:)
+        real(kind=RP), pointer, contiguous      :: dQ(:)
     end type Storage_t
 
     contains

@@ -107,6 +107,7 @@ module DGSpatialDiscretizationMethods
          character(len=*)        :: var
          integer                 :: eID , edID , eq
          real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
+         real(kind=RP), pointer  :: auxPointer(:)     ! Fortran is just stupid.
          real(kind=RP), pointer  :: variable_b(:)     ! will point to both Q or dQ in the faces, (0:N)
 
          do eID = 1 , mesh % no_of_elements
@@ -118,7 +119,8 @@ module DGSpatialDiscretizationMethods
                do eq = 1 , NEC
                   select case (trim(var))
                      case ("Q")
-                        variable(0:N,0:N) => e % Q(0:N,0:N,eq)
+                         auxPointer(1 : size(e % Q,1) * size(e % Q,2)) => e % Q(:,:,eq)
+                         variable(0:N,0:N) => auxPointer(1 : size(e % Q , 1) * size(e % Q , 2) )
                         variable_b(0:N) => ed % Q(0:N, eq , e % quadPosition(edID))
                      case ("dxiQ")
 

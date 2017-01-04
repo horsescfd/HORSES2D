@@ -65,7 +65,6 @@ program main
  
    
 
-      
     call checks( sem ) 
 
 !    call sem % Integrate()
