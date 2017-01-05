@@ -13,8 +13,9 @@ module Setup_class
 !       -------------------------------------------------------------------------------------
 !
         character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/Cylinder.HiOMesh"            ! Cylinder
-!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/2d_quad_grid2.HiOMesh"       ! Channel
-!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/rp_2d_quad_grid0.HiOMesh"    ! Vortex
+!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/2d_quad_grid2.HiOMesh"   ! Channel
+!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/TaylorTransport.HiOMesh" ! Vortex
+!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/FreeStream.HiOMesh"      ! Free stream
         character(len=STR_LEN_SETUP) :: bdry_file                 = "./CASE/Cylinder.bmap"
 !
 !       -------------------------------------------------------------------------------------
@@ -23,7 +24,7 @@ module Setup_class
 !
         real(kind=RP)                :: pressure_ref              = 101325.0_RP
         real(kind=RP)                :: temperature_ref           = 273.15_RP 
-        real(kind=RP)                :: reynolds_length           = 35.0_RP
+        real(kind=RP)                :: reynolds_length           = 1.0_RP
         real(kind=RP)                :: reynolds_number           = 1600.0_RP
         real(kind=RP)                :: prandtl_number            = 0.72_RP
         real(kind=RP)                :: Mach_number               = 0.01_RP
