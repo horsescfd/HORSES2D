@@ -176,25 +176,24 @@ module DGFirstOrderMethods
          implicit none
          class(StandardDG_t)     :: self
          class(QuadElement_t)      :: element
-!!
-!!        -------------------------------------------
-!!           The standard DG computes the volume
-!!        terms as:
-!!              tr(D)*M*F(Q) = tr(MD)*F(Q)
-!!        -------------------------------------------
-!!
-!!        Compute fluxes
-!!        TODO: Beware of this
-!         element % F = 0.0_RP !inviscidFlux( element % Q )
-!!
-!!        Perform the matrix multiplication
+!
+!        -------------------------------------------
+!           The standard DG computes the volume
+!        terms as:
+!              tr(D)*M*F(Q) = tr(MD)*F(Q)
+!        -------------------------------------------
+!
+!        Compute fluxes
+         element % F = inviscidFlux( element % Q )
+!
+!        Perform the matrix multiplication
 !         associate( QDot => element % QDot , &
 !                    MD => element % Interp % MD)
-!
+
 !         QDot = QDot + TransposeMat_x_NormalMat_F( MD , element % F )
-!
+
 !         end associate
-!
+
       end subroutine StdDG_QDotVolumeLoop
 
       subroutine OIDG_QDotVolumeLoop( self , element )

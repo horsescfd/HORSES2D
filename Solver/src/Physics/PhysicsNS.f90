@@ -6,6 +6,7 @@ module PhysicsNS
     public :: NEC , NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
+    public :: InviscidFlux
 !
 !   *****************************************
 !        Definitions
@@ -200,7 +201,7 @@ module PhysicsNS
          real(kind=RP), allocatable, target :: val(:,:,:,:)
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
 
-         allocate( val(0:size(u,1)-1 , 0:size(u,2) , 1:NEC , 1:NDIM ) )
+         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NEC , 1:NDIM ) )
 
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
