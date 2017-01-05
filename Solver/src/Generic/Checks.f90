@@ -151,8 +151,8 @@ module ChecksModule
                allocate(dxiX  ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
                allocate(detaX ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
 
-               dxiX         = MatrixMultiplyInIndex_F( e % X , transpose( e % spA % D ) , 2)
-               detaX        = MatrixMultiplyInIndex_F( e % X , transpose( e % spA % D ) , 3)
+               dxiX         = MatrixMultiplyInIndex_F( e % X , e % spA % DT  , 2)
+               detaX        = MatrixMultiplyInIndex_F( e % X , e % spA % DT , 3)
 
                if (eID .eq. 1) then
                   current = eID

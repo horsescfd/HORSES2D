@@ -186,10 +186,10 @@ module MatrixOperations
       end function BilinearForm_F
        
       subroutine Mat_x_Mat( A , B , C , trA , trB , reset )
-!     -----------------------------
+!     -------------------------------------------------------
 !        Computes the product
-!           C = tr(A) * B
-!     -----------------------------
+!           C = op(A) * op(B), in which op(A) = A or A^T
+!     -------------------------------------------------------
          implicit none
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
