@@ -87,9 +87,9 @@ module PhysicsNS
     type(Dimensionless_t), protected   :: dimensionless
 
 !
-!    interface inviscidFlux
-!      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
-!    end interface inviscidFlux
+    interface inviscidFlux
+      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
+    end interface inviscidFlux
 !
 !    interface viscousFlux
 !      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
@@ -142,14 +142,84 @@ module PhysicsNS
 
        end subroutine InitializePhysics
 !
-!      function inviscidFlux0D(u) result(val)
-!         implicit none
-!         real(kind=RP)     :: u
-!         real(kind=RP)    :: val
-!
-!         val = 0.5_RP * u * u
-!
-!      end function inviscidFlux0D
+      function inviscidFlux0D(u) result(val)
+         implicit none
+         real(kind=RP)          :: u(NEC)
+         real(kind=RP), target  :: val(NEC,NDIM)
+         real(kind=RP), pointer :: F(:) , G(:)
+
+         F(1:NEC)    => val(1:NEC,iX)
+         G(1:NEC)    => val(1:NEC,iY)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 ) 
+    
+         F(IRHO)  = u(IRHOU)
+         F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
+         F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOU) / u(IRHO)
+
+         G(IRHO)  = u(IRHOV)
+         G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
+         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
+
+         end associate
+
+      end function inviscidFlux0D
+
+      function inviscidFlux1D(u) result(val)
+         implicit none
+         real(kind=RP)                      :: u(0:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:)
+         real(kind=RP), pointer             :: F(:,:) , G(:,:)
+
+         allocate( val(0:size(u,1)-1 , 1:NEC , 1:NDIM ) )
+
+         F(0:,1:)    => val(0:,1:,iX)
+         G(0:,1:)    => val(0:,1:,iY)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 ) 
+    
+         F(:,IRHO)  = u(:,IRHOU)
+         F(:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOU)*u(:,IRHOU) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOV)*u(:,IRHOV)/u(:,IRHO) + gm1 * u(:,IRHOE)
+         F(:,IRHOV) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
+         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO) ) * u(:,IRHOU) / u(:,IRHO)
+
+         G(:,IRHO)  = u(:,IRHOV)
+         G(:,IRHOU) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOV)*u(:,IRHOV) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOU)*u(:,IRHOU)/u(:,IRHO) + gm1 * u(:,IRHOE)
+         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO) ) * u(:,IRHOV) / u(:,IRHO)
+
+         end associate
+
+      end function inviscidFlux1D
+
+      function inviscidFlux2D(u) result(val)
+         implicit none
+         real(kind=RP)                      :: u(0:,0:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+
+         allocate( val(0:size(u,1)-1 , 0:size(u,2) , 1:NEC , 1:NDIM ) )
+
+         F(0:,0:,1:)    => val(0:,0:,1:,iX)
+         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 ) 
+    
+         F(:,:,IRHO)  = u(:,:,IRHOU)
+         F(:,:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOU)*u(:,:,IRHOU) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOV)*u(:,:,IRHOV)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
+         F(:,:,IRHOV) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
+         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) * u(:,:,IRHOU) / u(:,:,IRHO)
+
+         G(:,:,IRHO)  = u(:,:,IRHOV)
+         G(:,:,IRHOU) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
+         G(:,:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOV)*u(:,:,IRHOV) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOU)*u(:,:,IRHOU)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
+         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) * u(:,:,IRHOV) / u(:,:,IRHO)
+
+         end associate
+
+      end function inviscidFlux2D
 !
 !      function inviscidFlux1D(u) result(val)
 !         implicit none
