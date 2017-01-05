@@ -45,6 +45,7 @@ module ChecksModule
    
             call CheckMappings( sem % mesh )
             call CheckInterpolationToBoundaries( sem % mesh ) 
+            call CheckMetricIdentities( sem % mesh )
       !    do eID = 1 , sem % mesh % no_of_elements
       !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
       !    end do
@@ -318,7 +319,6 @@ module ChecksModule
  
           write(STD_OUT,'(/)')
           call SubSection_Header("Checking the interpolation to boundaries")
-          write(STD_OUT,'(/)')
 
           call mesh % SetInitialCondition( "Checks" )          
           call mesh % ApplyInitialCondition 
@@ -358,7 +358,25 @@ module ChecksModule
           write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
 
         end subroutine CheckInterpolationToBoundaries
-      
+
+        subroutine CheckMetricIdentities( mesh ) 
+         use SMConstants
+         use Headers
+         use Physics
+         use QuadMeshClass
+         use QuadElementClass
+         use Setup_class
+         implicit none
+         class(QuadMesh_t)          :: mesh
+     
+         write(STD_OUT,'(/)')
+         call Subsection_Header("Checking discrete metric identities")
+
+
+
+
+        end subroutine CheckMetricIdentities
+
         subroutine Integration_checks( sem ) 
           use DGSEM_Class
           use SMConstants
