@@ -171,10 +171,11 @@
             implicit none
             class(DGSEM_t)                   :: self
 
-            self % Integrator = NewTimeIntegrator()
-            call self % Integrator % Describe()
+!            self % Integrator = NewTimeIntegrator()
+!            call self % Integrator % Describe()
 
-            call self % Integrator % Integrate( self % mesh , self % Storage)
+!            call self % Integrator % Integrate( self % mesh , self % Storage)
+             call DGSpatial_ComputeTimeDerivative( self % mesh )
 
       end subroutine DGSEM_Integrate
 
