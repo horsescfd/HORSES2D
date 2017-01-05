@@ -112,6 +112,10 @@ runvortex:
 
 runchan: 	
 	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) -check)		
+
+runfree: 	
+	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) -check)		
+
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
