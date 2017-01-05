@@ -320,9 +320,6 @@ module ChecksModule
           write(STD_OUT,'(/)')
           call SubSection_Header("Checking the interpolation to boundaries")
 
-          call mesh % SetInitialCondition( "Checks" )          
-          call mesh % ApplyInitialCondition 
-
           call DGSpatial_interpolateToBoundaries( mesh ,"Q")
 
           do eID = 1 , mesh % no_of_elements
