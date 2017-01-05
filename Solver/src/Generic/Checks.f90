@@ -136,6 +136,7 @@ module ChecksModule
             integer                    :: zone
             real(kind=RP), allocatable :: dSx(:) , dSy(:)
             real(kind=RP), allocatable :: dSe(:,:)
+            integer                    :: which(NDIM)
 
             call SubSection_Header("Testing the mappings")
             
@@ -150,8 +151,8 @@ module ChecksModule
                allocate(dxiX  ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
                allocate(detaX ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
 
-               dxiX         = MatrixMultiplyInIndex_F( e % X , transpose( e % spA % D ) , 2)
-               detaX        = MatrixMultiplyInIndex_F( e % X , transpose( e % spA % D ) , 3)
+               dxiX         = MatrixMultiplyInIndex_F( e % X , e % spA % DT  , 2)
+               detaX        = MatrixMultiplyInIndex_F( e % X , e % spA % DT , 3)
 
                if (eID .eq. 1) then
                   current = eID
@@ -193,8 +194,10 @@ module ChecksModule
 
 !              BOTTOM Edge
 !              -----------
-               dSx = -MatrixTimesVector_F( e % Ja([1,2]) , e % spA % lj(0.0_RP)  )
-               dSy = -MatrixTimesVector_F( e % Ja([2,2]) , e % spA % lj(0.0_RP)  )
+               which = [1,2]
+               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  )
+               which = [2,2]
+               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  )
 
                if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
                   dSe = e % edges(EBOTTOM) % f % dS 
@@ -215,8 +218,10 @@ module ChecksModule
 
 !              RIGHT Edge
 !              -----------
-               dSx = MatrixTimesVector_F( e % Ja([1,1]) , e % spA % lj(1.0_RP) , trA = .true.  )
-               dSy = MatrixTimesVector_F( e % Ja([2,1]) , e % spA % lj(1.0_RP) , trA = .true.  )
+               which = [1,1]
+               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , trA = .true.  )
+               which = [2,1]
+               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , trA = .true.  )
                
                if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
                   dSe = e % edges(ERIGHT) % f % dS 
@@ -237,8 +242,10 @@ module ChecksModule
 
 !              TOP Edge
 !              -----------
-               dSx = MatrixTimesVector_F( e % Ja([1,2]) , e % spA % lj(1.0_RP)  )
-               dSy = MatrixTimesVector_F( e % Ja([2,2]) , e % spA % lj(1.0_RP)  )
+               which = [1,2]
+               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP)  )
+               which = [2,2]
+               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP)  )
 
                if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
                   dSe = e % edges(ETOP) % f % dS 
@@ -259,8 +266,10 @@ module ChecksModule
 
 !              LEFT Edge
 !              -----------
-               dSx = -MatrixTimesVector_F( e % Ja([1,1]) , e % spA % lj(0.0_RP)  , trA = .true.)
-               dSy = -MatrixTimesVector_F( e % Ja([2,1]) , e % spA % lj(0.0_RP)  , trA = .true.)
+               which = [1,1]
+               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  , trA = .true.)
+               which = [2,1]
+               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  , trA = .true.)
 
                if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
                   dSe = e % edges(ELEFT) % f % dS 

@@ -186,10 +186,10 @@ module MatrixOperations
       end function BilinearForm_F
        
       subroutine Mat_x_Mat( A , B , C , trA , trB , reset )
-!     -----------------------------
+!     -------------------------------------------------------
 !        Computes the product
-!           C = tr(A) * B
-!     -----------------------------
+!           C = op(A) * op(B), in which op(A) = A or A^T
+!     -------------------------------------------------------
          implicit none
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
@@ -376,6 +376,7 @@ module MatrixOperations
 
 
       function MatrixMultiplyInIndex_F( A , B , index) result( C )
+         use, intrinsic    :: iso_c_binding
 !
 !     ----------------------------------------------------
 !        Computes the product
@@ -384,12 +385,16 @@ module MatrixOperations
 !     ----------------------------------------------------
 !
          implicit none
-         real(kind=RP), intent(in)        :: A(:,:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         integer                          :: index
-         real(kind=RP), allocatable       :: C(:,:,:)
-         integer                          :: I1 , I2 , I3
-         integer                          :: i , j
+         real(kind=RP), target, intent(in)  :: A(:,:,:)
+         real(kind=RP), target, intent(in)  :: B(:,:)
+         integer                            :: index
+         real(kind=RP), allocatable, target :: C(:,:,:)
+         real(kind=RP), pointer             :: PC(:,:)
+         real(kind=RP), pointer             :: P1C(:)
+         real(kind=RP), pointer             :: PA(:,:)
+         real(kind=RP), pointer             :: P1A(:)
+         integer                            :: I1 , I2 , I3
+         integer                            :: i , j
          
          I1 = size(A,1)
          I2 = size(A,2)
@@ -414,17 +419,15 @@ module MatrixOperations
             end do
          
          elseif (index .eq. 2) then
-            do i = 1 , I1
-               do j = 1 , I3
-                  C(i,:,j) = MatrixTimesVector_F( A=B , X=A(i,:,j) , trA=.true. ) 
-               end do
+            do i = 1 , I3
+               C(:,:,i) = Mat_X_Mat_F( A=A(:,:,i) , B=B  ) 
             end do
          elseif (index .eq. 3) then
-            do i = 1 , I1
-               do j = 1 , I2
-                  C(i,j,:) = MatrixTimesVector_F( A=B , X = A(i,j,:) , trA=.true. ) 
-               end do
-            end do
+            call c_f_pointer ( c_loc( A ) , P1A , [size(A)] )
+            call c_f_pointer ( c_loc( C ) , P1C , [size(C)] )
+            PA(1:size(A,1)*size(A,2),1:size(A,3)) => P1A(1:)
+            PC(1:I1*I2,1:I3)  => P1C(1:)
+            PC = Mat_X_Mat_F( A=PA , B=B ) 
          end if
 
       end function MatrixMultiplyInIndex_F
