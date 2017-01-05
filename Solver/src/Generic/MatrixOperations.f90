@@ -416,7 +416,7 @@ module MatrixOperations
          
          elseif (index .eq. 2) then
             do i = 1 , I3
-               C(:,:,j) = Mat_X_Mat_F( A=A(:,:,i) , X=B  ) 
+               C(:,:,i) = Mat_X_Mat_F( A=A(:,:,i) , B=B  ) 
             end do
          elseif (index .eq. 3) then
             do i = 1 , I1
