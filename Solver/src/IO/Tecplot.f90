@@ -188,7 +188,8 @@ module Tecplot
          class(Tecplot_t)        :: self
          class(QuadMesh_t)       :: mesh
          integer                 :: eID 
-         real(kind=RP), pointer  :: rho(:,:) , rhou(:,:) , rhov(:,:) , rhow(:,:) , rhoe(:,:)
+         real(kind=RP), pointer  :: rho (:,:) , rhou (:,:) , rhov (:,:) , rhoe (:,:)
+         real(kind=RP), pointer  :: rhot(:,:) , rhout(:,:) , rhovt(:,:) , rhoet(:,:)
          integer                 :: iXi , iEta
          integer                 :: var
 
@@ -208,6 +209,10 @@ module Tecplot
          rhou(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOU)
          rhov(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOV)
          rhoe(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOE)
+         rhot(0:,0:)  => mesh % elements(eID) % QDot(0:,0:,IRHO) 
+         rhout(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
+         rhovt(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
+         rhoet(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
 
          do iEta = 0 , N
             do iXi = 0 , N
@@ -222,13 +227,25 @@ module Tecplot
                         write(self % fID,'(1X,E16.10)',advance="no") rho(iXi,iEta) * refValues % rho
 
                      case ("rhou")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho
+                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % V
 
                      case ("rhov")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho
+                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % V
 
                      case ("rhoe")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhoe(iXi,iEta) * refValues % rho
+                        write(self % fID,'(1X,E16.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
+
+                     case ("rhot")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
+
+                     case ("rhout")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % V / refValues % tc
+
+                     case ("rhovt")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % V / refValues % tc
+
+                     case ("rhoet")
+                        write(self % fID,'(1X,E16.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
 
                      case ("u")
                         write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % V

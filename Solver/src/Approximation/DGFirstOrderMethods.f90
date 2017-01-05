@@ -232,23 +232,25 @@ module DGFirstOrderMethods
 
 
       subroutine FirstOrderMethod_describe( self )
+         use Headers
          implicit none
          class(FirstOrderMethod_t)        :: self
 
-!         write(STD_OUT , * ) "First order method description: "
-!         write(STD_OUT , '(20X,A,A)') "Method: ", trim( self % method )
-!
-!         select type ( self ) 
-!            type is ( StandardDG_t )
-!   
-!            type is ( OverIntegrationDG_t )
-!         
-!            type is ( SplitDG_t )
-!               write(STD_OUT , '(20X,A,F10.4)') "Split op. coefficient: " , self % alpha
-!
-!            class default
-!      
-!         end select
+         write(STD_OUT,'(/)') 
+         call SubSection_Header("Inviscid discretization")
+         write(STD_OUT,'(30X,A,A)') "Method: " , trim( self % method ) 
+
+         select type ( self ) 
+            type is ( StandardDG_t )
+   
+            type is ( OverIntegrationDG_t )
+         
+            type is ( SplitDG_t )
+               write(STD_OUT , '(30X,A,F10.4)') "Split op. coefficient: " , self % alpha
+
+            class default
+      
+         end select
 
       end subroutine FirstOrderMethod_describe
    

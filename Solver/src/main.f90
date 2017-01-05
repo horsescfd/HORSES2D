@@ -62,6 +62,9 @@ program main
 
     call sem % Integrate()
 
+    call ExportToTecplot( sem % mesh , './RESULTS/Solution.plt')
+
+
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
     write(STD_OUT , '(30X,A)' ) "\x1B[1;32m Program finished! \x1B[0m"
     write(STD_OUT , '(30X,A,/,/)') "\x1B[1;32m ****************** \x1B[0m"
