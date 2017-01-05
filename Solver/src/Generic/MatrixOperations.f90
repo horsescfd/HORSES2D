@@ -388,6 +388,7 @@ module MatrixOperations
          real(kind=RP), intent(in)        :: B(:,:)
          integer                          :: index
          real(kind=RP), allocatable       :: C(:,:,:)
+         real(kind=RP), pointer           :: PC(:,:)
          integer                          :: I1 , I2 , I3
          integer                          :: i , j
          
@@ -414,10 +415,8 @@ module MatrixOperations
             end do
          
          elseif (index .eq. 2) then
-            do i = 1 , I1
-               do j = 1 , I3
-                  C(i,:,j) = MatrixTimesVector_F( A=B , X=A(i,:,j) , trA=.true. ) 
-               end do
+            do i = 1 , I3
+               C(:,:,j) = Mat_X_Mat_F( A=A(:,:,i) , X=B  ) 
             end do
          elseif (index .eq. 3) then
             do i = 1 , I1
