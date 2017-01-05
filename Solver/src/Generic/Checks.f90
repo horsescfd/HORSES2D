@@ -366,14 +366,50 @@ module ChecksModule
          use QuadMeshClass
          use QuadElementClass
          use Setup_class
+         use MatrixOperations
          implicit none
          class(QuadMesh_t)          :: mesh
+!        --------------------------------------------
+         integer                    :: eID
+         integer                    :: coord
+         integer                    :: which(NDIM)
+         real(kind=RP)              :: error = 0.0_RP , currenterror = 0.0_RP
+         real(kind=RP), allocatable :: Ja1(:,:) , Ja2(:,:)
+         real(kind=RP), allocatable :: metricID(:,:)
+
      
          write(STD_OUT,'(/)')
          call Subsection_Header("Checking discrete metric identities")
 
+         do eID = 1 , mesh % no_of_elements
 
+            associate( e => mesh % elements(eID) )
 
+            allocate( Ja1(0:e % spA % N , 0 : e % spA % N ) )
+            allocate( Ja2(0:e % spA % N , 0 : e % spA % N ) )
+            allocate( metricID(0:e % spA % N , 0 : e % spA % N ) )
+            do coord = 1 , NDIM
+               
+               which = [coord,1]
+               Ja1 = e % Ja(which) 
+               which = [coord,2]
+               Ja2 = e % Ja(which)
+
+               metricID = Mat_x_Mat_F( A = e % spA % D , B = Ja1 ) + Mat_x_Mat_F( A = Ja2 , B = e % spA % DT )
+               
+               currenterror = abs(BilinearForm_F( A = metricID , X = e % spA % w , Y = e % spA % w ))
+               
+               if ( currenterror .gt. error ) then
+                  error = currenterror
+               end if
+
+            end do
+
+            deallocate(Ja1 , Ja2 , metricID)
+
+            end associate
+         end do
+          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
 
         end subroutine CheckMetricIdentities
 
