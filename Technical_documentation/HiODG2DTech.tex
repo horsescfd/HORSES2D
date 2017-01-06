@@ -115,7 +115,7 @@ With these quantities, we define the dimensionless quantities:
 	\item $\tilde{T} = T / T_{ref}$, dimensionless temperature.
 	\item $\tilde{u} = u / a_{ref}$, dimensionless velocities.
 	\item $\tilde{\rho} = \rho / \rho_{ref}$, dimensionless density.
-	\item $\tilde{\rho e} = \rho e / p_{ref}$, dimensionless energy.
+	\item $\tilde{\rho e} = (\rho e-c_v\rho_{ref}T_{ref})/ p_{ref}$, dimensionless energy.
 	\item $\tau = t / t_c$, dimensionless time.
 	\item $\tilde{\mu} = 1/Re$, dimensionless viscosity.
 	\item $\tilde{\kappa} = \frac{\gamma}{\gamma-1}\frac{1}{RePr}$, dimensionless thermal conductivity.
@@ -150,7 +150,7 @@ The momentum equation yields a similar result:
 And so it does the energy equation:
 
 \begin{equation}
-\frac{\partial \tilde{\rho}\tilde{e}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+1]\tilde{u}) }{\partial \tilde{x}}+\frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+1]\tilde{v})  }{\partial \tilde{y}}\biggr)
+\frac{\partial \tilde{\rho}\tilde{e}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+\tilde{c_p}]\tilde{u}) }{\partial \tilde{x}}+\frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+\tilde{c_p}]\tilde{v})  }{\partial \tilde{y}}\biggr)
 \end{equation}
 
 
@@ -163,12 +163,18 @@ The complete system is written in the form
 With the dimensionless fluxes,
 
 \begin{equation}
-\tilde{F} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{u} \\ \tilde{\rho}\tilde{u}^2 + \tilde{p} \\ \tilde{\rho}\tilde{u}\tilde{v} \\ (\tilde{\rho}\tilde{e} + \tilde{p} + 1)\tilde{u}\end{array}\right\},
+\tilde{F} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{u} \\ \tilde{\rho}\tilde{u}^2 + \tilde{p} \\ \tilde{\rho}\tilde{u}\tilde{v} \\ (\tilde{\rho}\tilde{e} + \tilde{p} + \tilde{c_p})\tilde{u}\end{array}\right\},
 \end{equation}
 
 and, 
 \begin{equation}
-\tilde{G} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{v} \\\tilde{\rho}\tilde{u}\tilde{v} \\ \tilde{\rho}\tilde{v}^2 + \tilde{p}  \\ (\tilde{\rho}\tilde{e} + \tilde{p} + 1)\tilde{v}\end{array}\right\}.
+\tilde{G} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{v} \\\tilde{\rho}\tilde{u}\tilde{v} \\ \tilde{\rho}\tilde{v}^2 + \tilde{p}  \\ (\tilde{\rho}\tilde{e} + \tilde{p} + \tilde{c_p})\tilde{v}\end{array}\right\}.
+\end{equation}
+
+The relationship within the dimensionless pressure and the dimensionless conservative variable is:
+
+\begin{equation}
+\tilde{\rho}\tilde{e} = \tilde{c_v} \tilde{p} + \frac{1}{2}\tilde{\rho}\tilde{u}^2 + \frac{1}{2}\tilde{\rho}\tilde{v}^2	
 \end{equation}
 
 \end{document}

@@ -117,16 +117,16 @@ module PhysicsNS
 !        Initialize the reference values
 !        *******************************
 !
-         refValues % L = Setup % reynolds_length
-         refValues % T = Setup % temperature_ref
-         refValues % p = Setup % pressure_ref
-         refValues % rho = refValues % p / (thermodynamics % R * refValues % T)
-         refValues % a = sqrt( thermodynamics % Gamma * refValues % p / refValues % rho )
-         refValues % Mach = Setup % Mach_number
-         refValues % V = refValues % Mach * refValues % a
-         refValues % mu = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         refValues % L     = Setup % reynolds_length
+         refValues % T     = Setup % temperature_ref
+         refValues % p     = Setup % pressure_ref
+         refValues % rho   = refValues % p / (thermodynamics % R * refValues % T)
+         refValues % a     = sqrt( refValues % p / refValues % rho )
+         refValues % Mach  = Setup % Mach_number
+         refValues % V     = sqrt( Thermodynamics % gamma ) * refValues % Mach * refValues % a
+         refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
-         refValues % tc = refValues % L / (refValues % V )
+         refValues % tc    = refValues % L / (refValues % V )
 !
 !        ***********************************
 !        Initialize the dimensionless values
@@ -159,15 +159,15 @@ module PhysicsNS
          F(IRHO)  = u(IRHOU)
          F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
          F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
-         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOU) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) + Dimensionless % cp) * u(IRHOU) / u(IRHO)
 
          G(IRHO)  = u(IRHOV)
          G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
          G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
-         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
+         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) + Dimensionless % cp) * u(IRHOV) / u(IRHO)
 
-         F = F / Mach
-         G = G / Mach
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
 
          end associate
 
@@ -189,16 +189,18 @@ module PhysicsNS
          F(:,IRHO)  = u(:,IRHOU)
          F(:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOU)*u(:,IRHOU) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOV)*u(:,IRHOV)/u(:,IRHO) + gm1 * u(:,IRHOE)
          F(:,IRHOV) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
-         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO) ) * u(:,IRHOU) / u(:,IRHO)
+         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) )/ u(:,IRHO) + Dimensionless % cp) * u(:,IRHOU) / u(:,IRHO)
 
          G(:,IRHO)  = u(:,IRHOV)
          G(:,IRHOU) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
          G(:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOV)*u(:,IRHOV) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOU)*u(:,IRHOU)/u(:,IRHO) + gm1 * u(:,IRHOE)
-         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO) ) * u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO) + Dimensionless % cp) * u(:,IRHOV) / u(:,IRHO)
 
-         F = F / Mach
-         G = G / Mach
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
+
          end associate
+
 
       end function inviscidFlux1D
 
@@ -213,20 +215,23 @@ module PhysicsNS
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
 
-         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach) 
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
          F(:,:,IRHO)  = u(:,:,IRHOU)
          F(:,:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOU)*u(:,:,IRHOU) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOV)*u(:,:,IRHOV)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
          F(:,:,IRHOV) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
-         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) * u(:,:,IRHOU) / u(:,:,IRHO)
+         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) )/ u(:,:,IRHO) + Dimensionless % cp)  & 
+                              * u(:,:,IRHOU) / u(:,:,IRHO)
 
          G(:,:,IRHO)  = u(:,:,IRHOV)
          G(:,:,IRHOU) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
          G(:,:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOV)*u(:,:,IRHOV) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOU)*u(:,:,IRHOU)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
-         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) * u(:,:,IRHOV) / u(:,:,IRHO)
-   
-         F = F / Mach
-         G = G / Mach
+         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) + Dimensionless % cp) & 
+                              * u(:,:,IRHOV) / u(:,:,IRHO)
+
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
 
          end associate
 
