@@ -92,5 +92,83 @@
 
 \section{Dimensionless and reference values}
 
-As most of the codes, it is oriented in a dimensionless approach of the equations
+As most of the codes, it is oriented in a dimensionless approach of the equations. The reference values are refined as follows:
+
+\begin{itemize}
+	\item $L_{ref}$, reference length.
+	\item $p_{ref}$, reference pressure.
+	\item $T_{ref}$, reference temperature.
+	\item $V_{ref}$, reference velocity. 
+	\item $\rho_{ref} = p_{ref} / (RT_{ref})$, reference density.
+	\item $a_{ref} = \sqrt{p_{ref} / \rho_{ref}}$, reference speed sound.
+	\item $V_{ref}/a_{ref}=\sqrt{\gamma}M_{ref}$, reference mach number.
+	\item $t_c = L_{ref} / V_{ref}$, reference time.
+	\item $\mu_{ref} = \rho_{ref} V_{ref} L_{ref} / Re$, reference laminar viscosity.
+	\item $\kappa_{ref} = \mu_{ref} c_p / Pr$, reference thermal conductivity.
+\end{itemize}
+
+With these quantities, we define the dimensionless quantities:
+
+\begin{itemize}
+	\item $\tilde{x} = x / L_{ref}$, dimensionless spatial coordinates.
+	\item $\tilde{p} = (p-p_{ref}) / p_{ref}$, dimensionless pressure.
+	\item $\tilde{T} = T / T_{ref}$, dimensionless temperature.
+	\item $\tilde{u} = u / a_{ref}$, dimensionless velocities.
+	\item $\tilde{\rho} = \rho / \rho_{ref}$, dimensionless density.
+	\item $\tilde{\rho e} = \rho e / p_{ref}$, dimensionless energy.
+	\item $\tau = t / t_c$, dimensionless time.
+	\item $\tilde{\mu} = 1/Re$, dimensionless viscosity.
+	\item $\tilde{\kappa} = \frac{\gamma}{\gamma-1}\frac{1}{RePr}$, dimensionless thermal conductivity.
+\end{itemize}
+
+Note that the state equation on these variables is:
+
+\begin{equation}
+\tilde{p} + 1 = \tilde{\rho}\tilde{T}.
+\end{equation}
+
+\subsection{Euler equations}
+
+We proceed to write the Euler equations on dimensionless variables.
+
+\begin{equation}
+\frac{\partial}{\partial t}\left\{\begin{array}{c}\rho \\ \rho u \\ \rho v \\ \rho e \end{array}\right\} = \frac{\partial }{\partial x}\left\{\begin{array}{c} \rho u \\ \rho u^2 + p \\ \rho u v \\ (\rho e + p)u \end{array}\right\} +  \frac{\partial }{\partial y}\left\{\begin{array}{c} \rho v \\ \rho uv \\ \rho v^2 + p \\ (\rho e + p)v \end{array}\right\}.
+\end{equation}
+
+Starting with the continuity equation:
+
+\begin{equation}
+\frac{\rho_{ref} V_{ref}}{L_{ref}} \frac{\partial \tilde{\rho}}{\partial \tau} = \frac{\rho_{ref} a_{ref}}{L_{ref}}\biggl( \frac{\partial \tilde{u} }{\partial \tilde{x}}+\frac{\partial \tilde{v} }{\partial \tilde{y}}\biggr)	\rightarrow \frac{\partial \tilde{\rho}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial \tilde{\rho}\tilde{u} }{\partial \tilde{x}}+\frac{\partial \tilde{\rho}\tilde{v} }{\partial \tilde{y}}\biggr)
+\end{equation}
+
+The momentum equation yields a similar result:
+
+\begin{equation}
+\frac{\partial \tilde{\rho}\tilde{u}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial (\tilde{\rho}\tilde{u}^2 + \tilde{p}) }{\partial \tilde{x}}+\frac{\partial \tilde{\rho}\tilde{u}\tilde{v} }{\partial \tilde{y}}\biggr)
+\end{equation}
+
+And so it does the energy equation:
+
+\begin{equation}
+\frac{\partial \tilde{\rho}\tilde{e}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+1]\tilde{u}) }{\partial \tilde{x}}+\frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+1]\tilde{v})  }{\partial \tilde{y}}\biggr)
+\end{equation}
+
+
+The complete system is written in the form
+
+\begin{equation}
+\tilde{U}_\tau = \tilde{\nabla}\cdot \tilde{F}	
+\end{equation}
+
+With the dimensionless fluxes,
+
+\begin{equation}
+\tilde{F} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{u} \\ \tilde{\rho}\tilde{u}^2 + \tilde{p} \\ \tilde{\rho}\tilde{u}\tilde{v} \\ (\tilde{\rho}\tilde{e} + \tilde{p} + 1)\tilde{u}\end{array}\right\},
+\end{equation}
+
+and, 
+\begin{equation}
+\tilde{G} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{v} \\\tilde{\rho}\tilde{u}\tilde{v} \\ \tilde{\rho}\tilde{v}^2 + \tilde{p}  \\ (\tilde{\rho}\tilde{e} + \tilde{p} + 1)\tilde{v}\end{array}\right\}.
+\end{equation}
+
 \end{document}
