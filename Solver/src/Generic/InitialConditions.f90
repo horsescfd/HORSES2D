@@ -103,7 +103,13 @@ module InitialConditions
             case default
 !           ============               
 !
-               STOP "Unknown Initial condition" 
+               print*, "Error: Unknown initial condition"
+               print*, "   Options available:"
+               print*, "      * ",trim(ConstantIC)
+               print*, "      * ",trim(SteadyIC)
+               print*, "      * ",trim(VortexIC)
+               print*, "      * ",trim(ChecksIC)
+               STOP "Stopped." 
 !
 !        **********
          end select
