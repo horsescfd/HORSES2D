@@ -227,10 +227,10 @@ module Tecplot
                         write(self % fID,'(1X,E16.10)',advance="no") rho(iXi,iEta) * refValues % rho
 
                      case ("rhou")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % V
+                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhov")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % V
+                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhoe")
                         write(self % fID,'(1X,E16.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
@@ -239,19 +239,19 @@ module Tecplot
                         write(self % fID,'(1X,E16.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
 
                      case ("rhout")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % V / refValues % tc
+                        write(self % fID,'(1X,E16.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhovt")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % V / refValues % tc
+                        write(self % fID,'(1X,E16.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhoet")
                         write(self % fID,'(1X,E16.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
 
                      case ("u")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % V
+                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
 
                      case ("v")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % V
+                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
    
                      case ("p")
                         write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - 0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) * refValues % p
