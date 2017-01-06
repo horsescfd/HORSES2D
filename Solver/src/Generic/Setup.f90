@@ -34,7 +34,7 @@ module Setup_class
 !              Spatial discretization parameters
 !       -------------------------------------------------------------------------------------
 !
-        integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
+        integer                      :: nodes                     =  LGL       ! Interpolation / Integration nodes strategy
         integer                      :: N                         =  4         ! Polynomial order (generic)
         real(kind=RP)                :: nu                        =  0.1_RP ! Viscous coefficient
 !
@@ -86,7 +86,7 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: autosaveInterval          = 100
-        character(len=STR_LEN_SETUP) :: saveVariables             = "rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet"
+        character(len=STR_LEN_SETUP) :: saveVariables             = "rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach"
     end type Setup_t
 
     type(Setup_t), protected, target       :: setup

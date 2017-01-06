@@ -216,7 +216,9 @@ module Tecplot
 
          do iEta = 0 , N
             do iXi = 0 , N
-               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") mesh % elements(eID) % x(iX,iXi,iEta) , mesh % elements(eID) % x(iY,iXi,iEta) , 0.0_RP  
+               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") mesh % elements(eID) % x(iX,iXi,iEta) * RefValues % L &
+                                                                              , mesh % elements(eID) % x(iY,iXi,iEta) * RefValues % L &
+                                                                              , 0.0_RP  
 !
 !              Save quantities
 !              ---------------
@@ -254,10 +256,10 @@ module Tecplot
                         write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
    
                      case ("p")
-                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - 0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) * refValues % p
+                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - 0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) * refValues % p + refValues % p
       
                      case ("Mach")
-                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)
+                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
 
                   end select                        
 
