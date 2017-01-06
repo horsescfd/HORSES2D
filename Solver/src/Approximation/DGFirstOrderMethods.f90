@@ -20,18 +20,17 @@ module DGFirstOrderMethods
       character(len=STR_LEN_FIRSTORDER)         :: method
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
-         procedure, non_overridable :: QDotFaceLoop => BaseClass_QDotFaceLoop
-         procedure, non_overridable :: RiemannFlux => FirstOrderMethod_RiemannFlux
-         procedure                  :: QDotVolumeLoop => BaseClass_QDotVolumeLoop
-         procedure, non_overridable :: Describe => FirstOrderMethod_describe
+         procedure, non_overridable :: QDotFaceLoop         => StdDG_QDotFaceLoop
+         procedure, non_overridable :: RiemannFlux          => FirstOrderMethod_RiemannFlux
+         procedure                  :: QDotVolumeLoop       => StdDG_QDotVolumeLoop
+         procedure                  :: ComputeInnerFluxes   => StdDG_ComputeInnerFluxes
+         procedure, non_overridable :: Describe             => FirstOrderMethod_describe
    end type FirstOrderMethod_t
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
    type, extends(FirstOrderMethod_t) :: StandardDG_t
       character(len=STR_LEN_FIRSTORDER)         :: formulation = "Form I"
-      contains
-         procedure ::  QDotVolumeLoop => StdDG_QDotVolumeLoop
    end type StandardDG_t
 !  *******************************************************
 !  -------------------------------------------------------
@@ -116,7 +115,7 @@ module DGFirstOrderMethods
 
       end function FirstOrderMethod_Initialization
 
-      subroutine BaseClass_QDotFaceLoop( self , edge )
+      subroutine StdDG_QDotFaceLoop( self , edge )
          use MatrixOperations
          implicit none
          class(FirstOrderMethod_t)          :: self
@@ -163,23 +162,12 @@ module DGFirstOrderMethods
 !         end select
 !
  
-      end subroutine BaseClass_QDotFaceLoop
+      end subroutine StdDG_QDotFaceLoop
 !
-      subroutine BaseClass_QDotVolumeLoop( self , element )
-         implicit none
-         class(FirstOrderMethod_t)          :: self
-         class(QuadElement_t)                       :: element
-!
-!        ---------------------------
-!        The base class does nothing
-!        ---------------------------
-!
-      end subroutine BaseClass_QDotVolumeLoop
-
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations
          implicit none
-         class(StandardDG_t)     :: self
+         class(FirstOrderMethod_t)     :: self
          class(QuadElement_t)      :: element
 !
 !        -------------------------------------------
@@ -189,7 +177,7 @@ module DGFirstOrderMethods
 !        -------------------------------------------
 !
 !        Compute fluxes
-         element % F = inviscidFlux( element % Q )
+         call self % computeInnerFluxes ( element )
 !
 !        Perform the matrix multiplication
 !         associate( QDot => element % QDot , &
@@ -200,6 +188,37 @@ module DGFirstOrderMethods
 !         end associate
 
       end subroutine StdDG_QDotVolumeLoop
+
+      subroutine StdDG_ComputeInnerFluxes( self , element ) 
+         implicit none  
+         class(FirstOrderMethod_t)                :: self
+         class(QuadElement_t)                     :: element
+         real(kind=RP), allocatable               :: F(:,:,:,:)
+         integer                                  :: eq
+         integer                                  :: FJa(NDIM) , GJa(NDIM)
+
+         associate( N => element % spA % N )
+
+         allocate( F(0:N , 0:N , NEC , NDIM) ) 
+
+         F = InviscidFlux( element % Q )
+
+            do eq = 1 , NEC
+               FJa = [1,1]
+               GJa = [2,1]
+               element % F(:,:,eq,IX) = F(:,:,eq,IX) * element % Ja(FJa) + F(:,:,eq,IY) * element % Ja(GJa)
+               print*, F(:,:,eq,IX)
+
+               FJa = [1,2]
+               GJa = [2,2]
+               element % F(:,:,eq,IY) = F(:,:,eq,IX) * element % Ja(FJa) + F(:,:,eq,IY) * element % Ja(GJa)
+            end do
+
+         deallocate( F ) 
+
+         end associate
+         
+      end subroutine StdDG_ComputeInnerFluxes
 
       subroutine OIDG_QDotVolumeLoop( self , element )
          use MatrixOperations
