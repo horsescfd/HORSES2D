@@ -1,0 +1,96 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{amsmath,amssymb,amsfonts,latexsym,cancel,empheq}
+
+\usepackage[total={16cm,26cm},top=2cm, right=2.5cm]{geometry}
+\usepackage{epstopdf}
+%Paquetes simbólicos:
+\newcommand{\dif}{\textrm{d}}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\DeclareUnicodeCharacter{00A0}{ }
+
+\usepackage[usenames,dvipsnames]{pstricks}
+ \usepackage{epsfig}
+ \usepackage{epsf}
+ \usepackage{float}
+ \usepackage{pst-grad} % For gradients
+ \usepackage{pst-plot} 
+%\usepackage[framed,numbered,autolinebreaks,useliterate]{mcode} %\begin{lstlisting}
+\usepackage{float}%para que no ponga los graficos donde le de la gana, poner \begin{figure}[H]
+\usepackage{soul}%para poder remarcar texto, poner \hl{texto a subrayar}
+\usepackage[final]{pdfpages}
+\usepackage{appendix}
+%%%-- \includepdf[pages={x-y,{}(emptypages),x}
+\sloppy % suaviza las reglas de ruptura de l�neas de LaTeX
+\frenchspacing % usar espaciado normal despu�s de '.'
+\usepackage{lscape}
+\usepackage{babel}
+
+\usepackage{blindtext} % provides blindtext with sectioning
+
+\usepackage{scrpage2}  % header and footer for KOMA-Script
+%\pagestyle{scrheadings}  %Colocar los numeros arriba
+%\thispagestyle{empty} %cuando una página la queramos sin encabezado
+
+%\rehead[]{Diseño de un sistema de transmisión con plato elíptico}        % equal page, right position (inner) 
+%\lohead[]{Diseño de un sistema de transmisión con plato elíptico}        % odd   page, left  position (inner) 
+
+
+\usepackage{multicol}
+\setlength{\columnsep}{7mm} %Espacio entre columnas en caso de hacer multicol
+\usepackage{xcolor}
+\definecolor{plata}{RGB}{229, 228, 226}
+\definecolor{azulport}{RGB}{15, 82, 186}
+\usepackage{afterpage}
+\usepackage{float}	
+\usepackage{subfigure}
+\usepackage{mdframed}
+\usepackage[colorlinks=true,linkcolor=black]{hyperref}
+\usepackage[labelfont=bf]{caption} %Caption Figura X: en negrita
+%\decimalpoint %Punto decimal en lugar de comma
+%Por si acaso:
+%\renewcommand{\contentsname}{Contenido}
+%\renewcommand{\partname}{Parte}
+\renewcommand{\appendixname}{Anexos}
+\renewcommand{\appendixtocname}{Anexos}
+\renewcommand{\appendixpagename}{Anexos}
+%\renewcommand{\figurename}{Figura}
+%\renewcommand{\tablename}{Tabla}
+%\renewcommand{\abstractname}{Abstract}
+%\renewcommand{\refname}{Bibliograf�a}
+%\usepackage{mathpmtx} %Otra letra con más clase
+%\usepackage{pgfplots}
+\usepackage{pgf,tikz,tikz-3dplot}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{matrix,calc,intersections,through,backgrounds,decorations.pathmorphing,arrows}
+\usepackage{bold-extra}
+\newcommand*\widefbox[1]{\fbox{\hspace{2em}#1\hspace{2em}}}
+%Otros paquetes:
+%\pagestyle{empty} %Eliminar numeraci�n p�gs
+%\parskip=Xmm %Espacio entre p�rrafos
+%\headheight %Altura cabecera
+\parindent=0mm %Eliminar sangr�a
+%\pagestyle{myheadings}: Coloca la numeraci�n de p�gina en la parte superior
+%\markright{�texto�}: Coloca �texto� en la parte superior de la p�gina. Se pueden
+%poner varios \markright en el texto (en cada secci�n, por ejemplo).
+%\newpage: Le indica a LATEX que siga imprimiendo en la p�gina siguiente
+
+%\title{\textbf{Título}}
+%\author{Autor}
+
+\begin{document}
+
+\begin{center}
+	\textbf{High-Order discontinuous Galerkin spectral element method 2D solver}\\
+	\hrulefill
+	\tableofcontents
+	\hrulefill
+\end{center}
+
+\section{Dimensionless and reference values}
+
+As most of the codes, it is oriented in a dimensionless approach of the equations
+\end{document}
