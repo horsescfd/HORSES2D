@@ -124,7 +124,7 @@ module PhysicsNS
          refValues % Mach = Setup % Mach_number
          refValues % mu = refValues % rho * refValues % Mach * sqrt( Thermodynamics % gamma * Thermodynamics % R * refValues % T) * refValues % L / Setup % reynolds_number
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
-         refValues % tc = refValues % L / refValues % V
+         refValues % tc = refValues % L / (refValues % V * refValues % Mach)
 !
 !        ***********************************
 !        Initialize the dimensionless values
@@ -152,7 +152,7 @@ module PhysicsNS
          F(1:NEC)    => val(1:NEC,iX)
          G(1:NEC)    => val(1:NEC,iY)
 
-         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 ) 
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
          F(IRHO)  = u(IRHOU)
          F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
@@ -163,6 +163,9 @@ module PhysicsNS
          G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
          G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
          G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
+
+         F = F / Mach
+         G = G / Mach
 
          end associate
 
