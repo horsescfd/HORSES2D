@@ -123,10 +123,14 @@ module InitialConditions
          real(kind=RP)        :: val(NEC)
          real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
 
+         associate ( gamma => Thermodynamics % gamma ) 
+
          val(IRHO)  = 1.0_RP
-         val(IRHOU) = Dimensionless % Mach * cos ( AngleOfAttack)
-         val(IRHOV) = Dimensionless % Mach * sin ( AngleOfAttack )
-         val(IRHOE) = Dimensionless % cv + 0.5_RP * Thermodynamics % Gamma * Dimensionless % Mach * Dimensionless % Mach
+         val(IRHOU) = sqrt( gamma ) * Dimensionless % Mach * cos ( AngleOfAttack )
+         val(IRHOV) = sqrt( gamma ) * Dimensionless % Mach * sin ( AngleOfAttack )
+         val(IRHOE) = 0.5_RP * gamma * Dimensionless % Mach * Dimensionless % Mach
+
+         end associate
 
       end function UniformInitialCondition
 
@@ -142,7 +146,7 @@ module InitialConditions
          val(IRHO) = 1.0_RP
          val(IRHOU) = 0.0_RP
          val(IRHOV) = 0.0_RP
-         val(IRHOE) = Dimensionless % cv
+         val(IRHOE) = 0.0_RP
 
       end function SteadyInitialCondition
          
@@ -162,17 +166,21 @@ module InitialConditions
          real(kind=RP), parameter      :: AngleOfAttack = 0.0_RP
          real(kind=RP)                 :: r2 , rho , u , v , T
 
+         associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
+
          r2 = ((x(iX) - XC)*(x(iX) - XC) + (x(iY) - YC)*(x(iY) - YC)) / (R*R)
       
-         u = Dimensionless % Mach * (cos(AngleOfAttack) - Beta * (x(iY) - YC) / R * exp(-0.5_RP * r2))
-         v = Dimensionless % Mach * (sin(AngleOfAttack) + Beta * (x(iX) - XC) / R * exp(-0.5_RP * r2))
-         T = 1.0_RP - Dimensionless % Mach * Dimensionless % Mach * beta * beta / (2.0_RP * Dimensionless % cv) * exp(-r2)
+         u = sqrt(gamma) * Mach * (cos(AngleOfAttack) - Beta * (x(iY) - YC) / R * exp(-0.5_RP * r2))
+         v = sqrt(gamma) * Mach * (sin(AngleOfAttack) + Beta * (x(iX) - XC) / R * exp(-0.5_RP * r2))
+         T = 1.0_RP - gamma * Mach * Mach * beta * beta / (2.0_RP * Dimensionless % cp) * exp(-r2)
          rho = T**( Thermodynamics % invgm1 ) 
 
          val(IRHO)  = rho
          val(IRHOU) = rho * u
          val(IRHOV) = rho * v
-         val(IRHOE) = Dimensionless % cv * rho * T + 0.5_RP * Thermodynamics % Gamma * rho * ( u*u + v*v )
+         val(IRHOE) = Dimensionless % cv * (rho * T - 1.0_RP ) + 0.5_RP * rho * ( u*u + v*v )
+
+         end associate
             
       end function InviscidVortexTransportInitialCondition
 
