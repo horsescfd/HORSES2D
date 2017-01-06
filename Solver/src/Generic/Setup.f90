@@ -12,9 +12,9 @@ module Setup_class
 !              Reference quantities
 !       -------------------------------------------------------------------------------------
 !
-!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/Cylinder.HiOMesh"            ! Cylinder
+        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/Cylinder.HiOMesh"            ! Cylinder
 !        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/2d_quad_grid2.HiOMesh"   ! Channel
-        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/TaylorTransport.HiOMesh" ! Vortex
+!        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/TaylorTransport.HiOMesh" ! Vortex
 !        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/FreeStream.HiOMesh"      ! Free stream
         character(len=STR_LEN_SETUP) :: bdry_file                 = "./CASE/Cylinder.bmap"
 !
@@ -24,7 +24,7 @@ module Setup_class
 !
         real(kind=RP)                :: pressure_ref              = 101325.0_RP
         real(kind=RP)                :: temperature_ref           = 273.15_RP 
-        real(kind=RP)                :: reynolds_length           = 0.1_RP
+        real(kind=RP)                :: reynolds_length           = 1.0_RP
         real(kind=RP)                :: reynolds_number           = 1600.0_RP
         real(kind=RP)                :: prandtl_number            = 0.72_RP
         real(kind=RP)                :: Mach_number               = 0.01_RP
@@ -34,7 +34,7 @@ module Setup_class
 !              Spatial discretization parameters
 !       -------------------------------------------------------------------------------------
 !
-        integer                      :: nodes                     =  LGL       ! Interpolation / Integration nodes strategy
+        integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
         integer                      :: N                         =  4         ! Polynomial order (generic)
         real(kind=RP)                :: nu                        =  0.1_RP ! Viscous coefficient
 !
@@ -42,7 +42,7 @@ module Setup_class
 !              Initialization
 !       --------------------------------------------------------------------------------------
 !
-        character(len=STR_LEN_SETUP) :: IC                        =  "Vortex transport"    ! Initial condition type
+        character(len=STR_LEN_SETUP) :: IC                        =  "Checks"    ! Initial condition type
 !
 !       -----------------------------------------------------------------------------------------
 !              Advective flux discretization

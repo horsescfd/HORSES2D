@@ -29,6 +29,7 @@ module DGFirstOrderMethods
 !  -------------------------------------------------------
 !  *******************************************************
    type, extends(FirstOrderMethod_t) :: StandardDG_t
+      character(len=STR_LEN_FIRSTORDER)         :: formulation = "Form I"
       contains
          procedure ::  QDotVolumeLoop => StdDG_QDotVolumeLoop
    end type StandardDG_t
@@ -75,6 +76,10 @@ module DGFirstOrderMethods
       
          else
             write(STD_OUT , *) "Method ", trim(Setup % inviscid_discretization), " not implemented yet."
+            write(STD_OUT , '(10X,A)') "Options available are:"
+            write(STD_OUT , '(20X,A)') "* Standard"
+            write(STD_OUT , '(20X,A)') "* Over-Integration"
+            write(STD_OUT , '(20X,A)') "* Split"
             STOP "Stopped."
 
          end if
@@ -241,6 +246,7 @@ module DGFirstOrderMethods
 
          select type ( self ) 
             type is ( StandardDG_t )
+               write(STD_OUT , '(30X,A,A)') "Formulation: " , trim(self % formulation)
    
             type is ( OverIntegrationDG_t )
          
