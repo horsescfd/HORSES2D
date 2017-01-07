@@ -206,12 +206,11 @@ module DGFirstOrderMethods
             do eq = 1 , NEC
                FJa = [1,1]
                GJa = [2,1]
-               element % F(:,:,eq,IX) = F(:,:,eq,IX) * element % Ja(FJa) + F(:,:,eq,IY) * element % Ja(GJa)
-               print*, F(:,:,eq,IX)
+               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
 
                FJa = [1,2]
                GJa = [2,2]
-               element % F(:,:,eq,IY) = F(:,:,eq,IX) * element % Ja(FJa) + F(:,:,eq,IY) * element % Ja(GJa)
+               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
             end do
 
          deallocate( F ) 
