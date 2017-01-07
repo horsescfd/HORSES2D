@@ -167,8 +167,9 @@ module DGFirstOrderMethods
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations
          implicit none
-         class(FirstOrderMethod_t)     :: self
+         class(FirstOrderMethod_t) :: self
          class(QuadElement_t)      :: element
+         integer                   :: eq
 !
 !        -------------------------------------------
 !           The standard DG computes the volume
@@ -180,12 +181,25 @@ module DGFirstOrderMethods
          call self % computeInnerFluxes ( element )
 !
 !        Perform the matrix multiplication
-!         associate( QDot => element % QDot , &
-!                    MD => element % Interp % MD)
+         associate( QDot => element % QDot     , &
+                    MD   => element % spA % MD , &
+                    M    => element % spA % M  , &
+                    N    => element % spA % N      )
 
-!         QDot = QDot + TransposeMat_x_NormalMat_F( MD , element % F )
+         do eq = 1 , NEC
+!
+!           F Loop
+!           ------
+            call Mat_x_Mat(A = MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+                           trA = .true. , reset = .false. )
 
-!         end associate
+!
+!           G Loop
+!           ------
+            call Mat_x_Mat(A = Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+                            reset = .false. )
+         end do
+         end associate
 
       end subroutine StdDG_QDotVolumeLoop
 
