@@ -179,6 +179,103 @@ The relationship within the dimensionless pressure and the dimensionless conserv
 
 
 \section{Euler equations approximations}
+\subsection{The rotational invariance}
+
+Consider the projected flux:
+
+\begin{equation}
+F_n = F dS_x + GdS_y
+\end{equation}
+
+For the first equation:
+
+\begin{equation}
+F^1_n = \rho u dS_x+ \rho v dS_y= \rho \hat{u} 	
+\end{equation}
+
+So that we can define the normal and tangential speeds, namely:
+
+\begin{equation}
+\begin{split}
+\hat{u} = u dS_x + v dS_y, &~~~~\hat{v} = v dS_x - u dS_y,	\\
+udS^2 = \hat{u}dS_x - \hat{v} dS_y, & ~~~~ v dS^2 = \hat{v}dS_x + \hat{u} dS_y
+\end{split}
+\end{equation}
+
+Such that the relationship within the kinetic energies read:
+
+\begin{equation}
+dS^2 (u^2 + v^2) = ( \hat{u}^2 + \hat{v}^2).	
+\end{equation}
+
+
+For the second equation:
+
+\begin{equation}
+F^2_n = (\rho u^2 + p) dS_x + \rho u v dS_y,
+\end{equation}
+
+and third,
+
+\begin{equation}
+	F_n^3 = \rho u v dS_x + (\rho v^2 + p ) dS_y.
+\end{equation}
+
+We can start computing the quantity:
+
+\begin{equation}
+	\hat{F}^3 = F_n^3 dS_x - F_n^2  dS_y 	 = -\rho (u^2-v^2) dS_x dS_y - \rho u v(dS_y^2 - dS_x^2).
+\end{equation}
+
+First factor is 
+
+\begin{equation}
+(u^2-v^2) =(u+v)(u-v) = \hat{u}^2(dS_x^2-dS_y^2)-\hat{v}^2(dS_x^2 - dS_y^2) - 4\hat{u}\hat{v}dS_x dS_y 
+\end{equation}
+
+and second:
+
+\begin{equation}
+uv = \hat{u}^2 dS_x dS_y - \hat{v}^2 dS_x dS_y + \hat{u}\hat{v}(dS_x^2 - dS_y^2)	
+\end{equation}
+
+We can write:
+
+\begin{equation}
+dS^4 \hat{F}^3= \rho \hat{u}\hat{v} (dS_x^2 + dS_y^2)^2 \rightarrow \hat{F}^3 = \rho \hat{u}\hat{v}
+\end{equation}
+
+We can proceed similarly to obtain:
+
+\begin{equation}
+\hat{F}^2 = F_n^2 dS_x + F_n^3 dS_y = \rho \hat{u}^2 + p dS^{2}	
+\end{equation}
+
+We can define $\hat{p}$ as:
+
+\begin{equation}
+\hat{p}	= p dS^2 = (\gamma-1)dS^2(\rho e - \frac{1}{2}\rho u^2 - \frac{1}{2}\rho v^2) = (\gamma-1)(\rho \hat{e}-\frac{1}{2}\hat{u}^2 - \frac{1}{2}\hat{v}^2)
+\end{equation}
+
+And thus,
+
+\begin{equation}
+\hat{e} = e dS^2	
+\end{equation}
+
+
+So, we can define the projected variables $\hat{U}$ as:
+
+\begin{equation}
+\{\boldsymbol{\hat{U}}\}=[\boldsymbol{T}]\{\boldsymbol{U}\}, ~~~~[\boldsymbol{T}] = \left[\begin{array}{cccc}1 & 0 & 0 & 0 \\ 0 & dS_x & dS_y & 0 \\ 0 & -dS_y & dS_x & 0 \\ 0 & 0 & 0 & dS^2 \end{array}\right] 	
+\end{equation}
+
+And such that:
+
+\begin{equation}
+ [\boldsymbol{T}]^{-1}\boldsymbol{\hat{F}}(\hat{\boldsymbol{U}})	 = \{\boldsymbol{F}\} dS_x + \{\boldsymbol{G}\} dS_y
+\end{equation}
+
 
 \subsection{Computation of volumetric loops}
 
