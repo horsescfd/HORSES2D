@@ -49,6 +49,7 @@ module Setup_class
 !       -----------------------------------------------------------------------------------------
 !
         character(len=STR_LEN_SETUP) :: inviscid_discretization   = "Standard"
+        integer                      :: inviscid_formulation      = FORMI
         character(len=STR_LEN_SETUP) :: inviscid_flux             = "Roe"
         integer                      :: integration_points        =  ceiling((3.0_RP *5.0_RP + 1.0_RP)/2.0_RP)
 !     

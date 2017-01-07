@@ -47,6 +47,14 @@
            integer, parameter                 :: LGL             =  2               ! Parameter for Legendre-Gauss-Lobatto nodes
 !
 !     *************************************************************************
+!           Equation type aliases 
+!     *************************************************************************
+!
+           integer, parameter                 :: FORMI           =  1               ! Green form
+           integer, parameter                 :: FORMII          =  2               ! Divergence form
+!
+!
+!     *************************************************************************
 !           Parameters for I/O
 !     *************************************************************************
 !

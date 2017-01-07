@@ -18,6 +18,7 @@ module DGFirstOrderMethods
 !  *******************************************************************
    type FirstOrderMethod_t
       character(len=STR_LEN_FIRSTORDER)         :: method
+      integer                                   :: formulation
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
          procedure, non_overridable :: QDotFaceLoop         => StdDG_QDotFaceLoop
@@ -30,7 +31,6 @@ module DGFirstOrderMethods
 !  -------------------------------------------------------
 !  *******************************************************
    type, extends(FirstOrderMethod_t) :: StandardDG_t
-      character(len=STR_LEN_FIRSTORDER)         :: formulation = "Form I"
    end type StandardDG_t
 !  *******************************************************
 !  -------------------------------------------------------
@@ -88,6 +88,7 @@ module DGFirstOrderMethods
 
          select type (FirstOrderMethod)
             type is (StandardDG_t)
+               FirstOrderMethod % formulation = Setup % inviscid_formulation
 
             type is (OverIntegrationDG_t)
    
@@ -187,17 +188,35 @@ module DGFirstOrderMethods
                     N    => element % spA % N      )
 
          do eq = 1 , NEC
+
+            if ( self % formulation .eq. FORMI ) then
 !
-!           F Loop
-!           ------
-            call Mat_x_Mat(A = MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+!              F Loop
+!              ------
+               call Mat_x_Mat(A = MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
                            trA = .true. , reset = .false. )
 
 !
-!           G Loop
-!           ------
-            call Mat_x_Mat(A = Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+!              G Loop
+!              ------
+               call Mat_x_Mat(A = Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
                             reset = .false. )
+
+            elseif ( self % formulation .eq. FORMII ) then
+!
+!              F Loop
+!              ------
+               call Mat_x_Mat(A = -MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+                            reset = .false. )
+
+!
+!              G Loop
+!              ------
+               call Mat_x_Mat(A = -Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+                            trB = .true. , reset = .false. )
+
+            end if
+
          end do
          end associate
 
@@ -278,7 +297,11 @@ module DGFirstOrderMethods
 
          select type ( self ) 
             type is ( StandardDG_t )
-               write(STD_OUT , '(30X,A,A)') "Formulation: " , trim(self % formulation)
+               if ( self % formulation .eq. FORMI ) then
+                  write(STD_OUT , '(30X,A,A)') "Formulation: Green form"
+               elseif ( self % formulation .eq. FORMII ) then
+                  write(STD_OUT , '(30X,A,A)') "Formulation: Divergence form"
+               end if
    
             type is ( OverIntegrationDG_t )
          
