@@ -177,4 +177,54 @@ The relationship within the dimensionless pressure and the dimensionless conserv
 \tilde{\rho}\tilde{e} = \tilde{c_v} \tilde{p} + \frac{1}{2}\tilde{\rho}\tilde{u}^2 + \frac{1}{2}\tilde{\rho}\tilde{v}^2	
 \end{equation}
 
+
+\section{Euler equations approximations}
+
+\subsection{Computation of volumetric loops}
+
+The loop depends on which of Forms I or II is chosen. For Form I loop:
+
+\begin{equation}
+\dot{Q}_{ij,eq} \leftarrow \int_{-1}^1 \int_{-1}^1 \boldsymbol{\tilde{F}}_{eq}\cdot \tilde{\nabla} \phi_{ij} d\xi d\eta = \int_{-1}^1 \int_{-1}^1 (\tilde{F}_{eq}\phi_{ij,\xi}' + \tilde{G}_{eq}\phi_{ij,\eta}' )d\xi d\eta.
+\end{equation}
+
+Replacing integrals by numerical quadratures,
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow \sum_{m=0}^N \sum_{n=0}^N	 w_m w_n \tilde{F}_{nm,eq}l_i'(\xi_n)l_j(\eta_m) &= \sum_{n=0}^N w_j \tilde{F}_{nj,eq} w_n l'_i(\xi_n) =  \sum_{n=0}^N  D_{in}^T w_n\tilde{F}_{nj,eq} w_j \\
+[\dot{\boldsymbol{Q}}_{eq}] &\leftarrow [\boldsymbol{D}]^T [\boldsymbol{M}] [\boldsymbol{\tilde{F}}_{eq}] [\boldsymbol{M}]
+\end{split}
+\end{equation}
+
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow \sum_{m=0}^N \sum_{n=0}^N	 w_m w_n \tilde{G}_{mn,eq}l_i(\xi_m)l_j'(\eta_n) &= \sum_{n=0}^N w_i \tilde{G}_{in,eq} w_n l'_j(\xi_n) =   \sum_{n=0}^N w_i \tilde{G}_{in,eq} w_n D_{nj} \\
+[\dot{\boldsymbol{Q}}_{eq}]&\leftarrow [\boldsymbol{M}] [\boldsymbol{\tilde{G}}_{eq}] [\boldsymbol{M}][\boldsymbol{D}]
+\end{split}
+\end{equation}
+
+Similarly, Form II loop:
+
+\begin{equation}
+\dot{Q}_{ij,eq} \leftarrow -\int_{-1}^1 \int_{-1}^1 \tilde{\nabla}\cdot \tilde{\boldsymbol{F}}_{eq} \phi_{ij} d\xi d\eta = -\int_{-1}^1 \int_{-1}^1 (\tilde{F}_{eq,\xi}' + \tilde{G}_{eq,\eta}')\phi_{ij}  d\xi d\eta.
+\end{equation}
+
+Its numerical version reads:
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow -\sum_{m=0}^N \sum_{n=0}^N	 w_i w_j \tilde{F}_{nm,eq}l_n'(\xi_i)l_m(\eta_j) &= -\sum_{n=0}^N	 w_i w_j \tilde{F}_{nj,eq}l_n'(\xi_i) =  -\sum_{n=0}^N w_i D_{in} \tilde{F}_{nj,eq} w_j  \\
+[\dot{\boldsymbol{Q}}_{eq}] &\leftarrow -[\boldsymbol{M}] [\boldsymbol{D}] [\boldsymbol{\tilde{F}}_{eq}] [\boldsymbol{M}]
+\end{split}
+\end{equation}
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow -\sum_{m=0}^N \sum_{n=0}^N	 w_i w_j \tilde{G}_{mn,eq}l_m(\xi_i)l_n'(\eta_j) &= -\sum_{n=0}^N	 w_i w_j \tilde{G}_{in,eq}l_n'(\eta_j) =  -\sum_{n=0}^N w_i \tilde{G}_{nj,eq} D_{nj}^T w_j  \\
+[\dot{\boldsymbol{Q}}_{eq}] &\leftarrow -[\boldsymbol{M}] [\boldsymbol{\tilde{G}}_{eq}] [\boldsymbol{D}]^T [\boldsymbol{M}]
+\end{split}
+\end{equation}
+
 \end{document}
