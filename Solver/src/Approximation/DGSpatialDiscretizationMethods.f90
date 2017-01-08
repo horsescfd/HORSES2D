@@ -132,30 +132,11 @@ module DGSpatialDiscretizationMethods
                      case ("Q")
                         variable(0:, 0: )   => e % Q(0:,0:,eq)
                
-                        if ( direction .eq. FORWARD ) then
-                           variable_b = ed % Q(0:N , eq , e % quadPosition(edID) )
-                        else
-                           variable_b = ed % Q(N:0:-1 , eq , e % quadPosition(edID) )
-                        end if
-
                      case ("dxiQ")
                         variable(0: , 0: )   => e % dQ(0:,0:,eq,iX)
                
-                        if ( direction .eq. FORWARD ) then
-                           variable_b = ed % dQ(0:N , eq , e % quadPosition(edID) , iX)
-                        else
-                           variable_b = ed % dQ(N:0:-1 , eq , e % quadPosition(edID) , iX)
-                        end if
-
                      case ("detaQ")
                         variable(0: , 0: )   => e % dQ(0:,0:,eq,iY)
-               
-                        if ( direction .eq. FORWARD ) then
-                           variable_b = ed % dQ(0:N , eq , e % quadPosition(edID) , iY)
-                        else
-                           variable_b = ed % dQ(N:0:-1 , eq , e % quadPosition(edID) , iY)
-                        end if
-
 
                   end select
    

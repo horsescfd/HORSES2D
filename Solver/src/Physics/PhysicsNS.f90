@@ -320,6 +320,8 @@ module PhysicsNS
             qL = MatrixTimesVector_F( A=T , X=qL3D )
             qR = MatrixTimesVector_F( A=T , X=qR3D )
 
+            print*, qL 
+            print*, qR
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
             rhoL = sqrt(qL(IRHO))
             uL   = qL(IRHOU) / qL(IRHO)

@@ -317,12 +317,15 @@ module DGFirstOrderMethods
          class(FirstOrderMethod_t)        :: self
          class(Edge_t), pointer           :: edge
          real(kind=RP), allocatable       :: val(:,:)
-         real(kind=RP), pointer  :: QL(:) , QR(:) , QBdry(:)
+         real(kind=RP), allocatable       :: QL(:) , QR(:) , QBdry(:)
          real(kind=RP), pointer  :: T(:,:) , Tinv(:,:)
          integer                          :: iXi
 
          select type ( edge )
             type is (StraightBdryEdge_t)
+               associate( N => edge % spA % N )
+               allocate( val ( 0 : N , NEC ) )
+               end associate
       
 !               QBdry => edge % quads(1) % e % Qb( : , edge % BCLocation  )
 !!              TODO: Beware of this
@@ -333,15 +336,17 @@ module DGFirstOrderMethods
             type is (Edge_t)
       
                associate( N => edge % spA % N )
-               do iXi = 0 , N
 
-                  QL    => edge % Q(: , iXi , LEFT )
-                  QR    => edge % Q(: , iXi , RIGHT)
+               allocate( val ( 0 : N , NEC ) )
+               do iXi = 0 , N
+                  allocate( QL(NEC) , QR(NEC) )
+                  QL    = edge % Q(iXi , : , LEFT )
+                  QR    = edge % Q(iXi , : , RIGHT)
    
                   T     => edge % T(1:NEC , 1:NEC , iXi)
                   Tinv  => edge % T(1:NEC , 1:NEC , iXi)
 
-                  val(:,iXi) = self % RiemannSolver(QL , QR , T , Tinv)
+                  val(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
   
                end do
                end associate
