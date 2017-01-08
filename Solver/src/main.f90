@@ -53,6 +53,7 @@ program main
     write(101,'(F24.16)') sem % Storage % F
     close(101)
 
+
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
     write(STD_OUT , '(30X,A)' ) "\x1B[1;32m Program finished! \x1B[0m"
     write(STD_OUT , '(30X,A,/,/)') "\x1B[1;32m ****************** \x1B[0m"

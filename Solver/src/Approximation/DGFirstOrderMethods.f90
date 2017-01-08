@@ -124,7 +124,6 @@ module DGFirstOrderMethods
          allocate( Fstar( 0 : N , NEC ) )
 !        Compute the averaged flux
          Fstar = self % RiemannFlux( edge )
-         print*, Fstar
 !!
 !!        Perform the loop in both elements
 !         select type ( edge )
@@ -324,7 +323,6 @@ module DGFirstOrderMethods
          select type ( edge )
             type is (StraightBdryEdge_t)
                associate( N => edge % spA % N )
-         print*, "QUe pollas pasa"
                allocate( Fstar ( 0 : N , NEC ) )
                end associate
       
@@ -349,14 +347,13 @@ module DGFirstOrderMethods
 
                   allocate( QL(NEC) , QR(NEC) )
 
-                  QL    = edge % Q(iXi , : , LEFT )
-                  QR    = edge % Q(iXi , : , RIGHT)
+                  QL    = edge % Q(iXi , 1:NEC , LEFT )
+                  QR    = edge % Q(iXi , 1:NEC , RIGHT)
    
                   T     => edge % T(1:NEC , 1:NEC , iXi)
-                  Tinv  => edge % T(1:NEC , 1:NEC , iXi)
+                  Tinv  => edge % Tinv(1:NEC , 1:NEC , iXi)
 
                   Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
-            print*, Fstar(iXi , : ) 
 
                   deallocate( QL , QR )
   
