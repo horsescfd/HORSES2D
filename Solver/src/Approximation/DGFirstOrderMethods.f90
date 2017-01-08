@@ -356,6 +356,7 @@ module DGFirstOrderMethods
                   Tinv  => edge % T(1:NEC , 1:NEC , iXi)
 
                   Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
+            print*, Fstar(iXi , : ) 
 
                   deallocate( QL , QR )
   

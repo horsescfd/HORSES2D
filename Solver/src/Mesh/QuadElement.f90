@@ -306,8 +306,8 @@ module QuadElementClass
 
             if (edgeType .eq. FACE_INTERIOR) then
          
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , POINTS_PER_QUAD        )  ) 
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , POINTS_PER_QUAD )  ) 
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE        )  ) 
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , QUADS_PER_EDGE )  ) 
 
             else
    
