@@ -134,7 +134,7 @@ module InitialConditions
          val(IRHO)  = 1.0_RP
          val(IRHOU) = sqrt( gamma ) * Dimensionless % Mach * cos ( AngleOfAttack )
          val(IRHOV) = sqrt( gamma ) * Dimensionless % Mach * sin ( AngleOfAttack )
-         val(IRHOE) = 0.5_RP * gamma * Dimensionless % Mach * Dimensionless % Mach
+         val(IRHOE) = Dimensionless % cv + 0.5_RP * gamma * Dimensionless % Mach * Dimensionless % Mach
 
          end associate
 
@@ -152,7 +152,7 @@ module InitialConditions
          val(IRHO) = 1.0_RP
          val(IRHOU) = 0.0_RP
          val(IRHOV) = 0.0_RP
-         val(IRHOE) = 0.0_RP
+         val(IRHOE) = Dimensionless % cv
 
       end function SteadyInitialCondition
          
@@ -184,7 +184,7 @@ module InitialConditions
          val(IRHO)  = rho
          val(IRHOU) = rho * u
          val(IRHOV) = rho * v
-         val(IRHOE) = Dimensionless % cv * (rho * T - 1.0_RP ) + 0.5_RP * rho * ( u*u + v*v )
+         val(IRHOE) = Dimensionless % cv * (rho * T) + 0.5_RP * rho * ( u*u + v*v )
 
          end associate
             

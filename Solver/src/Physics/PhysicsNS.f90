@@ -161,12 +161,12 @@ module PhysicsNS
          F(IRHO)  = u(IRHOU)
          F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
          F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
-         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) + Dimensionless % cp) * u(IRHOU) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
 
          G(IRHO)  = u(IRHOV)
          G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
          G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
-         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) + Dimensionless % cp) * u(IRHOV) / u(IRHO)
+         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
@@ -191,12 +191,12 @@ module PhysicsNS
          F(:,IRHO)  = u(:,IRHOU)
          F(:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOU)*u(:,IRHOU) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOV)*u(:,IRHOV)/u(:,IRHO) + gm1 * u(:,IRHOE)
          F(:,IRHOV) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
-         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) )/ u(:,IRHO) + Dimensionless % cp) * u(:,IRHOU) / u(:,IRHO)
+         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) )/ u(:,IRHO)) * u(:,IRHOU) / u(:,IRHO)
 
          G(:,IRHO)  = u(:,IRHOV)
          G(:,IRHOU) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
          G(:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOV)*u(:,IRHOV) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOU)*u(:,IRHOU)/u(:,IRHO) + gm1 * u(:,IRHOE)
-         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO) + Dimensionless % cp) * u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO)) * u(:,IRHOV) / u(:,IRHO)
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
@@ -223,13 +223,13 @@ module PhysicsNS
          F(:,:,IRHO)  = u(:,:,IRHOU)
          F(:,:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOU)*u(:,:,IRHOU) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOV)*u(:,:,IRHOV)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
          F(:,:,IRHOV) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
-         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) )/ u(:,:,IRHO) + Dimensionless % cp)  & 
+         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) )/ u(:,:,IRHO) )  & 
                               * u(:,:,IRHOU) / u(:,:,IRHO)
 
          G(:,:,IRHO)  = u(:,:,IRHOV)
          G(:,:,IRHOU) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
          G(:,:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOV)*u(:,:,IRHOV) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOU)*u(:,:,IRHOU)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
-         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) + Dimensionless % cp) & 
+         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) & 
                               * u(:,:,IRHOV) / u(:,:,IRHO)
 
          F = F / (sqrt(gamma) * Mach)
@@ -249,7 +249,7 @@ module PhysicsNS
          F(IRHO)  = u(IRHOU)
          F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
          F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
-         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) + Dimensionless % cp) * u(IRHOU) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
 
          end associate
       end function F_inviscidFlux
@@ -320,8 +320,6 @@ module PhysicsNS
             qL = MatrixTimesVector_F( A=T , X=qL3D )
             qR = MatrixTimesVector_F( A=T , X=qR3D )
 
-            print*, qL 
-            print*, qR
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
             rhoL = sqrt(qL(IRHO))
             uL   = qL(IRHOU) / qL(IRHO)

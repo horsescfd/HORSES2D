@@ -312,11 +312,11 @@ module DGFirstOrderMethods
 
       end subroutine FirstOrderMethod_describe
    
-      function FirstOrderMethod_RiemannFlux( self , edge ) result( val )
+      function FirstOrderMethod_RiemannFlux( self , edge ) result( Fstar )
          implicit none
          class(FirstOrderMethod_t)        :: self
          class(Edge_t), pointer           :: edge
-         real(kind=RP), allocatable       :: val(:,:)
+         real(kind=RP), allocatable       :: Fstar(:,:)
          real(kind=RP), allocatable       :: QL(:) , QR(:) , QBdry(:)
          real(kind=RP), pointer  :: T(:,:) , Tinv(:,:)
          integer                          :: iXi
@@ -324,7 +324,8 @@ module DGFirstOrderMethods
          select type ( edge )
             type is (StraightBdryEdge_t)
                associate( N => edge % spA % N )
-               allocate( val ( 0 : N , NEC ) )
+         print*, "QUe pollas pasa"
+               allocate( Fstar ( 0 : N , NEC ) )
                end associate
       
 !               QBdry => edge % quads(1) % e % Qb( : , edge % BCLocation  )
@@ -333,20 +334,30 @@ module DGFirstOrderMethods
 !
 !               val = self % RiemannSolver(QBdry , edge % uB , n)
                
+            type is (CurvedBdryEdge_t)
+               associate( N => edge % spA % N )
+               allocate( Fstar ( 0 : N , NEC ) )
+               end associate
+
             type is (Edge_t)
       
                associate( N => edge % spA % N )
 
-               allocate( val ( 0 : N , NEC ) )
+               allocate( Fstar ( 0 : N , NEC ) )
+
                do iXi = 0 , N
+
                   allocate( QL(NEC) , QR(NEC) )
+
                   QL    = edge % Q(iXi , : , LEFT )
                   QR    = edge % Q(iXi , : , RIGHT)
    
                   T     => edge % T(1:NEC , 1:NEC , iXi)
                   Tinv  => edge % T(1:NEC , 1:NEC , iXi)
 
-                  val(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
+                  Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
+
+                  deallocate( QL , QR )
   
                end do
                end associate
