@@ -121,14 +121,16 @@ module DGFirstOrderMethods
          implicit none
          class(FirstOrderMethod_t)          :: self
          class(Edge_t), pointer             :: edge
-         real(kind=RP), dimension(NEC)      :: Fstar
-!!
-!!        -------------------------------------------
-!!           This is a standard fluxes term
-!!        -------------------------------------------
-!!
-!!        Compute the averaged flux
-!         Fstar = self % RiemannFlux( edge )
+         real(kind=RP), allocatable         :: Fstar(:,:)
+!
+!        -------------------------------------------
+!           This is a standard fluxes term
+!        -------------------------------------------
+!
+         associate ( N => edge % spA % N )
+         allocate( Fstar( 0 : N , NEC ) )
+!        Compute the averaged flux
+         Fstar = self % RiemannFlux( edge )
 !!
 !!        Perform the loop in both elements
 !         select type ( edge )
@@ -162,6 +164,8 @@ module DGFirstOrderMethods
 !            class default
 !         end select
 !
+         end associate
+
  
       end subroutine StdDG_QDotFaceLoop
 !
@@ -318,30 +322,37 @@ module DGFirstOrderMethods
          implicit none
          class(FirstOrderMethod_t)        :: self
          class(Edge_t), pointer           :: edge
-         real(kind=RP), dimension(NEC)    :: val
+         real(kind=RP), allocatable       :: val(:,:)
          real(kind=RP), pointer  :: QL(:) , QR(:) , QBdry(:)
-         real(kind=RP), pointer  :: n(:)
-!
-!         select type ( edge )
-!            type is (StraightBdryEdge_t)
-!      
+         real(kind=RP), pointer  :: T(:,:) , Tinv(:,:)
+         integer                          :: iXi
+
+         select type ( edge )
+            type is (StraightBdryEdge_t)
+      
 !               QBdry => edge % quads(1) % e % Qb( : , edge % BCLocation  )
 !!              TODO: Beware of this
 !               n     => NULL()   ! face % n
 !
 !               val = self % RiemannSolver(QBdry , edge % uB , n)
-!               
-!            type is (Edge_t)
-!      
-!               QL => edge % quads(LEFT) % e % Qb( : , RIGHT )
-!               QR => edge % quads(RIGHT) % e % Qb( : , LEFT )
-!!              TODO: Beware of this
-!               n  => NULL()      ! face % n
-!
-!               val = self % RiemannSolver(QL , QR , n)
-!
-!            class default
-!         end select
+               
+            type is (Edge_t)
+      
+               associate( N => edge % spA % N )
+               do iXi = 0 , N
+
+                  QL    => edge % Q(: , iXi , LEFT )
+                  QR    => edge % Q(: , iXi , RIGHT)
+   
+                  T     => edge % T(1:NEC , 1:NEC , iXi)
+                  Tinv  => edge % T(1:NEC , 1:NEC , iXi)
+
+                  val(:,iXi) = self % RiemannSolver(QL , QR , T , Tinv)
+  
+               end do
+               end associate
+            class default
+         end select
       end function FirstOrderMethod_RiemannFlux
 
 end module DGFirstOrderMethods

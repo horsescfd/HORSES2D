@@ -67,6 +67,8 @@ module QuadElementClass
         real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
         real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
         real(kind=RP),              pointer :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
+        real(kind=RP),              pointer :: T(:,:,:)                   ! Fluxes invariance rotation matrix (NDIM,NDIM,xi)
+        real(kind=RP),              pointer :: Tinv(:,:,:)                   ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
         real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
         type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
@@ -295,10 +297,12 @@ module QuadElementClass
 
 !           Geometry
 !           --------
-            allocate ( self % f % X  ( NDIM , 0 : self % f % spA % N )  ) 
-            allocate ( self % f % dX ( NDIM , 0 : self % f % spA % N )  ) 
-            allocate ( self % f % dS ( NDIM , 0 : self % f % spA % N )  ) 
-            allocate ( self % f % n  ( NDIM , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % X    ( NDIM , 0 : self % f % spA % N       )  ) 
+            allocate ( self % f % dX   ( NDIM , 0 : self % f % spA % N       )  ) 
+            allocate ( self % f % dS   ( NDIM , 0 : self % f % spA % N       )  ) 
+            allocate ( self % f % T    ( NEC  , NEC , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % Tinv ( NEC  , NEC , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % n    ( NDIM , 0 : self % f % spA % N       )  ) 
 
             if (edgeType .eq. FACE_INTERIOR) then
          

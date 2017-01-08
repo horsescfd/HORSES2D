@@ -73,13 +73,14 @@ module PhysicsNS
     end type Dimensionless_t
 
     abstract interface
-      function RiemannSolverFunction( QL , QR , n ) result ( val )
+      function RiemannSolverFunction( QL , QR , T , Tinv ) result ( val )
          use SMConstants
          import NEC , NDIM
-         real(kind=RP), dimension(NEC)       :: QL
-         real(kind=RP), dimension(NEC)       :: QR
-         real(kind=RP), dimension(NDIM)      :: n
-         real(kind=RP), dimension(NEC)       :: val
+         real(kind=RP), dimension(NEC)     :: QL
+         real(kind=RP), dimension(NEC)     :: QR
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)     :: val
       end function RiemannSolverFunction
     end interface
 
@@ -237,26 +238,6 @@ module PhysicsNS
 
       end function inviscidFlux2D
 !
-!      function inviscidFlux1D(u) result(val)
-!         implicit none
-!         real(kind=RP)     :: u(:)
-!         real(kind=RP),allocatable     :: val(:)
-!
-!         allocate ( val(size(u,1) ) )
-!         val = 0.5_RP*u*u
-!   
-!      end function inviscidFlux1D
-!
-!      function inviscidFlux2D(u) result(val)
-!         implicit none
-!         real(kind=RP)     :: u(:,:)
-!         real(kind=RP),allocatable     :: val(:,:)
-!
-!         allocate ( val(size(u,1) , size(u,2) ) )
-!         val = 0.5_RP*u*u
-!   
-!      end function inviscidFlux2D
-!
 !      function viscousFlux0D(g,u) result(val)
 !         implicit none
 !         real(kind=RP), optional     :: u
@@ -291,53 +272,25 @@ module PhysicsNS
 !         val = Setup % nu * g
 !
 !      end function viscousFlux2D
-!!
-!!     ****************************************************
-!!        Riemann solvers
-!!     ****************************************************
-!!
-!      function RoeFlux(uL , uR , n) result(val)
-!         implicit none
-!         real(kind=RP), dimension(NEC)       :: uL
-!         real(kind=RP), dimension(NEC)       :: uR
-!         real(kind=RP), dimension(NEC)       :: val
-!         real(kind=RP)                       :: n
-!         real(kind=RP), dimension(NEC)       :: ustar
-!         
-!         ustar = (uL + uR)*n
-!
-!         if (ustar(1) .gt. 0.0_RP) then
-!            val = 0.5_RP * uL*uL
-!         elseif( ustar(1) .lt. 0.0_RP) then
-!            val = 0.5_RP * uR*uR
-!         else
-!            val = 0.0_RP
-!         end if
-!
-!      end function RoeFlux
-!
-!      function ECONFlux(uL , uR , n) result(val)
-!         implicit none
-!         real(kind=RP), dimension(NEC)    :: uL
-!         real(kind=RP), dimensioN(NEC)    :: uR
-!         real(kind=RP), dimension(NEC)    :: val
-!         real(kind=RP)                    :: n
-!         
-!         val = 0.25_RP*( uL*uL + uR*uR ) - 1.0_RP / 12.0_RP * (uL - uR)*(uL-uR)
-!
-!      end function ECONFlux
-!
-!      function LocalLaxFriedrichsFlux(uL , uR , n) result(val)
-!         implicit none
-!         real(kind=RP), dimension(NEC)    :: uL
-!         real(kind=RP), dimensioN(NEC)    :: uR
-!         real(kind=RP), dimension(NEC)    :: val
-!         real(kind=RP)                    :: n
-!
-!         val = 0.25_RP * (uL*uL + uR*uR) - 0.5_RP*max(abs(uL),abs(uR))*(uR-uL)*n
-!
-!      end function LocalLaxFriedrichsFlux
 
+!
+!     ****************************************************
+!        Riemann solvers
+!     ****************************************************
+!
+      function RoeFlux(qL , qR , T , Tinv) result(val)
+         implicit none
+         real(kind=RP), dimension(NEC)       :: qL
+         real(kind=RP), dimension(NEC)       :: qR
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)       :: val
+!        ---------------------------------------------------------------
+         real(kind=RP), dimension(NEC,NDIM)  :: F
+         
+         F = 0.5_RP * (inviscidFlux(qL) + inviscidFlux(qR))
+         val = F(:,iX)
+      end function RoeFlux
 !
 !      ***************************************************************************
 !           Subroutine for the module description
