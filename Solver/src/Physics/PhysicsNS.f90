@@ -286,10 +286,37 @@ module PhysicsNS
          real(kind=RP), dimension(NEC,NEC) :: Tinv
          real(kind=RP), dimension(NEC)       :: val
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC,NDIM)  :: F
-         
-         F = 0.5_RP * (inviscidFlux(qL) + inviscidFlux(qR))
-         val = F(:,iX)
+         real(kind=RP)                       :: rhoL , uL , vL , HL
+         real(kind=RP)                       :: rhoR , uR , vR , HR
+         real(kind=RP)                       :: rho , u , v , H , a
+         real(kind=RP)                       :: lambda(NEC)
+
+!        ****** MISSING THE ROTATION! ********
+!        0/ Gather variables
+!           ----------------
+            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
+            rhoL = sqrt(qL(IRHO))
+            uL   = qL(IRHOU) / qL(IRHO)
+            vL   = qL(IRHOV) / qL(IRHO)
+            HL   = gamma * qL(IRHOE) / qL(IRHO) - 0.5_RP * gm1 * ( uL*uL + vL*vL )
+
+            rhoR = sqrt(qR(IRHO))
+            uR   = qR(IRHOU) / qR(IRHO)
+            vR   = qR(IRHOV) / qR(IRHO)
+            HR   = gamma * qR(IRHOE) / qR(IRHO) - 0.5_RP * gm1 * ( uR*uR + vR*vR )
+            end associate
+
+!        1/ Compute Roe averages
+!           --------------------
+            rho = rhoL + rhoR
+            u   = (rhoL*uL + rhoR*uR)/rho
+            v   = (rhoL*vL + rhoR*vR)/rho
+            H   = (rhoL*HL + rhoR*HR)/rho
+            associate( gm1 => Thermodynamics % gm1 ) 
+            a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
+            end associate
+
+
       end function RoeFlux
 !
 !      ***************************************************************************
