@@ -7,6 +7,7 @@ module PhysicsNS
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux
+    public :: RoeFlux
 !
 !   *****************************************
 !        Definitions
@@ -237,6 +238,22 @@ module PhysicsNS
          end associate
 
       end function inviscidFlux2D
+     
+      function F_inviscidFlux(u) result(F)
+         implicit none
+         real(kind=RP)        :: u(NEC)
+         real(kind=RP)        :: F(NEC)
+   
+         associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )    
+
+         F(IRHO)  = u(IRHOU)
+         F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
+         F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) + Dimensionless % cp) * u(IRHOU) / u(IRHO)
+
+         end associate
+      end function F_inviscidFlux
+
 !
 !      function viscousFlux0D(g,u) result(val)
 !         implicit none
@@ -278,22 +295,31 @@ module PhysicsNS
 !        Riemann solvers
 !     ****************************************************
 !
-      function RoeFlux(qL , qR , T , Tinv) result(val)
+      function RoeFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+         use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)       :: qL
-         real(kind=RP), dimension(NEC)       :: qR
+         real(kind=RP), dimension(NEC)     :: qL3D
+         real(kind=RP), dimension(NEC)     :: qR3D
          real(kind=RP), dimension(NEC,NEC) :: T
          real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)       :: val
+         real(kind=RP), dimension(NEC)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP)                       :: rhoL , uL , vL , HL
-         real(kind=RP)                       :: rhoR , uR , vR , HR
-         real(kind=RP)                       :: rho , u , v , H , a
-         real(kind=RP)                       :: lambda(NEC)
+         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP)                 :: rhoL , uL , vL , HL
+         real(kind=RP)                 :: rhoR , uR , vR , HR
+         real(kind=RP)                 :: rho , u , v , H , a
+         real(kind=RP)                 :: dq(NEC)
+         real(kind=RP)                 :: lambda(NEC)
+         real(kind=RP)                 :: K(NEC,NEC)
+         real(kind=RP)                 :: alpha(NEC)
+         integer                       :: eq
 
-!        ****** MISSING THE ROTATION! ********
 !        0/ Gather variables
 !           ----------------
+
+            qL = MatrixTimesVector_F( A=T , X=qL3D )
+            qR = MatrixTimesVector_F( A=T , X=qR3D )
+
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
             rhoL = sqrt(qL(IRHO))
             uL   = qL(IRHOU) / qL(IRHO)
@@ -316,6 +342,51 @@ module PhysicsNS
             a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
             end associate
 
+!
+!        2/ Compute Roe matrix eigenvalues
+!           ------------------------------
+            lambda(1) = u - a
+            lambda(2) = u
+            lambda(3) = u
+            lambda(4) = u + a 
+
+!
+!        3/ Compute the averaged right eigenvectors
+!           ---------------------------------------
+            K(1:NEC , 1)  = reshape( (/ 1.0_RP , u-a    , v      , H-u*a                /)  ,  (/ NEC /) )
+            K(1:NEC , 2)  = reshape( (/ 1.0_RP , u      , v      , 0.5_RP * (u*u + v*v) /)  ,  (/ NEC /) )
+            K(1:NEC , 3)  = reshape( (/ 0.0_RP , 0.0_RP , 1.0_RP , v                    /)  ,  (/ NEC /) )
+            K(1:NEC , 4)  = reshape( (/ 1.0_RP , u + a  , v      , H + u*a              /)  ,  (/ NEC /) )
+!
+!        4/ Compute the wave strengths
+!           --------------------------
+            associate( gm1 => Thermodynamics % gm1 ) 
+            dq = qR - qL
+            alpha(3) = dq(IRHOV) - v*dq(IRHO)
+            alpha(2) = (dq(IRHO) * (H - u*u) + u*dq(IRHOU) - dq(IRHOE) + (dq(IRHOV) - v*dq(IRHO))*v) / ( a*a )
+            alpha(1) = (dq(IRHO) * (u + a) - dq(IRHOU) - a * alpha(2)) / (2.0_RP*a)
+            alpha(4) = dq(IRHO) - (alpha(1) + alpha(2)) 
+            end associate
+!
+!        5/ Compute the flux
+!           ----------------
+            Fstar = 0.5_RP * ( F_inviscidFlux(qL) + F_inviscidFLux(qR) )
+               
+            do eq = 1 , NEC
+               Fstar = Fstar - 0.5_RP * alpha(eq) * abs(lambda(eq)) * K(1:NEC , eq)
+            end do
+
+!
+!        6/ Scale it with the Mach number
+!           -----------------------------
+            associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            end associate
+            
+!  
+!        7/ Return to the 3D Space
+!           ----------------------
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
 
       end function RoeFlux
 !

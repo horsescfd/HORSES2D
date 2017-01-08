@@ -274,7 +274,9 @@ module DGSpatialDiscretizationMethods
 !        Face loops
 !
          do fID = 1 , mesh % no_of_edges
-!            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
+            print*, "K pasa primo"
+            print*, mesh % edges(fID) % f % edgeType
+            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
 !            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
          end do
 !

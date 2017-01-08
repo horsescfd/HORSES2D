@@ -22,7 +22,7 @@ GLOB_MACROS ?=   -D_USE_LAPACK
 
 
 Physics: PhysicsNS Headers
-PhysicsNS: Setup SMConstants Headers
+PhysicsNS: Setup SMConstants Headers MatrixOperations
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
 InterpolationAndDerivatives: SMConstants

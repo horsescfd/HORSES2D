@@ -99,14 +99,7 @@ module DGFirstOrderMethods
 
 !        Set the Riemann flux
          if (trim( Setup % inviscid_flux ) .eq. "Roe") then
-            FirstOrderMethod % RiemannSolver => NULL()
-
-         elseif ( trim ( Setup % inviscid_flux) .eq. "ECON") then
-            FirstOrderMethod % RiemannSolver => NULL()
-
-         elseif ( trim ( Setup % inviscid_flux ) .eq. "LLF") then
-            FirstOrderMethod % RiemannSolver => NULL()
-
+            FirstOrderMethod % RiemannSolver => RoeFlux
          else
             write(STD_OUT , *) "Solver ", trim ( Setup % inviscid_flux) ," not implemented yet."
          end if
@@ -131,6 +124,7 @@ module DGFirstOrderMethods
          allocate( Fstar( 0 : N , NEC ) )
 !        Compute the averaged flux
          Fstar = self % RiemannFlux( edge )
+         print*, Fstar
 !!
 !!        Perform the loop in both elements
 !         select type ( edge )
