@@ -3,6 +3,7 @@ module DGFirstOrderMethods
    use QuadElementClass
    use Physics
    use NodesAndWeights_class
+   use QuadMeshDefinitions
    implicit none
 !
 !  *******************************************************************
@@ -115,6 +116,12 @@ module DGFirstOrderMethods
          class(FirstOrderMethod_t)          :: self
          class(Edge_t), pointer             :: edge
          real(kind=RP), allocatable         :: Fstar(:,:)
+         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: lj2D(:,:)
+         integer                            :: direction
+         integer                            :: pos
+         integer                            :: index
+         real(kind=RP)                      :: sig
 !
 !        -------------------------------------------
 !           This is a standard fluxes term
@@ -124,27 +131,152 @@ module DGFirstOrderMethods
          allocate( Fstar( 0 : N , NEC ) )
 !        Compute the averaged flux
          Fstar = self % RiemannFlux( edge )
-!!
-!!        Perform the loop in both elements
-!         select type ( edge )
-!            type is (Edge_t)
-!               associate(QDot => edge % quads(LEFT) % e % QDot, &
-!                   N=> edge % quads(LEFT) % e % Interp % N, &
-!                   e=> edge % quads(LEFT) % e)
-!!     
-!!                  This (-) sign comes from the equation ut = -fx !
-!                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,RIGHT) , Fstar) * edge % nb
 !
-!               end associate
-!
-!               associate(QDot => edge % quads(RIGHT) % e % QDot, &
-!                   N=> edge % quads(RIGHT) % e % Interp % N, &
-!                   e=> edge % quads(RIGHT) % e)
-!
-!                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,LEFT) , Fstar) * (-1.0_RP * edge % n)
-!
-!               end associate
-!
+!        Perform the loop in both elements
+         select type ( edge )
+            type is (Edge_t)
+
+!              Equation for the LEFT element
+               associate(QDot => edge % quads(LEFT) % e % QDot, &
+                   N=> edge % quads(LEFT) % e % spA % N, &
+                   e=> edge % quads(LEFT) % e)
+ 
+                  if ( edge % edgeLocation(LEFT) .eq. ERIGHT) then
+         
+                     direction = e % edgesDirection( edge % edgeLocation(LEFT) )
+                     pos = RIGHT
+                     sig = 1.0_RP
+                     index = 1
+
+                     allocate(Fstar2D(1,0:N,NEC))
+                     
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     end if
+
+                  elseif ( edge % edgeLocation(LEFT) .eq. ETOP ) then
+            
+                     direction = - e % edgesDirection ( edge % edgeLocation(LEFT) ) 
+                     pos = RIGHT
+                     sig = -1.0_RP
+                     index = 2
+                     allocate(Fstar2D(0:N,1,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     end if
+
+                  elseif ( edge % edgeLocation(LEFT) .eq. ELEFT ) then
+   
+                     direction = - e % edgesDirection ( edge % edgeLocation(LEFT) )
+                     pos = LEFT
+                     sig = -1.0_RP
+                     index = 1
+                     allocate(Fstar2D(1,0:N,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     end if
+
+                  elseif ( edge % edgeLocation(LEFT) .eq. EBOTTOM ) then
+
+                     direction = e % edgesDirection ( edge % edgeLocation(LEFT) ) 
+                     sig = 1.0_RP
+                     pos = LEFT
+                     index = 2
+                     allocate(Fstar2D(0:N,1,NEC))
+         
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     end if
+
+                  end if
+!     
+!                  This (-) sign comes from the equation ut = -fx !
+                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+                   QDot = QDot - sig * MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+                  deallocate(Fstar2D)
+
+               end associate
+
+!              Equation for the LEFT element
+               associate(QDot => edge % quads(RIGHT) % e % QDot, &
+                   N=> edge % quads(RIGHT) % e % spA % N, &
+                   e=> edge % quads(RIGHT) % e)
+ 
+                  if ( edge % edgeLocation(RIGHT) .eq. ERIGHT) then
+         
+                     direction = e % edgesDirection( edge % edgeLocation(RIGHT) )
+                     pos = RIGHT
+                     sig = 1.0_RP
+                     index = 1
+
+                     allocate(Fstar2D(1,0:N,NEC))
+                     
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     end if
+
+                  elseif ( edge % edgeLocation(RIGHT) .eq. ETOP ) then
+            
+                     direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
+                     pos = RIGHT
+                     sig = -1.0_RP
+                     index = 2
+                     allocate(Fstar2D(0:N,1,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     end if
+
+                  elseif ( edge % edgeLocation(RIGHT) .eq. ELEFT ) then
+   
+                     direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) )
+                     pos = LEFT
+                     sig = -1.0_RP
+                     index = 1
+                     allocate(Fstar2D(1,0:N,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     end if
+
+                  elseif ( edge % edgeLocation(RIGHT) .eq. EBOTTOM ) then
+
+                     direction = e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
+                     pos = LEFT
+                     sig = 1.0_RP
+                     index = 2
+                     allocate(Fstar2D(0:N,1,NEC))
+         
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     end if
+
+                  end if
+
+                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+                   QDot = QDot + sig * MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+                   deallocate(Fstar2D)
+               end associate
 !
 !            type is (BdryEdge_t)
 !               associate(QDot => edge % quads(1) % e % QDot , &
@@ -154,14 +286,13 @@ module DGFirstOrderMethods
 !                  QDot = QDot - vectorOuterProduct(e % Interp % lb(:,edge % BCLocation) , Fstar)* edge % n
 !
 !               end associate
-!            class default
-!         end select
-!
-         end associate
+            class default
+         end select
 
+        end associate
  
       end subroutine StdDG_QDotFaceLoop
-!
+
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations
          implicit none
