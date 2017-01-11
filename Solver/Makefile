@@ -42,8 +42,9 @@ Setup: SMConstants
 DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGSecondOrderMethods MatrixOperations DGFirstOrderMethods
 DGSecondOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGFirstOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
-DGBoundaryConditions: SMConstants  Setup Physics QuadElement
+DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 FileWriting: SMConstants Physics QuadMesh Setup
+Paramfile: SMConstants
 DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class

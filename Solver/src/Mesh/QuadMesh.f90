@@ -5,6 +5,7 @@ module QuadMeshClass
     use InitialConditions
     use Storage_module
     use QuadMeshDefinitions
+    use DGBoundaryConditions
 
     private
     public Zone_t , QuadMesh_t , InitializeMesh
@@ -31,10 +32,11 @@ module QuadMeshClass
     end type QuadMesh_t
 
     type Zone_t
-       integer                     :: marker
-       character(len=STR_LEN_MESH) :: Name
-       integer                     :: no_of_edges
-       class(Edge_p), pointer      :: edges(:)
+       integer                             :: marker
+       character(len=STR_LEN_MESH)         :: Name
+       integer                             :: no_of_edges
+       class(Edge_p), pointer              :: edges(:)
+       class(BoundaryCondition_t), pointer :: BC
        contains
           procedure      :: Construct => Zone_Construct
     end type Zone_t

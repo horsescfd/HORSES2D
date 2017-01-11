@@ -16,7 +16,7 @@ module Setup_class
 !        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/2d_quad_grid2.HiOMesh"   ! Channel
 !        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/TaylorTransport.HiOMesh" ! Vortex
 !        character(len=STR_LEN_SETUP) :: mesh_file                 = "./MESH/FreeStream.HiOMesh"      ! Free stream
-        character(len=STR_LEN_SETUP) :: bdry_file                 = "./CASE/Cylinder.bmap"
+        character(len=STR_LEN_SETUP) :: bdry_file                 = "./SETUP/Cylinder.bmap"
 !
 !       -------------------------------------------------------------------------------------
 !              Reference quantities

@@ -1,0 +1,10 @@
+# define zone 1
+	Name = Inflow
+	Type = Dirichlet
+# end 
+
+# define zone 2
+	Name = Outflow
+	Type = Dirichlet
+# end 
+

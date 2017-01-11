@@ -7,11 +7,13 @@ program main
     use QuadElementClass
     use Headers
     use ChecksModule
+    use ParamfileIO
     use Tecplot
     implicit none
     type(MeshFile_t)       :: meshFile
     type(DGSEM_t)          :: sem
     integer                :: eID , edID
+   character(len=100)      :: edgeType
 
 !   =====================
 !   The REAL main program
@@ -53,6 +55,10 @@ program main
     write(101,'(F24.16)') sem % Storage % F
     close(101)
 
+   print*, "Reading parameter file"
+   call ReadValue( Setup % bdry_file , "Type",edgeType ) 
+      print*, edgeType
+   
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
     write(STD_OUT , '(30X,A)' ) "\x1B[1;32m Program finished! \x1B[0m"
     write(STD_OUT , '(30X,A,/,/)') "\x1B[1;32m ****************** \x1B[0m"
