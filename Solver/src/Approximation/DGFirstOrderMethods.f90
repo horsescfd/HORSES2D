@@ -121,7 +121,6 @@ module DGFirstOrderMethods
          integer                            :: direction
          integer                            :: pos
          integer                            :: index
-         real(kind=RP)                      :: sig
 !
 !        -------------------------------------------
 !           This is a standard fluxes term
@@ -145,8 +144,7 @@ module DGFirstOrderMethods
          
                      direction = e % edgesDirection( edge % edgeLocation(LEFT) )
                      pos = RIGHT
-                     sig = 1.0_RP
-                     index = 1
+                     index = iX
 
                      allocate(Fstar2D(1,0:N,NEC))
                      
@@ -154,56 +152,67 @@ module DGFirstOrderMethods
                         Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   elseif ( edge % edgeLocation(LEFT) .eq. ETOP ) then
             
                      direction = - e % edgesDirection ( edge % edgeLocation(LEFT) ) 
                      pos = RIGHT
-                     sig = -1.0_RP
-                     index = 2
+                     index = iY
                      allocate(Fstar2D(0:N,1,NEC))
    
                      if ( direction .eq. FORWARD ) then
                         Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   elseif ( edge % edgeLocation(LEFT) .eq. ELEFT ) then
    
                      direction = - e % edgesDirection ( edge % edgeLocation(LEFT) )
                      pos = LEFT
-                     sig = -1.0_RP
-                     index = 1
+                     index = iX
                      allocate(Fstar2D(1,0:N,NEC))
    
                      if ( direction .eq. FORWARD ) then
                         Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   elseif ( edge % edgeLocation(LEFT) .eq. EBOTTOM ) then
 
                      direction = e % edgesDirection ( edge % edgeLocation(LEFT) ) 
-                     sig = 1.0_RP
                      pos = LEFT
-                     index = 2
+                     index = iY
                      allocate(Fstar2D(0:N,1,NEC))
          
                      if ( direction .eq. FORWARD ) then
                         Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   end if
 !     
 !                  This (-) sign comes from the equation ut = -fx !
                    lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
-                   QDot = QDot - sig * MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
 
+                   lj2D=>NULL()
+                   
                   deallocate(Fstar2D)
 
                end associate
@@ -216,9 +225,8 @@ module DGFirstOrderMethods
                   if ( edge % edgeLocation(RIGHT) .eq. ERIGHT) then
          
                      direction = e % edgesDirection( edge % edgeLocation(RIGHT) )
-                     pos = RIGHT
-                     sig = 1.0_RP
-                     index = 1
+                     pos = RIGHT                    ! Where to interpolate the test function
+                     index = iX                     ! The coordinate (xi/eta) in which the boundary is located
 
                      allocate(Fstar2D(1,0:N,NEC))
                      
@@ -226,55 +234,65 @@ module DGFirstOrderMethods
                         Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   elseif ( edge % edgeLocation(RIGHT) .eq. ETOP ) then
             
                      direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
                      pos = RIGHT
-                     sig = -1.0_RP
-                     index = 2
+                     index = iY
                      allocate(Fstar2D(0:N,1,NEC))
    
                      if ( direction .eq. FORWARD ) then
                         Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   elseif ( edge % edgeLocation(RIGHT) .eq. ELEFT ) then
    
                      direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) )
                      pos = LEFT
-                     sig = -1.0_RP
-                     index = 1
+                     index = iX
                      allocate(Fstar2D(1,0:N,NEC))
    
                      if ( direction .eq. FORWARD ) then
                         Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   elseif ( edge % edgeLocation(RIGHT) .eq. EBOTTOM ) then
 
                      direction = e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
                      pos = LEFT
-                     sig = 1.0_RP
-                     index = 2
+                     index = iY
                      allocate(Fstar2D(0:N,1,NEC))
          
                      if ( direction .eq. FORWARD ) then
                         Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
                      elseif ( direction .eq. BACKWARD ) then
                         Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
                      end if
 
                   end if
 
                    lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
-                   QDot = QDot + sig * MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+                   QDot = QDot +  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
 
+                   lj2D=>NULL()
                    deallocate(Fstar2D)
                end associate
 !

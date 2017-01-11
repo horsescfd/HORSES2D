@@ -316,7 +316,6 @@ module PhysicsNS
 
 !        0/ Gather variables
 !           ----------------
-
             qL = MatrixTimesVector_F( A=T , X=qL3D )
             qR = MatrixTimesVector_F( A=T , X=qR3D )
 
@@ -375,19 +374,18 @@ module PhysicsNS
             do eq = 1 , NEC
                Fstar = Fstar - 0.5_RP * alpha(eq) * abs(lambda(eq)) * K(1:NEC , eq)
             end do
+  
+!        6/ Return to the 3D Space
+!           ----------------------
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
 
-!
-!        6/ Scale it with the Mach number
+!        7/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
             Fstar = Fstar / ( sqrt(gamma) * Mach)
             end associate
             
-!  
-!        7/ Return to the 3D Space
-!           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
-
+!
       end function RoeFlux
 !
 !      ***************************************************************************

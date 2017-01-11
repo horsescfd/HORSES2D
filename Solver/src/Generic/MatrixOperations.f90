@@ -396,6 +396,11 @@ module MatrixOperations
          integer                            :: I1 , I2 , I3
          integer                            :: i , j
          
+         if (size(A,index) .ne. size(B,1)) then
+            print*, 'Inconsistent dimensions in "MatrixMultiplyInIndex_F"'
+            stop "Stopped."
+         end if
+
          I1 = size(A,1)
          I2 = size(A,2)
          I3 = size(A,3)
@@ -414,13 +419,13 @@ module MatrixOperations
          if (index .eq. 1) then
             do i = 1 , I2
                do j = 1 , I3
-                  C(:,i,j) = MatrixTimesVector_F ( A=B , X=A(:,i,j) , trA=.true. ) 
+                  C(1:I1,i,j) = MatrixTimesVector_F ( A=B , X=A(:,i,j) , trA=.true. ) 
                end do
             end do
          
          elseif (index .eq. 2) then
             do i = 1 , I3
-               C(:,:,i) = Mat_X_Mat_F( A=A(:,:,i) , B=B  ) 
+               C(1:I1,1:I2,i) = Mat_X_Mat_F( A=A(:,:,i) , B=B  ) 
             end do
          elseif (index .eq. 3) then
             call c_f_pointer ( c_loc( A ) , P1A , [size(A)] )
