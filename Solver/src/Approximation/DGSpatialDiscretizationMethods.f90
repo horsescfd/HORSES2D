@@ -78,13 +78,13 @@ module DGSpatialDiscretizationMethods
 !        Compute the solution Q gradient dQ
 !        ----------------------------------
 !
-         call DGSpatial_computeGradient( mesh )
+!         call DGSpatial_computeGradient( mesh )
 !
 !        ----------------------------------
 !        Interpolate gradient to boundaries
 !        ----------------------------------
 !
-         call DGSpatial_interpolateToBoundaries( mesh , "dQ" )
+!         call DGSpatial_interpolateToBoundaries( mesh , "dQ" )
 
       end subroutine DGSpatial_newTimeStep
 !
@@ -132,30 +132,11 @@ module DGSpatialDiscretizationMethods
                      case ("Q")
                         variable(0:, 0: )   => e % Q(0:,0:,eq)
                
-                        if ( direction .eq. FORWARD ) then
-                           variable_b = ed % Q(0:N , eq , e % quadPosition(edID) )
-                        else
-                           variable_b = ed % Q(N:0:-1 , eq , e % quadPosition(edID) )
-                        end if
-
                      case ("dxiQ")
                         variable(0: , 0: )   => e % dQ(0:,0:,eq,iX)
                
-                        if ( direction .eq. FORWARD ) then
-                           variable_b = ed % dQ(0:N , eq , e % quadPosition(edID) , iX)
-                        else
-                           variable_b = ed % dQ(N:0:-1 , eq , e % quadPosition(edID) , iX)
-                        end if
-
                      case ("detaQ")
                         variable(0: , 0: )   => e % dQ(0:,0:,eq,iY)
-               
-                        if ( direction .eq. FORWARD ) then
-                           variable_b = ed % dQ(0:N , eq , e % quadPosition(edID) , iY)
-                        else
-                           variable_b = ed % dQ(N:0:-1 , eq , e % quadPosition(edID) , iY)
-                        end if
-
 
                   end select
    
@@ -266,22 +247,22 @@ module DGSpatialDiscretizationMethods
 !
 !        Volume loops
 !
-!         do eID = 1 , mesh % no_of_elements
-!            call FirstOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
+         do eID = 1 , mesh % no_of_elements
+            call FirstOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
 !            call SecondOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
-!         end do
-!!
-!!        Face loops
-!!
-!         do fID = 1 , mesh % no_of_edges
-!            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
+         end do
+!
+!        Face loops
+!
+         do fID = 1 , mesh % no_of_edges
+            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
 !            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
-!         end do
-!!
-!!        -------------------------------------------
-!!        Perform the scaling with the mass matrix
-!!        -------------------------------------------
-!!
+         end do
+!
+!        -------------------------------------------
+!        Perform the scaling with the mass matrix
+!        -------------------------------------------
+!
 !         do eID = 1 , mesh % no_of_elements
 !            mesh % elements(eID) % QDot = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % QDot)
 !         end do

@@ -3,6 +3,7 @@ module DGFirstOrderMethods
    use QuadElementClass
    use Physics
    use NodesAndWeights_class
+   use QuadMeshDefinitions
    implicit none
 !
 !  *******************************************************************
@@ -18,19 +19,19 @@ module DGFirstOrderMethods
 !  *******************************************************************
    type FirstOrderMethod_t
       character(len=STR_LEN_FIRSTORDER)         :: method
+      integer                                   :: formulation
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
-         procedure, non_overridable :: QDotFaceLoop => BaseClass_QDotFaceLoop
-         procedure, non_overridable :: RiemannFlux => FirstOrderMethod_RiemannFlux
-         procedure                  :: QDotVolumeLoop => BaseClass_QDotVolumeLoop
-         procedure, non_overridable :: Describe => FirstOrderMethod_describe
+         procedure, non_overridable :: QDotFaceLoop         => StdDG_QDotFaceLoop
+         procedure, non_overridable :: RiemannFlux          => FirstOrderMethod_RiemannFlux
+         procedure                  :: QDotVolumeLoop       => StdDG_QDotVolumeLoop
+         procedure                  :: ComputeInnerFluxes   => StdDG_ComputeInnerFluxes
+         procedure, non_overridable :: Describe             => FirstOrderMethod_describe
    end type FirstOrderMethod_t
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
    type, extends(FirstOrderMethod_t) :: StandardDG_t
-      contains
-         procedure ::  QDotVolumeLoop => StdDG_QDotVolumeLoop
    end type StandardDG_t
 !  *******************************************************
 !  -------------------------------------------------------
@@ -75,6 +76,10 @@ module DGFirstOrderMethods
       
          else
             write(STD_OUT , *) "Method ", trim(Setup % inviscid_discretization), " not implemented yet."
+            write(STD_OUT , '(10X,A)') "Options available are:"
+            write(STD_OUT , '(20X,A)') "* Standard"
+            write(STD_OUT , '(20X,A)') "* Over-Integration"
+            write(STD_OUT , '(20X,A)') "* Split"
             STOP "Stopped."
 
          end if
@@ -84,6 +89,7 @@ module DGFirstOrderMethods
 
          select type (FirstOrderMethod)
             type is (StandardDG_t)
+               FirstOrderMethod % formulation = Setup % inviscid_formulation
 
             type is (OverIntegrationDG_t)
    
@@ -94,14 +100,7 @@ module DGFirstOrderMethods
 
 !        Set the Riemann flux
          if (trim( Setup % inviscid_flux ) .eq. "Roe") then
-            FirstOrderMethod % RiemannSolver => NULL()
-
-         elseif ( trim ( Setup % inviscid_flux) .eq. "ECON") then
-            FirstOrderMethod % RiemannSolver => NULL()
-
-         elseif ( trim ( Setup % inviscid_flux ) .eq. "LLF") then
-            FirstOrderMethod % RiemannSolver => NULL()
-
+            FirstOrderMethod % RiemannSolver => RoeFlux
          else
             write(STD_OUT , *) "Solver ", trim ( Setup % inviscid_flux) ," not implemented yet."
          end if
@@ -111,40 +110,191 @@ module DGFirstOrderMethods
 
       end function FirstOrderMethod_Initialization
 
-      subroutine BaseClass_QDotFaceLoop( self , edge )
+      subroutine StdDG_QDotFaceLoop( self , edge )
          use MatrixOperations
          implicit none
          class(FirstOrderMethod_t)          :: self
          class(Edge_t), pointer             :: edge
-         real(kind=RP), dimension(NEC)      :: Fstar
-!!
-!!        -------------------------------------------
-!!           This is a standard fluxes term
-!!        -------------------------------------------
-!!
-!!        Compute the averaged flux
-!         Fstar = self % RiemannFlux( edge )
-!!
-!!        Perform the loop in both elements
-!         select type ( edge )
-!            type is (Edge_t)
-!               associate(QDot => edge % quads(LEFT) % e % QDot, &
-!                   N=> edge % quads(LEFT) % e % Interp % N, &
-!                   e=> edge % quads(LEFT) % e)
-!!     
-!!                  This (-) sign comes from the equation ut = -fx !
-!                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,RIGHT) , Fstar) * edge % nb
+         real(kind=RP), allocatable         :: Fstar(:,:)
+         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: lj2D(:,:)
+         integer                            :: direction
+         integer                            :: pos
+         integer                            :: index
 !
-!               end associate
+!        -------------------------------------------
+!           This is a standard fluxes term
+!        -------------------------------------------
 !
-!               associate(QDot => edge % quads(RIGHT) % e % QDot, &
-!                   N=> edge % quads(RIGHT) % e % Interp % N, &
-!                   e=> edge % quads(RIGHT) % e)
+         associate ( N => edge % spA % N )
+         allocate( Fstar( 0 : N , NEC ) )
+!        Compute the averaged flux
+         Fstar = self % RiemannFlux( edge )
 !
-!                   QDot = QDot - vectorOuterProduct(e % Interp % lb(:,LEFT) , Fstar) * (-1.0_RP * edge % n)
-!
-!               end associate
-!
+!        Perform the loop in both elements
+         select type ( edge )
+            type is (Edge_t)
+
+!              Equation for the LEFT element
+               associate(QDot => edge % quads(LEFT) % e % QDot, &
+                   N=> edge % quads(LEFT) % e % spA % N, &
+                   e=> edge % quads(LEFT) % e)
+ 
+                  if ( edge % edgeLocation(LEFT) .eq. ERIGHT) then
+         
+                     direction = e % edgesDirection( edge % edgeLocation(LEFT) )
+                     pos = RIGHT
+                     index = iX
+
+                     allocate(Fstar2D(1,0:N,NEC))
+                     
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(LEFT) .eq. ETOP ) then
+            
+                     direction = - e % edgesDirection ( edge % edgeLocation(LEFT) ) 
+                     pos = RIGHT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(LEFT) .eq. ELEFT ) then
+   
+                     direction = - e % edgesDirection ( edge % edgeLocation(LEFT) )
+                     pos = LEFT
+                     index = iX
+                     allocate(Fstar2D(1,0:N,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(LEFT) .eq. EBOTTOM ) then
+
+                     direction = e % edgesDirection ( edge % edgeLocation(LEFT) ) 
+                     pos = LEFT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+         
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  end if
+!     
+!                  This (-) sign comes from the equation ut = -fx !
+                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+                   lj2D=>NULL()
+                   
+                  deallocate(Fstar2D)
+
+               end associate
+
+!              Equation for the LEFT element
+               associate(QDot => edge % quads(RIGHT) % e % QDot, &
+                   N=> edge % quads(RIGHT) % e % spA % N, &
+                   e=> edge % quads(RIGHT) % e)
+ 
+                  if ( edge % edgeLocation(RIGHT) .eq. ERIGHT) then
+         
+                     direction = e % edgesDirection( edge % edgeLocation(RIGHT) )
+                     pos = RIGHT                    ! Where to interpolate the test function
+                     index = iX                     ! The coordinate (xi/eta) in which the boundary is located
+
+                     allocate(Fstar2D(1,0:N,NEC))
+                     
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(RIGHT) .eq. ETOP ) then
+            
+                     direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
+                     pos = RIGHT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(RIGHT) .eq. ELEFT ) then
+   
+                     direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) )
+                     pos = LEFT
+                     index = iX
+                     allocate(Fstar2D(1,0:N,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(RIGHT) .eq. EBOTTOM ) then
+
+                     direction = e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
+                     pos = LEFT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+         
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  end if
+
+                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+                   QDot = QDot +  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+                   lj2D=>NULL()
+                   deallocate(Fstar2D)
+               end associate
 !
 !            type is (BdryEdge_t)
 !               associate(QDot => edge % quads(1) % e % QDot , &
@@ -154,48 +304,99 @@ module DGFirstOrderMethods
 !                  QDot = QDot - vectorOuterProduct(e % Interp % lb(:,edge % BCLocation) , Fstar)* edge % n
 !
 !               end associate
-!            class default
-!         end select
-!
+            class default
+         end select
+
+        end associate
  
-      end subroutine BaseClass_QDotFaceLoop
-!
-      subroutine BaseClass_QDotVolumeLoop( self , element )
-         implicit none
-         class(FirstOrderMethod_t)          :: self
-         class(QuadElement_t)                       :: element
-!
-!        ---------------------------
-!        The base class does nothing
-!        ---------------------------
-!
-      end subroutine BaseClass_QDotVolumeLoop
+      end subroutine StdDG_QDotFaceLoop
 
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations
          implicit none
-         class(StandardDG_t)     :: self
+         class(FirstOrderMethod_t) :: self
          class(QuadElement_t)      :: element
-!!
-!!        -------------------------------------------
-!!           The standard DG computes the volume
-!!        terms as:
-!!              tr(D)*M*F(Q) = tr(MD)*F(Q)
-!!        -------------------------------------------
-!!
-!!        Compute fluxes
-!!        TODO: Beware of this
-!         element % F = 0.0_RP !inviscidFlux( element % Q )
-!!
-!!        Perform the matrix multiplication
-!         associate( QDot => element % QDot , &
-!                    MD => element % Interp % MD)
+         integer                   :: eq
 !
-!         QDot = QDot + TransposeMat_x_NormalMat_F( MD , element % F )
+!        -------------------------------------------
+!           The standard DG computes the volume
+!        terms as:
+!              tr(D)*M*F(Q) = tr(MD)*F(Q)
+!        -------------------------------------------
 !
-!         end associate
+!        Compute fluxes
+         call self % computeInnerFluxes ( element )
 !
+!        Perform the matrix multiplication
+         associate( QDot => element % QDot     , &
+                    MD   => element % spA % MD , &
+                    M    => element % spA % M  , &
+                    N    => element % spA % N      )
+
+         do eq = 1 , NEC
+
+            if ( self % formulation .eq. FORMI ) then
+!
+!              F Loop
+!              ------
+               call Mat_x_Mat(A = MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+                           trA = .true. , reset = .false. )
+
+!
+!              G Loop
+!              ------
+               call Mat_x_Mat(A = Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+                            reset = .false. )
+
+            elseif ( self % formulation .eq. FORMII ) then
+!
+!              F Loop
+!              ------
+               call Mat_x_Mat(A = -MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+                            reset = .false. )
+
+!
+!              G Loop
+!              ------
+               call Mat_x_Mat(A = -Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+                            trB = .true. , reset = .false. )
+
+            end if
+
+         end do
+         end associate
+
       end subroutine StdDG_QDotVolumeLoop
+
+      subroutine StdDG_ComputeInnerFluxes( self , element ) 
+         implicit none  
+         class(FirstOrderMethod_t)                :: self
+         class(QuadElement_t)                     :: element
+         real(kind=RP), allocatable               :: F(:,:,:,:)
+         integer                                  :: eq
+         integer                                  :: FJa(NDIM) , GJa(NDIM)
+
+         associate( N => element % spA % N )
+
+         allocate( F(0:N , 0:N , NEC , NDIM) ) 
+
+         F = InviscidFlux( element % Q )
+
+            do eq = 1 , NEC
+               FJa = [1,1]
+               GJa = [2,1]
+               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+
+               FJa = [1,2]
+               GJa = [2,2]
+               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+            end do
+
+         deallocate( F ) 
+
+         end associate
+         
+      end subroutine StdDG_ComputeInnerFluxes
 
       subroutine OIDG_QDotVolumeLoop( self , element )
          use MatrixOperations
@@ -232,54 +433,83 @@ module DGFirstOrderMethods
 
 
       subroutine FirstOrderMethod_describe( self )
+         use Headers
          implicit none
          class(FirstOrderMethod_t)        :: self
 
-!         write(STD_OUT , * ) "First order method description: "
-!         write(STD_OUT , '(20X,A,A)') "Method: ", trim( self % method )
-!
-!         select type ( self ) 
-!            type is ( StandardDG_t )
-!   
-!            type is ( OverIntegrationDG_t )
-!         
-!            type is ( SplitDG_t )
-!               write(STD_OUT , '(20X,A,F10.4)') "Split op. coefficient: " , self % alpha
-!
-!            class default
-!      
-!         end select
+         write(STD_OUT,'(/)') 
+         call SubSection_Header("Inviscid discretization")
+         write(STD_OUT,'(30X,A,A)') "Method: " , trim( self % method ) 
+
+         select type ( self ) 
+            type is ( StandardDG_t )
+               if ( self % formulation .eq. FORMI ) then
+                  write(STD_OUT , '(30X,A,A)') "Formulation: Green form"
+               elseif ( self % formulation .eq. FORMII ) then
+                  write(STD_OUT , '(30X,A,A)') "Formulation: Divergence form"
+               end if
+   
+            type is ( OverIntegrationDG_t )
+         
+            type is ( SplitDG_t )
+               write(STD_OUT , '(30X,A,F10.4)') "Split op. coefficient: " , self % alpha
+
+            class default
+      
+         end select
 
       end subroutine FirstOrderMethod_describe
    
-      function FirstOrderMethod_RiemannFlux( self , edge ) result( val )
+      function FirstOrderMethod_RiemannFlux( self , edge ) result( Fstar )
          implicit none
          class(FirstOrderMethod_t)        :: self
          class(Edge_t), pointer           :: edge
-         real(kind=RP), dimension(NEC)    :: val
-         real(kind=RP), pointer  :: QL(:) , QR(:) , QBdry(:)
-         real(kind=RP), pointer  :: n(:)
-!
-!         select type ( edge )
-!            type is (StraightBdryEdge_t)
-!      
+         real(kind=RP), allocatable       :: Fstar(:,:)
+         real(kind=RP), allocatable       :: QL(:) , QR(:) , QBdry(:)
+         real(kind=RP), pointer  :: T(:,:) , Tinv(:,:)
+         integer                          :: iXi
+
+         select type ( edge )
+            type is (StraightBdryEdge_t)
+               associate( N => edge % spA % N )
+               allocate( Fstar ( 0 : N , NEC ) )
+               end associate
+      
 !               QBdry => edge % quads(1) % e % Qb( : , edge % BCLocation  )
 !!              TODO: Beware of this
 !               n     => NULL()   ! face % n
 !
 !               val = self % RiemannSolver(QBdry , edge % uB , n)
-!               
-!            type is (Edge_t)
-!      
-!               QL => edge % quads(LEFT) % e % Qb( : , RIGHT )
-!               QR => edge % quads(RIGHT) % e % Qb( : , LEFT )
-!!              TODO: Beware of this
-!               n  => NULL()      ! face % n
-!
-!               val = self % RiemannSolver(QL , QR , n)
-!
-!            class default
-!         end select
+               
+            type is (CurvedBdryEdge_t)
+               associate( N => edge % spA % N )
+               allocate( Fstar ( 0 : N , NEC ) )
+               end associate
+
+            type is (Edge_t)
+      
+               associate( N => edge % spA % N )
+
+               allocate( Fstar ( 0 : N , NEC ) )
+
+               do iXi = 0 , N
+
+                  allocate( QL(NEC) , QR(NEC) )
+
+                  QL    = edge % Q(iXi , 1:NEC , LEFT )
+                  QR    = edge % Q(iXi , 1:NEC , RIGHT)
+   
+                  T     => edge % T(1:NEC , 1:NEC , iXi)
+                  Tinv  => edge % Tinv(1:NEC , 1:NEC , iXi)
+
+                  Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
+
+                  deallocate( QL , QR )
+  
+               end do
+               end associate
+            class default
+         end select
       end function FirstOrderMethod_RiemannFlux
 
 end module DGFirstOrderMethods

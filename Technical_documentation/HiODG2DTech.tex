@@ -1,0 +1,327 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{amsmath,amssymb,amsfonts,latexsym,cancel,empheq}
+
+\usepackage[total={16cm,26cm},top=2cm, right=2.5cm]{geometry}
+\usepackage{epstopdf}
+%Paquetes simbólicos:
+\newcommand{\dif}{\textrm{d}}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\DeclareUnicodeCharacter{00A0}{ }
+
+\usepackage[usenames,dvipsnames]{pstricks}
+ \usepackage{epsfig}
+ \usepackage{epsf}
+ \usepackage{float}
+ \usepackage{pst-grad} % For gradients
+ \usepackage{pst-plot} 
+%\usepackage[framed,numbered,autolinebreaks,useliterate]{mcode} %\begin{lstlisting}
+\usepackage{float}%para que no ponga los graficos donde le de la gana, poner \begin{figure}[H]
+\usepackage{soul}%para poder remarcar texto, poner \hl{texto a subrayar}
+\usepackage[final]{pdfpages}
+\usepackage{appendix}
+%%%-- \includepdf[pages={x-y,{}(emptypages),x}
+\sloppy % suaviza las reglas de ruptura de l�neas de LaTeX
+\frenchspacing % usar espaciado normal despu�s de '.'
+\usepackage{lscape}
+\usepackage{babel}
+
+\usepackage{blindtext} % provides blindtext with sectioning
+
+\usepackage{scrpage2}  % header and footer for KOMA-Script
+%\pagestyle{scrheadings}  %Colocar los numeros arriba
+%\thispagestyle{empty} %cuando una página la queramos sin encabezado
+
+%\rehead[]{Diseño de un sistema de transmisión con plato elíptico}        % equal page, right position (inner) 
+%\lohead[]{Diseño de un sistema de transmisión con plato elíptico}        % odd   page, left  position (inner) 
+
+
+\usepackage{multicol}
+\setlength{\columnsep}{7mm} %Espacio entre columnas en caso de hacer multicol
+\usepackage{xcolor}
+\definecolor{plata}{RGB}{229, 228, 226}
+\definecolor{azulport}{RGB}{15, 82, 186}
+\usepackage{afterpage}
+\usepackage{float}	
+\usepackage{subfigure}
+\usepackage{mdframed}
+\usepackage[colorlinks=true,linkcolor=black]{hyperref}
+\usepackage[labelfont=bf]{caption} %Caption Figura X: en negrita
+%\decimalpoint %Punto decimal en lugar de comma
+%Por si acaso:
+%\renewcommand{\contentsname}{Contenido}
+%\renewcommand{\partname}{Parte}
+\renewcommand{\appendixname}{Anexos}
+\renewcommand{\appendixtocname}{Anexos}
+\renewcommand{\appendixpagename}{Anexos}
+%\renewcommand{\figurename}{Figura}
+%\renewcommand{\tablename}{Tabla}
+%\renewcommand{\abstractname}{Abstract}
+%\renewcommand{\refname}{Bibliograf�a}
+%\usepackage{mathpmtx} %Otra letra con más clase
+%\usepackage{pgfplots}
+\usepackage{pgf,tikz,tikz-3dplot}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{matrix,calc,intersections,through,backgrounds,decorations.pathmorphing,arrows}
+\usepackage{bold-extra}
+\newcommand*\widefbox[1]{\fbox{\hspace{2em}#1\hspace{2em}}}
+%Otros paquetes:
+%\pagestyle{empty} %Eliminar numeraci�n p�gs
+%\parskip=Xmm %Espacio entre p�rrafos
+%\headheight %Altura cabecera
+\parindent=0mm %Eliminar sangr�a
+%\pagestyle{myheadings}: Coloca la numeraci�n de p�gina en la parte superior
+%\markright{�texto�}: Coloca �texto� en la parte superior de la p�gina. Se pueden
+%poner varios \markright en el texto (en cada secci�n, por ejemplo).
+%\newpage: Le indica a LATEX que siga imprimiendo en la p�gina siguiente
+
+%\title{\textbf{Título}}
+%\author{Autor}
+
+\begin{document}
+
+\begin{center}
+	\textbf{High-Order discontinuous Galerkin spectral element method 2D solver}\\
+	\hrulefill
+	\tableofcontents
+	\hrulefill
+\end{center}
+
+\section{Dimensionless and reference values}
+
+As most of the codes, it is oriented in a dimensionless approach of the equations. The reference values are refined as follows:
+
+\begin{itemize}
+	\item $L_{ref}$, reference length.
+	\item $p_{ref}$, reference pressure.
+	\item $T_{ref}$, reference temperature.
+	\item $V_{ref}$, reference velocity. 
+	\item $\rho_{ref} = p_{ref} / (RT_{ref})$, reference density.
+	\item $a_{ref} = \sqrt{p_{ref} / \rho_{ref}}$, reference speed sound.
+	\item $V_{ref}/a_{ref}=\sqrt{\gamma}M_{ref}$, reference mach number.
+	\item $t_c = L_{ref} / V_{ref}$, reference time.
+	\item $\mu_{ref} = \rho_{ref} V_{ref} L_{ref} / Re$, reference laminar viscosity.
+	\item $\kappa_{ref} = \mu_{ref} c_p / Pr$, reference thermal conductivity.
+\end{itemize}
+
+With these quantities, we define the dimensionless quantities:
+
+\begin{itemize}
+	\item $\tilde{x} = x / L_{ref}$, dimensionless spatial coordinates.
+	\item $\tilde{p} = (p-p_{ref}) / p_{ref}$, dimensionless pressure.
+	\item $\tilde{T} = T / T_{ref}$, dimensionless temperature.
+	\item $\tilde{u} = u / a_{ref}$, dimensionless velocities.
+	\item $\tilde{\rho} = \rho / \rho_{ref}$, dimensionless density.
+	\item $\tilde{\rho e} = (\rho e-c_v\rho_{ref}T_{ref})/ p_{ref}$, dimensionless energy.
+	\item $\tau = t / t_c$, dimensionless time.
+	\item $\tilde{\mu} = 1/Re$, dimensionless viscosity.
+	\item $\tilde{\kappa} = \frac{\gamma}{\gamma-1}\frac{1}{RePr}$, dimensionless thermal conductivity.
+\end{itemize}
+
+Note that the state equation on these variables is:
+
+\begin{equation}
+\tilde{p} + 1 = \tilde{\rho}\tilde{T}.
+\end{equation}
+
+\subsection{Euler equations}
+
+We proceed to write the Euler equations on dimensionless variables.
+
+\begin{equation}
+\frac{\partial}{\partial t}\left\{\begin{array}{c}\rho \\ \rho u \\ \rho v \\ \rho e \end{array}\right\} = \frac{\partial }{\partial x}\left\{\begin{array}{c} \rho u \\ \rho u^2 + p \\ \rho u v \\ (\rho e + p)u \end{array}\right\} +  \frac{\partial }{\partial y}\left\{\begin{array}{c} \rho v \\ \rho uv \\ \rho v^2 + p \\ (\rho e + p)v \end{array}\right\}.
+\end{equation}
+
+Starting with the continuity equation:
+
+\begin{equation}
+\frac{\rho_{ref} V_{ref}}{L_{ref}} \frac{\partial \tilde{\rho}}{\partial \tau} = \frac{\rho_{ref} a_{ref}}{L_{ref}}\biggl( \frac{\partial \tilde{u} }{\partial \tilde{x}}+\frac{\partial \tilde{v} }{\partial \tilde{y}}\biggr)	\rightarrow \frac{\partial \tilde{\rho}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial \tilde{\rho}\tilde{u} }{\partial \tilde{x}}+\frac{\partial \tilde{\rho}\tilde{v} }{\partial \tilde{y}}\biggr)
+\end{equation}
+
+The momentum equation yields a similar result:
+
+\begin{equation}
+\frac{\partial \tilde{\rho}\tilde{u}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial (\tilde{\rho}\tilde{u}^2 + \tilde{p}) }{\partial \tilde{x}}+\frac{\partial \tilde{\rho}\tilde{u}\tilde{v} }{\partial \tilde{y}}\biggr)
+\end{equation}
+
+And so it does the energy equation:
+
+\begin{equation}
+\frac{\partial \tilde{\rho}\tilde{e}}{\partial \tau} = \frac{1}{\sqrt{\gamma}M_{ref}}\biggl( \frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+\tilde{c_p}]\tilde{u}) }{\partial \tilde{x}}+\frac{\partial ([\tilde{\rho}\tilde{e} + \tilde{p}+\tilde{c_p}]\tilde{v})  }{\partial \tilde{y}}\biggr)
+\end{equation}
+
+
+The complete system is written in the form
+
+\begin{equation}
+\tilde{U}_\tau = \tilde{\nabla}\cdot \tilde{F}	
+\end{equation}
+
+With the dimensionless fluxes,
+
+\begin{equation}
+\tilde{F} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{u} \\ \tilde{\rho}\tilde{u}^2 + \tilde{p} \\ \tilde{\rho}\tilde{u}\tilde{v} \\ (\tilde{\rho}\tilde{e} + \tilde{p} + \tilde{c_p})\tilde{u}\end{array}\right\},
+\end{equation}
+
+and, 
+\begin{equation}
+\tilde{G} =\frac{1}{\sqrt{\gamma}M}\left\{\begin{array}{c} \tilde{\rho}\tilde{v} \\\tilde{\rho}\tilde{u}\tilde{v} \\ \tilde{\rho}\tilde{v}^2 + \tilde{p}  \\ (\tilde{\rho}\tilde{e} + \tilde{p} + \tilde{c_p})\tilde{v}\end{array}\right\}.
+\end{equation}
+
+The relationship within the dimensionless pressure and the dimensionless conservative variable is:
+
+\begin{equation}
+\tilde{\rho}\tilde{e} = \tilde{c_v} \tilde{p} + \frac{1}{2}\tilde{\rho}\tilde{u}^2 + \frac{1}{2}\tilde{\rho}\tilde{v}^2	
+\end{equation}
+
+
+\section{Euler equations approximations}
+\subsection{The rotational invariance}
+
+Consider the projected flux:
+
+\begin{equation}
+F_n = F dS_x + GdS_y
+\end{equation}
+
+For the first equation:
+
+\begin{equation}
+F^1_n = \rho u dS_x+ \rho v dS_y= \rho \hat{u} 	
+\end{equation}
+
+So that we can define the normal and tangential speeds, namely:
+
+\begin{equation}
+\begin{split}
+\hat{u} = u dS_x + v dS_y, &~~~~\hat{v} = v dS_x - u dS_y,	\\
+udS^2 = \hat{u}dS_x - \hat{v} dS_y, & ~~~~ v dS^2 = \hat{v}dS_x + \hat{u} dS_y
+\end{split}
+\end{equation}
+
+Such that the relationship within the kinetic energies read:
+
+\begin{equation}
+dS^2 (u^2 + v^2) = ( \hat{u}^2 + \hat{v}^2).	
+\end{equation}
+
+
+For the second equation:
+
+\begin{equation}
+F^2_n = (\rho u^2 + p) dS_x + \rho u v dS_y,
+\end{equation}
+
+and third,
+
+\begin{equation}
+	F_n^3 = \rho u v dS_x + (\rho v^2 + p ) dS_y.
+\end{equation}
+
+We can start computing the quantity:
+
+\begin{equation}
+	\hat{F}^3 = F_n^3 dS_x - F_n^2  dS_y 	 = -\rho (u^2-v^2) dS_x dS_y - \rho u v(dS_y^2 - dS_x^2).
+\end{equation}
+
+First factor is 
+
+\begin{equation}
+(u^2-v^2) =(u+v)(u-v) = \hat{u}^2(dS_x^2-dS_y^2)-\hat{v}^2(dS_x^2 - dS_y^2) - 4\hat{u}\hat{v}dS_x dS_y 
+\end{equation}
+
+and second:
+
+\begin{equation}
+uv = \hat{u}^2 dS_x dS_y - \hat{v}^2 dS_x dS_y + \hat{u}\hat{v}(dS_x^2 - dS_y^2)	
+\end{equation}
+
+We can write:
+
+\begin{equation}
+dS^4 \hat{F}^3= \rho \hat{u}\hat{v} (dS_x^2 + dS_y^2)^2 \rightarrow \hat{F}^3 = \rho \hat{u}\hat{v}
+\end{equation}
+
+We can proceed similarly to obtain:
+
+\begin{equation}
+\hat{F}^2 = F_n^2 dS_x + F_n^3 dS_y = \rho \hat{u}^2 + p dS^{2}	
+\end{equation}
+
+We can define $\hat{p}$ as:
+
+\begin{equation}
+\hat{p}	= p dS^2 = (\gamma-1)dS^2(\rho e - \frac{1}{2}\rho u^2 - \frac{1}{2}\rho v^2) = (\gamma-1)(\rho \hat{e}-\frac{1}{2}\hat{u}^2 - \frac{1}{2}\hat{v}^2)
+\end{equation}
+
+And thus,
+
+\begin{equation}
+\hat{e} = e dS^2	
+\end{equation}
+
+
+So, we can define the projected variables $\hat{U}$ as:
+
+\begin{equation}
+\{\boldsymbol{\hat{U}}\}=[\boldsymbol{T}]\{\boldsymbol{U}\}, ~~~~[\boldsymbol{T}] = \left[\begin{array}{cccc}1 & 0 & 0 & 0 \\ 0 & dS_x & dS_y & 0 \\ 0 & -dS_y & dS_x & 0 \\ 0 & 0 & 0 & dS^2 \end{array}\right] 	
+\end{equation}
+
+And such that:
+
+\begin{equation}
+ [\boldsymbol{T}]^{-1}\boldsymbol{\hat{F}}(\hat{\boldsymbol{U}})	 = \{\boldsymbol{F}\} dS_x + \{\boldsymbol{G}\} dS_y
+\end{equation}
+
+
+\subsection{Computation of volumetric loops}
+
+The loop depends on which of Forms I or II is chosen. For Form I loop:
+
+\begin{equation}
+\dot{Q}_{ij,eq} \leftarrow \int_{-1}^1 \int_{-1}^1 \boldsymbol{\tilde{F}}_{eq}\cdot \tilde{\nabla} \phi_{ij} d\xi d\eta = \int_{-1}^1 \int_{-1}^1 (\tilde{F}_{eq}\phi_{ij,\xi}' + \tilde{G}_{eq}\phi_{ij,\eta}' )d\xi d\eta.
+\end{equation}
+
+Replacing integrals by numerical quadratures,
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow \sum_{m=0}^N \sum_{n=0}^N	 w_m w_n \tilde{F}_{nm,eq}l_i'(\xi_n)l_j(\eta_m) &= \sum_{n=0}^N w_j \tilde{F}_{nj,eq} w_n l'_i(\xi_n) =  \sum_{n=0}^N  D_{in}^T w_n\tilde{F}_{nj,eq} w_j \\
+[\dot{\boldsymbol{Q}}_{eq}] &\leftarrow [\boldsymbol{D}]^T [\boldsymbol{M}] [\boldsymbol{\tilde{F}}_{eq}] [\boldsymbol{M}]
+\end{split}
+\end{equation}
+
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow \sum_{m=0}^N \sum_{n=0}^N	 w_m w_n \tilde{G}_{mn,eq}l_i(\xi_m)l_j'(\eta_n) &= \sum_{n=0}^N w_i \tilde{G}_{in,eq} w_n l'_j(\xi_n) =   \sum_{n=0}^N w_i \tilde{G}_{in,eq} w_n D_{nj} \\
+[\dot{\boldsymbol{Q}}_{eq}]&\leftarrow [\boldsymbol{M}] [\boldsymbol{\tilde{G}}_{eq}] [\boldsymbol{M}][\boldsymbol{D}]
+\end{split}
+\end{equation}
+
+Similarly, Form II loop:
+
+\begin{equation}
+\dot{Q}_{ij,eq} \leftarrow -\int_{-1}^1 \int_{-1}^1 \tilde{\nabla}\cdot \tilde{\boldsymbol{F}}_{eq} \phi_{ij} d\xi d\eta = -\int_{-1}^1 \int_{-1}^1 (\tilde{F}_{eq,\xi}' + \tilde{G}_{eq,\eta}')\phi_{ij}  d\xi d\eta.
+\end{equation}
+
+Its numerical version reads:
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow -\sum_{m=0}^N \sum_{n=0}^N	 w_i w_j \tilde{F}_{nm,eq}l_n'(\xi_i)l_m(\eta_j) &= -\sum_{n=0}^N	 w_i w_j \tilde{F}_{nj,eq}l_n'(\xi_i) =  -\sum_{n=0}^N w_i D_{in} \tilde{F}_{nj,eq} w_j  \\
+[\dot{\boldsymbol{Q}}_{eq}] &\leftarrow -[\boldsymbol{M}] [\boldsymbol{D}] [\boldsymbol{\tilde{F}}_{eq}] [\boldsymbol{M}]
+\end{split}
+\end{equation}
+
+\begin{equation}
+\begin{split}
+\dot{Q}_{ij,eq} \leftarrow -\sum_{m=0}^N \sum_{n=0}^N	 w_i w_j \tilde{G}_{mn,eq}l_m(\xi_i)l_n'(\eta_j) &= -\sum_{n=0}^N	 w_i w_j \tilde{G}_{in,eq}l_n'(\eta_j) =  -\sum_{n=0}^N w_i \tilde{G}_{nj,eq} D_{nj}^T w_j  \\
+[\dot{\boldsymbol{Q}}_{eq}] &\leftarrow -[\boldsymbol{M}] [\boldsymbol{\tilde{G}}_{eq}] [\boldsymbol{D}]^T [\boldsymbol{M}]
+\end{split}
+\end{equation}
+
+\end{document}

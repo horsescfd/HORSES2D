@@ -1,7 +1,5 @@
 program main
-    use nodesAndWeights_class
     use SMConstants
-    use Physics
     use MeshFileClass
     use DGSEM_Class
     use Setup_class
@@ -13,11 +11,7 @@ program main
     implicit none
     type(MeshFile_t)       :: meshFile
     type(DGSEM_t)          :: sem
-    real(kind=RP), pointer :: a(:) , b(:)
-    integer                :: counter = 0
-    integer                :: edge
-
-   real(kind=RP), pointer                  :: rho(:)
+    integer                :: eID , edID
 
 !   =====================
 !   The REAL main program
@@ -29,7 +23,7 @@ program main
 
 !
 !   **********************************************************
-!   Read the mesh
+!   Read the mesh TODO: Move into DGSEM
 !   **********************************************************
 !
     call meshFile % read
@@ -40,26 +34,24 @@ program main
 !
     sem = DGSEM_Initialize()
     call sem % construct(meshFile)
+    call ExportMeshToTecplot( sem % mesh , Setup % mesh_file )       ! This one should be inside DGSEM or Mesh
 !   
 !   ***********************************************
 !   Set the initial condition to all flow variables
 !   ***********************************************
 !
     call sem % SetInitialCondition()
+    call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')      ! This one should be inside DGSEM or Mesh
 
-    call ExportMeshToTecplot( sem % mesh , Setup % mesh_file ) 
+    call checks( sem )           ! This one should be inside DGSEM
 
-    open (111 , FILE = "coords.dat" , status = "unknown" , action = "write" )
-      do edge = 1 , sem % mesh % no_of_elements
-         write(111, '(2F24.16)') sem % mesh % elements(edge) % X(iX:iY,:,:)
+    call sem % Integrate()
 
-      end do
-      close(111)
+    call ExportToTecplot( sem % mesh , './RESULTS/Solution.plt')              ! This one should be inside DGSEM 
 
-    call checks( sem ) 
-
-    call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')
-!    call sem % Integrate()
+    open(101,file="fluxes.dat",status="unknown",action="write")
+    write(101,'(F24.16)') sem % Storage % F
+    close(101)
 
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
     write(STD_OUT , '(30X,A)' ) "\x1B[1;32m Program finished! \x1B[0m"

@@ -34,21 +34,21 @@ module Setup_class
 !              Spatial discretization parameters
 !       -------------------------------------------------------------------------------------
 !
-        integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
+        integer                      :: nodes                     =  LGL       ! Interpolation / Integration nodes strategy
         integer                      :: N                         =  4         ! Polynomial order (generic)
-        real(kind=RP)                :: nu                        =  0.1_RP ! Viscous coefficient
 !
 !       --------------------------------------------------------------------------------------
 !              Initialization
 !       --------------------------------------------------------------------------------------
 !
-        character(len=STR_LEN_SETUP) :: IC                        =  "Vortex transport"    ! Initial condition type
+        character(len=STR_LEN_SETUP) :: IC                        =  "Uniform"    ! Initial condition type
 !
 !       -----------------------------------------------------------------------------------------
 !              Advective flux discretization
 !       -----------------------------------------------------------------------------------------
 !
         character(len=STR_LEN_SETUP) :: inviscid_discretization   = "Standard"
+        integer                      :: inviscid_formulation      = FORMI
         character(len=STR_LEN_SETUP) :: inviscid_flux             = "Roe"
         integer                      :: integration_points        =  ceiling((3.0_RP *5.0_RP + 1.0_RP)/2.0_RP)
 !     
@@ -86,7 +86,7 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: autosaveInterval          = 100
-        character(len=STR_LEN_SETUP) :: saveVariables             = "rho_rhou_rhov_rhoe"
+        character(len=STR_LEN_SETUP) :: saveVariables             = "rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach"
     end type Setup_t
 
     type(Setup_t), protected, target       :: setup

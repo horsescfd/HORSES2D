@@ -22,7 +22,7 @@ GLOB_MACROS ?=   -D_USE_LAPACK
 
 
 Physics: PhysicsNS Headers
-PhysicsNS: Setup SMConstants Headers
+PhysicsNS: Setup SMConstants Headers MatrixOperations
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
 InterpolationAndDerivatives: SMConstants
@@ -74,7 +74,7 @@ ifeq ($(COMPILER),gfortran)
       FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
    else 
   	$(info Compiling with gfortran in RELEASE mode.)
-      FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
+      FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash -fopenmp
    endif
    LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
 

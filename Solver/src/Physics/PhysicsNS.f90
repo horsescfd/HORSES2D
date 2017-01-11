@@ -6,6 +6,8 @@ module PhysicsNS
     public :: NEC , NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
+    public :: InviscidFlux
+    public :: RoeFlux
 !
 !   *****************************************
 !        Definitions
@@ -54,6 +56,7 @@ module PhysicsNS
       real(kind=RP)        :: p
       real(kind=RP)        :: rho
       real(kind=RP)        :: V
+      real(kind=RP)        :: a
       real(kind=RP)        :: Mach
       real(kind=RP)        :: mu
       real(kind=RP)        :: kappa
@@ -71,13 +74,14 @@ module PhysicsNS
     end type Dimensionless_t
 
     abstract interface
-      function RiemannSolverFunction( QL , QR , n ) result ( val )
+      function RiemannSolverFunction( QL , QR , T , Tinv ) result ( val )
          use SMConstants
          import NEC , NDIM
-         real(kind=RP), dimension(NEC)       :: QL
-         real(kind=RP), dimension(NEC)       :: QR
-         real(kind=RP), dimension(NDIM)      :: n
-         real(kind=RP), dimension(NEC)       :: val
+         real(kind=RP), dimension(NEC)     :: QL
+         real(kind=RP), dimension(NEC)     :: QR
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)     :: val
       end function RiemannSolverFunction
     end interface
 
@@ -87,9 +91,9 @@ module PhysicsNS
     type(Dimensionless_t), protected   :: dimensionless
 
 !
-!    interface inviscidFlux
-!      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
-!    end interface inviscidFlux
+    interface inviscidFlux
+      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
+    end interface inviscidFlux
 !
 !    interface viscousFlux
 !      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
@@ -115,15 +119,16 @@ module PhysicsNS
 !        Initialize the reference values
 !        *******************************
 !
-         refValues % L = Setup % reynolds_length
-         refValues % T = Setup % temperature_ref
-         refValues % p = Setup % pressure_ref
-         refValues % rho = refValues % p / (thermodynamics % R * refValues % T)
-         refValues % V = sqrt( thermodynamics % Gamma * refValues % p / refValues % rho )
-         refValues % Mach = Setup % Mach_number
-         refValues % mu = refValues % rho * refValues % Mach * sqrt( Thermodynamics % gamma * Thermodynamics % R * refValues % T) * refValues % L / Setup % reynolds_number
+         refValues % L     = Setup % reynolds_length
+         refValues % T     = Setup % temperature_ref
+         refValues % p     = Setup % pressure_ref
+         refValues % rho   = refValues % p / (thermodynamics % R * refValues % T)
+         refValues % a     = sqrt( refValues % p / refValues % rho )
+         refValues % Mach  = Setup % Mach_number
+         refValues % V     = sqrt( Thermodynamics % gamma ) * refValues % Mach * refValues % a
+         refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
-         refValues % tc = refValues % L / refValues % V
+         refValues % tc    = refValues % L / (refValues % V )
 !
 !        ***********************************
 !        Initialize the dimensionless values
@@ -142,34 +147,113 @@ module PhysicsNS
 
        end subroutine InitializePhysics
 !
-!      function inviscidFlux0D(u) result(val)
-!         implicit none
-!         real(kind=RP)     :: u
-!         real(kind=RP)    :: val
-!
-!         val = 0.5_RP * u * u
-!
-!      end function inviscidFlux0D
-!
-!      function inviscidFlux1D(u) result(val)
-!         implicit none
-!         real(kind=RP)     :: u(:)
-!         real(kind=RP),allocatable     :: val(:)
-!
-!         allocate ( val(size(u,1) ) )
-!         val = 0.5_RP*u*u
-!   
-!      end function inviscidFlux1D
-!
-!      function inviscidFlux2D(u) result(val)
-!         implicit none
-!         real(kind=RP)     :: u(:,:)
-!         real(kind=RP),allocatable     :: val(:,:)
-!
-!         allocate ( val(size(u,1) , size(u,2) ) )
-!         val = 0.5_RP*u*u
-!   
-!      end function inviscidFlux2D
+      function inviscidFlux0D(u) result(val)
+         implicit none
+         real(kind=RP)          :: u(NEC)
+         real(kind=RP), target  :: val(NEC,NDIM)
+         real(kind=RP), pointer :: F(:) , G(:)
+
+         F(1:NEC)    => val(1:NEC,iX)
+         G(1:NEC)    => val(1:NEC,iY)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
+    
+         F(IRHO)  = u(IRHOU)
+         F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
+         F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
+
+         G(IRHO)  = u(IRHOV)
+         G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
+         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
+
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
+
+         end associate
+
+      end function inviscidFlux0D
+
+      function inviscidFlux1D(u) result(val)
+         implicit none
+         real(kind=RP)                      :: u(0:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:)
+         real(kind=RP), pointer             :: F(:,:) , G(:,:)
+
+         allocate( val(0:size(u,1)-1 , 1:NEC , 1:NDIM ) )
+
+         F(0:,1:)    => val(0:,1:,iX)
+         G(0:,1:)    => val(0:,1:,iY)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
+    
+         F(:,IRHO)  = u(:,IRHOU)
+         F(:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOU)*u(:,IRHOU) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOV)*u(:,IRHOV)/u(:,IRHO) + gm1 * u(:,IRHOE)
+         F(:,IRHOV) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
+         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) )/ u(:,IRHO)) * u(:,IRHOU) / u(:,IRHO)
+
+         G(:,IRHO)  = u(:,IRHOV)
+         G(:,IRHOU) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOV)*u(:,IRHOV) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOU)*u(:,IRHOU)/u(:,IRHO) + gm1 * u(:,IRHOE)
+         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO)) * u(:,IRHOV) / u(:,IRHO)
+
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
+
+         end associate
+
+
+      end function inviscidFlux1D
+
+      function inviscidFlux2D(u) result(val)
+         implicit none
+         real(kind=RP)                      :: u(0:,0:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+
+         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NEC , 1:NDIM ) )
+
+         F(0:,0:,1:)    => val(0:,0:,1:,iX)
+         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
+    
+         F(:,:,IRHO)  = u(:,:,IRHOU)
+         F(:,:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOU)*u(:,:,IRHOU) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOV)*u(:,:,IRHOV)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
+         F(:,:,IRHOV) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
+         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) )/ u(:,:,IRHO) )  & 
+                              * u(:,:,IRHOU) / u(:,:,IRHO)
+
+         G(:,:,IRHO)  = u(:,:,IRHOV)
+         G(:,:,IRHOU) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
+         G(:,:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOV)*u(:,:,IRHOV) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOU)*u(:,:,IRHOU)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
+         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) & 
+                              * u(:,:,IRHOV) / u(:,:,IRHO)
+
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
+
+         end associate
+
+      end function inviscidFlux2D
+     
+      function F_inviscidFlux(u) result(F)
+         implicit none
+         real(kind=RP)        :: u(NEC)
+         real(kind=RP)        :: F(NEC)
+   
+         associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )    
+
+         F(IRHO)  = u(IRHOU)
+         F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
+         F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
+
+         end associate
+      end function F_inviscidFlux
+
 !
 !      function viscousFlux0D(g,u) result(val)
 !         implicit none
@@ -205,53 +289,104 @@ module PhysicsNS
 !         val = Setup % nu * g
 !
 !      end function viscousFlux2D
-!!
-!!     ****************************************************
-!!        Riemann solvers
-!!     ****************************************************
-!!
-!      function RoeFlux(uL , uR , n) result(val)
-!         implicit none
-!         real(kind=RP), dimension(NEC)       :: uL
-!         real(kind=RP), dimension(NEC)       :: uR
-!         real(kind=RP), dimension(NEC)       :: val
-!         real(kind=RP)                       :: n
-!         real(kind=RP), dimension(NEC)       :: ustar
-!         
-!         ustar = (uL + uR)*n
-!
-!         if (ustar(1) .gt. 0.0_RP) then
-!            val = 0.5_RP * uL*uL
-!         elseif( ustar(1) .lt. 0.0_RP) then
-!            val = 0.5_RP * uR*uR
-!         else
-!            val = 0.0_RP
-!         end if
-!
-!      end function RoeFlux
-!
-!      function ECONFlux(uL , uR , n) result(val)
-!         implicit none
-!         real(kind=RP), dimension(NEC)    :: uL
-!         real(kind=RP), dimensioN(NEC)    :: uR
-!         real(kind=RP), dimension(NEC)    :: val
-!         real(kind=RP)                    :: n
-!         
-!         val = 0.25_RP*( uL*uL + uR*uR ) - 1.0_RP / 12.0_RP * (uL - uR)*(uL-uR)
-!
-!      end function ECONFlux
-!
-!      function LocalLaxFriedrichsFlux(uL , uR , n) result(val)
-!         implicit none
-!         real(kind=RP), dimension(NEC)    :: uL
-!         real(kind=RP), dimensioN(NEC)    :: uR
-!         real(kind=RP), dimension(NEC)    :: val
-!         real(kind=RP)                    :: n
-!
-!         val = 0.25_RP * (uL*uL + uR*uR) - 0.5_RP*max(abs(uL),abs(uR))*(uR-uL)*n
-!
-!      end function LocalLaxFriedrichsFlux
 
+!
+!     ****************************************************
+!        Riemann solvers
+!     ****************************************************
+!
+      function RoeFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+         use MatrixOperations
+         implicit none
+         real(kind=RP), dimension(NEC)     :: qL3D
+         real(kind=RP), dimension(NEC)     :: qR3D
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)     :: Fstar
+!        ---------------------------------------------------------------
+         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP)                 :: rhoL , uL , vL , HL
+         real(kind=RP)                 :: rhoR , uR , vR , HR
+         real(kind=RP)                 :: rho , u , v , H , a
+         real(kind=RP)                 :: dq(NEC)
+         real(kind=RP)                 :: lambda(NEC)
+         real(kind=RP)                 :: K(NEC,NEC)
+         real(kind=RP)                 :: alpha(NEC)
+         integer                       :: eq
+
+!        0/ Gather variables
+!           ----------------
+            qL = MatrixTimesVector_F( A=T , X=qL3D )
+            qR = MatrixTimesVector_F( A=T , X=qR3D )
+
+            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
+            rhoL = sqrt(qL(IRHO))
+            uL   = qL(IRHOU) / qL(IRHO)
+            vL   = qL(IRHOV) / qL(IRHO)
+            HL   = gamma * qL(IRHOE) / qL(IRHO) - 0.5_RP * gm1 * ( uL*uL + vL*vL )
+
+            rhoR = sqrt(qR(IRHO))
+            uR   = qR(IRHOU) / qR(IRHO)
+            vR   = qR(IRHOV) / qR(IRHO)
+            HR   = gamma * qR(IRHOE) / qR(IRHO) - 0.5_RP * gm1 * ( uR*uR + vR*vR )
+            end associate
+
+!        1/ Compute Roe averages
+!           --------------------
+            rho = rhoL + rhoR
+            u   = (rhoL*uL + rhoR*uR)/rho
+            v   = (rhoL*vL + rhoR*vR)/rho
+            H   = (rhoL*HL + rhoR*HR)/rho
+            associate( gm1 => Thermodynamics % gm1 ) 
+            a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
+            end associate
+
+!
+!        2/ Compute Roe matrix eigenvalues
+!           ------------------------------
+            lambda(1) = u - a
+            lambda(2) = u
+            lambda(3) = u
+            lambda(4) = u + a 
+
+!
+!        3/ Compute the averaged right eigenvectors
+!           ---------------------------------------
+            K(1:NEC , 1)  = reshape( (/ 1.0_RP , u-a    , v      , H-u*a                /)  ,  (/ NEC /) )
+            K(1:NEC , 2)  = reshape( (/ 1.0_RP , u      , v      , 0.5_RP * (u*u + v*v) /)  ,  (/ NEC /) )
+            K(1:NEC , 3)  = reshape( (/ 0.0_RP , 0.0_RP , 1.0_RP , v                    /)  ,  (/ NEC /) )
+            K(1:NEC , 4)  = reshape( (/ 1.0_RP , u + a  , v      , H + u*a              /)  ,  (/ NEC /) )
+!
+!        4/ Compute the wave strengths
+!           --------------------------
+            associate( gm1 => Thermodynamics % gm1 ) 
+            dq = qR - qL
+            alpha(3) = dq(IRHOV) - v*dq(IRHO)
+            alpha(2) = (dq(IRHO) * (H - u*u) + u*dq(IRHOU) - dq(IRHOE) + (dq(IRHOV) - v*dq(IRHO))*v) / ( a*a )
+            alpha(1) = (dq(IRHO) * (u + a) - dq(IRHOU) - a * alpha(2)) / (2.0_RP*a)
+            alpha(4) = dq(IRHO) - (alpha(1) + alpha(2)) 
+            end associate
+!
+!        5/ Compute the flux
+!           ----------------
+            Fstar = 0.5_RP * ( F_inviscidFlux(qL) + F_inviscidFLux(qR) )
+               
+            do eq = 1 , NEC
+               Fstar = Fstar - 0.5_RP * alpha(eq) * abs(lambda(eq)) * K(1:NEC , eq)
+            end do
+  
+!        6/ Return to the 3D Space
+!           ----------------------
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+
+!        7/ Scale it with the Mach number
+!           -----------------------------
+            associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            end associate
+            
+!
+      end function RoeFlux
 !
 !      ***************************************************************************
 !           Subroutine for the module description
