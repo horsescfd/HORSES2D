@@ -356,7 +356,18 @@ module QuadMeshClass
                   self % edges( current ) % f => mesh % edges(edID) % f
                end if
             end do
-   
+!
+!           ***************************************
+!           Create the boundary condition structure
+!           ***************************************
+!
+            if (marker .eq. FACE_INTERIOR) then
+               self % BC => NULL()
+
+            else
+               call Construct( self % BC , marker )
+
+            end if
          end subroutine Zone_construct
  
          function Compute_volumeIntegral( self , var ) result ( val )

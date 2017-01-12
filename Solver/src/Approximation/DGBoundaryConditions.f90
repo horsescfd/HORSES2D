@@ -9,10 +9,12 @@ module DGBoundaryConditions
    use SMConstants
    use Physics
    use QuadElementClass
+   use ParamfileIO
    implicit none
 
    private
    public BoundaryCondition_t , Construct!, DGBoundaryConditions_setFace
+   public PeriodicBC_t , DirichletBC_t , Farfield_t , EulerWall_t
 
    integer, parameter         :: STR_LEN_BC = 128
 
@@ -35,6 +37,9 @@ module DGBoundaryConditions
 !
    type BoundaryCondition_t
       character(len=STR_LEN_BC)        :: Name
+      integer                          :: BCType
+      contains
+         procedure ::     Construct => BaseClass_Construct
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -50,6 +55,8 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: DirichletBC_t
       real(kind=RP), dimension(NEC)       :: q
+      contains
+         procedure ::      Construct => DirichletBC_Construct
    end type DirichletBC_t
 !
 !  *********************************
@@ -91,11 +98,96 @@ module DGBoundaryConditions
       subroutine BoundaryConditions_construct( self , marker)
          use Setup_class
          implicit none
-         class(BoundaryCondition_t)                :: self
-         integer                                   :: marker
+         class(BoundaryCondition_t), pointer :: self
+         integer                             :: marker
+         character(len=STR_LEN_BC)           :: BCType
+         character(len=STR_LEN_BC)           :: in_label
 
+         write(in_label,'(A,I0)') "# define zone ",marker
+
+         call ReadValueInRegion( trim(Setup % bdry_file) , "Type" , BCType , in_label , "# end" )
+
+         if (BCType .eq. "Dirichlet") then
+            allocate( DirichletBC_t    :: self )
+            self % BCType = DIRICHLET_BC
+      
+         elseif ( BCType .eq. "EulerWall") then
+            allocate( EulerWall_t      :: self )
+            self % BCType = EULERWALL_BC
+
+         end if
+
+         call self % Construct( marker , in_label)
 
       end subroutine BoundaryConditions_construct
+   
+      subroutine BaseClass_Construct( self , marker , in_label)
+         implicit none
+         class(BoundaryCondition_t)                :: self
+         integer                                   :: marker
+         character(len=*)                          :: in_label
+!
+!        *****************************************
+!           The base class does nothing
+!        *****************************************
+!
+      end subroutine BaseClass_Construct
+
+      subroutine DirichletBC_Construct( self , marker , in_label)
+         use Setup_class
+         implicit none
+         class(DirichletBC_t)      :: self
+         integer                   :: marker
+         character(len=*)          :: in_label
+         real(kind=RP), allocatable             :: pressure
+         real(kind=RP), allocatable         :: Temperature
+         real(kind=RP), allocatable         :: Mach
+         real(kind=RP), allocatable         :: AngleOfAttack
+         real(kind=RP)                          :: rho
+
+         call readValueInRegion( trim(Setup % bdry_file) , "Name" , self % Name , in_label , "# end" )
+         call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
+         
+         if ( allocated(pressure) ) then
+            pressure = pressure / refValues % p
+         else
+            allocate(pressure)
+            pressure = 1.0_RP
+         end if
+
+         if ( allocated(Temperature) ) then
+            Temperature = Temperature / refValues % T
+         else
+            allocate(Temperature)
+            Temperature = 1.0_RP
+         end if
+
+         if ( .not. allocated(Mach) ) then
+            allocate(Mach)
+            Mach = Dimensionless % Mach
+         end if
+
+         if ( allocated(AngleOfAttack) ) then
+            AngleOfAttack = AngleOfAttack * PI / 180.0_RP
+         else
+            allocate(AngleOfAttack)
+            AngleOfAttack = 0.0_RP
+         end if
+!
+!        Construct the state vector
+!        --------------------------
+         associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv)
+         rho = pressure / Temperature
+         self % q(IRHO) = rho
+         self % q(IRHOU) = rho * sqrt(gamma) * Mach * cos(AngleOfAttack)
+         self % q(IRHOV) = rho * sqrt(gamma) * Mach * sin(AngleOfAttack)
+         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * gamma * Mach * Mach
+         end associate
+
+      end subroutine DirichletBC_Construct
 !
 !      subroutine DGBoundaryConditions_setFace( self  )
 !         use Physics
