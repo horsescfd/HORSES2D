@@ -34,8 +34,8 @@ module Setup_class
 !              Spatial discretization parameters
 !       -------------------------------------------------------------------------------------
 !
-        integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
-        integer                      :: N                         =  4         ! Polynomial order (generic)
+        integer                      :: nodes                     =  LGL       ! Interpolation / Integration nodes strategy
+        integer                      :: N                         =  3         ! Polynomial order (generic)
 !
 !       --------------------------------------------------------------------------------------
 !              Initialization
@@ -75,9 +75,9 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: integrationMode           =  STEADY
-        real(kind=RP)                :: dt                        =  1.0e-5_RP
+        real(kind=RP)                :: dt                        =  1.0e-7_RP
         real(kind=RP)                :: simulationTime            =  1.0_RP
-        integer                      :: no_of_iterations          =  100000
+        integer                      :: no_of_iterations          =  10000
         real(kind=RP)                :: initialTime               = 0.0_RP
         character(len=STR_LEN_SETUP) :: integrationMethod         = "Explicit-Euler"
 !

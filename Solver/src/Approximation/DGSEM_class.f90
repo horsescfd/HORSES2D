@@ -128,27 +128,6 @@
 !           ***************************
 !
             call self % mesh % ConstructZones( meshFile )
-!            allocate ( self % BoundaryConditions( size(Setup % markers) ) )
-!
-!            do iBC = 1 , size(Setup % markers)
-!               do fID = 1 , self % mesh % no_of_edges
-!                  if ( self % mesh % edges(fID) % f % faceType .eq. Setup % markers(iBC) ) then 
-!                     face => self % mesh % edges(fID) % f
-!                     exit
-!                  end if
-!               end do
-!
-!               call self % BoundaryConditions(iBC) % construct(iBC , face , self % BoundaryConditions)
-!
-!            end do
-!
-!            do iBC = 1 , size(Setup % markers)
-!               
-!               call self % BoundaryConditions(iBC) % setFace()
-!      
-!            end do 
-!            
-!
 !
 !           ***************
 !           Prepare methods
@@ -171,11 +150,10 @@
             implicit none
             class(DGSEM_t)                   :: self
 
-!            self % Integrator = NewTimeIntegrator()
-!            call self % Integrator % Describe()
+            self % Integrator = NewTimeIntegrator()
+            call self % Integrator % Describe()
 
-!            call self % Integrator % Integrate( self % mesh , self % Storage)
-             call DGSpatial_ComputeTimeDerivative( self % mesh )
+            call self % Integrator % Integrate( self % mesh , self % Storage)
 
       end subroutine DGSEM_Integrate
 

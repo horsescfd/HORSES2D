@@ -1,5 +1,6 @@
 module DGSpatialDiscretizationMethods
    use SMConstants
+   use Physics
    use QuadMeshClass
    use QuadMeshDefinitions
    use DGSecondOrderMethods
@@ -244,6 +245,7 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID
          integer                 :: fID
          integer                 :: zoneID
+         integer                 :: eq
 !        -------------------------------
 !
 !        Volume loops
@@ -270,11 +272,15 @@ module DGSpatialDiscretizationMethods
 !        -------------------------------------------
 !        Perform the scaling with the mass matrix
 !        -------------------------------------------
-!
-!         do eID = 1 , mesh % no_of_elements
-!            mesh % elements(eID) % QDot = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % QDot)
-!         end do
-!
+
+         do eID = 1 , mesh % no_of_elements
+            associate( N => mesh % elements(eID) % spA % N )
+            do eq = 1 , NEC
+               mesh % elements(eID) % QDot(0:N,0:N,eq) = mesh % elements(eID) % QDot(0:N,0:N,eq) / mesh % elements(eID) % spA % M2D / mesh % elements(eID) % jac
+            end do
+            end associate
+         end do
+
       end subroutine DGSpatial_computeQDot
 
 end module DGSpatialDiscretizationMethods
