@@ -1,4 +1,4 @@
-module DGFirstOrderMethods
+   module DGFirstOrderMethods
    use SMConstants
    use QuadElementClass
    use Physics
@@ -127,6 +127,7 @@ module DGFirstOrderMethods
 !        -------------------------------------------
 !
          associate ( N => edge % spA % N )
+
          allocate( Fstar( 0 : N , NEC ) )
 !        Compute the averaged flux
          Fstar = self % RiemannFlux( edge )
@@ -392,7 +393,6 @@ module DGFirstOrderMethods
                      direction = e % edgesDirection( edge % edgeLocation(1) )
                      pos = RIGHT
                      index = iX
-
                      allocate(Fstar2D(1,0:N,NEC))
                      
                      if ( direction .eq. FORWARD ) then
@@ -625,7 +625,7 @@ module DGFirstOrderMethods
          class(FirstOrderMethod_t)        :: self
          class(Edge_t), pointer           :: edge
          real(kind=RP), allocatable       :: Fstar(:,:)
-         real(kind=RP), allocatable       :: QL(:) , QR(:) , QBdry(:)
+         real(kind=RP), allocatable       :: QL(:) , QR(:) 
          real(kind=RP), pointer  :: T(:,:) , Tinv(:,:)
          integer                          :: iXi
 
@@ -633,46 +633,55 @@ module DGFirstOrderMethods
 
             type is (StraightBdryEdge_t)
                associate( N => edge % spA % N )
-
                allocate( Fstar ( 0 : N , NEC ) )
-      
-               do iXi = 0 , N
-                  allocate ( QL(NEC) , QR(NEC) )
 
-                  QL = edge % Q(iXi , 1:NEC , 1)
-                  QR = edge % uB(iXi, 1:NEC)
-      
-                  T  => edge % T(1:NEC , 1:NEC , iXi)
-                  Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+               if ( associated( edge % FB ) ) then
+                  Fstar = edge % FB
+
+               elseif ( associated ( edge % uB ) ) then
+                  do iXi = 0 , N
+                     allocate ( QL(NEC) , QR(NEC) )
    
-                  Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
-      
-                  deallocate( QL , QR )
+                     QL = edge % Q(iXi , 1:NEC , 1)
+                     QR = edge % uB(iXi, 1:NEC)
+         
+                     T  => edge % T(1:NEC , 1:NEC , iXi)
+                     Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+                     Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+         
+                     deallocate( QL , QR )
+   
+                  end do
+               end if
 
-               end do
-               
                end associate
                
             type is (CurvedBdryEdge_t)
                associate( N => edge % spA % N )
 
                allocate( Fstar ( 0 : N , NEC ) )
-      
-               do iXi = 0 , N
-                  allocate ( QL(NEC) , QR(NEC) )
 
-                  QL = edge % Q(iXi , 1:NEC , 1)
-                  QR = edge % uB(iXi, 1:NEC)
-      
-                  T  => edge % T(1:NEC , 1:NEC , iXi)
-                  Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+               if ( associated( edge % FB) ) then
+                  Fstar = edge % FB
+
+               elseif ( associated ( edge % uB) ) then
+                  do iXi = 0 , N
+                     allocate ( QL(NEC) , QR(NEC) )
    
-                  Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+                     QL = edge % Q(iXi , 1:NEC , 1)
+                     QR = edge % uB(iXi, 1:NEC)
+         
+                     T  => edge % T(1:NEC , 1:NEC , iXi)
+                     Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
       
-                  deallocate( QL , QR )
-
-               end do
-               
+                     Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+         
+                     deallocate( QL , QR )
+   
+                  end do
+                  
+               end if
+      
                end associate
  
             type is (Edge_t)

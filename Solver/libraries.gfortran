@@ -1,2 +1,2 @@
 #!/bin/bash
-export DYLD_LIBRARY_PATH=/apps/netcdff-4.4.1/debug-with-gfortran/lib
+export DYLD_LIBRARY_PATH=/apps/netcdff-4.4.4/debug-with-gfortran/lib

@@ -87,13 +87,15 @@ module QuadElementClass
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
-        real(kind=RP), pointer            :: uB(:,:)           ! Solution at the boundary
-        real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
+        real(kind=RP), pointer            :: uB(:,:)   => NULL()        ! Solution at the boundary
+        real(kind=RP), pointer            :: gB(:,:,:) => NULL()        ! Solution gradient at the boundary
+        real(kind=RP), pointer            :: FB(:,:)  => NULL()       ! Fluxes at the boundary
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
-        real(kind=RP), pointer            :: uB(:,:)           ! Solution at the boundary
-        real(kind=RP), pointer            :: gB(:,:,:)         ! Solution gradient at the boundary
+        real(kind=RP), pointer            :: uB(:,:)   => NULL()          ! Solution at the boundary
+        real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
+        real(kind=RP), pointer            :: FB(:,:) => NULL()        ! Fluxes at the boundary
         contains
             procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
             procedure      :: evaluateX  => Curvilinear_InterpolantX

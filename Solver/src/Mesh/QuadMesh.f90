@@ -39,6 +39,7 @@ module QuadMeshClass
        class(BoundaryCondition_t), pointer :: BC
        contains
           procedure      :: Construct => Zone_Construct
+          procedure      :: Update    => Zone_Update
     end type Zone_t
  
 
@@ -373,6 +374,18 @@ module QuadMeshClass
 
             end if
          end subroutine Zone_construct
+
+         subroutine Zone_Update( self )
+            implicit none
+            class(Zone_t)           :: self
+            integer                 :: edID
+
+            do edID = 1 , self % no_of_edges
+               call self % BC % Update( self % edges(edID) % f )
+            end do
+            
+
+         end subroutine Zone_Update
  
          function Compute_volumeIntegral( self , var ) result ( val )
             use MatrixOperations

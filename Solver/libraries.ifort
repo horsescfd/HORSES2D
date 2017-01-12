@@ -1,2 +1,2 @@
 #!/bin/bash
-export DYLD_LIBRARY_PATH=/apps/netcdff-4.4.1/with-ifort/lib:${DYLD_LIBRARY_PATH}
+export DYLD_LIBRARY_PATH=/apps/netcdff-4.4.4/with-ifort/lib:${DYLD_LIBRARY_PATH}

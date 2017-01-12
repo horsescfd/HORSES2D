@@ -243,6 +243,7 @@ module DGSpatialDiscretizationMethods
 !        -------------------------------
          integer                 :: eID
          integer                 :: fID
+         integer                 :: zoneID
 !        -------------------------------
 !
 !        Volume loops
@@ -254,6 +255,13 @@ module DGSpatialDiscretizationMethods
 !
 !        Face loops
 !
+!
+!        Update the contents
+!        -------------------
+         do zoneID = 1 , size(mesh % zones) - 1
+            call mesh % zones(zoneID) % Update
+         end do 
+
          do fID = 1 , mesh % no_of_edges
             call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
 !            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)

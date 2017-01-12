@@ -13,23 +13,10 @@ module DGBoundaryConditions
    implicit none
 
    private
-   public BoundaryCondition_t , Construct!, DGBoundaryConditions_setFace
+   public BoundaryCondition_t , Construct
    public PeriodicBC_t , DirichletBC_t , Farfield_t , EulerWall_t
 
    integer, parameter         :: STR_LEN_BC = 128
-
-!   type BoundaryCondition_t
-!      integer        :: marker
-!      integer        :: type
-!      class(BoundaryCondition_t), pointer    :: periodicPair => NULL()
-!      class(Edge_t), pointer                 :: edge => NULL()
-!      real(kind=RP), pointer                 :: uBC => NULL()
-!      real(kind=RP), pointer                 :: gBC => NULL()
-!      contains
-!         procedure   :: setFace => DGBoundaryConditions_setFace
-!         procedure   :: construct => DGBoundaryConditions_construct
-!   end type BoundaryCondition_t
-!
 !
 !  **********************************
 !  Base class for boundary conditions
@@ -41,6 +28,7 @@ module DGBoundaryConditions
       contains
          procedure ::     Construct => BaseClass_Construct
          procedure ::     Associate => BaseClass_Associate
+         procedure ::     Update    => BaseClass_Update
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -77,6 +65,9 @@ module DGBoundaryConditions
 !  ***********************************
 !
    type, extends(BoundaryCondition_t)           :: EulerWall_t
+      contains
+         procedure   ::    Associate => EulerWall_Associate
+         procedure   ::    Update    => EulerWall_Update
    end type EulerWall_t
 
 !
@@ -146,6 +137,23 @@ module DGBoundaryConditions
 !
       end subroutine BaseClass_Associate
 
+      subroutine BaseClass_Update( self , edge )
+         implicit none
+         class(BoundaryCondition_t)          :: self
+         class(Edge_t)                       :: edge
+!
+!        *****************************************
+!           The base class does nothing
+!        *****************************************
+!
+      end subroutine BaseClass_Update
+!
+!///////////////////////////////////////////////////////////////////////////////////
+!
+!           DIRICHLET BC
+!           ------------
+!///////////////////////////////////////////////////////////////////////////////////
+!
       subroutine DirichletBC_Construct( self , marker , in_label)
          use Setup_class
          implicit none
@@ -240,6 +248,84 @@ module DGBoundaryConditions
          end select
          end associate
       end subroutine DirichletBC_Associate
+!
+!///////////////////////////////////////////////////////////////////////////////////
+!
+!           EULER WALL
+!           ----------
+!///////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine EulerWall_Associate( self , edge ) 
+         implicit none  
+         class(EulerWall_t)                  :: self
+         class(Edge_t)                       :: edge
+
+         associate( N => edge % spA % N )
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+
+            type is (StraightBdryEdge_t)
+               allocate( edge % FB(0:N,NEC) )
+         
+            type is (CurvedBdryEdge_t)
+               allocate( edge % FB(0:N,NEC) )
+
+            class default
+         end select
+         end associate
+                
+      end subroutine EulerWall_Associate
+
+
+      subroutine EulerWall_Update( self , edge )
+         implicit none  
+         class(EulerWall_t)                  :: self
+         class(Edge_t)                       :: edge
+         real(kind=RP), allocatable          :: p(:)
+!
+!        ***************************************************
+!           For each edge the flux is computed as:
+!              F(IRHO)  = 0
+!              F(IRHOU) = p dSx
+!              F(IRHOV) = p dSy
+!              F(IRHOE) = 0
+!        ***************************************************
+!
+         associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+   
+         allocate( p(0:N) ) 
+         
+         p(0:N) = gm1 * ( edge % Q(0:N,IRHOE,1) - 0.5_RP * (edge % Q(0:N,IRHOU,1) * edge % Q(0:N,IRHOU,1) +  &
+                                                            edge % Q(0:N,IRHOV,1) * edge % Q(0:N,IRHOV,1) / edge % Q(0:N,IRHO,1)) ) 
+
+         select type ( edge ) 
+            type is (StraightBdryEdge_t)
+
+               edge % FB(0:N,IRHO)  = 0.0_RP
+               edge % FB(0:N,IRHOU) = p(0:N) * edge % dS(iX,0:N) / (sqrt(gamma) * Mach)
+               edge % FB(0:N,IRHOV) = p(0:N) * edge % dS(iY,0:N) / (sqrt(gamma) * Mach)
+               edge % FB(0:N,IRHOE) = 0.0_RP
+         
+            type is (CurvedBdryEdge_t)
+
+               edge % FB(0:N,IRHO)  = 0.0_RP
+               edge % FB(0:N,IRHOU) = p(0:N) * edge % dS(iX,0:N) / (sqrt(gamma) * Mach)
+               edge % FB(0:N,IRHOV) = p(0:N) * edge % dS(iY,0:N) / (sqrt(gamma) * Mach)
+               edge % FB(0:N,IRHOE) = 0.0_RP
+      
+            class default
+         end select
+
+         deallocate( p ) 
+
+         end associate
+
+      end subroutine EulerWall_Update
+
+
 !
 !      subroutine DGBoundaryConditions_setFace( self  )
 !         use Physics
