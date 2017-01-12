@@ -34,8 +34,8 @@ module Setup_class
 !              Spatial discretization parameters
 !       -------------------------------------------------------------------------------------
 !
-        integer                      :: nodes                     =  LGL       ! Interpolation / Integration nodes strategy
-        integer                      :: N                         =  4         ! Polynomial order (generic)
+        integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
+        integer                      :: N                         =  10         ! Polynomial order (generic)
 !
 !       --------------------------------------------------------------------------------------
 !              Initialization

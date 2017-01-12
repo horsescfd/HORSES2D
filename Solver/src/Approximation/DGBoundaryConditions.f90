@@ -40,6 +40,7 @@ module DGBoundaryConditions
       integer                          :: BCType
       contains
          procedure ::     Construct => BaseClass_Construct
+         procedure ::     Associate => BaseClass_Associate
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -57,6 +58,7 @@ module DGBoundaryConditions
       real(kind=RP), dimension(NEC)       :: q
       contains
          procedure ::      Construct => DirichletBC_Construct
+         procedure ::      Associate => DirichletBC_Associate
    end type DirichletBC_t
 !
 !  *********************************
@@ -133,6 +135,17 @@ module DGBoundaryConditions
 !
       end subroutine BaseClass_Construct
 
+      subroutine BaseClass_Associate( self , edge )
+         implicit none
+         class(BoundaryCondition_t)          :: self
+         class(Edge_t)                       :: edge
+!
+!        *****************************************
+!           The base class does nothing
+!        *****************************************
+!
+      end subroutine BaseClass_Associate
+
       subroutine DirichletBC_Construct( self , marker , in_label)
          use Setup_class
          implicit none
@@ -188,6 +201,45 @@ module DGBoundaryConditions
          end associate
 
       end subroutine DirichletBC_Construct
+
+      subroutine DirichletBC_Associate(self , edge)
+         implicit none
+         class(DirichletBC_t)          :: self
+         class(Edge_t)                 :: edge
+         integer                       :: i
+
+         associate ( N => edge % spA % N )
+
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+      
+            type is (StraightBdryEdge_t)
+               allocate( edge % uB(0:N,NEC) )
+               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               
+               do i = 0 , N
+                  edge % uB(i , 1:NEC) = self % q
+               end do
+
+               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               
+   
+            type is (CurvedBdryEdge_t)
+               allocate( edge % uB(0:N,NEC) )
+               allocate( edge % gB(0:N,NEC,NDIM) )
+
+               do i = 0 , N
+                  edge % uB(i , 1:NEC) = self % q
+               end do
+
+               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+
+         end select
+         end associate
+      end subroutine DirichletBC_Associate
 !
 !      subroutine DGBoundaryConditions_setFace( self  )
 !         use Physics

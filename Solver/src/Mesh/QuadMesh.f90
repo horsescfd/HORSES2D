@@ -366,6 +366,10 @@ module QuadMeshClass
 
             else
                call Construct( self % BC , marker )
+   
+               do edID = 1 , self % no_of_edges
+                  call self % BC % Associate( self % edges(edID) % f )
+               end do
 
             end if
          end subroutine Zone_construct

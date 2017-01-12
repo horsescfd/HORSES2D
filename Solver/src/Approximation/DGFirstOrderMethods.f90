@@ -217,7 +217,7 @@ module DGFirstOrderMethods
 
                end associate
 
-!              Equation for the LEFT element
+!              Equation for the RIGHT element
                associate(QDot => edge % quads(RIGHT) % e % QDot, &
                    N=> edge % quads(RIGHT) % e % spA % N, &
                    e=> edge % quads(RIGHT) % e)
@@ -295,15 +295,175 @@ module DGFirstOrderMethods
                    lj2D=>NULL()
                    deallocate(Fstar2D)
                end associate
-!
-!            type is (BdryEdge_t)
-!               associate(QDot => edge % quads(1) % e % QDot , &
-!                  N => edge % quads(1) % e % Interp % N , &
-!                  e => edge % quads(1) % e)
-!
-!                  QDot = QDot - vectorOuterProduct(e % Interp % lb(:,edge % BCLocation) , Fstar)* edge % n
-!
-!               end associate
+
+            type is (StraightBdryEdge_t)
+
+!              Normal always points towards the outside (i.e. they are LEFT elements)
+               associate(QDot => edge % quads(1) % e % QDot, &
+                   N=> edge % quads(1) % e % spA % N, &
+                   e=> edge % quads(1) % e)
+ 
+                  if ( edge % edgeLocation(1) .eq. ERIGHT) then
+         
+                     direction = e % edgesDirection( edge % edgeLocation(1) )
+                     pos = RIGHT
+                     index = iX
+
+                     allocate(Fstar2D(1,0:N,NEC))
+                     
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(1) .eq. ETOP ) then
+            
+                     direction = - e % edgesDirection ( edge % edgeLocation(1) ) 
+                     pos = RIGHT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(1) .eq. ELEFT ) then
+   
+                     direction = - e % edgesDirection ( edge % edgeLocation(1) )
+                     pos = LEFT
+                     index = iX
+                     allocate(Fstar2D(1,0:N,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(1) .eq. EBOTTOM ) then
+
+                     direction = e % edgesDirection ( edge % edgeLocation(1) ) 
+                     pos = LEFT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+         
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  end if
+!     
+!                  This (-) sign comes from the equation ut = -fx !
+                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+                   lj2D=>NULL()
+                   
+                  deallocate(Fstar2D)
+
+               end associate
+
+            type is (CurvedBdryEdge_t)
+
+!              Normal always points towards the outside (i.e. they are LEFT elements)
+               associate(QDot => edge % quads(1) % e % QDot, &
+                   N=> edge % quads(1) % e % spA % N, &
+                   e=> edge % quads(1) % e)
+ 
+                  if ( edge % edgeLocation(1) .eq. ERIGHT) then
+         
+                     direction = e % edgesDirection( edge % edgeLocation(1) )
+                     pos = RIGHT
+                     index = iX
+
+                     allocate(Fstar2D(1,0:N,NEC))
+                     
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(1) .eq. ETOP ) then
+            
+                     direction = - e % edgesDirection ( edge % edgeLocation(1) ) 
+                     pos = RIGHT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(1) .eq. ELEFT ) then
+   
+                     direction = - e % edgesDirection ( edge % edgeLocation(1) )
+                     pos = LEFT
+                     index = iX
+                     allocate(Fstar2D(1,0:N,NEC))
+   
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  elseif ( edge % edgeLocation(1) .eq. EBOTTOM ) then
+
+                     direction = e % edgesDirection ( edge % edgeLocation(1) ) 
+                     pos = LEFT
+                     index = iY
+                     allocate(Fstar2D(0:N,1,NEC))
+         
+                     if ( direction .eq. FORWARD ) then
+                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     elseif ( direction .eq. BACKWARD ) then
+                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                     else
+                        print*, "Direction not forward nor backward"
+                        stop "Stopped."
+                     end if
+
+                  end if
+!     
+!                  This (-) sign comes from the equation ut = -fx !
+                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+                   lj2D=>NULL()
+                   
+                  deallocate(Fstar2D)
+
+               end associate
+
             class default
          end select
 
@@ -470,22 +630,51 @@ module DGFirstOrderMethods
          integer                          :: iXi
 
          select type ( edge )
+
             type is (StraightBdryEdge_t)
                associate( N => edge % spA % N )
+
                allocate( Fstar ( 0 : N , NEC ) )
-               end associate
       
-!               QBdry => edge % quads(1) % e % Qb( : , edge % BCLocation  )
-!!              TODO: Beware of this
-!               n     => NULL()   ! face % n
-!
-!               val = self % RiemannSolver(QBdry , edge % uB , n)
+               do iXi = 0 , N
+                  allocate ( QL(NEC) , QR(NEC) )
+
+                  QL = edge % Q(iXi , 1:NEC , 1)
+                  QR = edge % uB(iXi, 1:NEC)
+      
+                  T  => edge % T(1:NEC , 1:NEC , iXi)
+                  Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+   
+                  Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+      
+                  deallocate( QL , QR )
+
+               end do
+               
+               end associate
                
             type is (CurvedBdryEdge_t)
                associate( N => edge % spA % N )
-               allocate( Fstar ( 0 : N , NEC ) )
-               end associate
 
+               allocate( Fstar ( 0 : N , NEC ) )
+      
+               do iXi = 0 , N
+                  allocate ( QL(NEC) , QR(NEC) )
+
+                  QL = edge % Q(iXi , 1:NEC , 1)
+                  QR = edge % uB(iXi, 1:NEC)
+      
+                  T  => edge % T(1:NEC , 1:NEC , iXi)
+                  Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+   
+                  Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+      
+                  deallocate( QL , QR )
+
+               end do
+               
+               end associate
+ 
             type is (Edge_t)
       
                associate( N => edge % spA % N )
