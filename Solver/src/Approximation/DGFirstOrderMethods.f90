@@ -136,333 +136,22 @@
          select type ( edge )
             type is (Edge_t)
 
-!              Equation for the LEFT element
-               associate(QDot => edge % quads(LEFT) % e % QDot, &
-                   N=> edge % quads(LEFT) % e % spA % N, &
-                   e=> edge % quads(LEFT) % e)
- 
-                  if ( edge % edgeLocation(LEFT) .eq. ERIGHT) then
-         
-                     direction = e % edgesDirection( edge % edgeLocation(LEFT) )
-                     pos = RIGHT
-                     index = iX
-
-                     allocate(Fstar2D(1,0:N,NEC))
-                     
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(LEFT) .eq. ETOP ) then
-            
-                     direction = - e % edgesDirection ( edge % edgeLocation(LEFT) ) 
-                     pos = RIGHT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(LEFT) .eq. ELEFT ) then
-   
-                     direction = - e % edgesDirection ( edge % edgeLocation(LEFT) )
-                     pos = LEFT
-                     index = iX
-                     allocate(Fstar2D(1,0:N,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(LEFT) .eq. EBOTTOM ) then
-
-                     direction = e % edgesDirection ( edge % edgeLocation(LEFT) ) 
-                     pos = LEFT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-         
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  end if
-!     
-!                  This (-) sign comes from the equation ut = -fx !
-                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
-                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
-
-                   lj2D=>NULL()
-                   
-                  deallocate(Fstar2D)
-
-               end associate
-
-!              Equation for the RIGHT element
-               associate(QDot => edge % quads(RIGHT) % e % QDot, &
-                   N=> edge % quads(RIGHT) % e % spA % N, &
-                   e=> edge % quads(RIGHT) % e)
- 
-                  if ( edge % edgeLocation(RIGHT) .eq. ERIGHT) then
-         
-                     direction = e % edgesDirection( edge % edgeLocation(RIGHT) )
-                     pos = RIGHT                    ! Where to interpolate the test function
-                     index = iX                     ! The coordinate (xi/eta) in which the boundary is located
-
-                     allocate(Fstar2D(1,0:N,NEC))
-                     
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(RIGHT) .eq. ETOP ) then
-            
-                     direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
-                     pos = RIGHT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(RIGHT) .eq. ELEFT ) then
-   
-                     direction = - e % edgesDirection ( edge % edgeLocation(RIGHT) )
-                     pos = LEFT
-                     index = iX
-                     allocate(Fstar2D(1,0:N,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(RIGHT) .eq. EBOTTOM ) then
-
-                     direction = e % edgesDirection ( edge % edgeLocation(RIGHT) ) 
-                     pos = LEFT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-         
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  end if
-
-                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
-                   QDot = QDot +  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
-
-                   lj2D=>NULL()
-                   deallocate(Fstar2D)
-               end associate
+            associate ( QDot => edge % quads(LEFT) % e % QDot )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar )
+            end associate
+            associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
+               QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar )
+            end associate
 
             type is (StraightBdryEdge_t)
-
-!              Normal always points towards the outside (i.e. they are LEFT elements)
-               associate(QDot => edge % quads(1) % e % QDot, &
-                   N=> edge % quads(1) % e % spA % N, &
-                   e=> edge % quads(1) % e)
- 
-                  if ( edge % edgeLocation(1) .eq. ERIGHT) then
-         
-                     direction = e % edgesDirection( edge % edgeLocation(1) )
-                     pos = RIGHT
-                     index = iX
-
-                     allocate(Fstar2D(1,0:N,NEC))
-                     
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(1) .eq. ETOP ) then
-            
-                     direction = - e % edgesDirection ( edge % edgeLocation(1) ) 
-                     pos = RIGHT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(1) .eq. ELEFT ) then
-   
-                     direction = - e % edgesDirection ( edge % edgeLocation(1) )
-                     pos = LEFT
-                     index = iX
-                     allocate(Fstar2D(1,0:N,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(1) .eq. EBOTTOM ) then
-
-                     direction = e % edgesDirection ( edge % edgeLocation(1) ) 
-                     pos = LEFT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-         
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  end if
-!     
-!                  This (-) sign comes from the equation ut = -fx !
-                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
-                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
-
-                   lj2D=>NULL()
-                   
-                  deallocate(Fstar2D)
-
-               end associate
+            associate ( QDot => edge % quads(1) % e % QDot )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar )
+            end associate
 
             type is (CurvedBdryEdge_t)
-
-!              Normal always points towards the outside (i.e. they are LEFT elements)
-               associate(QDot => edge % quads(1) % e % QDot, &
-                   N=> edge % quads(1) % e % spA % N, &
-                   e=> edge % quads(1) % e)
- 
-                  if ( edge % edgeLocation(1) .eq. ERIGHT) then
-         
-                     direction = e % edgesDirection( edge % edgeLocation(1) )
-                     pos = RIGHT
-                     index = iX
-                     allocate(Fstar2D(1,0:N,NEC))
-                     
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(1) .eq. ETOP ) then
-            
-                     direction = - e % edgesDirection ( edge % edgeLocation(1) ) 
-                     pos = RIGHT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(1) .eq. ELEFT ) then
-   
-                     direction = - e % edgesDirection ( edge % edgeLocation(1) )
-                     pos = LEFT
-                     index = iX
-                     allocate(Fstar2D(1,0:N,NEC))
-   
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  elseif ( edge % edgeLocation(1) .eq. EBOTTOM ) then
-
-                     direction = e % edgesDirection ( edge % edgeLocation(1) ) 
-                     pos = LEFT
-                     index = iY
-                     allocate(Fstar2D(0:N,1,NEC))
-         
-                     if ( direction .eq. FORWARD ) then
-                        Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     elseif ( direction .eq. BACKWARD ) then
-                        Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
-                     else
-                        print*, "Direction not forward nor backward"
-                        stop "Stopped."
-                     end if
-
-                  end if
-!     
-!                  This (-) sign comes from the equation ut = -fx !
-                   lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
-                   QDot = QDot -  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
-
-                   lj2D=>NULL()
-                   
-                  deallocate(Fstar2D)
-
-               end associate
+            associate ( QDot => edge % quads(1) % e % QDot )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar ) 
+            end associate
 
             class default
          end select
@@ -470,6 +159,105 @@
         end associate
  
       end subroutine StdDG_QDotFaceLoop
+
+      function StdDG_QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
+         use MatrixOperations
+         implicit none
+         class(Edge_t)              :: edge
+         integer                    :: loc
+         real(kind=RP)              :: Fstar(0:,:)
+         real(kind=RP), allocatable :: dFJ(:,:,:)
+!        ---------------------------------------------------------------------
+         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: lj2D(:,:)
+         integer                            :: direction
+         integer                            :: pos
+         integer                            :: index
+!
+
+         associate( N=> edge % quads(loc) % e % spA % N, &
+             e=> edge % quads(loc) % e)
+ 
+            if ( edge % edgeLocation(loc) .eq. ERIGHT) then
+   
+               direction = e % edgesDirection( edge % edgeLocation(loc) )
+               pos = RIGHT                    ! Where to interpolate the test function
+               index = iX                     ! The coordinate (xi/eta) in which the boundary is located
+
+               allocate(Fstar2D(1,0:N,NEC))
+               
+               if ( direction .eq. FORWARD ) then
+                  Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+               elseif ( direction .eq. BACKWARD ) then
+                  Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+               end if
+
+            elseif ( edge % edgeLocation(loc) .eq. ETOP ) then
+      
+               direction = - e % edgesDirection ( edge % edgeLocation(loc) ) 
+               pos = RIGHT
+               index = iY
+               allocate(Fstar2D(0:N,1,NEC))
+   
+               if ( direction .eq. FORWARD ) then
+                  Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+               elseif ( direction .eq. BACKWARD ) then
+                  Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+               end if
+
+            elseif ( edge % edgeLocation(loc) .eq. ELEFT ) then
+   
+               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
+               pos = LEFT
+               index = iX
+               allocate(Fstar2D(1,0:N,NEC))
+   
+               if ( direction .eq. FORWARD ) then
+                  Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+               elseif ( direction .eq. BACKWARD ) then
+                  Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+               end if
+
+            elseif ( edge % edgeLocation(loc) .eq. EBOTTOM ) then
+
+               direction = e % edgesDirection ( edge % edgeLocation(loc) ) 
+               pos = LEFT
+               index = iY
+               allocate(Fstar2D(0:N,1,NEC))
+   
+               if ( direction .eq. FORWARD ) then
+                  Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+               elseif ( direction .eq. BACKWARD ) then
+                  Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+               end if
+
+            end if
+
+             lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+             
+             allocate ( dFJ(0:N,0:N,NEC) )
+             dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+
+             lj2D=>NULL()
+             deallocate(Fstar2D)
+         end associate
+
+      end function StdDG_QDotFaceContribution
+
+
+
 
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations

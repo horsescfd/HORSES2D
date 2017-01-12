@@ -75,9 +75,9 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: integrationMode           =  STEADY
-        real(kind=RP)                :: dt                        =  1.0e-7_RP
+        real(kind=RP)                :: dt                        =  1.0e-6_RP
         real(kind=RP)                :: simulationTime            =  1.0_RP
-        integer                      :: no_of_iterations          =  10000
+        integer                      :: no_of_iterations          =  30000
         real(kind=RP)                :: initialTime               = 0.0_RP
         character(len=STR_LEN_SETUP) :: integrationMethod         = "Explicit-Euler"
 !
