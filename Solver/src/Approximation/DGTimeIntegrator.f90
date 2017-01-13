@@ -134,7 +134,7 @@ module DGTimeIntegrator
 
          residuals = mesh % computeResiduals()
 
-         write(STD_OUT , '(20X,I20,2X,A,2X,E20.8,2X,A,2X,E20.8,2X,A,2X,E20.8,2X,A,2X,E20.8,2X,A,2X,E20.8)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
+         write(STD_OUT , '(20X,I20,2X,A,2X,ES20.8,2X,A,2X,ES20.8,2X,A,2X,ES20.8,2X,A,2X,ES20.8,2X,A,2X,ES20.8)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
                                           "|", residuals(IRHOV) , "|" , residuals(IRHOE)
       end subroutine TimeIntegrator_Display
 
