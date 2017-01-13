@@ -75,9 +75,9 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: integrationMode           =  STEADY
-        real(kind=RP)                :: dt                        =  1.0e-4_RP
+        real(kind=RP)                :: dt                        =  1.0e-5_RP
         real(kind=RP)                :: simulationTime            =  1.0_RP
-        integer                      :: no_of_iterations          =  1000
+        integer                      :: no_of_iterations          =  200
         real(kind=RP)                :: initialTime               = 0.0_RP
         character(len=STR_LEN_SETUP) :: integrationMethod         = "Explicit-Euler"
 !
@@ -86,6 +86,7 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: autosaveInterval          = 5
+        integer                      :: output_interval            = 10
         character(len=STR_LEN_SETUP) :: saveVariables             = "rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach"
     end type Setup_t
 

@@ -29,6 +29,7 @@ module QuadMeshClass
              procedure  :: SetStorage => QuadMesh_SetStorage
              procedure  :: VolumeIntegral => Compute_VolumeIntegral
              procedure  :: SurfaceIntegral => Compute_SurfaceIntegral
+             procedure  :: ComputeResiduals => Mesh_ComputeResiduals
     end type QuadMesh_t
 
     type Zone_t
@@ -445,4 +446,22 @@ module QuadMeshClass
 
          end function Compute_surfaceIntegral
    
+         function Mesh_ComputeResiduals( self ) result ( residuals )
+            use Physics
+            implicit none
+            class(QuadMesh_t )               :: self
+            real(kind=RP)                    :: residuals(NEC)
+            integer                          :: eID
+
+            residuals = 0.0_RP
+         
+            do eID = 1 , self % no_of_elements
+               residuals(IRHO) = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
+               residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOU))) )
+               residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOV))) )
+               residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOE))) )
+            end do   
+
+         end function Mesh_ComputeResiduals
+
 end module QuadMeshClass   

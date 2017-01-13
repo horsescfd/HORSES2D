@@ -113,8 +113,8 @@ module DGSpatialDiscretizationMethods
          class(QuadMesh_t)         :: mesh
          character(len=*)        :: var
          integer                 :: eID , edID , eq
-         real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
-         real(kind=RP), pointer  :: variable_b(:)     ! will point to both Q or dQ in the faces, (0:N)
+         real(kind=RP), pointer  :: variable(:,:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
+         real(kind=RP), pointer  :: variable_b(:,:)     ! will point to both Q or dQ in the faces, (0:N)
          real(kind=RP)           :: direction
          integer                 :: varID
          real(kind=RP)           :: edgeSign
@@ -138,7 +138,7 @@ module DGSpatialDiscretizationMethods
             do edID = 1 , EDGES_PER_QUAD
                associate( ed => e % edges(edID) % f )
 
-               allocate( variable_b ( 0 : N ) ) 
+               allocate( variable_b ( 0 : N , NEC ) ) 
 
                if ( (edID .eq. EBOTTOM) .or. (edID .eq. ERIGHT) ) then     ! Same direction as stored
                   direction = e % edgesDirection(edID)
@@ -151,95 +151,97 @@ module DGSpatialDiscretizationMethods
                else
                   edgeSign = 1.0_RP         ! Inside-pointing edges
                end if
-
-               do eq = 1 , NEC
 !
 !                 Gather the variable
 !                 -------------------
                   select case ( varID )
                      case (IQ)
-                        variable(0:, 0: )   => e % Q(0:,0:,eq)
+                        variable(0:, 0:,1: )   => e % Q(0:,0:,1:)
                      case (IDXIQ)
-                        variable(0: , 0: )   => e % dQ(0:,0:,eq,iX)
+                        variable(0: , 0:,1: )   => e % dQ(0:,0:,1:,iX)
                      case (IDETAQ)
-                        variable(0: , 0: )   => e % dQ(0:,0:,eq,iY)
+                        variable(0: , 0:,1: )   => e % dQ(0:,0:,1:,iY)
                      case (IFLUXES)
                         if ( (edID .eq. EBOTTOM) .or. (edID .eq. ETOP) ) then
-                           variable(0: , 0: )   => e % F(0:,0:,eq,iY)
+                           variable(0: , 0:,1: )   => e % F(0:,0:,1:,iY)
                         elseif ( (edID .eq. ELEFT) .or. (edID .eq. ERIGHT) ) then
-                           variable(0: , 0: )   => e % F(0:,0:,eq,iX)
+                           variable(0: , 0:,1: )   => e % F(0:,0:,1:,iX)
                         end if
 
                   end select
+
+               do eq = 1 , NEC
 
                   if ( e % spA % nodes .eq. LG ) then   
 !
 !                    Compute the interpolation
 !                    -------------------------
                      if ( edID .eq. EBOTTOM ) then
-                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,LEFT) )
                      elseif ( edID .eq. ERIGHT ) then
-                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) , trA = .true. )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,RIGHT) , trA = .true. )
                      elseif ( edID .eq. ETOP ) then    
-                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,RIGHT) )
                      elseif ( edID .eq. ELEFT ) then 
-                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) , trA = .true. )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,LEFT) , trA = .true. )
                      end if
 
-                  elseif ( e % spA % nodes .eq. LGL ) then
+                  end if
+               end do
+               if ( e % spA % nodes .eq. LGL ) then
 !
 !                    Just associate with its value
 !                    -----------------------------
                      if ( edID .eq. EBOTTOM ) then
-                        variable_b = variable(0:N,0)
+                        variable_b = variable(0:N,0,1:NEC)
                      elseif ( edID .eq. ERIGHT ) then
-                        variable_b = variable(N , 0:N) 
+                        variable_b = variable(N , 0:N,1:NEC) 
                      elseif ( edID .eq. ETOP ) then
-                        variable_b = variable(0:N,N)
+                        variable_b = variable(0:N,N,1:NEC)
                      elseif ( edID .eq. ELEFT ) then
-                        variable_b = variable(0,0:N)
+                        variable_b = variable(0,0:N,1:NEC)
                      end if
 
-                  end if
-   
+               end if
+              
 !                 Return its value
 !                 ----------------
-                   select case (varID)
-                     case (IQ)
-               
-                        if ( direction .eq. FORWARD ) then
-                           ed % Q(0:N , eq , e % quadPosition(edID)) = variable_b
-                        else
-                           ed % Q(0:N , eq , e % quadPosition(edID)) = variable_b(N:0:-1)
-                        end if
+                select case (varID)
+                  case (IQ)
+            
+                     if ( direction .eq. FORWARD ) then
+                        ed % Q(0:N , 1:NEC , e % quadPosition(edID)) = variable_b
+                     else
+                        ed % Q(0:N , 1:NEC , e % quadPosition(edID)) = variable_b(N:0:-1,1:NEC)
+                     end if
 
-                     case (IDXIQ)
-               
-                        if ( direction .eq. FORWARD ) then
-                           ed % dQ(0:N , eq , e % quadPosition(edID),iX) = variable_b
-                        else
-                           ed % dQ(0:N , eq , e % quadPosition(edID),iX) = variable_b(N:0:-1)
-                        end if
+                  case (IDXIQ)
+            
+                     if ( direction .eq. FORWARD ) then
+                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iX) = variable_b
+                     else
+                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iX) = variable_b(N:0:-1,1:NEC)
+                     end if
 
-                     case (IDETAQ)
-               
-                        if ( direction .eq. FORWARD ) then
-                           ed % dQ(0:N , eq , e % quadPosition(edID),iY) = variable_b
-                        else
-                           ed % dQ(0:N , eq , e % quadPosition(edID),iY) = variable_b(N:0:-1)
-                        end if
+                  case (IDETAQ)
+            
+                     if ( direction .eq. FORWARD ) then
+                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iY) = variable_b
+                     else
+                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iY) = variable_b(N:0:-1,1:NEC)
+                     end if
 
-                     case (IFLUXES)
-      
-                        if ( direction .eq. FORWARD ) then
-                           ed % F (0:N , eq , e % quadPosition(edID)) = edgeSign * variable_b
-                        elseif ( direction .eq. BACKWARD ) then
-                           ed % F (0:N , eq , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1)     ! To ensure that is consistent with the edge normal
-                        end if
+                  case (IFLUXES)
+   
+                     if ( direction .eq. FORWARD ) then
+                        ed % F (0:N , 1:NEC , e % quadPosition(edID)) = edgeSign * variable_b
+                     elseif ( direction .eq. BACKWARD ) then
+                        ed % F (0:N , 1:NEC , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1,1:NEC)     ! To ensure that is consistent with the edge normal
+                     end if
 
-                  end select
-               
-               end do
+               end select
+ 
+
 
                deallocate( variable_b )
    

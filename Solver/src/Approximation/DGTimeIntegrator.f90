@@ -17,6 +17,7 @@ module DGTimeIntegrator
       integer                               :: no_of_iterations
       integer                               :: plot_interval
       integer                               :: autosave_interval
+      integer                               :: output_interval
       character(len=STR_LEN_TIMEINTEGRATOR) :: method
       integer                               :: mode
       procedure(TimeScheme), pointer, nopass :: TimeStep => NULL()
@@ -57,12 +58,14 @@ module DGTimeIntegrator
             Integrator % mode = STEADY
             Integrator % dt = Setup % dt
             Integrator % no_of_iterations = Setup % no_of_iterations 
+            Integrator % output_interval = Setup % output_interval
             Integrator % t_end = (Setup % dt) * (Setup % no_of_iterations)
    
          elseif (Setup % IntegrationMode .eq. TRANSIENT) then
             Integrator % mode = TRANSIENT
             Integrator % dt = Setup % dt
             Integrator % no_of_iterations = ceiling( Integrator % t_end / Setup % dt )
+            Integrator % output_interval = Setup % output_interval
             Integrator % t_end = Setup % no_of_iterations * Setup % dt
             
          else
@@ -98,7 +101,12 @@ module DGTimeIntegrator
             call self % TimeStep( mesh , self % dt , Storage)
             self % t    = self % t + self % dt
 
-            call self % Display( mesh , Storage ) 
+            if ( iter .eq. 1 ) then
+               call self % Display( mesh ) 
+            elseif ( mod(iter , self % output_interval) .eq. 0 ) then
+               call self % Display( mesh ) 
+            end if
+
             call self % Autosave( mesh )
 
 
@@ -107,22 +115,27 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_Integrate
       
-      subroutine TimeIntegrator_Display( self, mesh, Storage )
-         use Storage_module
+      subroutine TimeIntegrator_Display( self, mesh )
+         use Physics
          implicit none  
          class(TimeIntegrator_t)          :: self
          class(QuadMesh_t)                  :: mesh
-         class(Storage_t)                 :: Storage
          integer, parameter               :: ShowLabels = 10
+         integer, save                    :: shown = 0
+         real(kind=RP)                    :: residuals(NEC)
 
-         if ( mod( self % iter-1 , ShowLabels) .eq. 0 ) then     ! Show labels
+         if ( mod( shown , ShowLabels) .eq. 0 ) then     ! Show labels
             write(STD_OUT , '(/)')
             write(STD_OUT , '(/)')
-            write(STD_OUT , '(20X,A20,5X,A20,5X,A20)') "Iteration" , "Time" , "Residual"
-            write(STD_OUT , '(20X,A20,5X,A20,5X,A20)') "---------" , "----" , "--------"
+            write(STD_OUT , '(20X,A20,5X,A20,5X,A20,5X,A20,5X,A20,5X,A20)') "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
+            write(STD_OUT , '(20X,A20,5X,A20,5X,A20,5X,A20,5X,A20,5X,A20)') "---------" , "----" , "----------" , "----------" , "----------", "------"
          end if
+         shown = shown + 1
 
-         write(STD_OUT , '(20X,I20,2X,A,2X,F20.8,2X,A,2X,F20.8)') self % iter ,"|", self % t ,"|", maxval(abs(Storage % QDot) )
+         residuals = mesh % computeResiduals()
+
+         write(STD_OUT , '(20X,I20,2X,A,2X,E20.8,2X,A,2X,E20.8,2X,A,2X,E20.8,2X,A,2X,E20.8,2X,A,2X,E20.8)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
+                                          "|", residuals(IRHOV) , "|" , residuals(IRHOE)
       end subroutine TimeIntegrator_Display
 
       subroutine TimeIntegrator_Describe( self )
