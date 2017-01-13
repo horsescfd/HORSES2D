@@ -69,6 +69,17 @@ module DGBoundaryConditions
          procedure   ::    Associate => EulerWall_Associate
          procedure   ::    Update    => EulerWall_Update
    end type EulerWall_t
+!
+!  *************************************
+!  Viscous wall boundary condition class
+!  *************************************
+!
+   type, extends(BoundaryCondition_t)           :: ViscousWall_t
+      contains
+         procedure   ::    Associate => ViscousWall_Associate
+         procedure   ::    Update    => ViscousWall_Update
+   end type ViscousWall_t
+
 
 !
 !  *******************
@@ -107,6 +118,10 @@ module DGBoundaryConditions
          elseif ( BCType .eq. "EulerWall") then
             allocate( EulerWall_t      :: self )
             self % BCType = EULERWALL_BC
+
+         elseif ( BCType .eq. "ViscousWall") then
+            allocate( ViscousWall_t    :: self ) 
+            self % BCType = VISCOUSWALL_BC
 
          end if
 
@@ -324,7 +339,78 @@ module DGBoundaryConditions
          end associate
 
       end subroutine EulerWall_Update
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              VISCOUS WALL BC
+!              ---------------
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine ViscousWall_Associate(self , edge)
+         implicit none
+         class(ViscousWall_t)          :: self
+         class(Edge_t)                 :: edge
+         integer                       :: i
 
+         associate ( N => edge % spA % N )
+
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+      
+            type is (StraightBdryEdge_t)
+               allocate( edge % uB(0:N,NEC) )
+               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+   
+            type is (CurvedBdryEdge_t)
+               allocate( edge % uB(0:N,NEC) )
+               allocate( edge % gB(0:N,NEC,NDIM) )
+
+         end select
+         end associate
+      end subroutine ViscousWall_Associate
+
+      subroutine ViscousWall_Update( self , edge )
+         implicit none  
+         class(ViscousWall_t)                  :: self
+         class(Edge_t)                       :: edge
+!
+!        ***************************************************
+!           For each edge the ghost cell state is computed as
+!              UB(IRHO) = Q(IRHO)
+!              UB(IRHOU) = -Q(IRHOU)
+!              UB(IRHOV) = -Q(IRHOV)
+!              UB(IRHOE) = Q(IRHOE)
+!        ***************************************************
+!
+         associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+   
+         select type ( edge ) 
+            type is (StraightBdryEdge_t)
+   
+               edge % uB(0 : N , IRHO)  =  edge % Q(0 : N , IRHO  , 1)
+               edge % uB(0 : N , IRHOU) = -edge % Q(0 : N , IRHOU , 1)
+               edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
+               edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
+
+            type is (CurvedBdryEdge_t)
+
+               edge % uB(0 : N , IRHO)  =  edge % Q(0 : N , IRHO  , 1)
+               edge % uB(0 : N , IRHOU) = -edge % Q(0 : N , IRHOU , 1)
+               edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
+               edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
+      
+            class default
+         end select
+
+         end associate
+
+      end subroutine ViscousWall_Update
+
+
+!
 
 !
 !      subroutine DGBoundaryConditions_setFace( self  )

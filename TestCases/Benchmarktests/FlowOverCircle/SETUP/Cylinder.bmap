@@ -24,6 +24,7 @@
 
 # define zone 5
 	Name = Circle
-	Type = EulerWall
+!	Type = EulerWall
 !	Type = Dirichlet
+	Type = ViscousWall
 # end
