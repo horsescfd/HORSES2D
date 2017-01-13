@@ -35,7 +35,7 @@ module Setup_class
 !       -------------------------------------------------------------------------------------
 !
         integer                      :: nodes                     =  LG       ! Interpolation / Integration nodes strategy
-        integer                      :: N                         =  3         ! Polynomial order (generic)
+        integer                      :: N                         =  4         ! Polynomial order (generic)
 !
 !       --------------------------------------------------------------------------------------
 !              Initialization
@@ -75,11 +75,11 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         integer                      :: integrationMode           =  STEADY
-        real(kind=RP)                :: dt                        =  1.0e-5_RP
+        real(kind=RP)                :: dt                        =  1.0e-4_RP
         real(kind=RP)                :: simulationTime            =  1.0_RP
-        integer                      :: no_of_iterations          =  200
+        integer                      :: no_of_iterations          =  1000
         real(kind=RP)                :: initialTime               = 0.0_RP
-        character(len=STR_LEN_SETUP) :: integrationMethod         = "Explicit-Euler"
+        character(len=STR_LEN_SETUP) :: integrationMethod         = "RK3"
 !
 !       ------------------------------------------------------------------------------
 !             Output parameters

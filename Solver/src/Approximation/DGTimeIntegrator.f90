@@ -78,6 +78,9 @@ module DGTimeIntegrator
          if ( trim(Setup % integrationMethod) .eq. "Explicit-Euler" ) then
             Integrator % TimeStep  => TimeIntegrator_ExplicitEuler
 
+         elseif ( trim(Setup % integrationMethod) .eq. "RK3" ) then
+            Integrator % TimeStep => TimeIntegrator_LowStorageRK3
+
          else
             write(STD_OUT , *) "Method " , trim (Setup % integrationMethod) , " not implemented yet."
 
@@ -177,4 +180,39 @@ module DGTimeIntegrator
          Storage % Q = Storage % Q + dt * Storage % QDot
 
       end subroutine TimeIntegrator_ExplicitEuler
+
+      subroutine TimeIntegrator_LowStorageRK3( mesh , dt , Storage )
+         use Storage_module
+         implicit none
+         class(QuadMesh_t)          :: mesh
+         real(kind=RP)              :: dt
+         class(Storage_t)           :: Storage
+!        -----------------------------------------
+         real(kind=RP), allocatable :: G(:)
+         integer                    :: m 
+         integer, parameter         :: N_STAGES = 3
+         real(kind=RP), parameter   :: am(3) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
+         real(kind=RP), parameter   :: bm(3) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
+         real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
+         
+         allocate ( G , source  = Storage % QDot )
+
+         do m = 1 , N_STAGES
+!
+!           Compute time derivative
+!           -----------------------
+            call DGSpatial_ComputeTimeDerivative( mesh )
+
+            if (m .eq. 1) then
+               G = Storage % QDot
+            else
+               G = am(m) * G + Storage % QDot
+               Storage % Q = Storage % Q + gm(m) * dt * G
+            end if
+
+         end do 
+         
+
+      end subroutine TimeIntegrator_LowStorageRK3
+
 end module DGTimeIntegrator
