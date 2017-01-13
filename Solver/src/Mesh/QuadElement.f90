@@ -71,6 +71,7 @@ module QuadElementClass
         real(kind=RP),              pointer :: Tinv(:,:,:)                   ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
         real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
+        real(kind=RP),              pointer :: F(:,:,:)                   ! Solution NORMAL fluxes interpolation to boundaries ( xi ,eq , LEFT/RIGHT )
         type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
         class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
         class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage
@@ -310,11 +311,13 @@ module QuadElementClass
          
                allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE        )  ) 
                allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , QUADS_PER_EDGE )  ) 
+               allocate ( self % f % F  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE )  ) 
 
             else
    
                allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , 1        )  ) 
                allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , 1 )  ) 
+               allocate ( self % f % F  ( 0 : self % f % spA % N , NEC , 1 )  ) 
 
             end if 
 

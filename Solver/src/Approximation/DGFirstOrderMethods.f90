@@ -22,7 +22,8 @@
       integer                                   :: formulation
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
-         procedure, non_overridable :: QDotFaceLoop         => StdDG_QDotFaceLoop
+         procedure, non_overridable :: QDotFaceLoopFormI    => StdDG_QDotFaceLoopFormI
+         procedure, non_overridable :: QDotFaceLoopFormII   => StdDG_QDotFaceLoopFormII
          procedure, non_overridable :: RiemannFlux          => FirstOrderMethod_RiemannFlux
          procedure                  :: QDotVolumeLoop       => StdDG_QDotVolumeLoop
          procedure                  :: ComputeInnerFluxes   => StdDG_ComputeInnerFluxes
@@ -110,7 +111,7 @@
 
       end function FirstOrderMethod_Initialization
 
-      subroutine StdDG_QDotFaceLoop( self , edge )
+      subroutine StdDG_QDotFaceLoopFormI( self , edge )
          use MatrixOperations
          implicit none
          class(FirstOrderMethod_t)          :: self
@@ -158,7 +159,57 @@
 
         end associate
  
-      end subroutine StdDG_QDotFaceLoop
+      end subroutine StdDG_QDotFaceLoopFormI
+
+      subroutine StdDG_QDotFaceLoopFormII( self , edge )
+         use MatrixOperations
+         implicit none
+         class(FirstOrderMethod_t)          :: self
+         class(Edge_t), pointer             :: edge
+         real(kind=RP), allocatable         :: Fstar(:,:)
+         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: lj2D(:,:)
+         integer                            :: direction
+         integer                            :: pos
+         integer                            :: index
+!
+!        -------------------------------------------
+!           This is a standard fluxes term
+!        -------------------------------------------
+!
+         associate ( N => edge % spA % N )
+
+         allocate( Fstar( 0 : N , NEC ) )
+!        Compute the averaged flux
+         Fstar = self % RiemannFlux( edge )
+!
+!        Perform the loop in both elements
+         select type ( edge )
+            type is (Edge_t)
+
+            associate ( QDot => edge % quads(LEFT) % e % QDot )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % F(0:N,1:NEC,LEFT) )
+            end associate
+            associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
+               QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % F(0:N,1:NEC,RIGHT) )
+            end associate
+
+            type is (StraightBdryEdge_t)
+            associate ( QDot => edge % quads(1) % e % QDot )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) )
+            end associate
+
+            type is (CurvedBdryEdge_t)
+            associate ( QDot => edge % quads(1) % e % QDot )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) ) 
+            end associate
+
+            class default
+         end select
+
+        end associate
+ 
+      end subroutine StdDG_QDotFaceLoopFormII
 
       function StdDG_QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
          use MatrixOperations

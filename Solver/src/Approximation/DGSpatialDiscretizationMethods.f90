@@ -13,6 +13,12 @@ module DGSpatialDiscretizationMethods
 
    class(SecondOrderMethod_t), pointer     :: SecondOrderMethod
    class(FirstOrderMethod_t), pointer      :: FirstOrderMethod
+
+
+   integer, parameter         :: IQ = 1
+   integer, parameter         :: IDXIQ = 2
+   integer, parameter         :: IDETAQ = 3
+   integer, parameter         :: IFLUXES = 4
 !
 !  ========
    contains
@@ -100,7 +106,7 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_resetQDot
 
-      subroutine DGSpatial_interpolateToBoundaries( mesh , var )
+      recursive subroutine DGSpatial_interpolateToBoundaries( mesh , var )
          use Physics
          use MatrixOperations
          implicit none
@@ -110,6 +116,21 @@ module DGSpatialDiscretizationMethods
          real(kind=RP), pointer  :: variable(:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
          real(kind=RP), pointer  :: variable_b(:)     ! will point to both Q or dQ in the faces, (0:N)
          real(kind=RP)           :: direction
+         integer                 :: varID
+         real(kind=RP)           :: edgeSign
+         
+         select case ( trim(var) )
+            case ("Q")
+               varID = IQ
+            case ("dxiQ")
+               varID = IDXIQ
+            case ("detaQ")
+               varID = IDETAQ
+            case ("Fluxes")
+               varID = IFLUXES
+            case default
+               varID = -1
+         end select
 
          do eID = 1 , mesh % no_of_elements
    
@@ -125,38 +146,66 @@ module DGSpatialDiscretizationMethods
                   direction = - e % edgesDirection(edID)
                end if
 
+               if ( ( edID .eq. ETOP ) .or. (edID .eq. EBOTTOM) ) then
+                  edgeSign = -1.0_RP          ! Outside-pointing edges
+               else
+                  edgeSign = 1.0_RP         ! Inside-pointing edges
+               end if
+
                do eq = 1 , NEC
 !
 !                 Gather the variable
 !                 -------------------
-                  select case (trim(var))
-                     case ("Q")
+                  select case ( varID )
+                     case (IQ)
                         variable(0:, 0: )   => e % Q(0:,0:,eq)
-               
-                     case ("dxiQ")
+                     case (IDXIQ)
                         variable(0: , 0: )   => e % dQ(0:,0:,eq,iX)
-               
-                     case ("detaQ")
+                     case (IDETAQ)
                         variable(0: , 0: )   => e % dQ(0:,0:,eq,iY)
+                     case (IFLUXES)
+                        if ( (edID .eq. EBOTTOM) .or. (edID .eq. ETOP) ) then
+                           variable(0: , 0: )   => e % F(0:,0:,eq,iY)
+                        elseif ( (edID .eq. ELEFT) .or. (edID .eq. ERIGHT) ) then
+                           variable(0: , 0: )   => e % F(0:,0:,eq,iX)
+                        end if
 
                   end select
-   
-!                 Compute the interpolation
-!                 -------------------------
-                  if ( edID .eq. EBOTTOM ) then
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) )
-                  elseif ( edID .eq. ERIGHT ) then
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) , trA = .true. )
-                  elseif ( edID .eq. ETOP ) then    
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) )
-                  elseif ( edID .eq. ELEFT ) then 
-                     variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) , trA = .true. )
-                  end if
 
+                  if ( e % spA % nodes .eq. LG ) then   
+!
+!                    Compute the interpolation
+!                    -------------------------
+                     if ( edID .eq. EBOTTOM ) then
+                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) )
+                     elseif ( edID .eq. ERIGHT ) then
+                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) , trA = .true. )
+                     elseif ( edID .eq. ETOP ) then    
+                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,RIGHT) )
+                     elseif ( edID .eq. ELEFT ) then 
+                        variable_b = MatrixTimesVector_F( variable , e % spA % lb(:,LEFT) , trA = .true. )
+                     end if
+
+                  elseif ( e % spA % nodes .eq. LGL ) then
+!
+!                    Just associate with its value
+!                    -----------------------------
+                     if ( edID .eq. EBOTTOM ) then
+                        variable_b = variable(0:N,0)
+                     elseif ( edID .eq. ERIGHT ) then
+                        variable_b = variable(N , 0:N) 
+                     elseif ( edID .eq. ETOP ) then
+                        variable_b = variable(0:N,N)
+                     elseif ( edID .eq. ELEFT ) then
+                        variable_b = variable(0,0:N)
+                     end if
+
+                  end if
+   
 !                 Return its value
 !                 ----------------
-                   select case (trim(var))
-                     case ("Q")
+                   select case (varID)
+                     case (IQ)
                
                         if ( direction .eq. FORWARD ) then
                            ed % Q(0:N , eq , e % quadPosition(edID)) = variable_b
@@ -164,7 +213,7 @@ module DGSpatialDiscretizationMethods
                            ed % Q(0:N , eq , e % quadPosition(edID)) = variable_b(N:0:-1)
                         end if
 
-                     case ("dxiQ")
+                     case (IDXIQ)
                
                         if ( direction .eq. FORWARD ) then
                            ed % dQ(0:N , eq , e % quadPosition(edID),iX) = variable_b
@@ -172,12 +221,20 @@ module DGSpatialDiscretizationMethods
                            ed % dQ(0:N , eq , e % quadPosition(edID),iX) = variable_b(N:0:-1)
                         end if
 
-                     case ("detaQ")
+                     case (IDETAQ)
                
                         if ( direction .eq. FORWARD ) then
                            ed % dQ(0:N , eq , e % quadPosition(edID),iY) = variable_b
                         else
                            ed % dQ(0:N , eq , e % quadPosition(edID),iY) = variable_b(N:0:-1)
+                        end if
+
+                     case (IFLUXES)
+      
+                        if ( direction .eq. FORWARD ) then
+                           ed % F (0:N , eq , e % quadPosition(edID)) = edgeSign * variable_b
+                        elseif ( direction .eq. BACKWARD ) then
+                           ed % F (0:N , eq , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1)     ! To ensure that is consistent with the edge normal
                         end if
 
                   end select
@@ -239,6 +296,7 @@ module DGSpatialDiscretizationMethods
 
       subroutine DGSpatial_computeQDot( mesh )
          use QuadElementClass
+         use Setup_class
          implicit none
          class(QuadMesh_t)         :: mesh
 !        -------------------------------
@@ -255,7 +313,9 @@ module DGSpatialDiscretizationMethods
 !            call SecondOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
          end do
 !
+!        **********
 !        Face loops
+!        **********
 !
 !
 !        Update the contents
@@ -263,16 +323,30 @@ module DGSpatialDiscretizationMethods
          do zoneID = 1 , size(mesh % zones) - 1
             call mesh % zones(zoneID) % Update
          end do 
+!
+!        Interpolate the fluxes and perform the face loops
+!        -------------------------------------------------
+         if ( Setup % inviscid_formulation .eq. FORMI ) then
+            do fID = 1 , mesh % no_of_edges
+               call FirstOrderMethod % QDotFaceLoopFormI( mesh % edges(fID) % f )
+!               call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
+            end do
+        
+         elseif ( Setup % inviscid_formulation .eq. FORMII ) then
 
-         do fID = 1 , mesh % no_of_edges
-            call FirstOrderMethod % QDotFaceLoop( mesh % edges(fID) % f )
-!            call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
-         end do
+            call DGSpatial_InterpolateToBoundaries( mesh , "Fluxes" )
+
+            do fID = 1 , mesh % no_of_edges
+               call FirstOrderMethod % QDotFaceLoopFormII( mesh % edges(fID) % f )
+!               call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
+            end do
+
+         end if
 !
 !        -------------------------------------------
 !        Perform the scaling with the mass matrix
 !        -------------------------------------------
-
+!
          do eID = 1 , mesh % no_of_elements
             associate( N => mesh % elements(eID) % spA % N )
             do eq = 1 , NEC

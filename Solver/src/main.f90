@@ -12,6 +12,7 @@ program main
     type(MeshFile_t)       :: meshFile
     type(DGSEM_t)          :: sem
     integer                :: eID , edID
+   real(kind=RP)  :: tstart , tend
 
 !   =====================
 !   The REAL main program
@@ -44,8 +45,10 @@ program main
     call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')      ! This one should be inside DGSEM or Mesh
 
     call checks( sem )           ! This one should be inside DGSEM
-
+call cpu_time(tstart)
     call sem % Integrate()
+call cpu_time(tend)
+   print*, "Time: ",tend-tstart
 
     call ExportToTecplot( sem % mesh , './RESULTS/Solution.plt')              ! This one should be inside DGSEM 
 
