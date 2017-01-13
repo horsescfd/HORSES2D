@@ -130,27 +130,30 @@ module DGTimeIntegrator
          if ( mod( shown , ShowLabels) .eq. 0 ) then     ! Show labels
             write(STD_OUT , '(/)')
             write(STD_OUT , '(/)')
-            write(STD_OUT , '(20X,A20,5X,A20,5X,A20,5X,A20,5X,A20,5X,A20)') "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
-            write(STD_OUT , '(20X,A20,5X,A20,5X,A20,5X,A20,5X,A20,5X,A20)') "---------" , "----" , "----------" , "----------" , "----------", "------"
+            write(STD_OUT , '(10X,A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
+            write(STD_OUT , '(10X,A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "---------" , "--------" , "----------" , "----------" , "----------", "--------"
          end if
          shown = shown + 1
 
          residuals = mesh % computeResiduals()
 
-         write(STD_OUT , '(20X,I20,2X,A,2X,ES20.8,2X,A,2X,ES20.8,2X,A,2X,ES20.8,2X,A,2X,ES20.8,2X,A,2X,ES20.8)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
+         write(STD_OUT , '(10X,I20,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
                                           "|", residuals(IRHOV) , "|" , residuals(IRHOE)
       end subroutine TimeIntegrator_Display
 
       subroutine TimeIntegrator_Describe( self )
+         use Headers
          implicit none
          class(TimeIntegrator_t)          :: self
 
-         write(STD_OUT , *) "Time integrator description: "
-         if (self % mode .eq. STEADY) write(STD_OUT , '(20X,A,A)') "Mode: " , "steady"
-         if (self % mode .eq. TRANSIENT) write(STD_OUT , '(20X,A,A)') "Mode: " , "transient"
-         write(STD_OUT ,'(20X,A,E10.3)') "Time step dt: " , self % dt
-         write(STD_OUT , '(20X,A,I0)') "Number of iterations: " , self % no_of_iterations
-         write(STD_OUT , '(20X,A,E10.3)') "Final simulation time: " , self % t_end
+         write(STD_OUT , *)
+         call Section_header("Time integrator description")
+         write(STD_OUT , *)
+         if (self % mode .eq. STEADY) write(STD_OUT , '(30X,A,A30,A)') "-> ","Mode: " , "steady"
+         if (self % mode .eq. TRANSIENT) write(STD_OUT , '(30X,A,A30,A)') "-> ","Mode: " , "transient"
+         write(STD_OUT ,'(30X,A,A30,ES10.3)') "-> ","Time step dt: " , self % dt
+         write(STD_OUT , '(30X,A,A30,I0)') "-> ","Number of iterations: " , self % no_of_iterations
+         write(STD_OUT , '(30X,A,A30,ES10.3)') "-> ", "Final simulation time: " , self % t_end
          
       end subroutine TimeIntegrator_Describe
    
