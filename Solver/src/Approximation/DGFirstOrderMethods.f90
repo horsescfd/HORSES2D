@@ -438,14 +438,14 @@
 
          write(STD_OUT,'(/)') 
          call SubSection_Header("Inviscid discretization")
-         write(STD_OUT,'(30X,A,A)') "Method: " , trim( self % method ) 
+         write(STD_OUT,'(30X,A,A15,A)') "-> ","Method: " , trim( self % method ) 
 
          select type ( self ) 
             type is ( StandardDG_t )
                if ( self % formulation .eq. FORMI ) then
-                  write(STD_OUT , '(30X,A,A)') "Formulation: Green form"
+                  write(STD_OUT , '(30X,A,A15,A)') "-> ","Formulation: ","Green form"
                elseif ( self % formulation .eq. FORMII ) then
-                  write(STD_OUT , '(30X,A,A)') "Formulation: Divergence form"
+                  write(STD_OUT , '(30X,A,A15,A)') "-> ","Formulation: ","Divergence form"
                end if
    
             type is ( OverIntegrationDG_t )

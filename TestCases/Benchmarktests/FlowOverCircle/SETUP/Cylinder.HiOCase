@@ -6,7 +6,7 @@
 
 !-------------------------------------: Geometry
 			     Mesh file: ./MESH/Cylinder.HiOMesh
-			 Boundary file: ./SETUP/Cylinder.bmap
+			 Boundary file: _this_
 
 
 !-------------------------------------: Physics
@@ -23,7 +23,7 @@
 		     Polynomial order: 4
 
 !------------------------------------: Initialization
-		    Initial condition: Restart
+		    Initial condition: Uniform
 		         Restart file: ./RESULTS/Cylinder.HiORst
 
 !------------------------------------: Inviscid discretization
@@ -51,3 +51,42 @@
                   Autosave interval: 25
                     Output interval: 10
                      Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+
+!
+!            **********************************
+! 	     * Cylinder boundary mapping file *
+!	     **********************************
+!
+
+
+
+# define zone 1
+	Name = Symmetry
+	Type = Dirichlet
+!	pressure = 200000
+!	Mach = 0.02
+!	Temperature = 273.15
+!	Angle of attack = 30
+# end 
+
+# define zone 2
+	Name = Symmetry
+	Type = Dirichlet
+# end 
+
+# define zone 3
+	Name = Inflow
+	Type = Dirichlet
+# end
+
+# define zone 4
+	Name = Outflow
+	Type = Dirichlet
+# end
+
+# define zone 5
+	Name = Wall
+!	Type = EulerWall
+!	Type = Dirichlet
+	Type = ViscousWall
+# end

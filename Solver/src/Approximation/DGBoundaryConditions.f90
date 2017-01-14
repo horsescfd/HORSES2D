@@ -29,6 +29,7 @@ module DGBoundaryConditions
          procedure ::     Construct => BaseClass_Construct
          procedure ::     Associate => BaseClass_Associate
          procedure ::     Update    => BaseClass_Update
+         procedure ::     Describe  => BaseClass_Describe
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -47,6 +48,7 @@ module DGBoundaryConditions
       contains
          procedure ::      Construct => DirichletBC_Construct
          procedure ::      Associate => DirichletBC_Associate
+         procedure ::      Describe  => DirichletBC_Describe
    end type DirichletBC_t
 !
 !  *********************************
@@ -68,6 +70,7 @@ module DGBoundaryConditions
       contains
          procedure   ::    Associate => EulerWall_Associate
          procedure   ::    Update    => EulerWall_Update
+         procedure   ::    Describe  => EulerWall_Describe
    end type EulerWall_t
 !
 !  *************************************
@@ -78,6 +81,7 @@ module DGBoundaryConditions
       contains
          procedure   ::    Associate => ViscousWall_Associate
          procedure   ::    Update    => ViscousWall_Update
+         procedure   ::    Describe  => ViscousWall_Describe
    end type ViscousWall_t
 
 
@@ -124,6 +128,8 @@ module DGBoundaryConditions
             self % BCType = VISCOUSWALL_BC
 
          end if
+   
+         call readValueInRegion( trim(Setup % bdry_file) , "Name" , self % Name , in_label , "# end" )
 
          call self % Construct( marker , in_label)
 
@@ -181,7 +187,6 @@ module DGBoundaryConditions
          real(kind=RP), allocatable         :: AngleOfAttack
          real(kind=RP)                          :: rho
 
-         call readValueInRegion( trim(Setup % bdry_file) , "Name" , self % Name , in_label , "# end" )
          call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
@@ -447,4 +452,48 @@ module DGBoundaryConditions
 !      end subroutine DGBoundaryConditions_setFace   
 !
 !
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              Describe subroutines
+!              --------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine BaseClass_Describe( self ) 
+         implicit none
+         class(BoundaryCondition_t)          :: self
+
+      end subroutine BaseClass_Describe
+
+      subroutine DirichletBC_Describe( self )
+         use Physics
+         implicit none
+         class(DirichletBC_t)                :: self
+
+         associate ( gm1 => Thermodynamics % gm1 )
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Dirichlet."
+         write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Pressure: " , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
+         write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "Density: " , self % q(IRHO) * refValues % rho 
+         write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "X-Velocity: " , self % q(IRHOU) / self % q(IRHO) * refValues % a
+         write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "Y-Velocity: " , self % q(IRHOV) / self % q(IRHO) * refValues % a
+         end associate
+
+      end subroutine DirichletBC_Describe
+
+      subroutine EulerWall_Describe( self )
+         implicit none
+         class(EulerWall_t)                :: self
+
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Euler wall."
+
+      end subroutine EulerWall_Describe
+
+      subroutine ViscousWall_Describe( self )
+         implicit none
+         class(ViscousWall_t)                :: self
+
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Viscous wall."
+
+      end subroutine ViscousWall_Describe
+
 end module DGBoundaryConditions

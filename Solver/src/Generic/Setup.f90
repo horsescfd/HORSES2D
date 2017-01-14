@@ -153,9 +153,9 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Inviscid formulation" , inviscid_form ) 
       
           if ( trim(inviscid_form) .eq. "Form I" ) then
-            Setup % inviscid_formulation = 1
+            Setup % inviscid_formulation = FormI
           elseif ( trim(inviscid_form) .eq. "Form II" ) then
-            Setup % inviscid_formulation = 2
+            Setup % inviscid_formulation = FormII
           end if
 
           call readValue ( trim ( case_name )  , "Inviscid Riemann Flux"        , Setup % inviscid_flux          ) 

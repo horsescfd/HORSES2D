@@ -26,8 +26,11 @@ module DGSpatialDiscretizationMethods
 !
       subroutine DGSpatial_Initialization()
          use Setup_class
+         use Headers
          implicit none
 
+         write(STD_OUT , '(/)')
+         call Section_header("Spatial discretization overview")
          FirstOrderMethod => FirstOrderMethod_Initialization()        
          SecondOrderMethod => SecondOrderMethod_Initialization()
   

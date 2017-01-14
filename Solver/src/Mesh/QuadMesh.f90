@@ -41,6 +41,7 @@ module QuadMeshClass
        contains
           procedure      :: Construct => Zone_Construct
           procedure      :: Update    => Zone_Update
+          procedure      :: Describe  => Zone_Describe
     end type Zone_t
  
 
@@ -303,11 +304,15 @@ module QuadMeshClass
 
         subroutine Mesh_ConstructZones( self , meshFile  )
             use MeshFileClass
+            use Headers
             implicit none
             class(QuadMesh_t)                        :: self
             class(MeshFile_t)                        :: meshFile
             character(len=STR_LEN_MESH), allocatable :: zoneNames(:)
             integer                                  :: zone
+
+            write(STD_OUT,'(/)') 
+            call Section_header("Boundary conditions overview")
 
             allocate( self % Zones( 0 : meshFile % no_of_markers ) )
             allocate( zoneNames( 0 :  meshFile % no_of_markers) )
@@ -374,6 +379,8 @@ module QuadMeshClass
                end do
 
             end if
+
+            call self % Describe
          end subroutine Zone_construct
 
          subroutine Zone_Update( self )
@@ -387,6 +394,27 @@ module QuadMeshClass
             
 
          end subroutine Zone_Update
+
+         subroutine Zone_Describe( self ) 
+            use Headers
+            implicit none
+            class(Zone_t)        :: self
+            character(len=STR_LEN_MESH)  :: label
+
+            write(label,'(A,I0,A)') "Zone ",self % marker, " description"
+            write(STD_OUT, '(/)')
+            call SubSection_Header(trim(label))
+            write(STD_OUT, '(30X,A,A25,A)') "-> " , "Zone name: " , trim(self % Name)
+            write(STD_OUT, '(30X,A,A25,I0)') "-> " , "Number of edges: " , self % no_of_edges
+
+            if ( associated ( self % BC ) ) then
+               write(STD_OUT, '(30X,A,A25,A)') "-> " , "Boundary zone tag: " , trim(self % BC % Name)
+               call self % BC % Describe
+            end if
+  
+            
+
+         end subroutine Zone_Describe
  
          function Compute_volumeIntegral( self , var ) result ( val )
             use MatrixOperations
