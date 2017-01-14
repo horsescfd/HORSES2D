@@ -54,14 +54,14 @@ module DGTimeIntegrator
          type(TimeIntegrator_t)           :: Integrator
 
          
-         if (Setup % IntegrationMode .eq. STEADY) then
+         if ( trim(Setup % IntegrationMode) .eq. "Steady" ) then
             Integrator % mode = STEADY
             Integrator % dt = Setup % dt
             Integrator % no_of_iterations = Setup % no_of_iterations 
             Integrator % output_interval = Setup % output_interval
             Integrator % t_end = (Setup % dt) * (Setup % no_of_iterations)
    
-         elseif (Setup % IntegrationMode .eq. TRANSIENT) then
+         elseif ( trim(Setup % IntegrationMode) .eq. "Transient") then
             Integrator % mode = TRANSIENT
             Integrator % dt = Setup % dt
             Integrator % no_of_iterations = ceiling( Integrator % t_end / Setup % dt )
@@ -123,7 +123,7 @@ module DGTimeIntegrator
          implicit none  
          class(TimeIntegrator_t)          :: self
          class(QuadMesh_t)                  :: mesh
-         integer, parameter               :: ShowLabels = 10
+         integer, parameter               :: ShowLabels = 50
          integer, save                    :: shown = 0
          real(kind=RP)                    :: residuals(NEC)
 

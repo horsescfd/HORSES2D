@@ -38,7 +38,7 @@ Headers: SMConstants
 NetCDF_Interface: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
-Setup: SMConstants
+Setup: SMConstants Paramfile
 DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGSecondOrderMethods MatrixOperations DGFirstOrderMethods
 DGSecondOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGFirstOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
@@ -106,7 +106,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 all: 	$(EXECUTABLE)
 
 runcyl: 	
-	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) -check)		
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
 
 runvortex: 	
 	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE) -check)		

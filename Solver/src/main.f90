@@ -20,6 +20,8 @@ program main
 !
     call Main_Header("High-order discontinuous Galerkin CFD 2D Solver")
 
+    call setup % Initialization()
+
     call InitializePhysics
 
 !

@@ -413,10 +413,10 @@ module PhysicsNS
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference pressure: ",refValues % p," Pa."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference density: ",refValues % rho," kg/m^3."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference velocity: ",refValues % V," m/s."
-         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reynolds length: ",refValues % L," m."
-         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference viscosity: ",refValues % mu," Pa·s."
-         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference conductivity: ",refValues % kappa," W/(m·K)."
-         write(STD_OUT,'(30X,A,A25,E15.3,A)') "-> ","Reference time: ",refValues % tc," s."
+         write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reynolds length: ",refValues % L," m."
+         write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reference viscosity: ",refValues % mu," Pa·s."
+         write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reference conductivity: ",refValues % kappa," W/(m·K)."
+         write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reference time: ",refValues % tc," s."
          write(STD_OUT,'(/)')
          call Subsection_header("Dimensionless quantities")
          write(STD_OUT,'(30X,A,A25,F15.3)') "-> ","Reynolds number: ",dimensionless % Re

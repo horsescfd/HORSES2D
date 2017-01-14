@@ -17,7 +17,7 @@ module ParamfileIO
    private
    public   readValue , readValueInRegion
    character, parameter       :: comment = '!'
-   character, parameter       :: equal = '='
+   character, parameter       :: equal(2) = ['=',':'] 
    integer,   parameter       :: STR_LEN_PARAM = 512
 
    interface readValue
@@ -82,7 +82,7 @@ module ParamfileIO
 !
 !              The label is present. The value will be everything from the equal
 !              -----------------------------------------------------------------
-               position = index(trim(auxstr) , equal)
+               position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2) ) )
                if ( position .eq. 0) then
                   cycle
                else
@@ -229,7 +229,7 @@ module ParamfileIO
 !   
 !                 The label is present. The value will be everything from the equal
 !                 -----------------------------------------------------------------
-                  position = index(trim(auxstr) , equal)
+                  position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2) ) )
                   if ( position .eq. 0) then
                      cycle
                   else
