@@ -109,10 +109,10 @@ runcyl:
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
 
 runvortex: 	
-	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE) -check)		
+	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE) ./SETUP/TaylorTransport.HiOCase -check)		
 
 runchan: 	
-	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) -check)		
+	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
 
 runfree: 	
 	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) -check)		
