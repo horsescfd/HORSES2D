@@ -45,7 +45,7 @@ DGFirstOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations Node
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants
-DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
@@ -75,7 +75,7 @@ ifeq ($(COMPILER),gfortran)
       FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
    else 
   	$(info Compiling with gfortran in RELEASE mode.)
-      FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash -fopenmp
+      FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
    LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
 

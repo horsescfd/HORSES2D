@@ -50,6 +50,9 @@ module QuadMeshClass
     end interface InitializeMesh
 
     contains
+
+         include 'ZoneProcedures.incf'
+
          function newMesh()
              implicit none
              type(QuadMesh_t)    :: newMesh
@@ -323,99 +326,22 @@ module QuadMeshClass
             do zone = 0 , meshFile % no_of_markers
                call self % Zones(zone) % Construct( self , zone , zoneNames(zone) )
             end do
+!
+!           For periodic boundary conditions: It is neccesary to perform the linking
+!           ------------------------------------------------------------------------
+            do zone = 1 , meshFile % no_of_markers
+               select type ( BC => self % Zones(zone) % BC ) 
+                  type is (PeriodicBC_t)
+                     if ( .not. BC % associated ) then
+                        call Zone_LinkPeriodicZones( self % Zones(zone) , self % Zones( BC % connected_marker ) ) 
+                     end if
+                  class default
+               end select
+            end do
 
 !
          end subroutine Mesh_ConstructZones
 
-         subroutine Zone_construct( self , mesh , marker , name)
-            implicit none
-            class(Zone_t)           :: self
-            class(QuadMesh_t)       :: mesh
-            integer                 :: marker
-            character(len=*)        :: name
-            integer                 :: edID
-            integer                 :: current
-   
-            self % marker = marker
-            self % Name = trim(Name)
-   
-            self % no_of_edges = 0
-!   
-!           ***************************************
-!           Gather the number of edges for a marker
-!           ***************************************
-!   
-            do edID = 1 , mesh % no_of_edges
-               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
-                  self % no_of_edges = self % no_of_edges + 1
-               end if
-            end do
-!   
-!           Allocate the structure
-            allocate( self % edges( self % no_of_edges ) )
-   
-!   
-!           Point to all edges in the zone
-            current = 0
-            do edID = 1 , mesh % no_of_edges
-               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
-                  current = current + 1
-                  self % edges( current ) % f => mesh % edges(edID) % f
-               end if
-            end do
-!
-!           ***************************************
-!           Create the boundary condition structure
-!           ***************************************
-!
-            if (marker .eq. FACE_INTERIOR) then
-               self % BC => NULL()
-
-            else
-               call Construct( self % BC , marker )
-   
-               do edID = 1 , self % no_of_edges
-                  call self % BC % Associate( self % edges(edID) % f )
-               end do
-
-            end if
-
-            call self % Describe
-         end subroutine Zone_construct
-
-         subroutine Zone_Update( self )
-            implicit none
-            class(Zone_t)           :: self
-            integer                 :: edID
-
-            do edID = 1 , self % no_of_edges
-               call self % BC % Update( self % edges(edID) % f )
-            end do
-            
-
-         end subroutine Zone_Update
-
-         subroutine Zone_Describe( self ) 
-            use Headers
-            implicit none
-            class(Zone_t)        :: self
-            character(len=STR_LEN_MESH)  :: label
-
-            write(label,'(A,I0,A)') "Zone ",self % marker, " description"
-            write(STD_OUT, '(/)')
-            call SubSection_Header(trim(label))
-            write(STD_OUT, '(30X,A,A25,A)') "-> " , "Zone name: " , trim(self % Name)
-            write(STD_OUT, '(30X,A,A25,I0)') "-> " , "Number of edges: " , self % no_of_edges
-
-            if ( associated ( self % BC ) ) then
-               write(STD_OUT, '(30X,A,A25,A)') "-> " , "Boundary zone tag: " , trim(self % BC % Name)
-               call self % BC % Describe
-            end if
-  
-            
-
-         end subroutine Zone_Describe
- 
          function Compute_volumeIntegral( self , var ) result ( val )
             use MatrixOperations
             implicit none

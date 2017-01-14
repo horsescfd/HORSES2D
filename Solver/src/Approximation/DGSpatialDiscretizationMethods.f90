@@ -149,6 +149,7 @@ module DGSpatialDiscretizationMethods
                   direction = - e % edgesDirection(edID)
                end if
 
+!  TODO: Is this correct!? :/
                if ( ( edID .eq. ETOP ) .or. (edID .eq. EBOTTOM) ) then
                   edgeSign = -1.0_RP          ! Outside-pointing edges
                else

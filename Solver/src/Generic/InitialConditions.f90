@@ -16,6 +16,7 @@ module InitialConditions
    character(len = *), parameter :: UserDefinedIC = "UserDefined"
    character(len = *), parameter :: RestartIC     = "Restart"
    character(len = *), parameter :: ChecksIC      = "Checks"
+   character(len = *), parameter :: WaveIC        = "Wave"
 
 ! 
 !  ******************
@@ -100,6 +101,13 @@ module InitialConditions
                fcn => ChecksInitialCondition
 !
 !           ============================
+            case ( trim(WaveIC) )
+!           ============================
+!
+               fcn => WaveInitialCondition
+
+!
+!           ============================
             case ( trim(RestartIC) )
 !           ============================
 !
@@ -174,8 +182,8 @@ module InitialConditions
          implicit none
          real(kind=RP)        :: x(NDIM)
          real(kind=RP)        :: val(NEC)
-         real(kind=RP), parameter      :: R = 0.25_RP                         ! This is the "vortex radius" (dimensionless)
-         real(kind=RP), parameter      :: Beta = 0.25_RP                      ! This is the "vortex strength"
+         real(kind=RP), parameter      :: R = 0.1_RP                         ! This is the "vortex radius" (dimensionless)
+         real(kind=RP), parameter      :: Beta = 0.01_RP                      ! This is the "vortex strength"
          real(kind=RP), parameter      :: XC = 0.5_RP                         ! Vortex X position (in dimensionless coordinates)
          real(kind=RP), parameter      :: YC = 0.5_RP                         ! Vortex Y position (in dimensionless coordinates)
          real(kind=RP), parameter      :: AngleOfAttack = 0.0_RP
@@ -215,6 +223,20 @@ module InitialConditions
           val(IRHOE) = x(iX) - x(iY)
          
       end function ChecksInitialCondition
+
+      function WaveInitialCondition ( x ) result( val )
+         use SMConstants
+         implicit none
+         real(kind=RP)              :: x(NDIM)
+         real(kind=RP)              :: val(NEC)
+
+         associate ( gamma => Thermodynamics % Gamma  , Mach => Dimensionless % Mach ) 
+         val(IRHO) = 1.0_RP
+         val(IRHOU) = sqrt(gamma) * Mach * ( 1.0_RP + 0.05_RP * sin(2.0_RP * pi * x(1) ) ) 
+         val(IRHOV) = 0.0_RP
+         val(IRHOE) = Dimensionless % cv + 0.5_RP * 1.0_RP * ( val(IRHOU)**2.0_RP )
+         end associate
+      end function WaveInitialCondition
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////
 !

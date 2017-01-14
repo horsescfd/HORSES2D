@@ -47,12 +47,16 @@ program main
     call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')      ! This one should be inside DGSEM or Mesh
 
     call checks( sem )           ! This one should be inside DGSEM
+
+
+
+
 call cpu_time(tstart)
     call sem % Integrate()
 call cpu_time(tend)
    print*, "Time: ",tend-tstart
 
-
+     
     write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
     write(STD_OUT , '(30X,A)' ) "\x1B[1;32m Program finished! \x1B[0m"
     write(STD_OUT , '(30X,A,/,/)') "\x1B[1;32m ****************** \x1B[0m"

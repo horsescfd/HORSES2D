@@ -146,8 +146,15 @@
 
             type is (StraightBdryEdge_t)
             associate ( QDot => edge % quads(1) % e % QDot )
-               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar )
+               if ( .not. edge % inverted ) then
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar )
+               else
+                  QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar )
+               end if
+               
             end associate
+
+
 
             type is (CurvedBdryEdge_t)
             associate ( QDot => edge % quads(1) % e % QDot )
@@ -196,7 +203,12 @@
 
             type is (StraightBdryEdge_t)
             associate ( QDot => edge % quads(1) % e % QDot )
-               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) )
+               if ( .not. edge % inverted ) then
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) )
+               else
+                  QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) )
+               end if
+               
             end associate
 
             type is (CurvedBdryEdge_t)
@@ -481,9 +493,14 @@
                   do iXi = 0 , N
                      allocate ( QL(NEC) , QR(NEC) )
    
-                     QL = edge % Q(iXi , 1:NEC , 1)
-                     QR = edge % uB(iXi, 1:NEC)
-         
+                     if ( edge % inverted ) then
+                        QR = edge % Q(iXi , 1:NEC , 1)
+                        QL = edge % uB(iXi, 1:NEC)
+                     else
+                        QL = edge % Q(iXi , 1:NEC , 1)
+                        QR = edge % uB(iXi, 1:NEC)
+                     end if
+
                      T  => edge % T(1:NEC , 1:NEC , iXi)
                      Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
                      Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)

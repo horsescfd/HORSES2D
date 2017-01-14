@@ -180,7 +180,7 @@ module ChecksModule
 
             end do
 
-            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A)') "-> ", "Maximum error found in elements mapping: ",error,"  (Cell ",current,")."
+            write(STD_OUT , '(30X,A,A,ES10.3,A,I0,A)') "-> ", "Maximum error found in elements mapping: ",error,"  (Cell ",current,")."
 
 !
 !           This is to test the extrapolation to boundaries of the normal vectors from elements
@@ -298,7 +298,7 @@ module ChecksModule
                end associate
             end do
 
-            write(STD_OUT , '(30X,A,A,E10.3,A,I0,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,", in " , location , ")."
+            write(STD_OUT , '(30X,A,A,ES10.3,A,I0,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,", in " , location , ")."
 
 !           Compute the volume of the domain
             write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One") * RefValues % L**2.0_RP,"."
@@ -341,7 +341,7 @@ module ChecksModule
             
           end do
 
-          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
+          write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
 
           error = 0.0_RP
       
@@ -357,7 +357,7 @@ module ChecksModule
             end do
           end do
       
-          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
+          write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
 
         end subroutine CheckInterpolationToBoundaries
 

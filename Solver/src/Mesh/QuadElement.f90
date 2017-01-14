@@ -88,12 +88,16 @@ module QuadElementClass
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
+        logical                           :: inverted = .false.
+        logical                           :: associated = .false.
         real(kind=RP), pointer            :: uB(:,:)   => NULL()        ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()        ! Solution gradient at the boundary
         real(kind=RP), pointer            :: FB(:,:)  => NULL()       ! Fluxes at the boundary
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
+        logical                           :: inverted = .false.
+        logical                           :: associated = .false.
         real(kind=RP), pointer            :: uB(:,:)   => NULL()          ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
         real(kind=RP), pointer            :: FB(:,:) => NULL()        ! Fluxes at the boundary
@@ -410,6 +414,7 @@ module QuadElementClass
             class(Edge_t)           :: self
 !           --------------------------------------
             class(Node_t), pointer  :: auxnode
+            integer                 :: iXi
 
 !           Invert nodes
             auxnode => self % nodes(1) % n
@@ -418,8 +423,27 @@ module QuadElementClass
 
 !           Invert coordinates
             self % X  ( 1:NDIM , 0:self % spA % N ) = self % X  ( 1:NDIM , self % spA % N : 0 : -1 ) 
-            self % dX ( 1:NDIM , 0:self % spA % N ) = self % dX ( 1:NDIM , self % spA % N : 0 : -1 ) 
-            self % dS ( 1:NDIM , 0:self % spA % N ) = self % dS ( 1:NDIM , self % spA % N : 0 : -1 ) 
+            self % dX ( 1:NDIM , 0:self % spA % N ) = -self % dX ( 1:NDIM , self % spA % N : 0 : -1 ) 
+            self % dS ( 1:NDIM , 0:self % spA % N ) = -self % dS ( 1:NDIM , self % spA % N : 0 : -1 ) 
+ 
+   
+            associate( N => self % spA % N )
+      
+            do iXi = 0 , N
+             self % T(1:NEC,1:NEC,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
+                                                      0.0_RP , self % dS(iX,iXi)  , self % dS(iY,iXi) , 0.0_RP , &
+                                                      0.0_RP , -self % dS(iY,iXi) , self % dS(iX,iXi) , 0.0_RP , &
+                                                      0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NEC,NEC/),ORDER=(/2,1/)) 
+      
+             associate ( dS_square => self % T(IRHOE,IRHOE,iXi) )
+             self % Tinv(1:NEC,1:NEC,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
+                                                         0.0_RP , self % dS(iX,iXi) , -self % dS(iY,iXi) , 0.0_RP , &
+                                                         0.0_RP , self % dS(iY,iXi) , self % dS(iX,iXi)  , 0.0_RP , &
+                                                         0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NEC,NEC/),ORDER=(/2,1/)) / dS_square 
+             end associate
+            end do
+            end associate
+
 
          end subroutine Edge_Invert
 

@@ -1,0 +1,182 @@
+         subroutine Zone_construct( self , mesh , marker , name)
+            implicit none
+            class(Zone_t)           :: self
+            class(QuadMesh_t)       :: mesh
+            integer                 :: marker
+            character(len=*)        :: name
+            integer                 :: edID
+            integer                 :: current
+   
+            self % marker = marker
+            self % Name = trim(Name)
+   
+            self % no_of_edges = 0
+!   
+!           ***************************************
+!           Gather the number of edges for a marker
+!           ***************************************
+!   
+            do edID = 1 , mesh % no_of_edges
+               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
+                  self % no_of_edges = self % no_of_edges + 1
+               end if
+            end do
+!   
+!           Allocate the structure
+            allocate( self % edges( self % no_of_edges ) )
+   
+!   
+!           Point to all edges in the zone
+            current = 0
+            do edID = 1 , mesh % no_of_edges
+               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
+                  current = current + 1
+                  self % edges( current ) % f => mesh % edges(edID) % f
+               end if
+            end do
+!
+!           ***************************************
+!           Create the boundary condition structure
+!           ***************************************
+!
+            if (marker .eq. FACE_INTERIOR) then
+               self % BC => NULL()
+
+            else
+               call Construct( self % BC , marker )
+   
+               do edID = 1 , self % no_of_edges
+                  call self % BC % Associate( self % edges(edID) % f )
+               end do
+
+            end if
+
+            call self % Describe
+         end subroutine Zone_construct
+
+         subroutine Zone_LinkPeriodicZones( zone1 , zone2 ) 
+!
+!        **********************************************************************
+!           This routine will connect edges in zone1 with edges in
+!         zone2.
+!              -> Edges in zone2 will be inverted so that both 
+!                    have the same direction
+!              -> For y-traslational periodic faces, their x-coordinate
+!                    will be compared
+!              -> For x-traslational periodic faces, their y-coordinate
+!                    will be compared
+!        **********************************************************************
+!
+            use Physics
+            implicit none
+            class(Zone_t)           :: zone1
+            class(Zone_t)           :: zone2
+!           -------------------------------------------------
+            class(PeriodicBC_t), pointer     :: BC1
+            class(PeriodicBC_t), pointer     :: BC2
+            integer                          :: edID1
+            integer                          :: edID2
+            class(StraightBdryEdge_t), pointer :: edge1
+            class(StraightBdryEdge_t), pointer :: edge2
+            integer                          :: coord
+!
+!           Gather boundary conditions
+!           --------------------------
+            select type (B1 => zone1 % BC)
+               type is (PeriodicBC_t)
+                  BC1 => B1
+            end select
+            select type (B2 => zone2 % BC)
+               type is (PeriodicBC_t)
+                  BC2 => B2
+            end select
+!
+!           Get the coordinate to look
+!           --------------------------
+            if ( ( BC1 % direction .eq. IX ) .and. ( BC2 % direction .eq. IX ) ) then
+               coord = IY
+            elseif ( ( BC1 % direction .eq. IY ) .and. ( BC2 % direction .eq. IY ) ) then
+               coord = IX
+            end if
+
+
+            do edID1 = 1 , zone1 % no_of_edges
+!
+!              Get edge1
+!              ---------
+               select type ( ed1 => zone1 % edges(edID1) % f)
+                  type is (StraightBdryEdge_t)
+                     edge1 => ed1
+               end select
+
+               do edID2 = 1 , zone2 % no_of_edges
+!
+!                 Get edge2
+!                 ---------  
+                  select type ( ed2 => zone2 % edges(edID2) % f )
+                     type is (StraightBdryEdge_t)
+                        edge2 => ed2
+                  end select
+
+                  if ( .not. edge2 % associated ) then   ! Look in this edge
+                     if ( almostEqual( edge1 % nodes(LEFT) % n % x(coord) , edge2 % nodes(RIGHT) % n % x(coord) ) ) then
+!                       
+!                       The pairing is found. Steps to perform:
+!                          -> Invert edge2
+!                          -> Link edge2 with edge1 
+!                          -> Link edge1 with edge2 
+!                       ----------------------------------------------
+                        call edge2 % Invert()
+                        edge2 % inverted = .true.
+                        edge1 % inverted = .false.
+                        edge2 % quads(1) % e % edgesDirection ( edge2 % edgeLocation(1) ) = BACKWARD
+                        edge2 % associated = .true.
+                        edge1 % associated = .true.
+
+                        edge1 % uB(0:,1:) => edge2 % Q(0:,1:,1)
+                        edge2 % uB(0:,1:) => edge1 % Q(0:,1:,1)
+
+                     end if
+                  end if
+               end do
+            end do
+
+            BC1 % associated = .true.
+            BC2 % associated = .true.
+
+
+         end subroutine Zone_LinkPeriodicZones
+
+         subroutine Zone_Update( self )
+            implicit none
+            class(Zone_t)           :: self
+            integer                 :: edID
+
+            do edID = 1 , self % no_of_edges
+               call self % BC % Update( self % edges(edID) % f )
+            end do
+            
+
+         end subroutine Zone_Update
+
+         subroutine Zone_Describe( self ) 
+            use Headers
+            implicit none
+            class(Zone_t)        :: self
+            character(len=STR_LEN_MESH)  :: label
+
+            write(label,'(A,I0,A)') "Zone ",self % marker, " description"
+            write(STD_OUT, '(/)')
+            call SubSection_Header(trim(label))
+            write(STD_OUT, '(30X,A,A25,I0)') "-> " , "Number of edges: " , self % no_of_edges
+
+            if ( associated ( self % BC ) ) then
+               write(STD_OUT, '(30X,A,A25,A)') "-> " , "Boundary zone tag: " , trim(self % BC % Name)
+               call self % BC % Describe
+            end if
+  
+            
+
+         end subroutine Zone_Describe
+ 
+

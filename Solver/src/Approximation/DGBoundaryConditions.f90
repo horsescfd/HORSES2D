@@ -37,6 +37,12 @@ module DGBoundaryConditions
 !  *********************************
 !
    type, extends(BoundaryCondition_t)           :: PeriodicBC_t
+      logical                          :: associated
+      integer                          :: direction
+      integer                          :: connected_marker
+      contains
+         procedure ::     Construct => PeriodicBC_Construct
+         procedure ::     Describe  => PeriodicBC_Describe
    end type PeriodicBC_t
 !
 !  **********************************
@@ -119,6 +125,10 @@ module DGBoundaryConditions
             allocate( DirichletBC_t    :: self )
             self % BCType = DIRICHLET_BC
       
+         elseif ( BCType .eq. "Periodic") then
+            allocate( PeriodicBC_t     :: self )
+            self % BCType = PERIODIC_BC
+
          elseif ( BCType .eq. "EulerWall") then
             allocate( EulerWall_t      :: self )
             self % BCType = EULERWALL_BC
@@ -271,6 +281,45 @@ module DGBoundaryConditions
 !
 !///////////////////////////////////////////////////////////////////////////////////
 !
+!           PERIODIC BC
+!           -----------
+!///////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine PeriodicBC_Construct ( self , marker , in_label) 
+         use Setup_class
+         implicit none
+         class(PeriodicBC_t)        :: self
+         integer                   :: marker
+         character(len=*)          :: in_label
+         character(len=STR_LEN_BC)  :: direction
+         integer, allocatable          :: connected_marker
+
+         call readValueInRegion( trim(Setup % bdry_file) , "Direction" , direction , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Marker" , connected_marker , in_label , "# end")
+
+         if ( allocated( connected_marker ) ) then
+            self % connected_marker = connected_marker
+         else
+            print*, "You need to specify a marker to connect zone " , marker , " with."
+            stop "Stopped."
+         end if         
+
+         if ( trim(direction) .eq. "x" ) then
+            self % direction = IX
+         elseif ( trim(direction) .eq. "y") then
+            self % direction = IY
+         else
+            print*, "Direction in zone ", marker, " must be 'x' or 'y'."
+            stop "Stopped."
+         end if
+         
+         self % associated = .false.
+
+      end subroutine PeriodicBC_Construct
+
+!
+!///////////////////////////////////////////////////////////////////////////////////
+!
 !           EULER WALL
 !           ----------
 !///////////////////////////////////////////////////////////////////////////////////
@@ -413,45 +462,6 @@ module DGBoundaryConditions
          end associate
 
       end subroutine ViscousWall_Update
-
-
-!
-
-!
-!      subroutine DGBoundaryConditions_setFace( self  )
-!         use Physics
-!         use Setup_class
-!         implicit none
-!         class(BoundaryCondition_t)       :: self
-!
-!         select type (f1=>self % edge)
-!            type is (StraightBdryEdge_t)
-!               if (self % type  .eq. PERIODIC_BC) then
-!!                 -------------------------------
-!!                    Look for its pairing
-!!                 -------------------------------
-!                  select type (f2=>self % periodicPair % edge)
-!                     type is (StraightBdryEdge_t)
-!                        f1 % uB => NULL()    ! TODO f2 % quads(1) % e % Qb( : , f2 % BCLocation )  
-!                        f1 % gB => NULL()    ! TODO f2 % quads(1) % e % dQb( : , f2 % BCLocation )  
-!                  end select
-!               elseif ( self % type .eq. DIRICHLET_BC) then
-!!                 -------------------------------
-!!                    Allocate data and set values
-!!                 -------------------------------
-!                        allocate( f1 % uB (NEC , 0 : f1 % spA % N) )
-!                        f1 % uB = Setup % dirichletBC( f1 % edgeType )
-!                        f1 % gB => NULL()    ! TODO f1 % quads(1) % e % dQb( : , f1 % BCLocation )
-!
-!               end if
-!         end select
-!
-!         
-!
-!
-!      end subroutine DGBoundaryConditions_setFace   
-!
-!
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -479,6 +489,20 @@ module DGBoundaryConditions
          end associate
 
       end subroutine DirichletBC_Describe
+
+      subroutine PeriodicBC_Describe( self ) 
+         implicit none
+         class(PeriodicBC_t)          :: self
+
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Periodic."
+         write(STD_OUT , '(30X,A,A25,I0,A)') "-> ", "Connecting zone: ",self % connected_marker
+         if ( self % direction .eq. IX) then
+            write(STD_OUT , '(30X,A,A25,A)') "-> " , "Direction: " ,"x"
+         elseif ( self % direction .eq. IY) then
+            write(STD_OUT , '(30X,A,A25,A)') "-> " , "Direction: " ,"y"
+         end if
+         
+      end subroutine PeriodicBC_Describe
 
       subroutine EulerWall_Describe( self )
          implicit none

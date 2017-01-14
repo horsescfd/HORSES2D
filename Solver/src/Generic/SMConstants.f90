@@ -82,4 +82,33 @@
            integer, parameter                 :: STEADY          =  0
            integer, parameter                 :: TRANSIENT       =  1
      
+         contains
+            LOGICAL FUNCTION AlmostEqual( a, b ) 
+!
+!           *************************************+
+!              Function by David A. Kopriva
+!           *************************************+
+!
+            IMPLICIT NONE
+!
+!           ---------
+!           Arguments
+!           ---------
+!
+            REAL(KIND=RP) :: a, b
+            IF ( a == 0.0_RP .OR. b == 0.0_RP )     THEN
+               IF ( ABS(a-b) <= 2*EPSILON(b) )     THEN
+                  AlmostEqual = .TRUE.
+               ELSE
+                  AlmostEqual = .FALSE.
+               END IF
+            ELSE
+               IF( ABS( b - a ) <= 2*EPSILON(b)*MAX(ABS(a), ABS(b)) )     THEN
+                  AlmostEqual = .TRUE.
+               ELSE
+                  AlmostEqual = .FALSE.
+               END IF
+            END IF
+      
+            END FUNCTION AlmostEqual
       end module SMConstants

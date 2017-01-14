@@ -281,7 +281,6 @@ module DGTimeIntegrator
          call NetCDF_putVariable( trim(fileName) , "iter" , ["one"] , [self % iter] )
          
          write(STD_OUT , '(A,/)' ) "..  Saved"
-         
 
 
       end subroutine TimeIntegrator_Autosave

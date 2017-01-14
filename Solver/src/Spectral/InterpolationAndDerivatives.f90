@@ -647,38 +647,6 @@
       END IF 
 !
       END SUBROUTINE EOMatrixDerivative                                           
-
-
-!//////////////////////////////////////////////////////////////////////////////////////////
-!       ------------------
-!       AUXILIAR FUNCTIONS
-!       ------------------
-
-      LOGICAL FUNCTION AlmostEqual( a, b ) 
-      USE SMConstants
-      IMPLICIT NONE
-!
-!     ---------
-!     Arguments
-!     ---------
-!
-      REAL(KIND=RP) :: a, b
-!
-      IF ( a == 0.0_RP .OR. b == 0.0_RP )     THEN
-         IF ( ABS(a-b) <= 2*EPSILON(b) )     THEN
-            AlmostEqual = .TRUE.
-         ELSE
-            AlmostEqual = .FALSE.
-         END IF
-      ELSE
-         IF( ABS( b - a ) <= 2*EPSILON(b)*MAX(ABS(a), ABS(b)) )     THEN
-            AlmostEqual = .TRUE.
-         ELSE
-            AlmostEqual = .FALSE.
-         END IF
-      END IF
-
-      END FUNCTION AlmostEqual
 !
 !  **********     
    END MODULE InterpolationAndDerivatives

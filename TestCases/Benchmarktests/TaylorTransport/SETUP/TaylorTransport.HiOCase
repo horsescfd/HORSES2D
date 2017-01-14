@@ -1,12 +1,13 @@
 !
-!            ***************************
-! 	     * Cylinder parameter file *
-!	     ***************************
+!            ***********************************
+! 	     * Vortex transport parameter file *
+!	     ***********************************
 !
 
 !-------------------------------------: Geometry
-			     Mesh file: ./MESH/TaylorTransport.HiOMesh
-			 Boundary file: ./SETUP/TaylorTransport.bmap
+			     Mesh file: ./MESH/VortexTransport_Coarse.HiOMesh
+			 Boundary file: _this_
+
 
 !-------------------------------------: Physics
 			           Gas: Air
@@ -22,7 +23,8 @@
 		     Polynomial order: 4
 
 !------------------------------------: Initialization
-		    Initial condition: Vortex transport
+		    Initial condition: Restart
+		         Restart file: ./RESULTS/VortexTransport.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy: Standard
@@ -38,13 +40,44 @@
 
 !-----------------------------------: Time integration
                     Integration mode: Steady
-                    Integration scheme: RK3
-                           Time step: 1.0e-4
+                    Integration scheme: Williamson RK3
+                           Time step: 1.0e-5
 			Simulation time: 1.0
-                 Number of iterations: 1000
+                 Number of iterations: 80000
                 Initial time: 0.0
 
 !----------------------------------: Output variables
-                  Autosave interval: 10
+		      Solution file: ./RESULTS/VortexTransport.HiORst
+                  Autosave interval: 5000
                     Output interval: 10
                      Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+
+
+
+# define zone 1
+	Name      = Bottom
+	Type      = Periodic
+	Direction = y
+	Marker    = 2
+# end 
+
+# define zone 2
+	Name      = Top
+	Type      = Periodic
+	Direction = y
+	Marker    = 1
+# end 
+
+# define zone 3
+	Name      = Left
+	Type      = Periodic
+	Direction = x
+	Marker    = 4
+# end
+
+# define zone 4
+	Name      = Right
+	Type      = Periodic
+	Direction = x
+	Marker    = 3
+# end
