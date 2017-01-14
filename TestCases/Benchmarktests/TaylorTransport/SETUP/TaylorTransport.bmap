@@ -1,0 +1,23 @@
+# define zone 1
+	Name = Bottom
+	Type = Dirichlet
+!	pressure = 200000
+!	Mach = 0.02
+!	Temperature = 273.15
+!	Angle of attack = 30
+# end 
+
+# define zone 2
+	Name = Top
+	Type = Dirichlet
+# end 
+
+# define zone 3
+	Name = Left
+	Type = Dirichlet
+# end
+
+# define zone 4
+	Name = Right
+	Type = Dirichlet
+# end

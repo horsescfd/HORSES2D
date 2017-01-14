@@ -41,9 +41,10 @@
         class(BoundaryCondition_t), pointer :: BoundaryConditions(:)
         type(TimeIntegrator_t)              :: Integrator
         contains
-            procedure       :: construct => DGSEM_construct
+            procedure       :: Construct => DGSEM_construct
             procedure       :: SetInitialCondition => DGSEM_SetInitialCondition
             procedure       :: Integrate => DGSEM_Integrate
+            procedure       :: LoadRestartFile => DGSEM_LoadRestartFile
     end type DGSEM_t
 
     private
@@ -138,23 +139,66 @@
         end subroutine DGSEM_construct
             
         subroutine DGSEM_SetInitialCondition( self )
+            use InitialConditions
             use Setup_class
             implicit none
             class(DGSEM_t)                   :: self
 
-            call self % mesh % SetInitialCondition ()
+            if ( Setup % IC .eq. "Restart" ) then
+               call self % loadRestartFile( trim ( Setup % Restart_file ) ) 
+            else
+               call self % mesh % SetInitialCondition ()
+            end if
+
+            call InitialCondition_Describe
 
         end subroutine DGSEM_SetInitialCondition
       
         subroutine DGSEM_Integrate( self )
+            use Setup_Class
+            use Tecplot
             implicit none
             class(DGSEM_t)                   :: self
+            character(len=STR_LEN_DGSEM)     :: solutionpltName
+            integer                          :: pos
 
             self % Integrator = NewTimeIntegrator()
             call self % Integrator % Describe()
 
             call self % Integrator % Integrate( self % mesh , self % Storage)
 
-      end subroutine DGSEM_Integrate
+            pos = index( Setup % solution_file , '.HiORst')
+
+            if ( pos .gt. 0 ) then
+               solutionpltName = Setup % solution_file(1:pos-1) // ".plt"
+            end if
+   
+            call ExportToTecplot( self % mesh , trim(solutionpltname))  
+
+        end subroutine DGSEM_Integrate
+   
+        subroutine DGSEM_loadRestartFile( self , fileName ) 
+            use NetCDFInterface
+            use Setup_class
+            implicit none
+            class(DGSEM_t)                :: self
+            character(len=*)              :: fileName
+            real(kind=RP), allocatable    :: t(:)
+            integer, allocatable          :: iter(:)
+            real(kind=RP), allocatable    :: Q(:)
+
+            call NetCDF_getVariable ( trim ( fileName )  , "t"    , t    ) 
+            call NetCDF_getVariable ( trim ( fileName )  , "iter" , iter ) 
+
+            call NetCDF_getVariable ( trim ( fileName )  , "Q"    , Q    ) 
+
+            call Setup % SetInitialTime ( t(1) , iter(1)) 
+
+            self % Storage % Q = Q
+      
+            deallocate( t , Q ) 
+   
+        end subroutine DGSEM_loadRestartFile
+       
 
 end module DGSEM_class

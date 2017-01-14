@@ -67,7 +67,8 @@ module Setup_class
         real(kind=RP), allocatable   :: dt                        
         real(kind=RP), allocatable   :: simulationTime            
         integer, allocatable         :: no_of_iterations          
-        real(kind=RP), allocatable   :: initialTime               
+        real(kind=RP)                :: initialTime = 0.0_RP          
+        integer                      :: initialIteration = 0
         character(len=STR_LEN_SETUP) :: integrationMethod         
 !
 !       ------------------------------------------------------------------------------
@@ -77,10 +78,13 @@ module Setup_class
         integer, allocatable         :: autosaveInterval         
         integer, allocatable         :: output_interval          
         character(len=STR_LEN_SETUP) :: saveVariables            
+        character(len=STR_LEN_SETUP) :: solution_file
+        character(len=STR_LEN_SETUP) :: restart_file
 
         contains
             procedure :: Initialization => Setup_Initialization
             procedure :: Default        => Setup_DefaultValues
+            procedure :: SetInitialTime => Setup_SetInitialTime
     end type Setup_t
 
     type(Setup_t), protected, target       :: setup
@@ -170,10 +174,17 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Time step"                        , Setup % dt                ) 
           call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
           call readValue ( trim ( case_name )  , "Number of iterations"             , Setup % no_of_iterations  ) 
-          call readValue ( trim ( case_name )  , "Initial time"                     , Setup % initialTime       ) 
           call readValue ( trim ( case_name )  , "Autosave interval"                , Setup % AutosaveInterval  ) 
           call readValue ( trim ( case_name )  , "Output interval"                  , Setup % Output_Interval   ) 
           call readValue ( trim ( case_name )  , "Save variables"                   , Setup % saveVariables     ) 
+          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % solution_file     ) 
+          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % restart_file      ) 
+
+          pos = index( trim(Setup % solution_file) , ".HiORst" )  
+
+          if (pos .eq. 0) then
+            Setup % solution_file = trim(Setup % solution_file) // ".HiORst"
+          end if
          
           call Setup % Default
 
@@ -191,5 +202,15 @@ module Setup_class
 
       end subroutine Setup_DefaultValues
 
+      subroutine Setup_SetInitialTime( self , t , iter ) 
+         implicit none
+         class(Setup_t)          :: self
+         real(kind=RP)           :: t
+         integer                 :: iter
+
+         self % initialTime = t
+         self % initialIteration = iter
+
+      end subroutine Setup_SetInitialTime
 
 end module Setup_class

@@ -5,15 +5,16 @@ module InitialConditions
 !
 !  *******
    private
-   public ICFcn , InitialCondition
+   public ICFcn , InitialCondition , InitialCondition_Describe
 !  *******
 !
 
-   integer, parameter            :: STR_LEN_IC  = 128
+   integer, parameter            :: STR_LEN_IC    = 128
    character(len = *), parameter :: ConstantIC    = "Uniform"
    character(len = *), parameter :: SteadyIC      = "Steady"
    character(len = *), parameter :: VortexIC      = "Vortex transport"
    character(len = *), parameter :: UserDefinedIC = "UserDefined"
+   character(len = *), parameter :: RestartIC     = "Restart"
    character(len = *), parameter :: ChecksIC      = "Checks"
 
 ! 
@@ -98,6 +99,13 @@ module InitialConditions
 !
                fcn => ChecksInitialCondition
 !
+!           ============================
+            case ( trim(RestartIC) )
+!           ============================
+!
+               fcn => NULL()
+!
+!
 !
 !           ============               
             case default
@@ -109,6 +117,7 @@ module InitialConditions
                print*, "      * ",trim(SteadyIC)
                print*, "      * ",trim(VortexIC)
                print*, "      * ",trim(ChecksIC)
+               print*, "      * ",trim(RestartIC) 
                STOP "Stopped." 
 !
 !        **********
@@ -206,5 +215,30 @@ module InitialConditions
           val(IRHOE) = x(iX) - x(iY)
          
       end function ChecksInitialCondition
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!        DESCRIBE
+!        --------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine InitialCondition_Describe()
+         use Headers
+         use Setup_class
+         implicit none
+   
+         write(STD_OUT ,'(/)')
+         call Section_header("Initial condition description")
+         write(STD_OUT ,*)
+         
+         write(STD_OUT , '(30X,A,A25,A,A)') "-> ", "Initial condition type: " , trim(Setup % IC) , "."
+   
+         if ( trim(Setup % IC) .eq. "Restart" ) then
+            write(STD_OUT , '(30X,A,A25,A,A)') "-> ", "Data restart from file: " , trim(Setup % restart_file) , "."
+         end if
+
+         write(STD_OUT , '(30X,A,A25,ES10.4,A)' ) "-> " , "Initial time: " , Setup % initialTime
+
+      end subroutine InitialCondition_Describe
 
 end module InitialConditions

@@ -1,0 +1,50 @@
+!
+!            ***************************
+! 	     * Cylinder parameter file *
+!	     ***************************
+!
+
+!-------------------------------------: Geometry
+			     Mesh file: ./MESH/TaylorTransport.HiOMesh
+			 Boundary file: ./SETUP/TaylorTransport.bmap
+
+!-------------------------------------: Physics
+			           Gas: Air
+		    Reference pressure: 101325.0
+		 Reference Temperature: 273.15
+	       	       Reynolds length: 0.1
+		       Reynolds number: 1600.0
+		        Prandtl number: 0.72
+		           Mach number: 0.01
+	
+!------------------------------------: DG Discretization
+		  Interpolation nodes: Legendre-Gauss
+		     Polynomial order: 4
+
+!------------------------------------: Initialization
+		    Initial condition: Vortex transport
+
+!------------------------------------: Inviscid discretization
+	            Inviscid strategy: Standard
+                 Inviscid formulation: Form I
+                Inviscid Riemann Flux: Roe
+          ! Number of integration points: 6
+
+!------------------------------------: Viscous discretization
+                     Viscous strategy: Interior-penalty
+              Interior penalty method: SIPG
+              Jumps penalty parameter: 10.0
+     Gradient jumps penalty parameter: 0.0
+
+!-----------------------------------: Time integration
+                    Integration mode: Steady
+                    Integration scheme: RK3
+                           Time step: 1.0e-4
+			Simulation time: 1.0
+                 Number of iterations: 1000
+                Initial time: 0.0
+
+!----------------------------------: Output variables
+                  Autosave interval: 10
+                    Output interval: 10
+                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach

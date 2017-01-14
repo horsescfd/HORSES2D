@@ -3,21 +3,82 @@ module NetCDFInterface
    use NetCDF
    
    private
-   public NetCDF_getDimension , NetCDF_getVariable
+   public NetCDF_CreateFile 
+   public NetCDF_putDimension , NetCDF_getDimension 
+   public NetCDF_putVariable  , NetCDF_getVariable
 
 
    integer, parameter            :: STR_LEN_NETCDF    = 128
+
+   interface NetCDF_CreateFile
+      module procedure CreateFile
+   end interface NetCDF_CreateFile
+
+   interface NetCDF_putDimension
+      module procedure putDimension
+   end interface NetCDF_putDimension
 
    interface NetCDF_getDimension
       module procedure getDimension
    end interface NetCDF_getDimension
    
+   interface NetCDF_putVariable
+      module procedure putDouble1DVariable , putInteger1DVariable !, putDouble2DVariable , putInteger2DVariable
+!      module procedure putCharacterVariable
+   end interface NetCDF_putVariable
+
    interface NetCDF_getVariable
       module procedure getDouble1DVariable , getInteger1DVariable , getDouble2DVariable , getInteger2DVariable
       module procedure getCharacterVariable
    end interface NetCDF_getVariable
 
+
    contains
+
+      subroutine createFile( fileName ) 
+         implicit none
+         character(len=*), intent(in)                 :: fileName
+!        -------------------------------------------------------
+         integer                                      :: ncid
+
+         call check ( NF90_CREATE ( trim(fileName) , NF90_CLOBBER , ncid ) ) 
+
+         call check ( NF90_ENDDEF ( ncid ) )
+
+         call check ( NF90_CLOSE ( ncid ) )
+
+      end subroutine createFile
+   
+      subroutine putDimension( fileName , Name , Value )
+         implicit none
+         character(len=*), intent(in)                 :: fileName
+         character(len=*), intent(in)                 :: Name
+         integer, intent(in)                          :: Value
+!        ---------------------------------------------------------------------
+         integer                                      :: ncid
+         integer                                      :: dimid
+
+!
+!        Open file
+!        ---------
+         call check ( NF90_OPEN ( trim(fileName) , NF90_WRITE , ncid ) ) 
+!
+!        Put it into define mode
+!        -----------------------   
+         call check ( NF90_REDEF ( ncid ) ) 
+!
+!        Insert the dimension
+!        --------------------
+         call check ( NF90_DEF_DIM ( ncid , trim(Name) , Value , dimid ) )
+!
+!        Put it back into variable mode
+!        ------------------------------
+         call check ( NF90_ENDDEF ( ncid ) )
+
+         
+          
+      end subroutine putDimension
+
       function getDimension(file , name) result(value)
          implicit none
          character(len=*), intent(in)                 :: file
@@ -54,6 +115,128 @@ module NetCDFInterface
          call check ( NF90_CLOSE( ncid ) )
 
       end function getDimension
+
+      subroutine putDouble1DVariable( fileName , varName , dimNames , var )
+         implicit none
+         character(len=*), intent(in)                 :: fileName
+         character(len=*), intent(in)                 :: varName
+         character(len=*), intent(in)                 :: dimNames(:)
+         real(kind=RP), intent(in)                    :: var(:)
+!        ----------------------------------------------------------------
+         integer                                      :: ncid
+         integer, allocatable                         :: dimids(:)
+         integer                                      :: nDim , nVar
+         integer                                      :: iDim
+         integer                                      :: currentDim
+         character(len=STR_LEN_NETCDF)                :: currentName
+         integer                                      :: currentVal
+         integer                                      :: varID
+!
+!        Open file
+!        ---------
+         call check ( NF90_OPEN ( trim(fileName) , NF90_WRITE , ncid ) )
+!
+!        Get number of variables and dimensions
+!        --------------------------------------
+         call check ( NF90_INQUIRE( ncid , nDim , nVar) ) 
+!
+!        Look for the variable dimensions
+!        --------------------------------
+         allocate( dimids( size(dimNames) ) )
+
+         currentDim = 1
+         do iDim = 1 , nDim
+            call check ( NF90_INQUIRE_DIMENSION ( ncid , iDim , currentName , currentVal ) )
+            
+            if ( trim(currentName) .eq. trim(dimNames(currentDim)) )  then
+!              
+!              The dimension is found
+!              ----------------------
+               dimids(currentDim)   = iDim
+
+               if ( currentDim .eq. size(dimNames) ) then
+                  exit
+               end if
+
+               currentDim = currentDim + 1
+        
+            end if
+         end do
+!
+!        Once the dimensions are found, put the variable
+!        -----------------------------------------------
+         call check ( NF90_REDEF ( ncid ) ) 
+
+         call check ( NF90_DEF_VAR ( ncid , trim(varName) , NF90_DOUBLE , dimids , varID ) ) 
+
+         call check ( NF90_ENDDEF ( ncid ) )
+
+         call check ( NF90_PUT_VAR ( ncid , varID , var ) ) 
+
+         call check ( NF90_CLOSE ( ncid ) )
+
+      end subroutine
+
+      subroutine putInteger1DVariable( fileName , varName , dimNames , var )
+         implicit none
+         character(len=*), intent(in)                 :: fileName
+         character(len=*), intent(in)                 :: varName
+         character(len=*), intent(in)                 :: dimNames(:)
+         integer, intent(in)                          :: var(:)
+!        ----------------------------------------------------------------
+         integer                                      :: ncid
+         integer, allocatable                         :: dimids(:)
+         integer                                      :: nDim , nVar
+         integer                                      :: iDim
+         integer                                      :: currentDim
+         character(len=STR_LEN_NETCDF)                :: currentName
+         integer                                      :: currentVal
+         integer                                      :: varID
+!
+!        Open file
+!        ---------
+         call check ( NF90_OPEN ( trim(fileName) , NF90_WRITE , ncid ) )
+!
+!        Get number of variables and dimensions
+!        --------------------------------------
+         call check ( NF90_INQUIRE( ncid , nDim , nVar) ) 
+!
+!        Look for the variable dimensions
+!        --------------------------------
+         allocate( dimids( size(dimNames) ) )
+
+         currentDim = 1
+         do iDim = 1 , nDim
+            call check ( NF90_INQUIRE_DIMENSION ( ncid , iDim , currentName , currentVal ) )
+            
+            if ( trim(currentName) .eq. trim(dimNames(currentDim)) )  then
+!              
+!              The dimension is found
+!              ----------------------
+               dimids(currentDim)   = iDim
+
+               if ( currentDim .eq. size(dimNames) ) then
+                  exit
+               end if
+
+               currentDim = currentDim + 1
+        
+            end if
+         end do
+!
+!        Once the dimensions are found, put the variable
+!        -----------------------------------------------
+         call check ( NF90_REDEF ( ncid ) ) 
+
+         call check ( NF90_DEF_VAR ( ncid , trim(varName) , NF90_INT , dimids , varID ) ) 
+
+         call check ( NF90_ENDDEF ( ncid ) )
+
+         call check ( NF90_PUT_VAR ( ncid , varID , var ) ) 
+
+         call check ( NF90_CLOSE ( ncid ) )
+
+      end subroutine putInteger1DVariable
 
       subroutine getDouble1DVariable( file , name , var )
          implicit none

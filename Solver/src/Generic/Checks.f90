@@ -14,6 +14,7 @@ module ChecksModule
           use NodesAndWeights_class
           use QuadMeshClass
           use MeshFileClass
+          use Setup_class
           use DGSpatialDiscretizationMethods
           use Storage_module
           use DGBoundaryConditions  
@@ -44,7 +45,11 @@ module ChecksModule
             write(STD_OUT , '(/)')
    
             call CheckMappings( sem % mesh )
-            call CheckInterpolationToBoundaries( sem % mesh ) 
+
+            if ( trim ( Setup % IC ) .ne. "Restart" ) then
+               call CheckInterpolationToBoundaries( sem % mesh ) 
+            end if
+
             call CheckMetricIdentities( sem % mesh )
       !    do eID = 1 , sem % mesh % no_of_elements
       !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
