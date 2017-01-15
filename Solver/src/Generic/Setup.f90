@@ -177,8 +177,8 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Autosave interval"                , Setup % AutosaveInterval  ) 
           call readValue ( trim ( case_name )  , "Output interval"                  , Setup % Output_Interval   ) 
           call readValue ( trim ( case_name )  , "Save variables"                   , Setup % saveVariables     ) 
-          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % solution_file     ) 
-          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % restart_file      ) 
+          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % restart_file     ) 
+          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % solution_file      ) 
 
           pos = index( trim(Setup % solution_file) , ".HiORst" )  
 

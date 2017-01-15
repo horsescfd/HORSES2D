@@ -259,7 +259,7 @@ module InitialConditions
          real(kind=RP)        :: x(NDIM)
          real(kind=RP)        :: val(NEC)
          real(kind=RP)        :: rho , u , v , p
-         real(kind=RP), parameter      :: k = 50.0_RP
+         real(kind=RP), parameter      :: k = 10.0_RP
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 

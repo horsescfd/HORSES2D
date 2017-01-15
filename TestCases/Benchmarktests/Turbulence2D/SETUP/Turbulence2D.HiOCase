@@ -19,11 +19,11 @@
 		           Mach number: 0.01
 	
 !------------------------------------: DG Discretization
-		  Interpolation nodes: Legendre-Gauss
-		     Polynomial order: 2
+		  Interpolation nodes: Legendre-Gauss-Lobatto
+		     Polynomial order: 1
 
 !------------------------------------: Initialization
-		    Initial condition: Restart
+		    Initial condition: Turbulence2D
 		         Restart file: ./RESULTS/Turbulence2D.HiORst
 
 !------------------------------------: Inviscid discretization

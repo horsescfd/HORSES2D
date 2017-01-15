@@ -19,12 +19,12 @@
 		           Mach number: 0.01
 	
 !------------------------------------: DG Discretization
-		  Interpolation nodes: Legendre-Gauss
-		     Polynomial order: 2
+		  Interpolation nodes: Legendre-Gauss-Lobatto
+		     Polynomial order: 1
 
 !------------------------------------: Initialization
 		    Initial condition: Restart
-		         Restart file: ./RESULTS/Turbulence2D_1000.HiORst
+		         Restart file: ./RESULTS/Turbulence2D_200.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy: Standard
@@ -47,7 +47,7 @@
                 Initial time: 0.0
 
 !----------------------------------: Output variables
-		      Solution file: ./RESULTS/Turbulence2D_1000.HiORst
+		      Solution file: ./RESULTS/Turbulence2D_200.HiORst
                   Autosave interval: 100
                     Output interval: 1
                      Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
