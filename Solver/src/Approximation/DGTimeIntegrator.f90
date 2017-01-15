@@ -91,12 +91,16 @@ module DGTimeIntegrator
          elseif ( trim(Setup % integrationMethod) .eq. "Williamson RK3" ) then
             Integrator % TimeStep => TimeIntegrator_WilliamsonRK3
 
+         elseif ( trim(Setup % integrationMethod) .eq. "Williamson RK5" ) then
+            Integrator % TimeStep => TimeIntegrator_WilliamsonRK5
+
          else
             write(STD_OUT , '(/,/)') 
             write(STD_OUT , *) "Method " , trim (Setup % integrationMethod) , " not implemented yet."
             write(STD_OUT , *) "Options available are: "
             write(STD_OUT , '(5X,A)') "* Explicit-Euler"
             write(STD_OUT , '(5X,A)') "* Williamson RK3"
+            write(STD_OUT , '(5X,A)') "* Williamson RK5"
             stop "Stopped."
 
          end if
@@ -195,6 +199,46 @@ module DGTimeIntegrator
          
 
       end subroutine TimeIntegrator_WilliamsonRK3
+
+      subroutine TimeIntegrator_WilliamsonRK5( mesh , dt , Storage )
+!  
+!        *****************************************************************************************
+!           These coefficients have been extracted from the paper: "Fourth-Order 2N-Storage
+!          Runge-Kutta Schemes", written by Mark H. Carpented and Christopher A. Kennedy
+!        *****************************************************************************************
+!
+         use Storage_module
+         implicit none
+         class(QuadMesh_t)          :: mesh
+         real(kind=RP)              :: dt
+         class(Storage_t)           :: Storage
+!        -----------------------------------------
+         real(kind=RP), allocatable :: G(:)
+         integer                    :: m 
+         integer, parameter         :: N_STAGES = 5
+         real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
+         real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
+         
+         allocate ( G , source  = Storage % QDot )
+
+         do m = 1 , N_STAGES
+!
+!           Compute time derivative
+!           -----------------------
+            call DGSpatial_ComputeTimeDerivative( mesh )
+
+            if (m .eq. 1) then
+               G = dt * Storage % QDot
+            else
+               G = am(m) * G + dt * Storage % QDot
+               Storage % Q = Storage % Q + gm(m) * G
+            end if
+
+         end do 
+         
+
+      end subroutine TimeIntegrator_WilliamsonRK5
+
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !

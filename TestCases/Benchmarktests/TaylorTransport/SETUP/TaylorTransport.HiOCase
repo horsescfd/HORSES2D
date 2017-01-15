@@ -23,7 +23,7 @@
 		     Polynomial order: 4
 
 !------------------------------------: Initialization
-		    Initial condition: Restart
+		    Initial condition: Vortex transport
 		         Restart file: ./RESULTS/VortexTransport.HiORst
 
 !------------------------------------: Inviscid discretization
@@ -40,7 +40,7 @@
 
 !-----------------------------------: Time integration
                     Integration mode: Steady
-                    Integration scheme: Williamson RK3
+                    Integration scheme: Williamson RK5
                            Time step: 1.0e-5
 			Simulation time: 1.0
                  Number of iterations: 80000
@@ -49,7 +49,7 @@
 !----------------------------------: Output variables
 		      Solution file: ./RESULTS/VortexTransport.HiORst
                   Autosave interval: 5000
-                    Output interval: 10
+                    Output interval: 1
                      Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
 
 
