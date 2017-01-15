@@ -13,6 +13,8 @@ module InitialConditions
    character(len = *), parameter :: ConstantIC    = "Uniform"
    character(len = *), parameter :: SteadyIC      = "Steady"
    character(len = *), parameter :: VortexIC      = "Vortex transport"
+   character(len = *), parameter :: TaylorIC      = "Taylor vortex"
+   character(len = *), parameter :: TurbulenceIC  = "Turbulence2D"
    character(len = *), parameter :: UserDefinedIC = "UserDefined"
    character(len = *), parameter :: RestartIC     = "Restart"
    character(len = *), parameter :: ChecksIC      = "Checks"
@@ -99,6 +101,20 @@ module InitialConditions
 !           ============================
 !
                fcn => ChecksInitialCondition
+!
+!           ============================
+            case ( trim(TaylorIC) )
+!           ============================
+!
+               fcn => TaylorVortexInitialCondition
+!
+!           ============================
+            case ( trim(TurbulenceIC) )
+!           ============================
+!
+               fcn => Turbulence2DInitialCondition
+
+
 !
 !           ============================
             case ( trim(WaveIC) )
@@ -206,6 +222,60 @@ module InitialConditions
          end associate
             
       end function InviscidVortexTransportInitialCondition
+
+      function TaylorVortexInitialCondition(x) result(val)
+!        ****************************************************************
+!           Loads an initial condition consistent with the Taylor Green 
+!          vortex problem
+!        ****************************************************************
+         use SMConstants
+         implicit none
+         real(kind=RP)        :: x(NDIM)
+         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: rho , u , v , p
+
+         associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
+
+         rho = 1.0_RP
+         u = -sqrt(gamma) * Mach * cos(PI*x(1)) * sin(PI*x(2))
+         v = sqrt(gamma) * Mach *  sin(PI*x(1)) * cos(PI*x(2))
+         p = 1.0_RP -0.25_RP * (cos(2.0_RP * PI * x(1)) + cos(2.0_RP * PI * x(2)) )
+
+         val(IRHO)  = rho
+         val(IRHOU) = rho * u
+         val(IRHOV) = rho * v
+         val(IRHOE) = cv * p + 0.5_RP * rho * ( u*u + v*v )
+
+         end associate
+            
+      end function TaylorVortexInitialCondition
+
+      function Turbulence2DInitialCondition(x) result(val)
+!        ****************************************************************
+!           Loads an initial condition to generate 2D Turbulence
+!        ****************************************************************
+         use SMConstants
+         implicit none
+         real(kind=RP)        :: x(NDIM)
+         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: rho , u , v , p
+         real(kind=RP), parameter      :: k = 50.0_RP
+
+         associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
+
+         rho = 1.0_RP
+         u = -sqrt(gamma) * Mach * cos(2.0_RP * k * PI*x(1)) * sin(2.0_RP * k * PI*x(2))
+         v = sqrt(gamma) * Mach *  sin(2.0_RP * k * PI*x(1)) * cos(2.0_RP * k * PI*x(2))
+         p = 1.0_RP 
+
+         val(IRHO)  = rho
+         val(IRHOU) = rho * u
+         val(IRHOV) = rho * v
+         val(IRHOE) = cv * p + 0.5_RP * rho * ( u*u + v*v )
+
+         end associate
+            
+      end function Turbulence2DInitialCondition
 
       function ChecksInitialCondition (x) result (val)
          use SMConstants
