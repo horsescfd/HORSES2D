@@ -173,14 +173,14 @@ module DGTimeIntegrator
          real(kind=RP)              :: dt
          class(Storage_t)           :: Storage
 !        -----------------------------------------
-         real(kind=RP), allocatable :: G(:)
+         real(kind=RP), allocatable, save :: G(:)
          integer                    :: m 
          integer, parameter         :: N_STAGES = 3
          real(kind=RP), parameter   :: am(3) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
          real(kind=RP), parameter   :: bm(3) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
          real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
          
-         allocate ( G , source  = Storage % QDot )
+         if (.not. allocated(G) ) allocate ( G , source  = Storage % QDot )
 
          do m = 1 , N_STAGES
 !
@@ -213,13 +213,13 @@ module DGTimeIntegrator
          real(kind=RP)              :: dt
          class(Storage_t)           :: Storage
 !        -----------------------------------------
-         real(kind=RP), allocatable :: G(:)
+         real(kind=RP), save, allocatable :: G(:)
          integer                    :: m 
          integer, parameter         :: N_STAGES = 5
          real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
          real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
          
-         allocate ( G , source  = Storage % QDot )
+         if (.not. allocated(G) ) allocate ( G , source  = Storage % QDot )
 
          do m = 1 , N_STAGES
 !
