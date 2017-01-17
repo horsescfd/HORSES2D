@@ -1,4 +1,4 @@
-   module DGFirstOrderMethods
+   module DGInviscidMethods
    use SMConstants
    use QuadElementClass
    use Physics
@@ -8,43 +8,43 @@
 !
 !  *******************************************************************
    private
-   public FirstOrderMethod_t , StandardDG_t , OverIntegrationDG_t , SplitDG_t
-   public FirstOrderMethod_Initialization
+   public InviscidMethod_t , StandardDG_t , OverIntegrationDG_t , SplitDG_t
+   public InviscidMethod_Initialization
 !  *******************************************************************
 !
 !                                *************************
-   integer, parameter         :: STR_LEN_FIRSTORDER = 128
+   integer, parameter         :: STR_LEN_INVISCID = 128
 !                                *************************
 !
 !  *******************************************************************
-   type FirstOrderMethod_t
-      character(len=STR_LEN_FIRSTORDER)         :: method
+   type InviscidMethod_t
+      character(len=STR_LEN_INVISCID)         :: method
       integer                                   :: formulation
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
          procedure, non_overridable :: QDotFaceLoopFormI    => StdDG_QDotFaceLoopFormI
          procedure, non_overridable :: QDotFaceLoopFormII   => StdDG_QDotFaceLoopFormII
-         procedure, non_overridable :: RiemannFlux          => FirstOrderMethod_RiemannFlux
+         procedure, non_overridable :: RiemannFlux          => InviscidMethod_RiemannFlux
          procedure                  :: QDotVolumeLoop       => StdDG_QDotVolumeLoop
          procedure                  :: ComputeInnerFluxes   => StdDG_ComputeInnerFluxes
-         procedure, non_overridable :: Describe             => FirstOrderMethod_describe
-   end type FirstOrderMethod_t
+         procedure, non_overridable :: Describe             => InviscidMethod_describe
+   end type InviscidMethod_t
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
-   type, extends(FirstOrderMethod_t) :: StandardDG_t
+   type, extends(InviscidMethod_t) :: StandardDG_t
    end type StandardDG_t
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
-   type, extends(FirstOrderMethod_t) ::  OverIntegrationDG_t
+   type, extends(InviscidMethod_t) ::  OverIntegrationDG_t
       contains
          procedure ::  QDotVolumeLoop => OIDG_QDotVolumeLoop
    end type OverIntegrationDG_t
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
-   type, extends(FirstOrderMethod_t) ::  SplitDG_t
+   type, extends(InviscidMethod_t) ::  SplitDG_t
       real(kind=RP)              :: alpha
       contains
          procedure ::  QDotVolumeLoop => SplitDG_QDotVolumeLoop
@@ -54,10 +54,10 @@
    contains
 !  ========  
 !
-      function FirstOrderMethod_Initialization() result( FirstOrderMethod )
+      function InviscidMethod_Initialization() result( InviscidMethod )
          use Setup_class
          implicit none
-         class(FirstOrderMethod_t), pointer        :: FirstOrderMethod
+         class(InviscidMethod_t), pointer        :: InviscidMethod
 !
 !        --------------------------------------
 !           Prepare the first order method
@@ -65,15 +65,15 @@
 !
          if ( trim( Setup % inviscid_discretization ) .eq. "Standard" ) then
             
-            allocate(StandardDG_t   :: FirstOrderMethod)
+            allocate(StandardDG_t   :: InviscidMethod)
 
          elseif ( trim( Setup % inviscid_discretization ) .eq. "Over-Integration" ) then 
 
-            allocate(OverIntegrationDG_t  :: FirstOrderMethod)
+            allocate(OverIntegrationDG_t  :: InviscidMethod)
 
          elseif ( trim( Setup % inviscid_discretization ) .eq. "Split") then
       
-            allocate(SplitDG_t      :: FirstOrderMethod)
+            allocate(SplitDG_t      :: InviscidMethod)
       
          else
             write(STD_OUT , *) "Method ", trim(Setup % inviscid_discretization), " not implemented yet."
@@ -85,12 +85,12 @@
 
          end if
 
-         FirstOrderMethod % method = trim( Setup % inviscid_discretization )
+         InviscidMethod % method = trim( Setup % inviscid_discretization )
 
 
-         select type (FirstOrderMethod)
+         select type (InviscidMethod)
             type is (StandardDG_t)
-               FirstOrderMethod % formulation = Setup % inviscid_formulation
+               InviscidMethod % formulation = Setup % inviscid_formulation
 
             type is (OverIntegrationDG_t)
    
@@ -101,20 +101,20 @@
 
 !        Set the Riemann flux
          if (trim( Setup % inviscid_flux ) .eq. "Roe") then
-            FirstOrderMethod % RiemannSolver => RoeFlux
+            InviscidMethod % RiemannSolver => RoeFlux
          else
             write(STD_OUT , *) "Solver ", trim ( Setup % inviscid_flux) ," not implemented yet."
          end if
 
-         call FirstOrderMethod % describe
+         call InviscidMethod % describe
  
 
-      end function FirstOrderMethod_Initialization
+      end function InviscidMethod_Initialization
 
       subroutine StdDG_QDotFaceLoopFormI( self , edge )
          use MatrixOperations
          implicit none
-         class(FirstOrderMethod_t)          :: self
+         class(InviscidMethod_t)          :: self
          class(Edge_t), pointer             :: edge
          real(kind=RP), allocatable         :: Fstar(:,:)
          real(kind=RP), allocatable         :: Fstar2D(:,:,:)
@@ -171,7 +171,7 @@
       subroutine StdDG_QDotFaceLoopFormII( self , edge )
          use MatrixOperations
          implicit none
-         class(FirstOrderMethod_t)          :: self
+         class(InviscidMethod_t)          :: self
          class(Edge_t), pointer             :: edge
          real(kind=RP), allocatable         :: Fstar(:,:)
          real(kind=RP), allocatable         :: Fstar2D(:,:,:)
@@ -325,7 +325,7 @@
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations
          implicit none
-         class(FirstOrderMethod_t) :: self
+         class(InviscidMethod_t) :: self
          class(QuadElement_t)      :: element
          integer                   :: eq
 !
@@ -381,7 +381,7 @@
 
       subroutine StdDG_ComputeInnerFluxes( self , element ) 
          implicit none  
-         class(FirstOrderMethod_t)                :: self
+         class(InviscidMethod_t)                :: self
          class(QuadElement_t)                     :: element
          real(kind=RP), allocatable               :: F(:,:,:,:)
          integer                                  :: eq
@@ -443,10 +443,10 @@
       end subroutine SplitDG_QDotVolumeLoop
 
 
-      subroutine FirstOrderMethod_describe( self )
+      subroutine InviscidMethod_describe( self )
          use Headers
          implicit none
-         class(FirstOrderMethod_t)        :: self
+         class(InviscidMethod_t)        :: self
 
          write(STD_OUT,'(/)') 
          call SubSection_Header("Inviscid discretization")
@@ -469,11 +469,11 @@
       
          end select
 
-      end subroutine FirstOrderMethod_describe
+      end subroutine InviscidMethod_describe
    
-      function FirstOrderMethod_RiemannFlux( self , edge ) result( Fstar )
+      function InviscidMethod_RiemannFlux( self , edge ) result( Fstar )
          implicit none
-         class(FirstOrderMethod_t)        :: self
+         class(InviscidMethod_t)        :: self
          class(Edge_t), pointer           :: edge
          real(kind=RP), allocatable       :: Fstar(:,:)
          real(kind=RP), allocatable       :: QL(:) , QR(:) 
@@ -564,6 +564,6 @@
                end associate
             class default
          end select
-      end function FirstOrderMethod_RiemannFlux
+      end function InviscidMethod_RiemannFlux
 
-end module DGFirstOrderMethods
+end module DGInviscidMethods

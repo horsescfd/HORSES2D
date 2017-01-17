@@ -6,6 +6,8 @@ function UserDefinedInitialCondition(x) result (val)
    real(kind=RP)     :: x(NDIM)
    real(kind=RP)     :: val(NEC)
 
+   val = 0.0_RP * x(1) + 0.0_RP * x(2)
+
 
 end function UserDefinedInitialCondition
 

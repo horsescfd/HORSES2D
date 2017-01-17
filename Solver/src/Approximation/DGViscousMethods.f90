@@ -1,4 +1,4 @@
-module DGSecondOrderMethods
+module DGViscousMethods
    use SMConstants
    use QuadMeshClass
    use QuadElementClass
@@ -8,29 +8,29 @@ module DGSecondOrderMethods
 !
 !  *******************************************************************
    private
-   public SecondOrderMethod_t , IPMethod_t , BR1Method_t , LDGMethod_t
-   public SecondOrderMethod_Initialization
+   public ViscousMethod_t , IPMethod_t , BR1Method_t , LDGMethod_t
+   public ViscousMethod_Initialization
 !  *******************************************************************
 !
 !                                *************************
-   integer, parameter         :: STR_LEN_SECONDORDER = 128
+   integer, parameter         :: STR_LEN_VISCOUS = 128
 !                                *************************
 !
 !  *******************************************************************
-   type SecondOrderMethod_t
-      character(len=STR_LEN_SECONDORDER)     :: method
+   type ViscousMethod_t
+      character(len=STR_LEN_VISCOUS)     :: method
       contains
          procedure ::   QDotFaceLoop => BaseClass_QDotFaceLoop
          procedure ::   dQFaceLoop => BaseClass_dQFaceLoop
          procedure ::   QDotVolumeLoop => BaseClass_QDotVolumeLoop
          procedure ::   dQVolumeLoop => BaseClass_dQVolumeLoop
-         procedure ::   Describe => SecondOrderMethod_describe
-   end type SecondOrderMethod_t
+         procedure ::   Describe => ViscousMethod_describe
+   end type ViscousMethod_t
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
-   type, extends(SecondOrderMethod_t) :: IPMethod_t
-      character(len=STR_LEN_SECONDORDER)        :: subType
+   type, extends(ViscousMethod_t) :: IPMethod_t
+      character(len=STR_LEN_VISCOUS)        :: subType
       real(kind=RP)                             :: sigma0
       real(kind=RP)                             :: sigma1
       real(kind=RP)                             :: epsilon
@@ -42,7 +42,7 @@ module DGSecondOrderMethods
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
-   type, extends(SecondOrderMethod_t) ::  BR1Method_t
+   type, extends(ViscousMethod_t) ::  BR1Method_t
       contains
          procedure ::  QDotFaceLoop => BR1_QDotFaceLoop
          procedure ::  QDotVolumeLoop => BR1_QDotVolumeLoop
@@ -51,7 +51,7 @@ module DGSecondOrderMethods
 !  *******************************************************
 !  -------------------------------------------------------
 !  *******************************************************
-   type, extends(SecondOrderMethod_t) ::  LDGMethod_t
+   type, extends(ViscousMethod_t) ::  LDGMethod_t
 
    end type LDGMethod_t
 !  *******************************************************
@@ -60,9 +60,9 @@ module DGSecondOrderMethods
    contains
 !  ========
 !
-      function SecondOrderMethod_Initialization() result( SecondOrderMethod )
+      function ViscousMethod_Initialization() result( ViscousMethod )
          implicit none
-         class(SecondOrderMethod_t), pointer       :: SecondOrderMethod
+         class(ViscousMethod_t), pointer       :: ViscousMethod
 !
 !        --------------------------------------
 !           Prepare the second order method
@@ -70,11 +70,11 @@ module DGSecondOrderMethods
 !
          if ( trim( Setup % viscous_discretization ) .eq. "IP" ) then
 
-            allocate(IPMethod_t  :: SecondOrderMethod)
+            allocate(IPMethod_t  :: ViscousMethod)
 
          elseif ( trim( Setup % viscous_discretization ) .eq. "BR1" ) then
 
-            allocate(BR1Method_t :: SecondOrderMethod)
+            allocate(BR1Method_t :: ViscousMethod)
 
          else
 
@@ -84,29 +84,29 @@ module DGSecondOrderMethods
          end if
 
   
-         SecondOrderMethod % method = trim( Setup % viscous_discretization )
+         ViscousMethod % method = trim( Setup % viscous_discretization )
             
-         select type (SecondOrderMethod)
+         select type (ViscousMethod)
 
             type is (IPMethod_t) 
 
-               SecondOrderMethod % sigma0 = Setup % sigma0IP
-               SecondOrderMethod % sigma1 = 0.0_RP
+               ViscousMethod % sigma0 = Setup % sigma0IP
+               ViscousMethod % sigma1 = 0.0_RP
 
                if (trim ( Setup % IPMethod ) .eq. "SIPG" ) then
 
-                  SecondOrderMethod % subType = "SIPG"
-                  SecondOrderMethod % epsilon = -1.0_RP
+                  ViscousMethod % subType = "SIPG"
+                  ViscousMethod % epsilon = -1.0_RP
 
               else if ( trim ( Setup % IPMethod ) .eq. "NIPG") then
       
-                  SecondOrderMethod % subType = "NIPG"
-                  SecondOrderMethod % epsilon = 1.0_RP
+                  ViscousMethod % subType = "NIPG"
+                  ViscousMethod % epsilon = 1.0_RP
 
               else if ( trim ( Setup % IPMethod ) .eq. "IIPG") then
 
-                  SecondOrderMethod % subType = "IIPG"
-                  SecondOrderMethod % epsilon = 0.0_RP
+                  ViscousMethod % subType = "IIPG"
+                  ViscousMethod % epsilon = 0.0_RP
 
               else
 
@@ -126,12 +126,12 @@ module DGSecondOrderMethods
 
          end select
 
-         call SecondOrderMethod % describe()
-      end function SecondOrderMethod_Initialization
+         call ViscousMethod % describe()
+      end function ViscousMethod_Initialization
 
       subroutine BaseClass_QDotFaceLoop( self , face ) 
          implicit none
-         class(SecondOrderMethod_t)          :: self
+         class(ViscousMethod_t)          :: self
          class(Edge_t)                       :: face
 !
 !        ------------------------------------
@@ -142,7 +142,7 @@ module DGSecondOrderMethods
 
       subroutine BaseClass_dQFaceLoop( self , face )  
          implicit none
-         class(SecondOrderMethod_t)          :: self
+         class(ViscousMethod_t)          :: self
          class(Edge_t)                       :: face
 !
 !        ------------------------------------
@@ -153,7 +153,7 @@ module DGSecondOrderMethods
       
       subroutine BaseClass_QDotVolumeLoop( self , element ) 
          implicit none
-         class(SecondOrderMethod_t)          :: self
+         class(ViscousMethod_t)          :: self
          class(QuadElement_t)                       :: element
 !
 !        ------------------------------------
@@ -165,7 +165,7 @@ module DGSecondOrderMethods
       subroutine BaseClass_dQVolumeLoop( self , element )  
          use MatrixOperations
          implicit none
-         class(SecondOrderMethod_t)          :: self
+         class(ViscousMethod_t)          :: self
          class(QuadElement_t)                       :: element
 !
 !        ---------------------------------------
@@ -185,9 +185,9 @@ module DGSecondOrderMethods
 !         end associate
       end subroutine BaseClass_dQVolumeLoop
  
-      subroutine SecondOrderMethod_describe( self )
+      subroutine ViscousMethod_describe( self )
          implicit none
-         class(SecondOrderMethod_t)          :: self
+         class(ViscousMethod_t)          :: self
 !
 !         write(STD_OUT , *) "Second order method description: "
 !         write(STD_OUT , '(20X,A,A)') "Method: ", trim(self % method)
@@ -207,12 +207,12 @@ module DGSecondOrderMethods
 !
 !         end select
 !
-      end subroutine SecondOrderMethod_describe
+      end subroutine ViscousMethod_describe
 
       subroutine average_dQFaceLoop( self , face )
          use MatrixOperations
          implicit none
-         class(SecondOrderMethod_t)             :: self
+         class(ViscousMethod_t)             :: self
          class(Edge_t)                          :: face
          real(kind=RP), dimension(NEC)          :: ustar
 !!
@@ -512,4 +512,4 @@ module DGSecondOrderMethods
 
 
 
-end module DGSecondOrderMethods
+end module DGViscousMethods

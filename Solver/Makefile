@@ -39,9 +39,9 @@ NetCDF_Interface: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
-DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGSecondOrderMethods MatrixOperations DGFirstOrderMethods
-DGSecondOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
-DGFirstOrderMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
+DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods
+DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh
+DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants

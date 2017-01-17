@@ -3,16 +3,16 @@ module DGSpatialDiscretizationMethods
    use Physics
    use QuadMeshClass
    use QuadMeshDefinitions
-   use DGSecondOrderMethods
-   use DGFirstOrderMethods
+   use DGViscousMethods
+   use DGInviscidMethods
    implicit none
 
    private
    public DGSpatial_Initialization , DGSpatial_computeTimeDerivative , DGSpatial_interpolateToBoundaries
    public DGSpatial_computeGradient
 
-   class(SecondOrderMethod_t), pointer     :: SecondOrderMethod
-   class(FirstOrderMethod_t), pointer      :: FirstOrderMethod
+   class(ViscousMethod_t), pointer     :: ViscousMethod
+   class(InviscidMethod_t), pointer      :: InviscidMethod
 
 
    integer, parameter         :: IQ = 1
@@ -31,8 +31,8 @@ module DGSpatialDiscretizationMethods
 
          write(STD_OUT , '(/)')
          call Section_header("Spatial discretization overview")
-         FirstOrderMethod => FirstOrderMethod_Initialization()        
-         SecondOrderMethod => SecondOrderMethod_Initialization()
+         InviscidMethod => InviscidMethod_Initialization()        
+         ViscousMethod => ViscousMethod_Initialization()
   
       end subroutine DGSpatial_Initialization
 
@@ -279,7 +279,7 @@ module DGSpatialDiscretizationMethods
 !!        -------------------
 !!
 !         do eID = 1 , mesh % no_of_elements
-!            call SecondOrderMethod % dQVolumeLoop(mesh % elements(eID))
+!            call ViscousMethod % dQVolumeLoop(mesh % elements(eID))
 !         end do
 !!
 !!        -----------------
@@ -287,7 +287,7 @@ module DGSpatialDiscretizationMethods
 !!        -----------------
 !!
 !         do fID = 1 , mesh % no_of_edges
-!            call SecondOrderMethod % dQFaceLoop(mesh % edges(fID) % f)
+!            call ViscousMethod % dQFaceLoop(mesh % edges(fID) % f)
 !         end do
 !            
 !!
@@ -315,8 +315,8 @@ module DGSpatialDiscretizationMethods
 !        Volume loops
 !
          do eID = 1 , mesh % no_of_elements
-            call FirstOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
-!            call SecondOrderMethod % QDotVolumeLoop( mesh % elements(eID) )
+            call InviscidMethod % QDotVolumeLoop( mesh % elements(eID) )
+!            call ViscousMethod % QDotVolumeLoop( mesh % elements(eID) )
          end do
 !
 !        **********
@@ -334,8 +334,8 @@ module DGSpatialDiscretizationMethods
 !        -------------------------------------------------
          if ( Setup % inviscid_formulation .eq. FORMI ) then
             do fID = 1 , mesh % no_of_edges
-               call FirstOrderMethod % QDotFaceLoopFormI( mesh % edges(fID) % f )
-!               call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
+               call InviscidMethod % QDotFaceLoopFormI( mesh % edges(fID) % f )
+!               call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f)
             end do
         
          elseif ( Setup % inviscid_formulation .eq. FORMII ) then
@@ -343,8 +343,8 @@ module DGSpatialDiscretizationMethods
             call DGSpatial_InterpolateToBoundaries( mesh , "Fluxes" )
 
             do fID = 1 , mesh % no_of_edges
-               call FirstOrderMethod % QDotFaceLoopFormII( mesh % edges(fID) % f )
-!               call SecondOrderMethod % QDotFaceLoop( mesh % edges(fID) % f)
+               call InviscidMethod % QDotFaceLoopFormII( mesh % edges(fID) % f )
+!               call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f)
             end do
 
          end if

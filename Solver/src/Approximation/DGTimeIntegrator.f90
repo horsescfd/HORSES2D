@@ -2,7 +2,6 @@ module DGTimeIntegrator
    use SMConstants
    use DGSpatialDiscretizationMethods
    use QuadMeshClass
-   use FileWriting
 
    private
    public TimeIntegrator_t , NewTimeIntegrator
