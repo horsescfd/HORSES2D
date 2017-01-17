@@ -19,8 +19,8 @@
 		           Mach number: 0.01
 	
 !------------------------------------: DG Discretization
-		  Interpolation nodes: Legendre-Gauss-Lobatto
-		     Polynomial order: 1
+		  Interpolation nodes: Legendre-Gauss
+		     Polynomial order: 3
 
 !------------------------------------: Initialization
 		    Initial condition: Taylor vortex
@@ -43,13 +43,13 @@
                     Integration scheme: Williamson RK5
                            Time step: 1.0e-5
 			Simulation time: 1.0
-                 Number of iterations: 30
+                 Number of iterations: 0
                 Initial time: 0.0
 
 !----------------------------------: Output variables
 		      Solution file: ./RESULTS/TaylorVortex.HiORst
                   Autosave interval: 10000
-                    Output interval: 1
+                    Output interval: 10
                      Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
 
 

@@ -51,6 +51,8 @@ module ChecksModule
             end if
 
             call CheckMetricIdentities( sem % mesh )
+
+            call checkQDot( sem )
       !    do eID = 1 , sem % mesh % no_of_elements
       !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
       !    end do
@@ -488,4 +490,81 @@ module ChecksModule
          print*, "Maximum error found in quadratures: " , maxval( abs( (Manalytical - Mquadrature) / (Manalytical + Mquadrature )) ) 
 
         end subroutine Integration_checks
+
+        subroutine checkQDot( sem )
+         use DGSEM_Class
+         use DGSpatialDiscretizationMethods
+         use Headers
+         implicit none
+         class(DGSem_t)          :: sem
+         integer                 :: iXi , iEta
+         integer                 :: eID
+         real(kind=RP)           :: error = 0.0_RP
+         real(kind=RP)           :: QDot(NEC)
+
+!
+!        Apply the "Checks" initial condition
+!        ------------------------------------
+         call sem % mesh % SetInitialCondition("Checks")
+         call sem % mesh % ApplyInitialCondition
+
+         call SubSection_Header("Testing QDot calculation")
+
+         call DGSpatial_ComputeTimeDerivative( sem % mesh )
+print*, "Computing QDOt..."
+
+
+         do eID = 1 , sem % mesh % no_of_elements
+            associate( e => sem % mesh % elements(eID) ,  N => sem % mesh % elements(eID) % spA % N )
+
+            do iXi = 0 , N
+               do iEta = 0 , N
+                  QDot = QDotFCN( e % x(:,iXi,iEta) )
+
+                  error = max(error , maxval(abs([e % QDot(iX,iEta,:) - QDot(:)])))
+
+               end do
+            end do
+
+            end associate
+         end do
+   print*, "errrorrrrrrrrrrrr = ", error
+!
+!        Return to the problem initial condition
+!        ---------------------------------------
+         call sem % SetInitialCondition
+
+        end subroutine checkQDot
+
+        function QDotFCN( x ) result( val )
+         use Physics
+         implicit none
+         real(kind=RP)           :: x(NDIM)
+         real(kind=RP)           :: val(NEC)
+
+
+         associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach )
+   
+!         val(IRHO)      = 0.0_RP
+!         val(IRHOU)     = PI * sin(2.0_RP * PI * x(iX) ) * cos( PI * x(iY) ) **2.0_RP &
+!                          - 0.5_RP * PI * sin(2.0_RP * PI * x(iX) ) * cos( 2.0_RP * PI * x(iY) ) 
+!                          !- 0.25_RP * PI * sin(2*PI*x(iX) )
+!         val(IRHOV)     = -0.5_RP * PI * cos( 2.0_RP * PI * x(iX) ) * sin(2.0_RP * PI * x(iY) ) + PI * cos(PI * x(iX))**2.0_RP * sin(2.0_RP * PI * x(iY) ) - 0.25_RP * gamma * Mach**2.0_RP * sin(2.0_RP * PI * x(iY) )
+!         val(IRHOE) = 0.0_RP
+!
+!
+!         val(IRHOU) = val(IRHOU) * gamma * Mach**2.0_RP
+!         val(IRHOV) = val(IRHOV) * gamma * Mach**2.0_RP
+!
+!         val = val / (sqrt(gamma) * Mach)
+
+         val = 0.0_RP
+
+         
+         end associate
+         
+
+
+        end function QDotFCN
+      
 end module

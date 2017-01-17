@@ -362,7 +362,7 @@ module PhysicsNS
             associate( gm1 => Thermodynamics % gm1 ) 
             dq = qR - qL
             alpha(3) = dq(IRHOV) - v*dq(IRHO)
-            alpha(2) = (dq(IRHO) * (H - u*u) + u*dq(IRHOU) - dq(IRHOE) + (dq(IRHOV) - v*dq(IRHO))*v) / ( a*a )
+            alpha(2) = gm1 * (dq(IRHO) * (H - u*u) + u*dq(IRHOU) - dq(IRHOE) + (dq(IRHOV) - v*dq(IRHO))*v) / ( a*a )
             alpha(1) = (dq(IRHO) * (u + a) - dq(IRHOU) - a * alpha(2)) / (2.0_RP*a)
             alpha(4) = dq(IRHO) - (alpha(1) + alpha(2)) 
             end associate
@@ -384,7 +384,7 @@ module PhysicsNS
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
             Fstar = Fstar / ( sqrt(gamma) * Mach)
             end associate
-            
+
 !
       end function RoeFlux
 !

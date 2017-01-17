@@ -237,9 +237,9 @@ module InitialConditions
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 
          rho = 1.0_RP
-         u = -sqrt(gamma) * Mach * cos(PI*x(1)) * sin(PI*x(2))
-         v = sqrt(gamma) * Mach *  sin(PI*x(1)) * cos(PI*x(2))
-         p = 1.0_RP -0.25_RP * (cos(2.0_RP * PI * x(1)) + cos(2.0_RP * PI * x(2)) )
+         u = sqrt(gamma) * Mach * sin(PI*x(1)) * cos(PI*x(2))
+         v = -sqrt(gamma) * Mach *  cos(PI*x(1)) * sin(PI*x(2))
+         p = 1.0_RP !+ 0.125_RP * gamma * Mach * Mach * (cos(2.0_RP * PI * x(1)) + cos(2.0_RP * PI * x(2)) )
 
          val(IRHO)  = rho
          val(IRHOU) = rho * u
@@ -279,6 +279,7 @@ module InitialConditions
 
       function ChecksInitialCondition (x) result (val)
          use SMConstants
+         use Physics
          implicit none
          real(kind=RP)              :: x(NDIM)
          real(kind=RP)              :: val(NEC)
@@ -287,10 +288,15 @@ module InitialConditions
 !         val(IRHOU)  = x(iY) ** 4.0_RP
 !         val(IRHOV)  = (x(iX)** 2.0_RP + x(iY)**2.0_RP)
 !         val(IRHOE)  = x(iX) ** 4.0_RP * x(iY) ** 4.0_RP
-          val(IRHO) = x(iX)
-          val(IRHOU) = x(iY)
-          val(IRHOV) = x(iX) + x(iY)
-          val(IRHOE) = x(iX) - x(iY)
+!          val(IRHO) = x(iX)
+!          val(IRHOU) = x(iY)
+!          val(IRHOV) = x(iX) + x(iY)
+!          val(IRHOE) = x(iX) - x(iY)
+
+         val(IRHO) = 1.0_RP + 0.1_RP * cos(PI * x(iX))
+         val(IRHOU) = 0.0_RP
+         val(IRHOV) = 0.0_RP
+         val(IRHOE) = Dimensionless  % cv * 1.0_RP
          
       end function ChecksInitialCondition
 
