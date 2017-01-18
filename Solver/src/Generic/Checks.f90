@@ -508,10 +508,10 @@ module ChecksModule
          call sem % mesh % SetInitialCondition("Checks")
          call sem % mesh % ApplyInitialCondition
 
+         write(STD_OUT,'(/)')
          call SubSection_Header("Testing QDot calculation")
 
          call DGSpatial_ComputeTimeDerivative( sem % mesh )
-print*, "Computing QDOt..."
 
 
          do eID = 1 , sem % mesh % no_of_elements
@@ -519,16 +519,16 @@ print*, "Computing QDOt..."
 
             do iXi = 0 , N
                do iEta = 0 , N
-                  QDot = QDotFCN( e % x(:,iXi,iEta) )
+                  QDot = QDotFCN( e % x(iX:iY,iXi,iEta) )
 
-                  error = max(error , maxval(abs([e % QDot(iX,iEta,:) - QDot(:)])))
+                  error = max(error , maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)])))
 
                end do
             end do
 
             end associate
          end do
-   print*, "errrorrrrrrrrrrrr = ", error
+         write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition time derivative error: " , error,"."
 !
 !        Return to the problem initial condition
 !        ---------------------------------------
@@ -541,24 +541,42 @@ print*, "Computing QDOt..."
          implicit none
          real(kind=RP)           :: x(NDIM)
          real(kind=RP)           :: val(NEC)
+         real(kind=RP)           :: u , v , p
+         real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
 
 
-         associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach )
+         associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
+
+         u = sqrt(gamma) * Mach * sin(PI * x(iX)) * cos(PI * x(iY))
+         v = -sqrt(gamma)* Mach * cos(PI * x(iX)) * sin(PI * x(IY))
+         p = 1.0_RP + (gamma * Mach**2.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(iX)) + cos(2.0_RP * PI * x(iY)) )
+         H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
+
+
+         ux = sqrt(gamma) * Mach * PI * cos(PI * x(iX)) * cos(PI * x(iY))
+         uy = -sqrt(gamma)* Mach * PI * sin(PI * x(IX)) * sin(PI * x(IY))
+
+         vx = sqrt(gamma) * Mach * PI * sin(PI * x(iX)) * sin(PI * x(IY))
+         vy = -sqrt(gamma) * Mach * PI * cos(PI * x(IX)) * cos(PI * x(IY))
+
+         px = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IX))
+         py = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IY))
+
+         Hx = cp * px + u * ux + v * vx
+         Hy = cp * py + u * uy + v * vy
+
+         
    
-!         val(IRHO)      = 0.0_RP
-!         val(IRHOU)     = PI * sin(2.0_RP * PI * x(iX) ) * cos( PI * x(iY) ) **2.0_RP &
-!                          - 0.5_RP * PI * sin(2.0_RP * PI * x(iX) ) * cos( 2.0_RP * PI * x(iY) ) 
-!                          !- 0.25_RP * PI * sin(2*PI*x(iX) )
-!         val(IRHOV)     = -0.5_RP * PI * cos( 2.0_RP * PI * x(iX) ) * sin(2.0_RP * PI * x(iY) ) + PI * cos(PI * x(iX))**2.0_RP * sin(2.0_RP * PI * x(iY) ) - 0.25_RP * gamma * Mach**2.0_RP * sin(2.0_RP * PI * x(iY) )
-!         val(IRHOE) = 0.0_RP
-!
-!
-!         val(IRHOU) = val(IRHOU) * gamma * Mach**2.0_RP
-!         val(IRHOV) = val(IRHOV) * gamma * Mach**2.0_RP
-!
-!         val = val / (sqrt(gamma) * Mach)
+         val(IRHO)      = 0.0_RP
+         val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
+         val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
+         val(IRHOE) = H * (ux + vy) + Hx * u + Hy * v
 
-         val = 0.0_RP
+!
+!
+!
+         val = -val / (sqrt(gamma) * Mach)
+
 
          
          end associate
