@@ -152,21 +152,26 @@ module PhysicsNS
          real(kind=RP)          :: u(NEC)
          real(kind=RP), target  :: val(NEC,NDIM)
          real(kind=RP), pointer :: F(:) , G(:)
+         real(kind=RP)          :: vx , vy  , p
 
          F(1:NEC)    => val(1:NEC,iX)
          G(1:NEC)    => val(1:NEC,iY)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
-    
+
+         vx = u(IRHOU) / u(IRHO)
+         vy = u(IRHOV) / u(IRHO)
+         p  = gm1 * ( u(IRHOE) - 0.5_RP * u(IRHOU) * vx - 0.5_RP * u(IRHOV) * vy )
+         
          F(IRHO)  = u(IRHOU)
-         F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
-         F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
-         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
+         F(IRHOU) = u(IRHOU) * vx + p 
+         F(IRHOV) = u(IRHOU) * vy
+         F(IRHOE) = (u(IRHOE) + p) * vx
 
          G(IRHO)  = u(IRHOV)
-         G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
-         G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
-         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
+         G(IRHOU) = F(IRHOV)
+         G(IRHOV) = u(IRHOV) * vy + p
+         G(IRHOE) = (u(IRHOE) + p) * vy
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
@@ -180,29 +185,38 @@ module PhysicsNS
          real(kind=RP)                      :: u(0:,:)
          real(kind=RP), allocatable, target :: val(:,:,:)
          real(kind=RP), pointer             :: F(:,:) , G(:,:)
+         real(kind=RP), allocatable         :: vx(:) , vy(:)  , p(:)
 
          allocate( val(0:size(u,1)-1 , 1:NEC , 1:NDIM ) )
+         allocate( vx(0:size(u,1)-1) )
+         allocate( vy(0:size(u,1)-1) )
+         allocate( p(0:size(u,1)-1) )
 
          F(0:,1:)    => val(0:,1:,iX)
          G(0:,1:)    => val(0:,1:,iY)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
+         vx = u(:,IRHOU) / u(:,IRHO)
+         vy = u(:,IRHOV) / u(:,IRHO)
+         p  = gm1 * ( u(:,IRHOE) - 0.5_RP * u(:,IRHOU) * vx - 0.5_RP * u(:,IRHOV) * vy )
+         
          F(:,IRHO)  = u(:,IRHOU)
-         F(:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOU)*u(:,IRHOU) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOV)*u(:,IRHOV)/u(:,IRHO) + gm1 * u(:,IRHOE)
-         F(:,IRHOV) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
-         F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) )/ u(:,IRHO)) * u(:,IRHOU) / u(:,IRHO)
+         F(:,IRHOU) = u(:,IRHOU) * vx + p 
+         F(:,IRHOV) = u(:,IRHOU) * vy
+         F(:,IRHOE) = (u(:,IRHOE) + p) * vx
 
          G(:,IRHO)  = u(:,IRHOV)
-         G(:,IRHOU) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
-         G(:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOV)*u(:,IRHOV) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOU)*u(:,IRHOU)/u(:,IRHO) + gm1 * u(:,IRHOE)
-         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO)) * u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOU) = F(:,IRHOV)
+         G(:,IRHOV) = u(:,IRHOV) * vy + p
+         G(:,IRHOE) = (u(:,IRHOE) + p) * vy
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
 
          end associate
 
+         deallocate( vx , vy , p )
 
       end function inviscidFlux1D
 
@@ -211,8 +225,12 @@ module PhysicsNS
          real(kind=RP)                      :: u(0:,0:,:)
          real(kind=RP), allocatable, target :: val(:,:,:,:)
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+         real(kind=RP), allocatable         :: vx(:,:) , vy(:,:)  , p(:,:)
 
          allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NEC , 1:NDIM ) )
+         allocate( vx(0:size(u,1)-1 , 0:size(u,2)-1) )
+         allocate( vy(0:size(u,1)-1 , 0:size(u,2)-1) )
+         allocate(  p(0:size(u,1)-1 , 0:size(u,2)-1) )
 
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
@@ -220,22 +238,26 @@ module PhysicsNS
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
+         vx = u(:,:,IRHOU) / u(:,:,IRHO)
+         vy = u(:,:,IRHOV) / u(:,:,IRHO)
+         p  = gm1 * ( u(:,:,IRHOE) - 0.5_RP * u(:,:,IRHOU) * vx - 0.5_RP * u(:,:,IRHOV) * vy )
+         
          F(:,:,IRHO)  = u(:,:,IRHOU)
-         F(:,:,IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOU)*u(:,:,IRHOU) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOV)*u(:,:,IRHOV)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
-         F(:,:,IRHOV) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
-         F(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) )/ u(:,:,IRHO) )  & 
-                              * u(:,:,IRHOU) / u(:,:,IRHO)
+         F(:,:,IRHOU) = u(:,:,IRHOU) * vx + p 
+         F(:,:,IRHOV) = u(:,:,IRHOU) * vy
+         F(:,:,IRHOE) = (u(:,:,IRHOE) + p) * vx
 
          G(:,:,IRHO)  = u(:,:,IRHOV)
-         G(:,:,IRHOU) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
-         G(:,:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOV)*u(:,:,IRHOV) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOU)*u(:,:,IRHOU)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
-         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) & 
-                              * u(:,:,IRHOV) / u(:,:,IRHO)
+         G(:,:,IRHOU) = F(:,:,IRHOV)
+         G(:,:,IRHOV) = u(:,:,IRHOV) * vy + p
+         G(:,:,IRHOE) = (u(:,:,IRHOE) + p) * vy
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
 
          end associate
+
+         deallocate( vx,vy,p )
 
       end function inviscidFlux2D
      
@@ -243,13 +265,18 @@ module PhysicsNS
          implicit none
          real(kind=RP)        :: u(NEC)
          real(kind=RP)        :: F(NEC)
+         real(kind=RP)        :: vx , vy , p
    
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )    
 
+         vx = u(IRHOU) / u(IRHO)
+         vy = u(IRHOV) / u(IRHO)
+         p = gm1 * ( u(IRHOE) - 0.5_RP * u(IRHOU) * vx - 0.5_RP * u(IRHOV) * vy )
+
          F(IRHO)  = u(IRHOU)
-         F(IRHOU) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOU)*u(IRHOU) / u(IRHO) - 0.5_RP * gm1 * u(IRHOV)*u(IRHOV)/u(IRHO) + gm1 * u(IRHOE)
-         F(IRHOV) = u(IRHOU)*u(IRHOV) / u(IRHO)
-         F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
+         F(IRHOU) = u(IRHOU) * vx + p
+         F(IRHOV) = u(IRHOU) * vy
+         F(IRHOE) = ( u(IRHOE) + p ) * vx
 
          end associate
       end function F_inviscidFlux
@@ -307,17 +334,28 @@ module PhysicsNS
          real(kind=RP), dimension(NEC) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , HL
          real(kind=RP)                 :: rhoR , uR , vR , HR
-         real(kind=RP)                 :: rho , u , v , H , a
+         real(kind=RP)                 :: invrho , u , v , H , a
          real(kind=RP)                 :: dq(NEC)
          real(kind=RP)                 :: lambda(NEC)
          real(kind=RP)                 :: K(NEC,NEC)
          real(kind=RP)                 :: alpha(NEC)
          integer                       :: eq
+         integer                       :: negativeWaves
+         integer                       :: wave
+        
 
 !        0/ Gather variables
 !           ----------------
-            qL = MatrixTimesVector_F( A=T , X=qL3D )
-            qR = MatrixTimesVector_F( A=T , X=qR3D )
+            qL(IRHO) = qL3D(IRHO)
+            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
+            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
+            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
+
+            qR(IRHO) = qR3D(IRHO)
+            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
+            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
+            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
+
 
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
             rhoL = sqrt(qL(IRHO))
@@ -333,10 +371,10 @@ module PhysicsNS
 
 !        1/ Compute Roe averages
 !           --------------------
-            rho = rhoL + rhoR
-            u   = (rhoL*uL + rhoR*uR)/rho
-            v   = (rhoL*vL + rhoR*vR)/rho
-            H   = (rhoL*HL + rhoR*HR)/rho
+            invrho = 1.0_RP / (rhoL + rhoR)
+            u      = (rhoL*uL + rhoR*uR) * invrho
+            v      = (rhoL*vL + rhoR*vR) * invrho
+            H      = (rhoL*HL + rhoR*HR) * invrho
             associate( gm1 => Thermodynamics % gm1 ) 
             a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
             end associate
@@ -348,6 +386,16 @@ module PhysicsNS
             lambda(2) = u
             lambda(3) = u
             lambda(4) = u + a 
+
+            if ( lambda(1) .gt. 0.0_RP ) then
+               negativeWaves = 0
+            elseif ( lambda(2) .gt. 0.0_RP ) then
+               negativeWaves = 1
+            elseif ( lambda(4) .gt. 0.0_RP ) then
+               negativeWaves = 3
+            else
+               negativeWaves = 4
+            end if
 
 !
 !        3/ Compute the averaged right eigenvectors
@@ -369,10 +417,10 @@ module PhysicsNS
 !
 !        5/ Compute the flux
 !           ----------------
-            Fstar = 0.5_RP * ( F_inviscidFlux(qL) + F_inviscidFLux(qR) )
+            Fstar = F_inviscidFlux(qL) 
                
-            do eq = 1 , NEC
-               Fstar = Fstar - 0.5_RP * alpha(eq) * abs(lambda(eq)) * K(1:NEC , eq)
+            do wave = 1 , negativeWaves
+               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NEC , wave)
             end do
   
 !        6/ Return to the 3D Space

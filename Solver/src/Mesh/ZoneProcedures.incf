@@ -129,7 +129,8 @@
                         call edge2 % Invert()
                         edge2 % inverted = .true.
                         edge1 % inverted = .false.
-                        edge2 % quads(1) % e % edgesDirection ( edge2 % edgeLocation(1) ) = BACKWARD
+                        edge2 % quads(1) % e % edgesDirection   ( edge2 % edgeLocation(1) ) = BACKWARD
+                        edge2 % quads(1) % e % edgesAssemblyDir ( edge2 % edgeLocation(1) ) = -edge2 % quads(1) % e % edgesAssemblyDir( edge2 % edgeLocation(1) )
                         edge2 % associated = .true.
                         edge1 % associated = .true.
 

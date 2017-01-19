@@ -50,6 +50,7 @@ module DGSpatialDiscretizationMethods
 !        -------------------------------------------
 !
          call DGSpatial_newTimeStep( mesh )
+   
 !
 !        -------------------------------------------
 !           Compute QDot
@@ -70,6 +71,7 @@ module DGSpatialDiscretizationMethods
 !        --------------------------------------------------
          implicit none
          class(QuadMesh_t)         :: mesh
+         real(kind=RP)              :: tstart , tend
 !
 !        ----------
 !        Reset QDot
@@ -82,6 +84,7 @@ module DGSpatialDiscretizationMethods
 !        ----------------------------------
 !
          call DGSpatial_interpolateToBoundaries( mesh , "Q" )
+
 
 !
 !        ----------------------------------
@@ -118,7 +121,6 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID , edID , eq
          real(kind=RP), pointer  :: variable(:,:,:)     ! will point to both Q or dQ in the elements, (0:N,0:N)
          real(kind=RP), pointer  :: variable_b(:,:)     ! will point to both Q or dQ in the faces, (0:N)
-         real(kind=RP)           :: direction
          integer                 :: varID
          real(kind=RP)           :: edgeSign
          
@@ -143,14 +145,7 @@ module DGSpatialDiscretizationMethods
 
                allocate( variable_b ( 0 : N , NEC ) ) 
 
-               if ( (edID .eq. EBOTTOM) .or. (edID .eq. ERIGHT) ) then     ! Same direction as stored
-                  direction = e % edgesDirection(edID)
-               else                                                        ! Change the direction
-                  direction = - e % edgesDirection(edID)
-               end if
-
-!  TODO: Is this correct!? :/
-               if ( ( edID .eq. ETOP ) .or. (edID .eq. EBOTTOM) ) then
+               if ( ( edID .eq. ETOP ) .or. (edID .eq. ERIGHT) ) then
                   edgeSign = -1.0_RP          ! Outside-pointing edges
                else
                   edgeSign = 1.0_RP         ! Inside-pointing edges
@@ -213,7 +208,7 @@ module DGSpatialDiscretizationMethods
                 select case (varID)
                   case (IQ)
             
-                     if ( direction .eq. FORWARD ) then
+                     if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
                         ed % Q(0:N , 1:NEC , e % quadPosition(edID)) = variable_b
                      else
                         ed % Q(0:N , 1:NEC , e % quadPosition(edID)) = variable_b(N:0:-1,1:NEC)
@@ -221,7 +216,7 @@ module DGSpatialDiscretizationMethods
 
                   case (IDXIQ)
             
-                     if ( direction .eq. FORWARD ) then
+                     if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
                         ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iX) = variable_b
                      else
                         ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iX) = variable_b(N:0:-1,1:NEC)
@@ -229,7 +224,7 @@ module DGSpatialDiscretizationMethods
 
                   case (IDETAQ)
             
-                     if ( direction .eq. FORWARD ) then
+                     if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
                         ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iY) = variable_b
                      else
                         ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iY) = variable_b(N:0:-1,1:NEC)
@@ -237,9 +232,9 @@ module DGSpatialDiscretizationMethods
 
                   case (IFLUXES)
    
-                     if ( direction .eq. FORWARD ) then
+                     if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
                         ed % F (0:N , 1:NEC , e % quadPosition(edID)) = edgeSign * variable_b
-                     elseif ( direction .eq. BACKWARD ) then
+                     elseif ( e % edgesAssemblyDir(edID) .eq. BACKWARD ) then
                         ed % F (0:N , 1:NEC , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1,1:NEC)     ! To ensure that is consistent with the edge normal
                      end if
 
@@ -318,6 +313,7 @@ module DGSpatialDiscretizationMethods
             call InviscidMethod % QDotVolumeLoop( mesh % elements(eID) )
 !            call ViscousMethod % QDotVolumeLoop( mesh % elements(eID) )
          end do
+
 !
 !        **********
 !        Face loops
@@ -356,7 +352,7 @@ module DGSpatialDiscretizationMethods
          do eID = 1 , mesh % no_of_elements
             associate( N => mesh % elements(eID) % spA % N )
             do eq = 1 , NEC
-               mesh % elements(eID) % QDot(0:N,0:N,eq) = mesh % elements(eID) % QDot(0:N,0:N,eq) / mesh % elements(eID) % spA % M2D / mesh % elements(eID) % jac
+               mesh % elements(eID) % QDot(0:N,0:N,eq) = mesh % elements(eID) % QDot(0:N,0:N,eq) * mesh % elements(eID) %  invM2Djac
             end do
             end associate
          end do

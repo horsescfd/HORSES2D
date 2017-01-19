@@ -40,6 +40,8 @@
 
                self % jac(iXi,iEta)         = self % dX(iX,iXi,iEta,iX) * self % dX(iY,iXi,iEta,iY) - self % dX(iX,iXi,iEta,iY) * self % dX(iY,iXi,iEta,iX)
 
+               self % invM2Djac(iXi,iEta)   = self % spA % invM2D(iXi,iEta) / self % jac(iXi,iEta)
+
             end do
          end do
 

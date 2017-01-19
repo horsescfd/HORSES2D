@@ -106,6 +106,13 @@ module Setup_class
 !         Get case file from command line
 !         -------------------------------
           nArgs = command_argument_count()
+   
+          if (nArgs .eq. 0) then
+            print*,""
+            print*,""
+            print*, "No case file(s) selected"
+            stop "Stopped"
+         end if
           do iArg = 1 , nArgs
             call get_command_argument(iArg , arg)
      
