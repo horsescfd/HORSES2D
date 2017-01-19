@@ -109,7 +109,7 @@ runcyl:
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
 
 runvortex: 	
-	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE) ./SETUP/TaylorTransport.HiOCase -check)		
+	(cd ../TestCases/Benchmarktests/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		
 
 runchan: 	
 	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
