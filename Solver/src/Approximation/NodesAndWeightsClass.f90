@@ -20,7 +20,7 @@ module nodesAndWeights_class
         real(kind=RP), pointer    :: wb(:)
         real(kind=RP), pointer    :: M(:,:)
         real(kind=RP), pointer    :: Minv(:,:)
-        real(kind=RP), pointer    :: M2D(:,:)
+        real(kind=RP), pointer    :: invM2D(:,:)
         real(kind=RP), pointer    :: D(:,:)
         real(kind=RP), pointer    :: DT(:,:)
         real(kind=RP), pointer    :: MD(:,:)
@@ -155,7 +155,7 @@ module nodesAndWeights_class
             allocate(self % wb(0:N))
             allocate(self % M(0:N,0:N))
             allocate(self % Minv(0:N,0:N))
-            allocate(self % M2D(0:N,0:N))
+            allocate(self % invM2D(0:N,0:N))
             allocate(self % D(0:N,0:N))
             allocate(self % DT(0:N,0:N))
             allocate(self % MD(0:N,0:N))
@@ -260,7 +260,7 @@ module nodesAndWeights_class
             do i = 0 , self % N
                  self % M(i,i)    =          self % w(i)
                  self % Minv(i,i) = 1.0_RP / self % w(i)
-                 self % M2D(i,:)  = self % w(i) * self % w
+                 self % invM2D(i,:)  = 1.0_RP / (self % w(i) * self % w)
             end do 
 !
 !           -----------------------------------------

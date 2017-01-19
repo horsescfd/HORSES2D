@@ -20,7 +20,7 @@
 	
 !------------------------------------: DG Discretization
 		  Interpolation nodes: Legendre-Gauss
-		     Polynomial order: 3
+		     Polynomial order: 6
 
 !------------------------------------: Initialization
 		    Initial condition: Taylor vortex
@@ -40,10 +40,10 @@
 
 !-----------------------------------: Time integration
                     Integration mode: Steady
-                    Integration scheme: Williamson RK5
+                    Integration scheme: Williamson RK3
                            Time step: 1.0e-5
 			Simulation time: 1.0
-                 Number of iterations: 0
+                 Number of iterations: 1000
                 Initial time: 0.0
 
 !----------------------------------: Output variables

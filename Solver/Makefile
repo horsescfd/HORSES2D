@@ -89,6 +89,10 @@ else ifeq ($(COMPILER),ifort)
      $(info Compiling with intel fortran in RELEASE mode.)
      FFLAGS = -cpp -O3 -mkl -assume bscc
      
+   else ifeq ($(MODE),VTUNE)
+     $(info Compiling with intel fortran in VTUNE mode.)
+     FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
+
    endif
    LIBS += -L$(NETCDF_LIB) -lnetcdff
 
@@ -109,7 +113,7 @@ runcyl:
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
 
 runvortex: 	
-	(cd ../TestCases/Benchmarktests/TaylorTransport && ./$(EXECUTABLE) ./SETUP/TaylorTransport.HiOCase -check)		
+	(cd ../TestCases/Benchmarktests/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		
 
 runchan: 	
 	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		

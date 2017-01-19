@@ -164,9 +164,9 @@ module PhysicsNS
          F(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO)) * u(IRHOU) / u(IRHO)
 
          G(IRHO)  = u(IRHOV)
-         G(IRHOU) = u(IRHOU)*u(IRHOV) / u(IRHO)
+         G(IRHOU) = F(IRHOV)
          G(IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(IRHOV)*u(IRHOV) / u(IRHO) - 0.5_RP * gm1 * u(IRHOU)*u(IRHOU)/u(IRHO) + gm1 * u(IRHOE)
-         G(IRHOE) = (Gamma * u(IRHOE) - 0.5_RP*gm1*( u(IRHOU)*u(IRHOU) + u(IRHOV)*u(IRHOV) ) / u(IRHO) ) * u(IRHOV) / u(IRHO)
+         G(IRHOE) = F(IRHOE) * u(IRHOV) / u(IRHOU)
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
@@ -194,9 +194,9 @@ module PhysicsNS
          F(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) )/ u(:,IRHO)) * u(:,IRHOU) / u(:,IRHO)
 
          G(:,IRHO)  = u(:,IRHOV)
-         G(:,IRHOU) = u(:,IRHOU)*u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOU) = F(:,IRHOV)
          G(:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,IRHOV)*u(:,IRHOV) / u(:,IRHO) - 0.5_RP * gm1 * u(:,IRHOU)*u(:,IRHOU)/u(:,IRHO) + gm1 * u(:,IRHOE)
-         G(:,IRHOE) = (Gamma * u(:,IRHOE) - 0.5_RP*gm1*( u(:,IRHOU)*u(:,IRHOU) + u(:,IRHOV)*u(:,IRHOV) ) / u(:,IRHO)) * u(:,IRHOV) / u(:,IRHO)
+         G(:,IRHOE) = F(:,IRHOE) * u(:,IRHOV) / u(:,IRHOU)
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
@@ -227,10 +227,9 @@ module PhysicsNS
                               * u(:,:,IRHOU) / u(:,:,IRHO)
 
          G(:,:,IRHO)  = u(:,:,IRHOV)
-         G(:,:,IRHOU) = u(:,:,IRHOU)*u(:,:,IRHOV) / u(:,:,IRHO)
+         G(:,:,IRHOU) = F(:,:,IRHOV)
          G(:,:,IRHOV) = 0.5_RP * (3.0_RP - Gamma) * u(:,:,IRHOV)*u(:,:,IRHOV) / u(:,:,IRHO) - 0.5_RP * gm1 * u(:,:,IRHOU)*u(:,:,IRHOU)/u(:,:,IRHO) + gm1 * u(:,:,IRHOE)
-         G(:,:,IRHOE) = (Gamma * u(:,:,IRHOE) - 0.5_RP*gm1*( u(:,:,IRHOU)*u(:,:,IRHOU) + u(:,:,IRHOV)*u(:,:,IRHOV) ) / u(:,:,IRHO) ) & 
-                              * u(:,:,IRHOV) / u(:,:,IRHO)
+         G(:,:,IRHOE) = F(:,:,IRHOE) * u(:,:,IRHOV) / u(:,:,IRHOU)
 
          F = F / (sqrt(gamma) * Mach)
          G = G / (sqrt(gamma) * Mach)
@@ -313,11 +312,22 @@ module PhysicsNS
          real(kind=RP)                 :: K(NEC,NEC)
          real(kind=RP)                 :: alpha(NEC)
          integer                       :: eq
+         integer                       :: negativeWaves
+         integer                       :: wave
+        
 
 !        0/ Gather variables
 !           ----------------
-            qL = MatrixTimesVector_F( A=T , X=qL3D )
-            qR = MatrixTimesVector_F( A=T , X=qR3D )
+            qL(IRHO) = qL3D(IRHO)
+            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
+            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
+            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
+
+            qR(IRHO) = qR3D(IRHO)
+            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
+            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
+            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
+
 
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
             rhoL = sqrt(qL(IRHO))
@@ -349,6 +359,16 @@ module PhysicsNS
             lambda(3) = u
             lambda(4) = u + a 
 
+            if ( lambda(1) .gt. 0.0_RP ) then
+               negativeWaves = 0
+            elseif ( lambda(2) .gt. 0.0_RP ) then
+               negativeWaves = 1
+            elseif ( lambda(4) .gt. 0.0_RP ) then
+               negativeWaves = 3
+            else
+               negativeWaves = 4
+            end if
+
 !
 !        3/ Compute the averaged right eigenvectors
 !           ---------------------------------------
@@ -369,10 +389,10 @@ module PhysicsNS
 !
 !        5/ Compute the flux
 !           ----------------
-            Fstar = 0.5_RP * ( F_inviscidFlux(qL) + F_inviscidFLux(qR) )
+            Fstar = F_inviscidFlux(qL) 
                
-            do eq = 1 , NEC
-               Fstar = Fstar - 0.5_RP * alpha(eq) * abs(lambda(eq)) * K(1:NEC , eq)
+            do wave = 1 , negativeWaves
+               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NEC , wave)
             end do
   
 !        6/ Return to the 3D Space

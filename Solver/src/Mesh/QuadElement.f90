@@ -20,10 +20,12 @@ module QuadElementClass
         integer                            :: ID                             ! ID of the element
         integer                            :: address                        ! Memory address of the first position in the mesh
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
+        integer                            :: edgesAssemblyDir(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges referred to the quad local frame
         integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
         real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
+        real(kind=RP), allocatable         :: invM2Djac(:,:)                 ! Inverse of the jacobian times the mass matrix ( xi , eta )
         real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
         real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
         real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( xi , eta , eq , X/Y) : contravariant fluxes
@@ -194,6 +196,7 @@ module QuadElementClass
              allocate ( self % x     ( NDIM  , 0:N , 0:N        )  ) 
              allocate ( self % dx    ( NDIM  , 0:N , 0:N , NDIM )  ) 
              allocate ( self % jac   ( 0:N , 0:N                )  ) 
+             allocate ( self % invM2Djac   ( 0:N , 0:N                )  ) 
              allocate ( self % edges ( EDGES_PER_QUAD           )  ) 
       
              do edge = 1 , EDGES_PER_QUAD
@@ -368,6 +371,11 @@ module QuadElementClass
                el1  % quadPosition     ( edgePosition ) = quadPosition
                self % f % quads        ( quadPosition ) % e  => el1
                self % f % edgeLocation ( quadPosition ) = edgePosition
+               if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
+                  el1 % edgesAssemblyDir( edgePosition ) = edgeDirection
+               elseif ( (edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
+                  el1 % edgesAssemblyDir( edgePosition ) = -edgeDirection
+               end if
 !
 !              Search for the edge in element2
 !              -------------------------------
@@ -380,6 +388,11 @@ module QuadElementClass
                el2  % quadPosition     ( edgePosition ) = quadPosition
                el2  % edgesDirection   ( edgePosition ) =  edgeDirection
                self % f % edgeLocation ( quadPosition ) = edgePosition
+               if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
+                  el2 % edgesAssemblyDir( edgePosition ) = edgeDirection
+               elseif ( (edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
+                  el2 % edgesAssemblyDir( edgePosition ) = -edgeDirection
+               end if
                
 
             elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
@@ -402,6 +415,12 @@ module QuadElementClass
 
                if (edgeDirection .eq. BACKWARD) then ! The edge must be inverted
                   call self % f % Invert()
+               end if
+
+               if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
+                  elb % edgesAssemblyDir( edgePosition ) = FORWARD
+               elseif ( (edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
+                  elb % edgesAssemblyDir( edgePosition ) = BACKWARD
                end if
 
 

@@ -342,6 +342,7 @@
          associate( QDot => element % QDot     , &
                     MD   => element % spA % MD , &
                     M    => element % spA % M  , &
+                    w    => element % spA % w  , &
                     N    => element % spA % N      )
 
          do eq = 1 , NEC
@@ -350,26 +351,26 @@
 !
 !              F Loop
 !              ------
-               call Mat_x_Mat(A = MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+               call Mat_x_Mat(A = MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , 2 ) , C=QDot(0:N,0:N,eq) , &
                            trA = .true. , reset = .false. )
 
 !
 !              G Loop
 !              ------
-               call Mat_x_Mat(A = Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+               call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
                             reset = .false. )
 
             elseif ( self % formulation .eq. FORMII ) then
 !
 !              F Loop
 !              ------
-               call Mat_x_Mat(A = -MD ,B = Mat_x_Mat_F(element % F(0:N,0:N,eq,IX) , M ) , C=QDot(0:N,0:N,eq) , &
+               call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F(element % F(0:N,0:N,eq,IX) , w , 2 ) , C=QDot(0:N,0:N,eq) , &
                             reset = .false. )
 
 !
 !              G Loop
 !              ------
-               call Mat_x_Mat(A = -Mat_x_Mat_F( M , element % F(0:N,0:N,eq,IY) ) , B = MD , C=QDot(0:N,0:N,eq) , &
+               call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
                             trB = .true. , reset = .false. )
 
             end if

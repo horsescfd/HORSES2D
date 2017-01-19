@@ -138,6 +138,34 @@ module MatrixOperations
 
       end function MatrixTimesVector_F
 
+      function MatrixByVectorInIndex_F( A , X , index ) result( B ) 
+         implicit none
+         real(kind=RP), intent(in)           :: A(:,:)
+         real(kind=RP), intent(in)           :: X(:)
+         integer                             :: index
+         real(kind=RP), allocatable          :: B(:,:)
+         integer                             :: i , j 
+
+         allocate( B , source = A )
+
+
+         if ( index .eq. 1 ) then
+           do j = 1 , size(A,2)
+               do i = 1 , size(A,1)
+                  B(i,j) = A(i,j) * X(i) 
+               end do
+           end do
+         elseif ( index .eq. 2 ) then
+           do j = 1 , size(A,2)
+               do i = 1 , size(A,1)
+                  B(i,j) = A(i,j) * X(j) 
+               end do
+           end do
+         end if
+         
+
+      end function MatrixByVectorInIndex_F
+
       subroutine BilinearForm( A , X , Y , B , trA )
 !     -----------------------------
 !        Computes the product
