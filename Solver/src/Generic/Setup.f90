@@ -64,7 +64,8 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         character(len=STR_LEN_SETUP) :: integrationMode           
-        real(kind=RP), allocatable   :: dt                        
+        real(kind=RP), allocatable   :: Ccfl
+        real(kind=RP), allocatable   :: dt
         real(kind=RP), allocatable   :: simulationTime            
         integer, allocatable         :: no_of_iterations          
         real(kind=RP)                :: initialTime = 0.0_RP          
@@ -178,7 +179,8 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Gradient jumps penalty parameter" , Setup % sigma1IP          ) 
           call readValue ( trim ( case_name )  , "Integration mode"                 , Setup % integrationMode   ) 
           call readValue ( trim ( case_name )  , "Integration scheme"               , Setup % integrationMethod ) 
-          call readValue ( trim ( case_name )  , "Time step"                        , Setup % dt                ) 
+          call readValue ( trim ( case_name )  , "CFL Number"                       , Setup % Ccfl                ) 
+          call readValue ( trim ( case_name )  , "Time step"                       , Setup % dt                ) 
           call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
           call readValue ( trim ( case_name )  , "Number of iterations"             , Setup % no_of_iterations  ) 
           call readValue ( trim ( case_name )  , "Autosave interval"                , Setup % AutosaveInterval  ) 

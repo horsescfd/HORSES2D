@@ -162,7 +162,7 @@
             character(len=STR_LEN_DGSEM)     :: solutionpltName
             integer                          :: pos
 
-            self % Integrator = NewTimeIntegrator()
+            self % Integrator = NewTimeIntegrator( self % mesh )
             call self % Integrator % Describe()
 
             call self % Integrator % Integrate( self % mesh , self % Storage)

@@ -56,6 +56,10 @@
 !       ---------------------
         self % dS(iX,:) =   self % dX(iY,:)
         self % dS(iY,:) = - self % dX(iX,:)
+
+         do iXi = 0 , self % spA % N
+            self % n(iX:iY,iXi) = self % dS (iX:iY,iXi) / (norm2(self % dS(iX:iY,iXi)))
+         end do
   
 !
 !       Compute rotation matrices

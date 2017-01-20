@@ -7,12 +7,14 @@ module DGTimeIntegrator
    public TimeIntegrator_t , NewTimeIntegrator
 
    integer, parameter         :: STR_LEN_TIMEINTEGRATOR = 128
+   integer, parameter         :: estimateTimeStep_interval = 100
 
    type TimeIntegrator_t
       integer                               :: iter
       real(kind=RP)                         :: t
       real(kind=RP)                         :: dt
       real(kind=RP)                         :: t_end
+      real(kind=RP)                         :: Ccfl
       integer                               :: no_of_iterations
       integer                               :: initial_iteration 
       integer                               :: plot_interval
@@ -26,6 +28,7 @@ module DGTimeIntegrator
          procedure ::  Integrate => TimeIntegrator_Integrate
          procedure ::  Display  => TimeIntegrator_Display
          procedure ::  Autosave => TimeIntegrator_Autosave
+         procedure ::  EstimateTimeStep => TimeIntegrator_EstimateTimeStep
    end type TimeIntegrator_t
 
    interface NewTimeIntegrator
@@ -48,28 +51,31 @@ module DGTimeIntegrator
 !  ========
    contains
 !  ========
-      function TimeIntegrator_NewTimeIntegrator() result (Integrator)
+      function TimeIntegrator_NewTimeIntegrator(mesh) result (Integrator)
          use Setup_class
          implicit none
          type(TimeIntegrator_t)           :: Integrator
+         type(QuadMesh_t)                 :: mesh
 
          
          if ( trim(Setup % IntegrationMode) .eq. "Steady" ) then
             Integrator % mode = STEADY
-            Integrator % dt = Setup % dt
-            Integrator % no_of_iterations = Setup % no_of_iterations 
-            Integrator % output_interval = Setup % output_interval
+            Integrator % no_of_iterations  = Setup % no_of_iterations
+            Integrator % output_interval   = Setup % output_interval
             Integrator % autosave_interval = Setup % autosaveInterval
-            Integrator % t_end = (Setup % dt) * (Setup % no_of_iterations)
             Integrator % initial_iteration = Setup % initialIteration
+            Integrator % Ccfl              = Setup % Ccfl
+            Integrator % dt                = Setup % dt
    
          elseif ( trim(Setup % IntegrationMode) .eq. "Transient") then
+            print*, "Do not use this mode."
+            stop "Stopped"
             Integrator % mode = TRANSIENT
-            Integrator % dt = Setup % dt
-            Integrator % no_of_iterations = ceiling( Integrator % t_end / Setup % dt )
-            Integrator % output_interval = Setup % output_interval
+            Integrator % no_of_iterations  = 0
+            Integrator % output_interval   = Setup % output_interval
             Integrator % autosave_interval = Setup % autosaveInterval
-            Integrator % t_end = Setup % no_of_iterations * Setup % dt
+            Integrator % Ccfl              = Setup % Ccfl
+            Integrator % t_end             = Setup % simulationTime
             Integrator % initial_iteration = Setup % initialIteration
             
          else
@@ -83,6 +89,8 @@ module DGTimeIntegrator
          end if
 
          Integrator % t = Setup % initialTime
+
+         call Integrator % EstimateTimeStep( mesh )
 
          if ( trim(Setup % integrationMethod) .eq. "Explicit-Euler" ) then
             Integrator % TimeStep  => TimeIntegrator_ExplicitEuler
@@ -133,11 +141,16 @@ module DGTimeIntegrator
                call self % Autosave( Storage , mesh )
             end if
 
+            if ( mod(iter , estimateTimeStep_interval) .eq. 0 ) then
+               call self % EstimateTimeStep( mesh )
+            end if
+
 
          end do
 !
 !        Save solution file
 !        ------------------
+         self % iter = self % initial_iteration + self % no_of_iterations
          call self % Autosave( Storage , mesh , trim(Setup % solution_file) ) 
 
       end subroutine TimeIntegrator_Integrate
@@ -270,17 +283,19 @@ module DGTimeIntegrator
 
       subroutine TimeIntegrator_Describe( self )
          use Headers
+         use Setup_class
          implicit none
          class(TimeIntegrator_t)          :: self
 
          write(STD_OUT , *)
          call Section_header("Time integrator description")
          write(STD_OUT , *)
-         if (self % mode .eq. STEADY) write(STD_OUT , '(30X,A,A30,A)') "-> ","Mode: " , "steady"
-         if (self % mode .eq. TRANSIENT) write(STD_OUT , '(30X,A,A30,A)') "-> ","Mode: " , "transient"
-         write(STD_OUT ,'(30X,A,A30,ES10.3)') "-> ","Time step dt: " , self % dt
+         write(STD_OUT , '(30X,A,A30,A)') "-> ","Method: " , trim(Setup % integrationMethod)
+         if (self % mode .eq. STEADY) write(STD_OUT , '(30X,A,A30,A)') "-> ","Mode: " , "Steady"
+         if (self % mode .eq. TRANSIENT) write(STD_OUT , '(30X,A,A30,A)') "-> ","Mode: " , "Transient"
+         write(STD_OUT ,'(30X,A,A30,ES10.3)') "-> ","Initial time step dt: " , self % dt
          write(STD_OUT , '(30X,A,A30,I0)') "-> ","Number of iterations: " , self % no_of_iterations
-         write(STD_OUT , '(30X,A,A30,ES10.3)') "-> ", "Final simulation time: " , self % t_end
+         write(STD_OUT , '(30X,A,A30,ES10.3)') "-> ", "Estimated simulation time: " , self % dt * self % no_of_iterations 
          
       end subroutine TimeIntegrator_Describe
    
@@ -328,7 +343,57 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_Autosave
 !
+!////////////////////////////////////////////////////////////////////////////
+!
+!           TIME STEP ESTIMATOR
+!           -------------------
+!///////////////////////////////////////////////////////////////////////////
+!
+      subroutine TimeIntegrator_EstimateTimeStep( self , mesh )
+         use Setup_Class
+         use Physics
+         use NodeClass
+         use QuadElementClass
+         implicit none
+         class(TimeIntegrator_t)                   :: self
+         class(QuadMesh_t)                         :: mesh
+         integer                                   :: eID
+         real(kind=RP)                             :: dt = 0.0_RP
+         real(kind=RP)                             :: dx
+         real(kind=RP)                             :: umax = 0.0_RP , amax = 0.0_RP
+         integer                                   :: iXi , iEta
+         class(QuadElement_t), pointer             :: e
+         class(Node_p),        pointer             :: nodes(:)
 
+         dt = Setup % dt
+
+         do eID = 1 , mesh % no_of_elements
+
+            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
+            e => mesh % elements(eID)
+            nodes => mesh % elements(eID) % nodes
+
+            do iXi = 0 , mesh % elements(eID) % spA % N
+               do iEta = 0 , mesh % elements(eID) % spA % N
+
+                  umax = max(umax , norm2( e % Q(iXi,iEta,IRHOU:IRHOV)) / e % Q(iXi,iEta,IRHO))
+                  amax = max(amax , sqrt( gamma * gm1 * (e % Q(iXi,iEta,IRHOE) /  e % Q(iXi,iEta,IRHO) - 0.5_RP * ( e % Q(iXi,iEta,IRHOU)/ e % Q(iXi,iEta,IRHO))**2.0_RP &
+                                                                                                       - 0.5_RP * ( e % Q(iXi,iEta,IRHOV)/ e % Q(iXi,iEta,IRHO))**2.0_RP )))
+             
+               end do
+            end do
+
+   
+            dx = min( norm2(nodes(1) % n % X-nodes(2) % n % X) , norm2(nodes(2) % n % X - nodes(3) % n % X) , norm2(nodes(3) % n % X -nodes(4) % n % X) , norm2(nodes(1) % n % X - nodes(4) % n % X))
+            dt = min( dt , Dimensionless % Mach * sqrt(Thermodynamics % gamma) * self % Ccfl * dx / (umax + amax) / (mesh % elements(eID) % spA % N+1) )
+
+            end associate
+
+         end do
+
+         self % dt = dt
+
+      end subroutine TimeIntegrator_EstimateTimeStep
 
 
 

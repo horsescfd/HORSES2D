@@ -16,6 +16,10 @@
          self % dX(iX,:) = n2(iX) - n1(iX)
          self % dX(iY,:) = n2(iY) - n1(iY)
 
+         do iXi = 0 , self % spA % N
+            self % n(iX:iY,iXi) = self % dS (iX:iY,iXi) / (norm2(self % dS(iX:iY,iXi)))
+         end do
+
       end associate
    
    

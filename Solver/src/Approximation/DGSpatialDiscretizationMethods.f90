@@ -145,7 +145,7 @@ module DGSpatialDiscretizationMethods
 
                allocate( variable_b ( 0 : N , NEC ) ) 
 
-               if ( ( edID .eq. ETOP ) .or. (edID .eq. ERIGHT) ) then
+               if ( ( edID .eq. ETOP ) .or. (edID .eq. EBOTTOM) ) then
                   edgeSign = -1.0_RP          ! Outside-pointing edges
                else
                   edgeSign = 1.0_RP         ! Inside-pointing edges

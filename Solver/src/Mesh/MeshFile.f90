@@ -22,6 +22,7 @@ module MeshFileClass
        integer, allocatable                     :: polynomialOrder(:)               
        integer, allocatable                     :: cumulativePolynomialOrder(:) 
 !                                                                                                           (-1 for the second point if boundary)
+       integer, allocatable                     :: old_curved_bdryedges(:)                ! Which edges are curved in the mesh storage order
        integer, allocatable                     :: curved_bdryedges(:)                ! Which edges are curved
        integer, allocatable                     :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
        real(kind=RP), allocatable               :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
@@ -112,8 +113,9 @@ module MeshFileClass
 !                 Get which edges are curved
 !              --------------------------------------
 !
+               allocate ( mesh % old_curved_bdryedges ( mesh % no_of_curvedbdryedges ) ) 
                allocate ( mesh % curved_bdryedges ( mesh % no_of_curvedbdryedges ) ) 
-               call NetCDF_getVariable ( Setup % mesh_file , "curvilinear_edges" , mesh % curved_bdryedges ) 
+               call NetCDF_getVariable ( Setup % mesh_file , "curvilinear_edges" , mesh % old_curved_bdryedges ) 
 !
 !              -----------------------------------------------------------------------
 !                 Get curved patches from file: An auxiliary variable "aux" is needed 
@@ -316,8 +318,6 @@ module MeshFileClass
                      if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then    ! Face found
 !
 !                       ----------------------------------------------
-!                          Assign the correct marker to the face
-!                       ----------------------------------------------
 !
                         mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)        
 !        
@@ -325,7 +325,7 @@ module MeshFileClass
 !                       Change the edge in curved_bdryedges to the new numeration
 ! 
                         if (mesh % curvilinear) then
-                           call changeEntry( array = mesh % curved_bdryedges , old = bdryface , new = edge )
+                           call changeEntry( oldarray = mesh % old_curved_bdryedges , newarray = mesh % curved_bdryedges, old = bdryface , new = edge )
                         end if
 !                       --------------------------------------------------------------------
 
@@ -365,18 +365,19 @@ module MeshFileClass
 
          end function facesEqual
 
-         subroutine changeEntry( array , old , new ) 
+         subroutine changeEntry( oldarray , newarray , old , new ) 
             implicit none
-            integer,    intent(inout)        :: array(:)
+            integer,    intent(inout)        :: oldarray(:)
+            integer,    intent(inout)        :: newarray(:)
             integer,    intent(in)           :: old
             integer,    intent(in)           :: new
 !           -----------------------------------------------
             integer                          :: pos
 
-            do pos = 1 , size(array)
+            do pos = 1 , size(oldarray)
 
-               if (array(pos) .eq. old) then
-                  array(pos) = new
+               if (oldarray(pos) .eq. old) then
+                  newarray(pos) = new
                   return
                end if
 
@@ -384,54 +385,5 @@ module MeshFileClass
 
 
          end subroutine
-
-!         subroutine NewMesh(mesh,K,T)
-!             use Setup_class
-!             implicit none
-!             class(MeshFile_t)        :: mesh
-!             integer               :: K
-!             real(kind=RP)               :: T
-!             integer               :: p , el
-!             real(kind=RP)         :: h
-!
-!             h = 2.0_RP * T / K
-! 
-!             mesh % Npoints = K+1
-!             mesh % Nelements = K
-!
-!             allocate(mesh % nodes( mesh % Npoints ) )
-!             mesh % nodes = reshape((/(-T + h*p,p=0,K)/),(/K+1/))
-!
-!             allocate(mesh % elements( mesh % Nelements , 2 ) )
-!             mesh % elements = reshape((/((el + p,p=1,0,-1),el=1,K)/),(/K , 2/), ORDER=(/2,1/))
-!
-!             allocate(mesh % faceType( mesh % Npoints ) )
-!             mesh % faceType = FACE_INTERIOR
-!             mesh % faceType(1)              = 1
-!             mesh % faceType(mesh % Npoints) = 2
-!
-!              
-!
-!             allocate(mesh % polynomialOrder ( mesh % Nelements ) )
-!             mesh % polynomialOrder = setup % N
-!
-!!       
-!!            ---------------------------------------------------------
-!!                   The cumulativePolynomialOrder is an array that 
-!!               goes from 0 to Nelements, and such that
-!!                   cumul..(0) = 0
-!!                   cumul..(i) = polynomialOrder(i) + cumul...(i-1)
-!!           ---------------------------------------------------------
-!             allocate(mesh % cumulativePolynomialOrder( 0 : mesh % Nelements ) )
-!
-!            mesh % cumulativePolynomialOrder(0) = 0
-!
-!            do el = 1 , mesh % Nelements
-!                mesh % cumulativePolynomialOrder(el) = mesh % cumulativePolynomialOrder(el-1) + mesh % polynomialOrder(el)
-!            end do
-!
-!         end subroutine NewMesh  
-!
-!
 
 end module MeshFileClass

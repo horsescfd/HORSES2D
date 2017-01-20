@@ -72,8 +72,7 @@
            integer, parameter                 :: DIRICHLET_BC    =  1
            integer, parameter                 :: EULERWALL_BC    =  2
            integer, parameter                 :: VISCOUSWALL_BC  =  3
-           integer, parameter                 :: INFLOW_BC       =  4
-           integer, parameter                 :: OUTFLOW_BC      =  5
+           integer, parameter                 :: FARFIELD_BC     =  4
 !
 !     *************************************************************************
 !           Time integration mode

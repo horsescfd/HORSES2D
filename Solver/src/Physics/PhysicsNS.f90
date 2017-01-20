@@ -7,7 +7,7 @@ module PhysicsNS
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux
-    public :: RoeFlux
+    public :: RoeFlux , AUSMFlux
 !
 !   *****************************************
 !        Definitions
@@ -435,6 +435,101 @@ module PhysicsNS
 
 !
       end function RoeFlux
+
+      function AUSMFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+         use MatrixOperations
+         implicit none
+         real(kind=RP), dimension(NEC)     :: qL3D
+         real(kind=RP), dimension(NEC)     :: qR3D
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)     :: Fstar
+!        ---------------------------------------------------------------
+         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP)                 :: rhoL , uL , vL , pL , aL , ML
+         real(kind=RP)                 :: rhoR , uR , vR , pR , aR , MR
+         real(kind=RP)                 :: MplusL , MminusR , pplusL , pminusR 
+         real(kind=RP)                 :: M , p 
+        
+
+!        0/ Gather variables
+!           ----------------
+            qL(IRHO) = qL3D(IRHO)
+            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
+            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
+            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
+
+            qR(IRHO) = qR3D(IRHO)
+            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
+            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
+            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
+
+
+            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
+            rhoL = sqrt(qL(IRHO))
+            uL   = qL(IRHOU) / qL(IRHO)
+            vL   = qL(IRHOV) / qL(IRHO)
+            pL   = gm1 * (qL(IRHOE) - 0.5_RP  * ( qL(IRHOU)*uL + qL(IRHOV)*vL ) )  
+            aL   = sqrt(gamma * pL / rhoL )
+            ML   = uL / aL
+
+            rhoR = sqrt(qR(IRHO))
+            uR   = qR(IRHOU) / qR(IRHO)
+            vR   = qR(IRHOV) / qR(IRHO)
+            pR   = gm1 * (qR(IRHOE) - 0.5_RP  * ( qR(IRHOU)*uR + qR(IRHOV)*vR ) ) 
+            aR   = sqrt(gamma * pR / rhoR )
+            MR   = uR / aR
+            end associate
+
+!        1/ Compute splitted Mach numbers and pressures
+!           -------------------------------------------
+            if ( abs(ML) .le. 1.0_RP ) then
+               MplusL = 0.25_RP * (ML + 1.0_RP)*(ML + 1.0_RP)
+               pplusL = 0.5_RP * pL * (1.0_RP + ML)
+            else
+               MplusL = 0.5_RP * (ML + abs(ML) )
+               pplusL = 0.5_RP * pL * ( sign(1.0_RP,ML) + 1.0_RP )
+            end if
+
+            if ( abs(MR) .le. 1.0_RP) then
+               MminusR = -0.25_RP * ( MR - 1.0_RP) * ( MR - 1.0_RP )
+               pminusR = 0.5_RP * p * (1.0_RP - MR)
+            else
+               MminusR = 0.5_RP * (MR - abs(MR))
+               pminusR = 0.5_RP * p * (1.0_RP - sign(1.0_RP , MR))
+            end if
+
+!        2/ Compute intercell pressure and Mach number
+!           ------------------------------------------
+            p = pplusL + pminusR
+            M = MplusL + MminusR
+
+!        3/ Compute intercell flux
+!           ---------------------------------
+            if ( M .ge. 0.0_RP ) then
+               Fstar(IRHO) = M * rhoL * aL
+               Fstar(IRHOU) = M * rhoL * aL * uL + p
+               Fstar(IRHOV) = M * rhoL * aL * vL
+               Fstar(IRHOE) = M * aL * ( Dimensionless % cp * pL + 0.5_RP * rhoL * (uL * uL + vL * vL))
+            else
+               Fstar(IRHO) = M * rhoR * aR
+               Fstar(IRHOU) = M * rhoR * aR * uR + p
+               Fstar(IRHOV) = M * rhoR * aR * vR
+               Fstar(IRHOE) = M * aR * ( Dimensionless % cp * pR + 0.5_RP * rhoR * (uR * uR + vR * vR))
+            end if
+               
+!        4/ Return to the 3D Space
+!           ----------------------
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+
+!        5/ Scale it with the Mach number
+!           -----------------------------
+            associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            end associate
+!
+      end function AUSMFlux
+!
 !
 !      ***************************************************************************
 !           Subroutine for the module description

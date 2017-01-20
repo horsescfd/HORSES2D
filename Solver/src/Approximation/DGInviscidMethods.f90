@@ -102,8 +102,18 @@
 !        Set the Riemann flux
          if (trim( Setup % inviscid_flux ) .eq. "Roe") then
             InviscidMethod % RiemannSolver => RoeFlux
+         
+         elseif ( trim(Setup % inviscid_flux) .eq. "AUSM" ) then
+            InviscidMethod % RiemannSOlver => AUSMFlux
+
          else
             write(STD_OUT , *) "Solver ", trim ( Setup % inviscid_flux) ," not implemented yet."
+            write(STD_OUT , '(10X,A)') "Options available are:"
+            write(STD_OUT , '(20X,A)') "* Roe"
+            write(STD_OUT , '(20X,A)') "* AUSM"
+            STOP "Stopped."
+
+
          end if
 
          call InviscidMethod % describe
