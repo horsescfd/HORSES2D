@@ -9,16 +9,17 @@ module InitialConditions
 !  *******
 !
 
-   integer, parameter            :: STR_LEN_IC    = 128
-   character(len = *), parameter :: ConstantIC    = "Uniform"
-   character(len = *), parameter :: SteadyIC      = "Steady"
-   character(len = *), parameter :: VortexIC      = "Vortex transport"
-   character(len = *), parameter :: TaylorIC      = "Taylor vortex"
-   character(len = *), parameter :: TurbulenceIC  = "Turbulence2D"
-   character(len = *), parameter :: UserDefinedIC = "UserDefined"
-   character(len = *), parameter :: RestartIC     = "Restart"
-   character(len = *), parameter :: ChecksIC      = "Checks"
-   character(len = *), parameter :: WaveIC        = "Wave"
+   integer,            parameter :: STR_LEN_IC     = 128
+   character(len = *), parameter :: ConstantIC     = "Uniform"
+   character(len = *), parameter :: PerturbationIC = "Perturbation"
+   character(len = *), parameter :: SteadyIC       = "Steady"
+   character(len = *), parameter :: VortexIC       = "Vortex transport"
+   character(len = *), parameter :: TaylorIC       = "Taylor vortex"
+   character(len = *), parameter :: TurbulenceIC   = "Turbulence2D"
+   character(len = *), parameter :: UserDefinedIC  = "UserDefined"
+   character(len = *), parameter :: RestartIC      = "Restart"
+   character(len = *), parameter :: ChecksIC       = "Checks"
+   character(len = *), parameter :: WaveIC         = "Wave"
 
 ! 
 !  ******************
@@ -78,6 +79,13 @@ module InitialConditions
 !
                fcn => UniformInitialCondition
 !
+!           =========================
+            case ( trim(PerturbationIC) ) 
+!           =========================
+!
+               fcn => PerturbedUniformInitialCondition
+
+!
 !           ============================
             case ( trim(SteadyIC) )
 !           ============================
@@ -135,13 +143,14 @@ module InitialConditions
             case default
 !           ============               
 !
-               print*, "Error: Unknown initial condition"
+               print*, 'Error: Unknown initial condition "',trim(ICName),'".'
                print*, "   Options available:"
                print*, "      * ",trim(ConstantIC)
                print*, "      * ",trim(SteadyIC)
                print*, "      * ",trim(VortexIC)
                print*, "      * ",trim(ChecksIC)
                print*, "      * ",trim(RestartIC) 
+               print*, "      * ",trim(PerturbationIC) 
                STOP "Stopped." 
 !
 !        **********
@@ -172,6 +181,36 @@ module InitialConditions
          end associate
 
       end function UniformInitialCondition
+
+      function PerturbedUniformInitialCondition(x) result(val)
+!        ***************************************************************
+!           Loads an uniform initial condition from reference values
+!        ***************************************************************
+         use SMConstants
+         implicit none
+         real(kind=RP)        :: x(NDIM)
+         real(kind=RP)        :: val(NEC)
+         real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
+         real(kind=RP), parameter   :: perturbation = 0.1_RP
+         real(kind=RP)              :: per
+
+         associate ( gamma => Thermodynamics % gamma ) 
+         per = 0.0_RP
+         if ( (x(IX) .gt. 0.4_RP) .and. (x(IX) .lt. 0.6_RP) ) then
+            if ( (x(IY) .gt. 0.4_RP) .and. (x(IY) .lt. 0.6_RP) ) then
+               per = perturbation
+            end if
+         end if
+
+         val(IRHO)  = 1.0_RP
+         val(IRHOU) = sqrt( gamma ) * Dimensionless % Mach * (cos ( AngleOfAttack ) + per  )
+         val(IRHOV) = sqrt( gamma ) * Dimensionless % Mach * sin ( AngleOfAttack )
+         val(IRHOE) = Dimensionless % cv + 0.5_RP * gamma * Dimensionless % Mach * Dimensionless % Mach
+         end associate
+
+      end function PerturbedUniformInitialCondition
+
+
 
       function SteadyInitialCondition(x) result(val)
 !        ***************************************************************

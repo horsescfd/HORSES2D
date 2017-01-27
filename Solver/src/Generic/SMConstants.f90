@@ -73,6 +73,8 @@
            integer, parameter                 :: EULERWALL_BC    =  2
            integer, parameter                 :: VISCOUSWALL_BC  =  3
            integer, parameter                 :: FARFIELD_BC     =  4
+           integer, parameter                 :: OUTFLOW_BC      =  5
+           integer, parameter                 :: INFLOWOUTFLOW_BC      =  6
 !
 !     *************************************************************************
 !           Time integration mode
@@ -110,4 +112,25 @@
             END IF
       
             END FUNCTION AlmostEqual
+
+            function ThirdDegreeRoots(a,b,c) result (val)
+               implicit none  
+               real(kind=RP)              :: a
+               real(kind=RP)              :: b
+               real(kind=RP)              :: c
+               real(kind=RP)              :: val
+!              ------------------------------------------------------
+               real(kind=RP)              :: p , q
+               complex(kind=CP)           :: z1
+
+
+               p = b - a * a / 3.0_RP
+               q = 2.0_RP * a * a * a / 27.0_RP - a * b / 3.0_RP + c
+            
+               z1 = (( -q + sqrt(q*q + 4.0_RP * p * p * p / 27.0_RP))/2.0_RP)**(1.0_RP / 3.0_RP)         
+
+               val = real(z1 - p / (3.0_RP * z1) - a / 3.0_RP , kind=RP)
+
+            end function ThirdDegreeRoots
+
       end module SMConstants
