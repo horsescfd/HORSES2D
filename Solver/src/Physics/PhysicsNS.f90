@@ -3,17 +3,19 @@ module PhysicsNS
     use Setup_class
 
     private
-    public :: NEC , NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: NEC , NPRIM, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: IU , IV , IP , IA
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux
-    public :: RoeFlux , AUSMFlux
+    public :: RoeFlux , AUSMFlux , ExactRiemannSolver , ExactRiemann_ComputePStar
 !
 !   *****************************************
 !        Definitions
 !   *****************************************
 !
     integer, parameter              :: NEC = 4
+    integer, parameter              :: NPRIM = 5
     integer, parameter              :: NDIM = 2
     integer, parameter              :: STR_LEN_PHYSICS = 128
 !
@@ -28,10 +30,17 @@ module PhysicsNS
 !        Parameters to select variables
 !   ******************++**********************
 !
+!   --- Conservative variables ---
     integer, parameter :: IRHO  = 1
     integer, parameter :: IRHOU = 2
     integer, parameter :: IRHOV = 3
     integer, parameter :: IRHOE = 4
+
+!   --- Primitive variables ---
+    integer, parameter :: IU = 2
+    integer, parameter :: IV = 3
+    integer, parameter :: IP = 4 
+    integer, parameter :: IA = 5
 !
 !   ********************************************
 !        Current solver
@@ -322,6 +331,152 @@ module PhysicsNS
 !        Riemann solvers
 !     ****************************************************
 !
+      function ExactRiemannSolver(qL3D , qR3D , T , Tinv ) result (Fstar)
+         use MatrixOperations
+         implicit none
+         real(kind=RP), dimension(NEC)     :: qL3D
+         real(kind=RP), dimension(NEC)     :: qR3D
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)     :: Fstar
+!        ---------------------------------------------------------------
+         real(kind=RP), dimension(NEC)   :: qL , qR
+         real(kind=RP), dimension(NPRIM) :: WL , WR
+         real(kind=RP)                   :: pstar , ustar
+         real(kind=RP)                   :: rhostar , uFan , pFan
+
+!        0/ Gather variables
+!           ----------------
+            qL(IRHO) = qL3D(IRHO)
+            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
+            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
+            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
+
+            qR(IRHO) = qR3D(IRHO)
+            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
+            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
+            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
+
+
+            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
+            WL(IRHO) = qL(IRHO)
+            WL(IU)   = qL(IRHOU) / qL(IRHO)
+            WL(IV)   = qL(IRHOV) / qL(IRHO)
+            WL(IP)   = gm1 * (qL(IRHOE) - 0.5_RP * (qL(IRHOU) * WL(IU) + qL(IRHOV) * WL(IV) ) )
+            WL(IA)   = sqrt(gamma * WL(IP) / WL(IRHO))
+
+            WR(IRHO) = qR(IRHO)
+            WR(IU)   = qR(IRHOU) / qR(IRHO)
+            WR(IV)   = qR(IRHOV) / qR(IRHO)
+            WR(IP)   = gm1 * (qR(IRHOE) - 0.5_RP * (qR(IRHOU) * WR(IU) + qR(IRHOV) * WR(IV) ) )
+            WR(IA)   = sqrt(gamma * WR(IP) / WR(IRHO))
+            end associate
+
+!        1/ Compute the star region
+!           -----------------------
+            call ExactRiemann_ComputePStar (WL , WR , pstar , ustar )
+
+!        2/ Check to which region belongs the solution
+!           ------------------------------------------
+            associate ( cv => Dimensionless % cv , cp => Dimensionless % cp , gamma => Thermodynamics % gamma ) 
+            if ( ustar .ge. 0.0_RP ) then
+
+               if ( ( pstar .le. WL(IP) ) .and. ( WL(IU) .ge. WL(IA) ) ) then
+                  Fstar(IRHO)  = qL(IRHOU)
+                  Fstar(IRHOU) = qL(IRHOU) * WL(IU) + WL(IP)
+                  Fstar(IRHOV) = qL(IRHOV) * WL(IU)
+                  Fstar(IRHOE) = WL(IU)*( cp * WL(IP) + 0.5_RP * (qL(IRHOU)*WL(IU) + qL(IRHOV)*WL(IV)) )
+
+               elseif ( ( pstar .le. WL(IP) ) .and. ( WL(IU) .lt. WL(IA)) .and. (ustar .lt. WL(IA) * (pstar/WL(IP))**(0.5_RP / cp ) ) ) then
+                  rhostar = WL(IRHO) * ( pstar / WL(IP) ) ** ( 1.0_RP / gamma )
+
+                  Fstar(IRHO) = rhostar * ustar 
+                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(IRHOV) = Fstar(IRHO) * WL(IV)
+                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + WL(IV) * WL(IV)) ) 
+
+               elseif ( ( pstar .le. WL(IP) ) .and. ( WL(IU) .lt. WL(IA) ) .and. ( ustar .ge. WL(IA) * (pstar / WL(IP))**(0.5_RP / cp))) then
+                  
+                  uFan    = 2.0_RP * WL(IA) / ( gamma + 1.0_RP)  + (gamma-1.0_RP)/(gamma+1.0_RP) * WL(IU)
+                  rhostar = WL(IRHO) * (uFan / WL(IA)) ** (2.0_RP * cv)
+                  pFan    = WL(IP) * (rhostar / WL(IRHO)) ** (gamma)
+
+                  Fstar(IRHO) = rhostar * uFan
+                  Fstar(IRHOU) = rhostar * uFan * uFan + pFan
+                  Fstar(IRHOV) = rhostar * uFan * WL(IV)
+                  Fstar(IRHOE) = uFan * ( cp * pFan + 0.5_RP * rhostar * ( uFan*uFan + WL(IV)*WL(IV) ) )
+ 
+               elseif ( ( pstar .gt. WL(IP) ) .and. ( WL(IU) .ge. WL(IA) * sqrt( (gamma+1.0_RP)/(2.0_RP * gamma)*pstar/WL(IP) + 0.5_RP/cp) ) ) then
+                  Fstar(IRHO)  = qL(IRHOU)
+                  Fstar(IRHOU) = qL(IRHOU) * WL(IU) + WL(IP)
+                  Fstar(IRHOV) = qL(IRHOV) * WL(IU)
+                  Fstar(IRHOE) = WL(IU)*( cp * WL(IP) + 0.5_RP * (qL(IRHOU)*WL(IU) + qL(IRHOV)*WL(IV)) )
+
+               elseif ( ( pstar .gt. WL(IP) ) .and. ( WL(IU) .lt.  WL(IA) * sqrt( (gamma+1.0_RP)/(2.0_RP * gamma)*pstar/WL(IP) + 0.5_RP/cp) ) ) then
+                  rhostar = WL(IRHO) * ( (pstar/WL(IP) + (gamma-1.0_RP)/(gamma+1.0_RP))/(pstar/WL(IP)*(gamma-1.0_RP)/(gamma+1.0_RP) + 1.0_RP))
+                  Fstar(IRHO) = rhostar * ustar
+                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(IRHOV) = rhostar * ustar * WL(IV)
+                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + WL(IV)*WL(IV) ) )
+               
+               end if
+
+            else     ! ( ustar .lt. 0.0_RP )
+               if ( ( pstar .le. WR(IP) ) .and. ( WR(IU) + WR(IA) .le. 0.0_RP ) ) then
+                  Fstar(IRHO)  = qR(IRHOU)
+                  Fstar(IRHOU) = qR(IRHOU) * WR(IU) + WR(IP)
+                  Fstar(IRHOV) = qR(IRHOV) * WR(IU)
+                  Fstar(IRHOE) = WR(IU)*( cp * WR(IP) + 0.5_RP * (qR(IRHOU)*WR(IU) + qR(IRHOV)*WR(IV)) )
+
+               elseif ( ( pstar .le. WR(IP) ) .and. (WR(IU) + WR(IA) .ge. 0.0_RP) .and. (ustar + WR(IA)*(pstar/WR(IP))**(0.5_RP / cp) .ge. 0.0_RP) ) then
+                  rhostar = WR(IRHO) * ( pstar / WR(IP) ) ** ( 1.0_RP / gamma )
+
+                  Fstar(IRHO) = rhostar * ustar 
+                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(IRHOV) = Fstar(IRHO) * WR(IV)
+                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + WR(IV) * WR(IV)) ) 
+
+               elseif ( ( pstar .le. WR(IP) ) .and. (WR(IU) + WR(IA) .gt. 0.0_RP) .and. (ustar + WR(IA) * (pstar/WR(IP))**(0.5_RP / cp) .lt. 0.0_RP ) ) then
+                  uFan    = -2.0_RP * WR(IA) / ( gamma + 1.0_RP)  + (gamma-1.0_RP)/(gamma+1.0_RP) * WR(IU)
+                  rhostar = WR(IRHO) * (-uFan / WR(IA)) ** (2.0_RP * cv)
+                  pFan    = WR(IP) * (rhostar / WR(IRHO)) ** (gamma)
+
+                  Fstar(IRHO) = rhostar * uFan
+                  Fstar(IRHOU) = rhostar * uFan * uFan + pFan
+                  Fstar(IRHOV) = rhostar * uFan * WR(IV)
+                  Fstar(IRHOE) = uFan * ( cp * pFan + 0.5_RP * rhostar * ( uFan*uFan + WR(IV)*WR(IV) ) )
+
+               elseif ( (pstar .gt. WR(IP)) .and. (WR(IU) + WR(IA)*( 0.5_RP*(gamma+1.0_RP)/gamma*pstar/WR(IP) + 0.5_RP/cp ) .le. 0.0_RP) ) then
+                  Fstar(IRHO)  = qR(IRHOU)
+                  Fstar(IRHOU) = qR(IRHOU) * WR(IU) + WR(IP)
+                  Fstar(IRHOV) = qR(IRHOV) * WR(IU)
+                  Fstar(IRHOE) = WR(IU)*( cp * WR(IP) + 0.5_RP * (qR(IRHOU)*WR(IU) + qR(IRHOV)*WR(IV)) )
+
+               elseif ( (pstar .gt. WR(IP)) .and. (WR(IU) + WR(IA)*( (gamma+1.0_RP)/(2.0_RP*gamma)*pstar/WR(IP) + 0.5_RP/cp) .gt. 0.0_RP) ) then
+
+                  rhostar = WR(IRHO) * ( (pstar/WR(IP) + (gamma-1.0_RP)/(gamma+1.0_RP))/(pstar/WR(IP)*(gamma-1.0_RP)/(gamma+1.0_RP) + 1.0_RP))
+                  Fstar(IRHO) = rhostar * ustar
+                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(IRHOV) = rhostar * ustar * WR(IV)
+                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + WR(IV)*WR(IV) ) )
+               end if
+
+            end if
+            end associate
+
+!        3/ Return to the 3D Space
+!           ----------------------
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+
+!        4/ Scale it with the Mach number
+!           -----------------------------
+            associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            end associate
+
+
+      end function ExactRiemannSolver
+         
       function RoeFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
@@ -529,6 +684,95 @@ module PhysicsNS
             end associate
 !
       end function AUSMFlux
+!
+!     ****************************************************************************
+!           Auxiliar functions
+!     ****************************************************************************
+!
+      subroutine ExactRiemann_ComputePStar(WL , WR , pstar , ustar )
+         implicit none
+         real(kind=RP)           :: WL(NPRIM)         !  Left and right primitive variable
+         real(kind=RP)           :: WR(NPRIM)         !  sets.
+         real(kind=RP)           :: pstar
+         real(kind=RP)           :: ustar
+!        -------------------------------------------------------------
+         real(kind=RP), parameter :: TOL = 1.0e-6_RP
+         integer, parameter       :: max_no_of_iterations = 50
+         integer                  :: iter
+         real(kind=RP)            :: FL , dFL , FR , dFR
+         real(kind=RP)            :: F , dF
+         real(kind=RP)            :: pold
+         real(kind=RP)            :: cha
+         
+         
+
+!        1/ Initial value for pstar: "Two-rarefaction approximation"
+!           --------------------------------------------------------
+            associate ( gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp )
+            pstar = ( (WL(IA) + WR(IA) - 0.5_RP * gm1 * (WR(IU) - WL(IU))) / ( WL(IA)/WL(IP)**(0.5_RP / cp) + WR(IA)/WR(IP)**(0.5_RP / cp) ) ) **(2.0_RP * cp)
+            end associate
+
+!
+!        2/ Perform Newton iterations until the tolerance is reached
+!           --------------------------------------------------------
+            do iter = 1 , max_no_of_iterations
+         print*, iter-1,pstar
+
+               call ExactRiemann_F(pstar , WL , FL , dFL)
+               call ExactRiemann_F(pstar , WR , FR , dFR)
+               F = FL + FR + WR(IU) - WL(IU)
+               dF = dFL + dFR
+
+               pold  = pstar
+               pstar = pold - F / dF
+
+!              Check for convergence
+!              ---------------------
+               cha = 0.5_RP * abs(pstar - pold) / (pstar + pold)
+
+               if ( abs(cha) .lt. TOL ) then
+!
+!                 Compute ustar with pstar
+!                 ------------------------
+                  call ExactRiemann_F(pstar , WL , FL , dFL)
+                  call ExactRiemann_F(pstar , WR , FR , dFR)
+            
+                  ustar = 0.5_RP * (WL(IU) + WR(IU) + FR - FL)
+                  
+                  return
+               end if
+
+            end do
+
+            print*, "Warning: Exact Riemann solver exceeded the maximum number of iterations."
+
+      end subroutine ExactRiemann_ComputePStar
+
+      subroutine ExactRiemann_F(p , W , F , dF )
+         implicit none
+         real(kind=RP), intent(IN)           :: p
+         real(kind=RP), intent(IN)           :: W(NPRIM)
+         real(kind=RP), intent(OUT)          :: F
+         real(kind=RP), intent(OUT)          :: dF
+!        ------------------------------------------
+         real(kind=RP)           :: A , B
+         real(kind=RP)           :: sqrtADivpPlusB
+
+         associate ( gamma => Thermodynamics % gamma )
+         if ( p .gt. W(IP) ) then
+            A = 2.0_RP / (W(IRHO) * ( gamma + 1.0_RP ) )
+            B = Thermodynamics % gm1 * W(IP) / (gamma + 1.0_RP)
+            sqrtADivpPlusB = sqrt(A / (p+B) )
+            F = (p - W(IP)) * sqrtADivpPlusB
+            dF = sqrtADivpPlusB * (1.0_RP - 0.5_RP * (p-W(IP)) / (B + p) )
+         else
+            F = 2.0_RP * Dimensionless % cv * W(IA) * ( ( p/W(IP) ) ** (0.5_RP /  Dimensionless % cp)  - 1  )
+            dF = 1.0_RP / (W(IRHO) * W(IA)) * (p / W(IP)) ** ( -0.5_RP * (gamma + 1.0_RP)/gamma) 
+         end if
+         end associate
+
+      end subroutine ExactRiemann_F
+
 !
 !
 !      ***************************************************************************

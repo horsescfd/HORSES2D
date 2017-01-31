@@ -23,8 +23,10 @@ module DGBoundaryConditions
 !  **********************************
 !
    type BoundaryCondition_t
-      character(len=STR_LEN_BC)        :: Name
-      integer                          :: BCType
+      character(len=STR_LEN_BC)                         :: Name
+      integer                                           :: BCType
+      character(len=STR_LEN_BC)                         :: RiemannSolverName
+      procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
          procedure ::     Construct => BaseClass_Construct
          procedure ::     Associate => BaseClass_Associate
@@ -203,6 +205,22 @@ module DGBoundaryConditions
          end if
    
          call readValueInRegion( trim(Setup % bdry_file) , "Name" , self % Name , in_label , "# end" )
+         call readValueInRegion( trim(Setup % bdry_file) , "Riemann solver" , self % RiemannSolverName ,  in_label , "# end" )
+
+         if (trim(self % RiemannSolverName ) .eq. "Exact") then
+            self % RiemannSolver => ExactRiemannSolver
+
+         elseif ( trim(self % RiemannSolverName) .eq. "Roe" ) then
+            self % RiemannSolver => RoeFlux
+
+         elseif ( trim(self % RiemannSolverName) .eq. "Interior" ) then
+            self % RiemannSolver => NULL()
+
+         else     ! Default: The interior Riemann solver
+            self % RiemannSolver => NULL()
+            self % RiemannSolverName = "Interior"
+
+         end if
 
          call self % Construct( marker , in_label)
 
@@ -1326,6 +1344,7 @@ module DGBoundaryConditions
 
          associate ( gm1 => Thermodynamics % gm1 )
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Dirichlet."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Pressure: " , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
          write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "Density: " , self % q(IRHO) * refValues % rho 
          write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "X-Velocity: " , self % q(IRHOU) / self % q(IRHO) * refValues % a
@@ -1341,6 +1360,7 @@ module DGBoundaryConditions
 
          associate ( gm1 => Thermodynamics % gm1 )
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Farfield."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Pressure: " , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Total pressure: " , self % pt
          write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "Density: " , self % q(IRHO) * refValues % rho 
@@ -1358,6 +1378,7 @@ module DGBoundaryConditions
 
          associate ( gm1 => Thermodynamics % gm1 )
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Pressure outlet."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Pressure: " , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Total pressure: " , self % pt
          write(STD_OUT , '(30X,A,A25,F10.4)') "-> " , "Density: " , self % q(IRHO) * refValues % rho 
@@ -1375,6 +1396,7 @@ module DGBoundaryConditions
 
          associate ( gm1 => Thermodynamics % gm1 )
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Pressure inlet."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Pressure: " , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Total pressure: " , self % pt * refValues % p 
          write(STD_OUT , '(30X,A,A25,F10.2)') "-> " , "Total temperature: " , self % Tt * refValues % T
@@ -1392,6 +1414,7 @@ module DGBoundaryConditions
          class(PeriodicBC_t)          :: self
 
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Periodic."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X,A,A25,I0,A)') "-> ", "Connecting zone: ",self % connected_marker
          if ( self % direction .eq. IX) then
             write(STD_OUT , '(30X,A,A25,A)') "-> " , "Direction: " ,"x"
@@ -1406,6 +1429,7 @@ module DGBoundaryConditions
          class(EulerWall_t)                :: self
 
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Euler wall."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
 
       end subroutine EulerWall_Describe
 
@@ -1414,6 +1438,7 @@ module DGBoundaryConditions
          class(ViscousWall_t)                :: self
 
          write(STD_OUT , '(30X,A,A25,A)') "-> " , "Boundary condition type: " , "Viscous wall."
+         write(STD_OUT , '(30X,A,A25,A)') "-> " , "Riemann solver: " , trim(self % RiemannSolverName)
 
       end subroutine ViscousWall_Describe
 

@@ -114,6 +114,11 @@
             END FUNCTION AlmostEqual
 
             function ThirdDegreeRoots(a,b,c) result (val)
+!
+!              ----------------------------------------------------------
+!                 Solves the equation x^3 + a x^2 + b x + c = 0
+!              ----------------------------------------------------------
+!
                implicit none  
                real(kind=RP)              :: a
                real(kind=RP)              :: b
