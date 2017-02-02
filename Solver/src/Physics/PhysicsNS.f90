@@ -716,7 +716,6 @@ module PhysicsNS
 !        2/ Perform Newton iterations until the tolerance is reached
 !           --------------------------------------------------------
             do iter = 1 , max_no_of_iterations
-         print*, iter-1,pstar
 
                call ExactRiemann_F(pstar , WL , FL , dFL)
                call ExactRiemann_F(pstar , WR , FR , dFR)

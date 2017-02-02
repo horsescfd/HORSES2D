@@ -1,0 +1,40 @@
+!
+!
+!///////////////////////////////////////////////////////////////////////////////////
+!
+!           PERIODIC BC
+!           -----------
+!///////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine PeriodicBC_Construct ( self , marker , in_label) 
+         use Setup_class
+         implicit none
+         class(PeriodicBC_t)        :: self
+         integer                   :: marker
+         character(len=*)          :: in_label
+         character(len=STR_LEN_BC)  :: direction
+         integer, allocatable          :: connected_marker
+
+         call readValueInRegion( trim(Setup % bdry_file) , "Direction" , direction , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Marker" , connected_marker , in_label , "# end")
+
+         if ( allocated( connected_marker ) ) then
+            self % connected_marker = connected_marker
+         else
+            print*, "You need to specify a marker to connect zone " , marker , " with."
+            stop "Stopped."
+         end if         
+
+         if ( trim(direction) .eq. "x" ) then
+            self % direction = IX
+         elseif ( trim(direction) .eq. "y") then
+            self % direction = IY
+         else
+            print*, "Direction in zone ", marker, " must be 'x' or 'y'."
+            stop "Stopped."
+         end if
+         
+         self % associated = .false.
+
+      end subroutine PeriodicBC_Construct
+

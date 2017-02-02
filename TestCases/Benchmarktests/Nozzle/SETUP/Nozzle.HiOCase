@@ -23,7 +23,7 @@
          		  Polynomial order    : 4
 
 !------------------------------------: Initialization
-		             Initial condition : Restart
+		             Initial condition : Steady
 		             Restart file      : ./RESULTS/NozzleSteady.HiORst
 
 !---------------------------------------------: Inviscid discretization
@@ -44,7 +44,7 @@
                     Time step            : 2.0e-0
                     CFL Number           : 0.1
                     Simulation time      : 1.0
-                    Number of iterations : 50000
+                    Number of iterations : 100
                     Initial time         : 0.0
 
 !-----------------------------------: Output variables
@@ -64,18 +64,19 @@
 # define zone 1
 	Name = Nozzle-bottom
 	Type = Euler wall
+   Riemann solver = Exact
 # end 
 
 # define zone 2
 	Name = Nozzle-top
 	Type = Euler wall
+   Riemann solver = Exact
 # end 
 
 # define zone 3
 	Name = Outflow
 	Type = Pressure outlet
-	Angle of attack = 0.0
-	Mach = 0.0
+   Riemann solver = Exact
 # end
 
 # define zone 4

@@ -225,10 +225,12 @@ module ParamfileIO
                   if ( position .eq. 0) then
                      cycle
                   end if
+
    
 !   
 !                 The label is present. The value will be everything from the equal
 !                 -----------------------------------------------------------------
+                  auxstr = trim(auxstr(position + len_trim(label) :))
                   position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2) ) )
                   if ( position .eq. 0) then
                      cycle

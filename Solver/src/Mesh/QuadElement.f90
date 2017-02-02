@@ -92,6 +92,7 @@ module QuadElementClass
     type, extends(Edge_t)  :: StraightBdryEdge_t
         logical                           :: inverted = .false.
         logical                           :: associated = .false.
+        procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)   => NULL()        ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()        ! Solution gradient at the boundary
         real(kind=RP), pointer            :: FB(:,:)  => NULL()       ! Fluxes at the boundary
@@ -100,6 +101,7 @@ module QuadElementClass
     type, extends(Edge_t)  :: CurvedBdryEdge_t
         logical                           :: inverted = .false.
         logical                           :: associated = .false.
+        procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)   => NULL()          ! Solution at the boundary
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
         real(kind=RP), pointer            :: FB(:,:) => NULL()        ! Fluxes at the boundary

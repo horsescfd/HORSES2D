@@ -1,0 +1,89 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////
+!
+!           EULER WALL
+!           ----------
+!///////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine EulerWall_Associate( self , edge ) 
+         implicit none  
+         class(EulerWall_t)                  :: self
+         class(Edge_t)                       :: edge
+
+         associate( N => edge % spA % N )
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+
+            type is (StraightBdryEdge_t)
+               allocate( edge % FB(0:N,NEC) )
+               edge % RiemannSolver => self % RiemannSolver
+         
+            type is (CurvedBdryEdge_t)
+               allocate( edge % FB(0:N,NEC) )
+               edge % RiemannSolver => self % RiemannSolver
+
+            class default
+         end select
+         end associate
+                
+      end subroutine EulerWall_Associate
+
+
+      subroutine EulerWall_Update( self , edge )
+         implicit none  
+         class(EulerWall_t)                  :: self
+         class(Edge_t)                       :: edge
+         real(kind=RP)                       :: q(NEC) , F(NEC,NDIM)
+         real(kind=RP)                       :: rhovn , rhovt
+         real(kind=RP)                       :: p
+         integer                             :: iXi
+         
+         associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+   
+         select type ( edge ) 
+            type is (StraightBdryEdge_t)
+
+               do iXi = 0 , N
+                  rhovn = (edge % Q(iXi,IRHOU,1) * edge % n(IX,iXi) + edge % Q(iXi,IRHOV,1) * edge % n(IY,iXi) )
+                  rhovt = (edge % Q(iXi,IRHOU,1) * edge % n(IY,iXi) - edge % Q(iXi,IRHOV,1) * edge % n(IX,iXi) )
+                  p     = gm1 * (edge % Q(iXi,IRHOE,1) - 0.5_RP * (edge % Q(iXi,IRHOU,1)*edge % Q(iXi,IRHOU,1) + edge % Q(iXi,IRHOV,1) * edge % Q(iXi,IRHOV,1)) / edge % Q(iXi,IRHO,1))
+
+                  q(IRHO)  = edge % Q(iXi,IRHO,1)
+                  q(IRHOU) = edge % Q(iXi,IRHOU,1) - rhovn * edge % n(IX,iXi)
+                  q(IRHOV) = edge % Q(iXi,IRHOV,1) - rhovn * edge % n(IY,iXi)
+                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % Q(iXi,IRHO,1)
+
+                  F = inviscidFlux( q )
+
+                  edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC,IY) * edge % dS(IY,iXi)
+               end do
+                  
+         
+            type is (CurvedBdryEdge_t)
+
+               do iXi = 0 , N
+                  rhovn = (edge % Q(iXi,IRHOU,1) * edge % n(IX,iXi) + edge % Q(iXi,IRHOV,1) * edge % n(IY,iXi) )
+                  rhovt = (edge % Q(iXi,IRHOU,1) * edge % n(IY,iXi) - edge % Q(iXi,IRHOV,1) * edge % n(IX,iXi) )
+                  p     = gm1 * (edge % Q(iXi,IRHOE,1) - 0.5_RP * (edge % Q(iXi,IRHOU,1)*edge % Q(iXi,IRHOU,1) + edge % Q(iXi,IRHOV,1) * edge % Q(iXi,IRHOV,1)) / edge % Q(iXi,IRHO,1))
+
+                  q(IRHO)  = edge % Q(iXi,IRHO,1)
+                  q(IRHOU) = edge % Q(iXi,IRHOU,1) - rhovn * edge % n(IX,iXi)
+                  q(IRHOV) = edge % Q(iXi,IRHOV,1) - rhovn * edge % n(IY,iXi)
+                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % Q(iXi,IRHO,1)
+
+                  F = inviscidFlux( q )
+
+                  edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC,IY) * edge % dS(IY,iXi)
+               end do
+ 
+            class default
+         end select
+
+
+         end associate
+
+      end subroutine EulerWall_Update
+

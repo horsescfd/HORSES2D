@@ -514,8 +514,14 @@
 
                      T  => edge % T(1:NEC , 1:NEC , iXi)
                      Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
-                     Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
-         
+                     if ( associated ( edge % RiemannSolver ) ) then
+                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , T , Tinv)
+                        
+                     else
+                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+   
+                     end if
+     
                      deallocate( QL , QR )
    
                   end do
@@ -541,7 +547,13 @@
                      T  => edge % T(1:NEC , 1:NEC , iXi)
                      Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
       
-                     Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+                     if ( associated ( edge % RiemannSolver ) ) then
+                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , T , Tinv)
+                        
+                     else
+                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+
+                     end if
          
                      deallocate( QL , QR )
    

@@ -66,15 +66,15 @@
 !           Boundary conditions and faces classification
 !     *************************************************************************
 !
-           integer, parameter                 :: FACE_INTERIOR   =  0
-     
-           integer, parameter                 :: PERIODIC_BC     =  0
-           integer, parameter                 :: DIRICHLET_BC    =  1
-           integer, parameter                 :: EULERWALL_BC    =  2
-           integer, parameter                 :: VISCOUSWALL_BC  =  3
-           integer, parameter                 :: FARFIELD_BC     =  4
-           integer, parameter                 :: OUTFLOW_BC      =  5
-           integer, parameter                 :: INFLOWOUTFLOW_BC      =  6
+           integer, parameter                 :: FACE_INTERIOR     = 0
+           integer, parameter                 :: PERIODIC_BC       = 1
+           integer, parameter                 :: DIRICHLET_BC      = 2
+           integer, parameter                 :: EULERWALL_BC      = 3
+           integer, parameter                 :: VISCOUSWALL_BC    = 4
+           integer, parameter                 :: FARFIELD_BC       = 5
+           integer, parameter                 :: PRESSUREOUTLET_BC = 6
+           integer, parameter                 :: PRESSUREINLET_BC  = 7
+           integer, parameter                 :: RIEMANN_BC        = 8
 !
 !     *************************************************************************
 !           Time integration mode
