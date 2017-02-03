@@ -19,7 +19,7 @@ MODULE Headers
                 IMPLICIT NONE
                 CHARACTER(LEN = *)      :: title
                 INTEGER, PARAMETER   :: siz = 100
-                CHARACTER(LEN = siz)    :: ast1,ast2,astTitle,astNNATAC
+                CHARACTER(LEN = siz)    :: ast1,ast2,astTitle,astGroup
                 INTEGER                 :: i
 
                 ast1 = ''
@@ -35,17 +35,18 @@ MODULE Headers
                 astTitle(siz/2-LEN_TRIM(title)/2:siz/2 - LEN_TRIM(title)/2 + LEN_TRIM(title)-1) = TRIM(title)
                 astTitle(siz:siz) = '#'
 
-                astNNATAC = ''
-                astNNATAC(1:1) = '#'
-                astNNATAC(siz-LEN_TRIM("Madrid TU")-3 : siz-4) = 'Madrid TU'
-                astNNATAC(siz:siz) = '#'
+                astGroup = ''
+                astGroup(1:1) = '#'
+                astGroup(siz-LEN_TRIM("Madrid TU")-3 : siz-4) = 'Madrid TU'
+                astGroup(siz:siz) = '#'
                 
                 WRITE(*,'(A)') ast1
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') astTitle
                 WRITE(*,'(A)') ast2
-                WRITE(*,'(A)') astNNATAC
+                WRITE(*,'(A)') astGroup
+                include './header.incf'
                 WRITE(*,'(A)') ast1
 
         END SUBROUTINE Main_header

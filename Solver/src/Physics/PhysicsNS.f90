@@ -8,7 +8,7 @@ module PhysicsNS
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux
-    public :: RoeFlux , AUSMFlux , ExactRiemannSolver , ExactRiemann_ComputePStar
+    public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver , ExactRiemann_ComputePStar
 !
 !   *****************************************
 !        Definitions
@@ -591,6 +591,97 @@ module PhysicsNS
 !
       end function RoeFlux
 
+      function HLLFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+         use MatrixOperations
+         implicit none
+         real(kind=RP), dimension(NEC)     :: qL3D
+         real(kind=RP), dimension(NEC)     :: qR3D
+         real(kind=RP), dimension(NEC,NEC) :: T
+         real(kind=RP), dimension(NEC,NEC) :: Tinv
+         real(kind=RP), dimension(NEC)     :: Fstar
+!        ---------------------------------------------------------------
+         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP)                 :: rhoL , uL , vL , HL , aL , pL
+         real(kind=RP)                 :: rhoR , uR , vR , HR , aR , pR
+         real(kind=RP)                 :: invrho , u , v , H , a
+         real(kind=RP)                 :: SL , SR , dS
+        
+
+!        0/ Gather variables
+!           ----------------
+            qL(IRHO) = qL3D(IRHO)
+            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
+            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
+            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
+
+            qR(IRHO) = qR3D(IRHO)
+            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
+            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
+            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
+
+
+            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
+            rhoL = qL(IRHO)
+            uL   = qL(IRHOU) / qL(IRHO)
+            vL   = qL(IRHOV) / qL(IRHO)
+            HL   = gamma * qL(IRHOE) / qL(IRHO) - 0.5_RP * gm1 * ( uL*uL + vL*vL )
+            pL   = gm1*(qL(IRHOE) - 0.5_RP * rhoL * (uL*uL + vL*vL))
+            aL   = sqrt(gamma * pL / rhoL)
+
+            rhoR = qR(IRHO)
+            uR   = qR(IRHOU) / qR(IRHO)
+            vR   = qR(IRHOV) / qR(IRHO)
+            HR   = gamma * qR(IRHOE) / qR(IRHO) - 0.5_RP * gm1 * ( uR*uR + vR*vR )
+            pR   = gm1*(qR(IRHOE) - 0.5_RP * rhoR * (uR*uR + vR*vR))
+            aR   = sqrt(gamma * pR / rhoR)
+            end associate
+
+!        1/ Compute Roe averages
+!           --------------------
+            invrho = 1.0_RP / (sqrt(rhoL) + sqrt(rhoR))
+            u      = (sqrt(rhoL)*uL + sqrt(rhoR)*uR) * invrho
+            v      = (sqrt(rhoL)*vL + sqrt(rhoR)*vR) * invrho
+            H      = (sqrt(rhoL)*HL + sqrt(rhoR)*HR) * invrho
+            associate( gm1 => Thermodynamics % gm1 ) 
+            a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
+            end associate
+
+!
+!        2/ Compute wave speeds
+!           -------------------
+            SL = min(uL - aL , u - a)
+            SR = max(uR + aR , u + a)
+
+!
+!        3/ Compute the fluxes depending on the speeds 
+!           ------------------------------------------
+            if ( SL .ge. 0.0_RP ) then
+               Fstar = F_inviscidFlux(qL)
+
+            elseif ( SR .le. 0.0_RP ) then
+               Fstar = F_inviscidFlux(qR)
+
+            elseif ( (SL .lt. 0.0_RP) .or. (SR .gt. 0.0_RP) ) then
+               dS = SR - SL
+               Fstar(IRHO) = (SR*rhoL*uL - SL*rhoR*uR + SL*SR*(rhoR-rhoL)) / dS
+               Fstar(IRHOU) = (SR*(rhoL*uL*uL+pL) - SL*(rhoR*uR*uR+pR) + SL*SR*(rhoR*uR-rhoL*uL))/dS
+               Fstar(IRHOV) = (SR*rhoL*uL*vL - SL*rhoR*uR*vR + SR*SL*(rhoR*vR-rhoL*vL)) / dS
+               Fstar(IRHOE) = (SR*uL*rhoL*HL - SL*uR*rhoR*HR + SR*SL*(qR(IRHOE)-qL(IRHOE)))/dS
+
+            end if
+         
+!        4/ Return to the 3D Space
+!           ----------------------
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+
+!        5/ Scale it with the Mach number
+!           -----------------------------
+            associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            end associate
+!        
+      end function HLLFlux
+
       function AUSMFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
@@ -799,6 +890,7 @@ module PhysicsNS
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference pressure: ",refValues % p," Pa."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference density: ",refValues % rho," kg/m^3."
          write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference velocity: ",refValues % V," m/s."
+         write(STD_OUT,'(30X,A,A25,F15.3,A)') "-> ","Reference sound speed: ",refValues % a," m/s."
          write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reynolds length: ",refValues % L," m."
          write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reference viscosity: ",refValues % mu," Pa·s."
          write(STD_OUT,'(30X,A,A25,ES15.3,A)') "-> ","Reference conductivity: ",refValues % kappa," W/(m·K)."

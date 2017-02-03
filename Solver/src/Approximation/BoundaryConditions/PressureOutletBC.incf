@@ -111,11 +111,11 @@
          integer                       :: iXi
          integer                    :: N 
          real(kind=RP)              :: rhoL , vnL , uL , vL , pL , ML , aL  , TL
-         real(kind=RP)              :: rhoR , uR , vR , pR , VtR , TR , aR , MR
+         real(kind=RP)              :: rhoR , uR , vR , pR , VtR , TR , aR , MR , vnR
          real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty , ptInfty , TtInfty
          real(kind=RP)              :: acoef , bcoef , ccoef , Ht
          real(kind=RP)              :: nInfty(NDIM)
-         real(kind=RP)              :: Rminus
+         real(kind=RP)              :: Rminus , Rplus
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a Outflow boundary
@@ -170,16 +170,29 @@
                      edge % uB(iXi , IRHOU) = rhoR * uR
                      edge % uB(iXi , IRHOV) = rhoR * vR
                      edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+                     print*, "Warning: Returning fluid through outflow in cell " , edge % ID
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
+!                      Rplus = vnL + 2.0_RP * aL * Dimensionless % cv
+!                      pR = pInfty
+!                      rhoR = rhoL + (pR-pL) / (aL*aL)
+!                      aR = sqrt(gamma*pR/rhoR)
+!                      vnR = Rplus - 2.0_RP * aR * Dimensionless % cv
+!                      uR = uL + (vnR - vnL) * edge % n(IX,iXi)
+!                      vR = vL + (vnR - vnL) * edge % n(IY,iXi)
+!
+!                     V1.0
 !                     pR = pInfty
 !                     uR = uL + edge % n(IX,iXi) * (pL - pR) / (rhoL * aL)
 !                     vR = vL + edge % n(IY,iXi) * (pL - pR) / (rhoL * aL)
 !                     rhoR = rhoL + (pR - pL)/(aL*aL)
+!        
+!                     V2.0
                       pR = 2.0_RP * pInfty - pL
                       uR = uL
                       vR = vL
                       rhoR = rhoL
+
 
                      edge % uB(iXi , IRHO) = rhoR
                      edge % uB(iXi , IRHOU) = rhoR * uR

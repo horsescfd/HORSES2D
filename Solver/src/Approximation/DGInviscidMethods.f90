@@ -103,14 +103,22 @@
          if (trim( Setup % inviscid_flux ) .eq. "Roe") then
             InviscidMethod % RiemannSolver => RoeFlux
          
+         elseif (trim( Setup % inviscid_flux ) .eq. "HLL") then
+            InviscidMethod % RiemannSolver => HLLFlux
+         
          elseif ( trim(Setup % inviscid_flux) .eq. "AUSM" ) then
             InviscidMethod % RiemannSOlver => AUSMFlux
+
+         elseif ( trim(Setup % inviscid_flux) .eq. "Exact" ) then
+            InviscidMethod % RiemannSOlver => ExactRiemannSolver
 
          else
             write(STD_OUT , *) "Solver ", trim ( Setup % inviscid_flux) ," not implemented yet."
             write(STD_OUT , '(10X,A)') "Options available are:"
             write(STD_OUT , '(20X,A)') "* Roe"
+            write(STD_OUT , '(20X,A)') "* HLL"
             write(STD_OUT , '(20X,A)') "* AUSM"
+            write(STD_OUT , '(20X,A)') "* Exact"
             STOP "Stopped."
 
 

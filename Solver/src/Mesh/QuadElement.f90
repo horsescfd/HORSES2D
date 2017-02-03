@@ -70,7 +70,7 @@ module QuadElementClass
         real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
         real(kind=RP),              pointer :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
         real(kind=RP),              pointer :: T(:,:,:)                   ! Fluxes invariance rotation matrix (NDIM,NDIM,xi)
-        real(kind=RP),              pointer :: Tinv(:,:,:)                   ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
+        real(kind=RP),              pointer :: Tinv(:,:,:)                ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
         real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
         real(kind=RP),              pointer :: F(:,:,:)                   ! Solution NORMAL fluxes interpolation to boundaries ( xi ,eq , LEFT/RIGHT )

@@ -270,14 +270,14 @@ module DGTimeIntegrator
          if ( mod( shown , ShowLabels) .eq. 0 ) then     ! Show labels
             write(STD_OUT , '(/)')
             write(STD_OUT , '(/)')
-            write(STD_OUT , '(10X,A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
-            write(STD_OUT , '(10X,A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "---------" , "--------" , "----------" , "----------" , "----------", "--------"
+            write(STD_OUT , '(A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
+            write(STD_OUT , '(A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "---------" , "--------" , "----------" , "----------" , "----------", "--------"
          end if
          shown = shown + 1
 
          residuals = mesh % computeResiduals()
 
-         write(STD_OUT , '(10X,I20,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
+         write(STD_OUT , '(I20,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
                                           "|", residuals(IRHOV) , "|" , residuals(IRHOE)
       end subroutine TimeIntegrator_Display
 

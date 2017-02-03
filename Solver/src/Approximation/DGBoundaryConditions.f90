@@ -103,6 +103,8 @@ module DGBoundaryConditions
       real(kind=RP)                       :: AngleOfAttack
       real(kind=RP)                       :: Tt
       real(kind=RP)                       :: pt
+      real(kind=RP)                       :: rhot
+      real(kind=RP)                       :: st
       real(kind=RP)                       :: Ht
       contains
          procedure ::      Construct => PressureInletBC_Construct
@@ -297,6 +299,84 @@ module DGBoundaryConditions
 !        *****************************************
 !
       end subroutine BaseClass_Update
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              Initialization subroutines
+!              --------------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine Initialize_WeakRiemann(self , edge)
+         implicit none
+         class(BoundaryCondition_t)       :: self
+         class(Edge_t)                    :: edge
+         integer                          :: i
+
+         associate ( N => edge % spA % N )
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+      
+            type is (StraightBdryEdge_t)
+               allocate( edge % uB(0:N,NEC) )
+               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               
+               do i = 0 , N
+                  edge % uB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+               end do
+
+               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               
+   
+            type is (CurvedBdryEdge_t)
+               allocate( edge % uB(0:N,NEC) )
+               allocate( edge % gB(0:N,NEC,NDIM) )
+
+               do i = 0 , N
+                  edge % uB(i , 1:NEC) = 0.0_RP    ! Its value is not given until the update routine is invoked
+               end do
+
+               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+
+         end select
+
+         end associate
+      end subroutine Initialize_WeakRiemann
+
+      subroutine Initialize_WeakPrescribed(self , edge)
+         implicit none
+         class(BoundaryCondition_t)       :: self
+         class(Edge_t)                    :: edge
+         integer                          :: i
+
+         associate ( N => edge % spA % N )
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+      
+            type is (StraightBdryEdge_t)
+               allocate( edge % FB(0:N,NEC) )
+               
+               do i = 0 , N
+                  edge % FB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+               end do
+   
+            type is (CurvedBdryEdge_t)
+               allocate( edge % FB(0:N,NEC) )
+
+               do i = 0 , N
+                  edge % FB(i , 1:NEC) = 0.0_RP    ! Its value is not given until the update routine is invoked
+               end do
+
+         end select
+
+         end associate
+      end subroutine Initialize_WeakPrescribed
+
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
