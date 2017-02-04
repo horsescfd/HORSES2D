@@ -52,6 +52,8 @@ module ChecksModule
 
             call CheckMetricIdentities( sem % mesh )
 
+            call CheckGradients ( sem  )
+
             call checkQDot( sem )
       !    do eID = 1 , sem % mesh % no_of_elements
       !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
@@ -416,6 +418,38 @@ module ChecksModule
           write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
 
         end subroutine CheckMetricIdentities
+   
+        subroutine CheckGradients( sem ) 
+          use DGSEM_Class
+          use SMConstants
+          use Physics
+          use NodesAndWeights_class
+          use QuadMeshClass
+          use MeshFileClass
+          use Setup_class
+          use DGSpatialDiscretizationMethods
+          use Storage_module
+          use DGBoundaryConditions  
+          implicit none
+          class(DGSem_t)         :: sem
+          integer                :: eID
+          real(kind=RP)          :: error = 0.0_RP , localerror = 0.0_RP
+          integer                :: elem = -1
+
+          call sem % mesh % ComputePrimitiveVariables
+          call DGSpatial_ComputeGradient( sem % mesh )
+
+
+          do eID = 1 , sem % mesh % no_of_elements
+            localerror = maxval(abs(sem % mesh % elements(eID) % dQ) )
+          
+            if ( localerror .gt. error ) then
+               error = localerror
+               elem = eID
+            end if
+         end do
+
+        end subroutine CheckGradients
 
         subroutine Integration_checks( sem ) 
           use DGSEM_Class

@@ -23,13 +23,14 @@ module QuadMeshClass
          procedure(ICFcn)   , pointer , NOPASS :: IC
          contains
              procedure  :: ConstructFromFile
-             procedure  :: ConstructZones          => Mesh_ConstructZones
+             procedure  :: ConstructZones            => Mesh_ConstructZones
              procedure  :: SetInitialCondition
              procedure  :: ApplyInitialCondition
-             procedure  :: SetStorage => QuadMesh_SetStorage
-             procedure  :: VolumeIntegral => Compute_VolumeIntegral
-             procedure  :: SurfaceIntegral => Compute_SurfaceIntegral
-             procedure  :: ComputeResiduals => Mesh_ComputeResiduals
+             procedure  :: SetStorage                => QuadMesh_SetStorage
+             procedure  :: VolumeIntegral            => Compute_VolumeIntegral
+             procedure  :: SurfaceIntegral           => Compute_SurfaceIntegral
+             procedure  :: ComputeResiduals          => Mesh_ComputeResiduals
+             procedure  :: ComputePrimitiveVariables => Mesh_ComputePrimitiveVariables
     end type QuadMesh_t
 
     type Zone_t
@@ -343,6 +344,25 @@ module QuadMeshClass
 
 !
          end subroutine Mesh_ConstructZones
+
+         subroutine Mesh_ComputePrimitiveVariables( self )
+            implicit none
+            class(QuadMesh_t)          :: self
+            integer                    :: eID , edID
+
+            do eID = 1 , self % no_of_elements
+
+               call self % elements(eID) % ComputePrimitiveVariables
+
+            end do
+
+            do edID = 1 , self % no_of_edges
+
+               call self % edges(edID) % f % ComputePrimitiveVariables
+
+            end do
+
+         end subroutine Mesh_ComputePrimitiveVariables
 
          function Compute_volumeIntegral( self , var ) result ( val )
             use MatrixOperations

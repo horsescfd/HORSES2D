@@ -32,7 +32,7 @@
                 Inviscid Riemann Flux: HLL
 
 !------------------------------------: Viscous discretization
-                     Viscous strategy: Interior-penalty
+                     Viscous strategy: BR1
               Interior penalty method: SIPG
               Jumps penalty parameter: 10.0
      Gradient jumps penalty parameter: 0.0

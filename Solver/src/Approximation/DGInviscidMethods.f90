@@ -18,8 +18,8 @@
 !
 !  *******************************************************************
    type InviscidMethod_t
-      character(len=STR_LEN_INVISCID)         :: method
-      integer                                   :: formulation
+      character(len=STR_LEN_INVISCID) :: method
+      integer                         :: formulation
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
          procedure, non_overridable :: QDotFaceLoopFormI    => StdDG_QDotFaceLoopFormI
@@ -259,7 +259,9 @@
          associate( N=> edge % quads(loc) % e % spA % N, &
              e=> edge % quads(loc) % e)
  
-            if ( edge % edgeLocation(loc) .eq. ERIGHT) then
+         select case (edge % edgeLocation(loc))
+
+            case (ERIGHT)
    
                direction = e % edgesDirection( edge % edgeLocation(loc) )
                pos = RIGHT                    ! Where to interpolate the test function
@@ -276,7 +278,7 @@
                   stop "Stopped."
                end if
 
-            elseif ( edge % edgeLocation(loc) .eq. ETOP ) then
+            case (ETOP)
       
                direction = - e % edgesDirection ( edge % edgeLocation(loc) ) 
                pos = RIGHT
@@ -292,7 +294,7 @@
                   stop "Stopped."
                end if
 
-            elseif ( edge % edgeLocation(loc) .eq. ELEFT ) then
+            case (ELEFT)
    
                direction = - e % edgesDirection ( edge % edgeLocation(loc) )
                pos = LEFT
@@ -308,7 +310,7 @@
                   stop "Stopped."
                end if
 
-            elseif ( edge % edgeLocation(loc) .eq. EBOTTOM ) then
+            case (EBOTTOM)
 
                direction = e % edgesDirection ( edge % edgeLocation(loc) ) 
                pos = LEFT
@@ -324,7 +326,7 @@
                   stop "Stopped."
                end if
 
-            end if
+            end select
 
              lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
              
@@ -336,9 +338,6 @@
          end associate
 
       end function StdDG_QDotFaceContribution
-
-
-
 
       subroutine StdDG_QDotVolumeLoop( self , element )
          use MatrixOperations
@@ -410,7 +409,7 @@
 
          allocate( F(0:N , 0:N , NCONS , NDIM) ) 
 
-         F = InviscidFlux( element % Q )
+         F = InviscidFlux( element % Q , element % W)
 
             do eq = 1 , NCONS
                FJa = [1,1]

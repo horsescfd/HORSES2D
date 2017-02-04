@@ -4,7 +4,8 @@ module PhysicsNS
 
     private
     public :: NCONS , NPRIM, NGRAD, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
-    public :: IU , IV , IP , IA
+    public :: IU , IV , IP , IA , IT
+    public :: IGU , IGV , IGT
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux
@@ -15,7 +16,7 @@ module PhysicsNS
 !   *****************************************
 !
     integer, parameter              :: NCONS = 4
-    integer, parameter              :: NPRIM = 5
+    integer, parameter              :: NPRIM = 6
     integer, parameter              :: NGRAD = 3
     integer, parameter              :: NDIM = 2
     integer, parameter              :: STR_LEN_PHYSICS = 128
@@ -41,7 +42,8 @@ module PhysicsNS
     integer, parameter :: IU = 2
     integer, parameter :: IV = 3
     integer, parameter :: IP = 4 
-    integer, parameter :: IA = 5
+    integer, parameter :: IT = 5
+    integer, parameter :: IA = 6
 
 !   --- Gradient variables ---
     integer, parameter :: IGU = 1
@@ -107,7 +109,7 @@ module PhysicsNS
 
 !
     interface inviscidFlux
-      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
+      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D , inviscidFlux2D_PRIM
     end interface inviscidFlux
 !
 !    interface viscousFlux
@@ -235,7 +237,7 @@ module PhysicsNS
 
       end function inviscidFlux1D
 
-      function inviscidFlux2D(u) result(val)
+      function InviscidFlux2D(u) result(val)
          implicit none
          real(kind=RP)                      :: u(0:,0:,:)
          real(kind=RP), allocatable, target :: val(:,:,:,:)
@@ -275,6 +277,39 @@ module PhysicsNS
          deallocate( vx,vy,p )
 
       end function inviscidFlux2D
+
+      function inviscidFlux2D_PRIM(u,w) result(val)
+         implicit none
+         real(kind=RP)                      :: u(0:,0:,:)
+         real(kind=RP)                      :: w(0:,0:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+
+         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NCONS , 1:NDIM ) )
+
+
+         F(0:,0:,1:)    => val(0:,0:,1:,iX)
+         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+
+         F(:,:,IRHO)  = u(:,:,IRHOU)
+         F(:,:,IRHOU) = u(:,:,IRHOU) * w(:,:,IU) + w(:,:,IP)
+         F(:,:,IRHOV) = u(:,:,IRHOU) * w(:,:,IV)
+         F(:,:,IRHOE) = (u(:,:,IRHOE) + w(:,:,IP)) * w(:,:,IU)
+
+         G(:,:,IRHO)  = u(:,:,IRHOV)
+         G(:,:,IRHOU) = F(:,:,IRHOV)
+         G(:,:,IRHOV) = u(:,:,IRHOV) * w(:,:,IV) + w(:,:,IP)
+         G(:,:,IRHOE) = (u(:,:,IRHOE) + w(:,:,IP)) * w(:,:,IV)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
+
+         F = F / (sqrt(gamma) * Mach)
+         G = G / (sqrt(gamma) * Mach)
+   
+         end associate
+
+
+      end function inviscidFlux2D_PRIM
      
       function F_inviscidFlux(u) result(F)
          implicit none

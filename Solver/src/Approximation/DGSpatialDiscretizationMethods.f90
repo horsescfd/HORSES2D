@@ -66,7 +66,8 @@ module DGSpatialDiscretizationMethods
 !          for a new time-step. 
 !              1) Set QDot to zero
 !              2) Compute the solution gradient
-!              3) Interpolate the solution and gradient
+!              3) Compute the primitive variables
+!              4) Interpolate the solution and gradient
 !                    to boundaries.
 !        --------------------------------------------------
          implicit none
@@ -84,8 +85,12 @@ module DGSpatialDiscretizationMethods
 !        ----------------------------------
 !
          call DGSpatial_interpolateToBoundaries( mesh , "Q" )
-
-
+!
+!        ---------------------------
+!        Compute primitive variables
+!        ---------------------------
+!
+         call mesh % computePrimitiveVariables
 !
 !        ----------------------------------
 !        Compute the solution Q gradient dQ
@@ -259,40 +264,47 @@ module DGSpatialDiscretizationMethods
 !        --------------------------------
          integer                 :: eID
          integer                 :: fID 
+         integer                 :: iDim , eq
 !        --------------------------------
 !
 !        ---------------------
 !        Set gradients to zero
 !        ---------------------
 !
-!         do eID = 1 , mesh % no_of_elements
-!            mesh % elements(eID) % dQ = 0.0_RP
-!         end do 
-!!
-!!        -------------------
-!!        Perform volume loop
-!!        -------------------
-!!
-!         do eID = 1 , mesh % no_of_elements
-!            call ViscousMethod % dQVolumeLoop(mesh % elements(eID))
-!         end do
-!!
-!!        -----------------
-!!        Perform face loop
-!!        -----------------
-!!
-!         do fID = 1 , mesh % no_of_edges
-!            call ViscousMethod % dQFaceLoop(mesh % edges(fID) % f)
-!         end do
-!            
-!!
-!!        ----------------------------------------
-!!        Perform the scaling with the mass matrix
-!!        ----------------------------------------
-!!
-!         do eID = 1 , mesh % no_of_elements
-!               mesh % elements(eID) % dQ = (1.0_RP / mesh % elements(eID) % hdiv2) * matmul(mesh % elements(eID) % Interp % Minv , mesh % elements(eID) % dQ)
-!         end do
+         do eID = 1 , mesh % no_of_elements
+            mesh % elements(eID) % dQ = 0.0_RP
+         end do 
+!
+!        -------------------
+!        Perform volume loop
+!        -------------------
+!
+         do eID = 1 , mesh % no_of_elements
+            call ViscousMethod % dQVolumeLoop(mesh % elements(eID))
+         end do
+!
+!        -----------------
+!        Perform face loop
+!        -----------------
+!
+         do fID = 1 , mesh % no_of_edges
+            call ViscousMethod % dQFaceLoop(mesh % edges(fID) % f)
+         end do
+!
+!        ----------------------------------------
+!        Perform the scaling with the mass matrix
+!        ----------------------------------------
+         do eID = 1 , mesh % no_of_elements
+            associate( N => mesh % elements(eID) % spA % N )
+            do eq = 1 , NGRAD
+               do iDim = 1 , NDIM
+                  mesh % elements(eID) % dQ(0:N,0:N,iDim,eq) = mesh % elements(eID) % dQ(0:N,0:N,iDim,eq) * mesh % elements(eID) %  invM2Djac
+               end do
+            end do
+            end associate
+        end do
+
+
       end subroutine DGSpatial_computeGradient
 
       subroutine DGSpatial_computeQDot( mesh )

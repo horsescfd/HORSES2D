@@ -90,6 +90,7 @@
 !           ***********************************************
 !
             allocate ( self % Storage % Q    ( NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
+            allocate ( self % Storage % W    ( NPRIM * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
             allocate ( self % Storage % QDot ( NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             allocate ( self % Storage % dQ   ( NDIM * NGRAD * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
                 
