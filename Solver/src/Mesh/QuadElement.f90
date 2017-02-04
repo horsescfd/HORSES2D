@@ -182,10 +182,10 @@ module QuadElementClass
 !               These two arrays were before 
 !               allocated inside each element.
 !               Now they are just linked.
-!                   allocate ( self % Q    ( 0:N , 0:N , NCONS )  ) 
-!                   allocate ( self % QDot ( 0:N , 0:N , NCONS )  ) 
-!                   allocate ( self % F    ( 0:N , 0:N , NCONS )  ) 
-!                   allocate ( self % dQ   ( 0:N , 0:N , NCONS )  ) 
+!                   allocate ( self % Q    ( 0:N , 0:N , NCONS        )  ) 
+!                   allocate ( self % QDot ( 0:N , 0:N , NCONS        )  ) 
+!                   allocate ( self % F    ( 0:N , 0:N , NCONS        )  ) 
+!                   allocate ( self % dQ   ( 0:N , 0:N , NGRAD , NDIM )  ) 
 !            ---------------------------------------
 !
              self % address = address
