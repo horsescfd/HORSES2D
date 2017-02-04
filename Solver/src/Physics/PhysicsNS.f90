@@ -3,7 +3,7 @@ module PhysicsNS
     use Setup_class
 
     private
-    public :: NCONS , NPRIM, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: NCONS , NPRIM, NGRAD, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
     public :: IU , IV , IP , IA
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics

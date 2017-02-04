@@ -220,7 +220,7 @@ module QuadElementClass
             associate ( N => self % spA % N )
              self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
              self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
-             self % dQ   ( 0:N , 0:N , 1:NCONS , 1:NDIM ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
+             self % dQ   ( 0:N , 0:N , 1:NGRAD , 1:NDIM ) => storage % dQ   ( (self % address-1)/NCONS*NGRAD*NDIM + 1: ) 
 
              if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
                self % F (0: self % spI % N , 0: self % spI % N , 1:NCONS , 1:NDIM) => &

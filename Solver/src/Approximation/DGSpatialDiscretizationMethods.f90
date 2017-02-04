@@ -91,7 +91,7 @@ module DGSpatialDiscretizationMethods
 !        Compute the solution Q gradient dQ
 !        ----------------------------------
 !
-!         call DGSpatial_computeGradient( mesh )
+         call DGSpatial_computeGradient( mesh )
 !
 !        ----------------------------------
 !        Interpolate gradient to boundaries
