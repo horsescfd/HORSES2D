@@ -78,25 +78,25 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % gB(0:N,NCONS,NDIM) )   ! Normal gradients
                
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+                  edge % uB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % gB(0:N , 1:NCONS , 1:NDIM ) = 0.0_RP
                
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )
+               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % gB(0:N,NCONS,NDIM) )
 
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = 0.0_RP    ! Its value is not given until the update routine is invoked
+                  edge % uB(i , 1:NCONS) = 0.0_RP    ! Its value is not given until the update routine is invoked
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % gB(0:N , 1:NCONS , 1:NDIM ) = 0.0_RP
 
          end select
          end associate
@@ -154,7 +154,7 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     edge % uB(iXi , 1:NEC)  = self % q
+                     edge % uB(iXi , 1:NCONS)  = self % q
                
                   elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
                      pR = 0.5_RP * ( pL + pInfty - rhoL * aL * ( edge % n(IX,iXi) * (uL-uInfty) + edge % n(IY,iXi) * (vL - vInfty) ) )
@@ -185,7 +185,7 @@
 
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NEC) = edge % Q(iXi, 1:NEC , 1)
+                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
       
                   end if
                
@@ -208,7 +208,7 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     edge % uB(iXi , 1:NEC)  = self % q
+                     edge % uB(iXi , 1:NCONS)  = self % q
                
                   elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
                      pR = 0.5_RP * ( pL + pInfty - rhoL * aL * ( edge % n(IX,iXi) * (uL-uInfty) + edge % n(IY,iXi) * (vL - vInfty) ) )
@@ -239,7 +239,7 @@
 
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NEC) = edge % Q(iXi, 1:NEC , 1)
+                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
       
                   end if
                

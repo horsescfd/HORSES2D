@@ -20,12 +20,12 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % gB(0:N,NCONS,NDIM) )   ! Normal gradients
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )
+               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % gB(0:N,NCONS,NDIM) )
 
          end select
          end associate

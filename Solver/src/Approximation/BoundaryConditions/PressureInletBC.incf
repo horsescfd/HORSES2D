@@ -85,7 +85,7 @@
          real(kind=RP)            :: rhoR , vnR , uR , vR , pR , VtR , TR , aR , MR
          real(kind=RP)            :: a , b , c , rhostar
          real(kind=RP)            :: Rplus
-         real(kind=RP)            :: q(NEC) , F(NEC,NDIM)
+         real(kind=RP)            :: q(NCONS) , F(NCONS,NDIM)
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a InflowOutflow boundary
@@ -124,7 +124,7 @@
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
                      F = inviscidFlux( self % q )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                
                   elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
                      a = self % st * (gamma+1.0_RP) / gm1
@@ -145,7 +145,7 @@
                      q(IRHOE) = cv * pR + 0.5_RP * (q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
  
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
@@ -161,12 +161,12 @@
                       q(IRHOE) = cv * pR + 0.5_RP * (q(IRHOU) * uR + q(IRHOV) * vR )
 
                       F = inviscidFlux( q )
-                      edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     F = inviscidFlux( edge % Q(iXi,1:NEC,1) )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     F = inviscidFlux( edge % Q(iXi,1:NCONS,1) )
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
       
                   end if
                
@@ -190,7 +190,7 @@
 !!                 Second stage: Compute the "Right" state depending on the result
 !!                 ---------------------------------------------------------------
 !                  if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-!                     edge % uB(iXi , 1:NEC)  = self % q
+!                     edge % uB(iXi , 1:NCONS)  = self % q
 !               
 !                  elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
 !                     alpha = rhoInfty - pInfty / (aL*aL)
@@ -229,7 +229,7 @@
 !                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
 !
 !                  elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-!                     edge % uB(iXi , 1:NEC) = edge % Q(iXi, 1:NEC , 1)
+!                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
 !      
 !                  end if
 !               

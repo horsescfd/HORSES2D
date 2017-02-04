@@ -165,7 +165,7 @@ module QuadMeshClass
                  end do
 
 
-                 address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NEC + 1 
+                 address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NCONS + 1 
                  call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
 
              end do
@@ -285,7 +285,7 @@ module QuadMeshClass
              do eID = 1 , self % no_of_elements
                do iXi = 0 , self % elements(eID) % spA % N
                   do iEta = 0 , self % elements(eID) % spA % N
-                     self % elements(eID) % Q(iXi,iEta,1:NEC)  = self % IC( self % elements(eID) % x(iX:iY,iXi,iEta) ) 
+                     self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( self % elements(eID) % x(iX:iY,iXi,iEta) ) 
                   end do
                end do
              end do
@@ -404,7 +404,7 @@ module QuadMeshClass
             use Physics
             implicit none
             class(QuadMesh_t )               :: self
-            real(kind=RP)                    :: residuals(NEC)
+            real(kind=RP)                    :: residuals(NCONS)
             integer                          :: eID
 
             residuals = 0.0_RP

@@ -143,7 +143,7 @@ module DGSpatialDiscretizationMethods
             do edID = 1 , EDGES_PER_QUAD
                associate( ed => e % edges(edID) % f )
 
-               allocate( variable_b ( 0 : N , NEC ) ) 
+               allocate( variable_b ( 0 : N , NCONS ) ) 
 
                if ( ( edID .eq. ETOP ) .or. (edID .eq. EBOTTOM) ) then
                   edgeSign = -1.0_RP          ! Outside-pointing edges
@@ -169,7 +169,7 @@ module DGSpatialDiscretizationMethods
 
                   end select
 
-               do eq = 1 , NEC
+               do eq = 1 , NCONS
 
                   if ( e % spA % nodes .eq. LG ) then   
 !
@@ -192,13 +192,13 @@ module DGSpatialDiscretizationMethods
 !                    Just associate with its value
 !                    -----------------------------
                      if ( edID .eq. EBOTTOM ) then
-                        variable_b = variable(0:N,0,1:NEC)
+                        variable_b = variable(0:N,0,1:NCONS)
                      elseif ( edID .eq. ERIGHT ) then
-                        variable_b = variable(N , 0:N,1:NEC) 
+                        variable_b = variable(N , 0:N,1:NCONS) 
                      elseif ( edID .eq. ETOP ) then
-                        variable_b = variable(0:N,N,1:NEC)
+                        variable_b = variable(0:N,N,1:NCONS)
                      elseif ( edID .eq. ELEFT ) then
-                        variable_b = variable(0,0:N,1:NEC)
+                        variable_b = variable(0,0:N,1:NCONS)
                      end if
 
                end if
@@ -209,33 +209,33 @@ module DGSpatialDiscretizationMethods
                   case (IQ)
             
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % Q(0:N , 1:NEC , e % quadPosition(edID)) = variable_b
+                        ed % Q(0:N , 1:NCONS , e % quadPosition(edID)) = variable_b
                      else
-                        ed % Q(0:N , 1:NEC , e % quadPosition(edID)) = variable_b(N:0:-1,1:NEC)
+                        ed % Q(0:N , 1:NCONS , e % quadPosition(edID)) = variable_b(N:0:-1,1:NCONS)
                      end if
 
                   case (IDXIQ)
             
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iX) = variable_b
+                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iX) = variable_b
                      else
-                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iX) = variable_b(N:0:-1,1:NEC)
+                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iX) = variable_b(N:0:-1,1:NCONS)
                      end if
 
                   case (IDETAQ)
             
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iY) = variable_b
+                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iY) = variable_b
                      else
-                        ed % dQ(0:N , 1:NEC , e % quadPosition(edID),iY) = variable_b(N:0:-1,1:NEC)
+                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iY) = variable_b(N:0:-1,1:NCONS)
                      end if
 
                   case (IFLUXES)
    
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % F (0:N , 1:NEC , e % quadPosition(edID)) = edgeSign * variable_b
+                        ed % F (0:N , 1:NCONS , e % quadPosition(edID)) = edgeSign * variable_b
                      elseif ( e % edgesAssemblyDir(edID) .eq. BACKWARD ) then
-                        ed % F (0:N , 1:NEC , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1,1:NEC)     ! To ensure that is consistent with the edge normal
+                        ed % F (0:N , 1:NCONS , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1,1:NCONS)     ! To ensure that is consistent with the edge normal
                      end if
 
                end select
@@ -351,7 +351,7 @@ module DGSpatialDiscretizationMethods
 !
          do eID = 1 , mesh % no_of_elements
             associate( N => mesh % elements(eID) % spA % N )
-            do eq = 1 , NEC
+            do eq = 1 , NCONS
                mesh % elements(eID) % QDot(0:N,0:N,eq) = mesh % elements(eID) % QDot(0:N,0:N,eq) * mesh % elements(eID) %  invM2Djac
             end do
             end associate

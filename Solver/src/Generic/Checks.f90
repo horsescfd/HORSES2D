@@ -500,7 +500,7 @@ module ChecksModule
          integer                 :: iXi , iEta
          integer                 :: eID
          real(kind=RP)           :: error = 0.0_RP
-         real(kind=RP)           :: QDot(NEC)
+         real(kind=RP)           :: QDot(NCONS)
 
 !
 !        Apply the "Checks" initial condition
@@ -540,7 +540,7 @@ module ChecksModule
          use Physics
          implicit none
          real(kind=RP)           :: x(NDIM)
-         real(kind=RP)           :: val(NEC)
+         real(kind=RP)           :: val(NCONS)
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
 

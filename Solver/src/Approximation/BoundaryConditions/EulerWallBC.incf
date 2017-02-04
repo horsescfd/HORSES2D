@@ -18,11 +18,11 @@
                stop "Stopped"
 
             type is (StraightBdryEdge_t)
-               allocate( edge % FB(0:N,NEC) )
+               allocate( edge % FB(0:N,NCONS) )
                edge % RiemannSolver => self % RiemannSolver
          
             type is (CurvedBdryEdge_t)
-               allocate( edge % FB(0:N,NEC) )
+               allocate( edge % FB(0:N,NCONS) )
                edge % RiemannSolver => self % RiemannSolver
 
             class default
@@ -36,7 +36,7 @@
          implicit none  
          class(EulerWall_t)                  :: self
          class(Edge_t)                       :: edge
-         real(kind=RP)                       :: q(NEC) , F(NEC,NDIM)
+         real(kind=RP)                       :: q(NCONS) , F(NCONS,NDIM)
          real(kind=RP)                       :: rhovn , rhovt
          real(kind=RP)                       :: p
          integer                             :: iXi
@@ -58,7 +58,7 @@
 
                   F = inviscidFlux( q )
 
-                  edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC,IY) * edge % dS(IY,iXi)
+                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS,IY) * edge % dS(IY,iXi)
                end do
                   
          
@@ -76,7 +76,7 @@
 
                   F = inviscidFlux( q )
 
-                  edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC,IY) * edge % dS(IY,iXi)
+                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS,IY) * edge % dS(IY,iXi)
                end do
  
             class default

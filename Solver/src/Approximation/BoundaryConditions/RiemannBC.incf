@@ -110,18 +110,18 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate ( edge % FB(0:N,NEC) ) 
+               allocate ( edge % FB(0:N,NCONS) ) 
                
                do i = 0 , N
-                  edge % FB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+                  edge % FB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
                end do
 
    
             type is (CurvedBdryEdge_t)
-               allocate ( edge % FB(0:N,NEC) ) 
+               allocate ( edge % FB(0:N,NCONS) ) 
                
                do i = 0 , N
-                  edge % FB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+                  edge % FB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
                end do
 
          end select
@@ -139,8 +139,8 @@
          real(kind=RP)              :: rhoR , vnR , uR , vR , pR , VtR , TR , aR , MR , sR
          real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty  , vnInfty , aInfty
          real(kind=RP)              :: nInfty(NDIM)
-         real(kind=RP)              :: F(NEC , NDIM)
-         real(kind=RP)              :: q(NEC)
+         real(kind=RP)              :: F(NCONS , NDIM)
+         real(kind=RP)              :: q(NCONS)
 !
 
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp , cv => Dimensionless % cv)
@@ -177,7 +177,7 @@
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
 
                      F = inviscidFlux(self % q)
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                
                   elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
 
@@ -198,7 +198,7 @@
                      q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
 
@@ -221,12 +221,12 @@
                      q(IRHOE) = cv * pR + 0.5_RP * (rhoR * uR * uR + rhoR * vR * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
 
-                     F = inviscidFlux(edge % Q(iXi,1:NEC,1))
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     F = inviscidFlux(edge % Q(iXi,1:NCONS,1))
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
       
                   end if
                
@@ -254,7 +254,7 @@
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
 
                      F = inviscidFlux(self % q)
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                
                   elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
 
@@ -275,7 +275,7 @@
                      q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
 
@@ -298,12 +298,12 @@
                      q(IRHOE) = cv * pR + 0.5_RP * (q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
 
-                     F = inviscidFlux(edge % Q(iXi,1:NEC,1))
-                     edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC , IY) * edge % dS(IY,iXi)
+                     F = inviscidFlux(edge % Q(iXi,1:NCONS,1))
+                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
       
                   end if
                

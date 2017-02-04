@@ -16,21 +16,20 @@
 	       	       Reynolds length: 1.0
 		       Reynolds number: 1600.0
 		        Prandtl number: 0.72
-		           Mach number: 0.01
+		           Mach number: 0.1
 	
 !------------------------------------: DG Discretization
 		  Interpolation nodes: Legendre-Gauss
 		     Polynomial order: 4
 
 !------------------------------------: Initialization
-		    Initial condition: Restart
+		    Initial condition: Uniform
 		         Restart file: ./RESULTS/Cylinder.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy: Standard
                  Inviscid formulation: Form I
-                Inviscid Riemann Flux: Roe
-          ! Number of integration points: 6
+                Inviscid Riemann Flux: HLL
 
 !------------------------------------: Viscous discretization
                      Viscous strategy: Interior-penalty
@@ -63,28 +62,30 @@
 
 # define zone 1
 	Name = Symmetry
-	Type = Farfield
-	Mach = 0.0
+	Type = Dirichlet
+   Riemann solver = Exact
 # end 
 
 # define zone 2
 	Name = Symmetry
-	Type = Farfield
-	Mach = 0.0
+	Type = Dirichlet
+   Riemann solver = Exact
 # end 
 
 # define zone 3
 	Name = Inflow
-	Type = Farfield
+	Type = Pressure inlet
+   Riemann solver = Exact
+   Mach = 0.1
 # end
 
 # define zone 4
 	Name = Outflow
-	Type = Farfield
-	Mach = 0.0
+	Type = Pressure outlet
+   Riemann solver = Exact
 # end
 
 # define zone 5
 	Name = Wall
-	Type = EulerWall
+	Type = Euler wall
 # end

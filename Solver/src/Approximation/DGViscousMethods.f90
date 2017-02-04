@@ -214,7 +214,7 @@ module DGViscousMethods
          implicit none
          class(ViscousMethod_t)             :: self
          class(Edge_t)                          :: face
-         real(kind=RP), dimension(NEC)          :: ustar
+         real(kind=RP), dimension(NCONS)          :: ustar
 !!
 !!        Compute the averaged flux
 !         ustar = average_uFlux( face ) 
@@ -296,7 +296,7 @@ module DGViscousMethods
 !!
 !                    associate( eL => face % elements(LEFT) % e , &
 !                               eR => face % elements(RIGHT) % e )
-!                       allocate( T1( 0:eL % Interp % N , NEC ) , T2( 0:eL % Interp % N , NEC ) , J0 ( 0:eL % Interp % N , NEC ) , J1( 0 : eL % Interp % N , NEC ) )
+!                       allocate( T1( 0:eL % Interp % N , NCONS ) , T2( 0:eL % Interp % N , NCONS ) , J0 ( 0:eL % Interp % N , NCONS ) , J1( 0 : eL % Interp % N , NCONS ) )
 !                       
 !                       T1 = 0.5_RP * (face % n) * vectorOuterProduct( eL % Interp % lb(:,RIGHT) , duL + duR )
 !                       T2 = -0.5_RP * self % epsilon * (1.0_RP / eL % hdiv2) * (face % n) * vectorOuterProduct( matmul( eL % Interp % DT , eL % Interp % lb(:,RIGHT) ) , uL - uR)
@@ -312,7 +312,7 @@ module DGViscousMethods
 !!                         Terms added to the RIGHT element equation
 !!                      -------------------------------------------------
 !!
-!                       allocate( T1( 0:eR % Interp % N , NEC ) , T2( 0:eR % Interp % N , NEC ) , J0 ( 0:eR % Interp % N , NEC ) , J1( 0 : eR % Interp % N , NEC ) )
+!                       allocate( T1( 0:eR % Interp % N , NCONS ) , T2( 0:eR % Interp % N , NCONS ) , J0 ( 0:eR % Interp % N , NCONS ) , J1( 0 : eR % Interp % N , NCONS ) )
 !
 !                       T1 = 0.5_RP * (-face % n) * vectorOuterProduct( eR % Interp % lb(:,LEFT) , duL + duR )
 !                       T2 = -0.5_RP * self % epsilon * (1.0_RP / eR % hdiv2) * (face % n) * vectorOuterProduct( matmul( eR % Interp % DT , eR % Interp % lb(:,LEFT) ) , uL - uR)
@@ -334,7 +334,7 @@ module DGViscousMethods
 !                         duB => face % gB , &
 !                           e => face % elements(1) % e)
 !
-!                     allocate( T1( 0:e % Interp % N , NEC ) , T2( 0:e % Interp % N , NEC ) , J0 ( 0:e % Interp % N , NEC ) , J1( 0 : e % Interp % N , NEC ) )
+!                     allocate( T1( 0:e % Interp % N , NCONS ) , T2( 0:e % Interp % N , NCONS ) , J0 ( 0:e % Interp % N , NCONS ) , J1( 0 : e % Interp % N , NCONS ) )
 !     
 !                     T1 = 0.5_RP * (face % n) * vectorOuterProduct( e % Interp % lb(:,face % BCLocation ) , duE + duB )
 !                     T2 = -0.5_RP * (self % epsilon) * (1.0_RP / e % hdiv2) * (face % n) * vectorOuterProduct( matmul( e % Interp % DT , e % Interp % lb(:,face % BCLocation) ) , uE - uB )
@@ -383,7 +383,7 @@ module DGViscousMethods
          implicit none
          class(BR1Method_t)                     :: self
          class(Edge_t)                          :: face
-         real(kind=RP), dimension(NEC)          :: gstar
+         real(kind=RP), dimension(NCONS)          :: gstar
 !!
 !!        Compute the averaged flux
 !         gstar = average_gFlux( face ) 
@@ -449,7 +449,7 @@ module DGViscousMethods
      function average_uFlux( face ) result (val)
         implicit none
         class(Edge_t)                  :: face
-        real(kind=RP), dimension(NEC)  :: val
+        real(kind=RP), dimension(NCONS)  :: val
         real(kind=RP), pointer         :: QL(:) , QR(:) , QBdry(:)
 !!
 !!       Compute the average of both states
@@ -478,7 +478,7 @@ module DGViscousMethods
      function average_gFlux( face ) result ( val )
          implicit none
          class(Edge_t)              :: face
-         real(kind=RP), dimension(NEC)       :: val
+         real(kind=RP), dimension(NCONS)       :: val
          real(kind=RP), pointer        :: dQL(:) , dQR(:) , dQBdry(:)
 !!
 !!        Compute the average of both states

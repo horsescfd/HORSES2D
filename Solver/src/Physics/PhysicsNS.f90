@@ -3,7 +3,7 @@ module PhysicsNS
     use Setup_class
 
     private
-    public :: NEC , NPRIM, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: NCONS , NPRIM, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
     public :: IU , IV , IP , IA
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
@@ -14,8 +14,9 @@ module PhysicsNS
 !        Definitions
 !   *****************************************
 !
-    integer, parameter              :: NEC = 4
+    integer, parameter              :: NCONS = 4
     integer, parameter              :: NPRIM = 5
+    integer, parameter              :: NGRAD = 3
     integer, parameter              :: NDIM = 2
     integer, parameter              :: STR_LEN_PHYSICS = 128
 !
@@ -41,6 +42,11 @@ module PhysicsNS
     integer, parameter :: IV = 3
     integer, parameter :: IP = 4 
     integer, parameter :: IA = 5
+
+!   --- Gradient variables ---
+    integer, parameter :: IGU = 1
+    integer, parameter :: IGV = 2
+    integer, parameter :: IGT = 3
 !
 !   ********************************************
 !        Current solver
@@ -85,12 +91,12 @@ module PhysicsNS
     abstract interface
       function RiemannSolverFunction( QL , QR , T , Tinv ) result ( val )
          use SMConstants
-         import NEC , NDIM
-         real(kind=RP), dimension(NEC)     :: QL
-         real(kind=RP), dimension(NEC)     :: QR
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: val
+         import NCONS , NDIM
+         real(kind=RP), dimension(NCONS)     :: QL
+         real(kind=RP), dimension(NCONS)     :: QR
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: val
       end function RiemannSolverFunction
     end interface
 
@@ -158,13 +164,13 @@ module PhysicsNS
 !
       function inviscidFlux0D(u) result(val)
          implicit none
-         real(kind=RP)          :: u(NEC)
-         real(kind=RP), target  :: val(NEC,NDIM)
+         real(kind=RP)          :: u(NCONS)
+         real(kind=RP), target  :: val(NCONS,NDIM)
          real(kind=RP), pointer :: F(:) , G(:)
          real(kind=RP)          :: vx , vy  , p
 
-         F(1:NEC)    => val(1:NEC,iX)
-         G(1:NEC)    => val(1:NEC,iY)
+         F(1:NCONS)    => val(1:NCONS,iX)
+         G(1:NCONS)    => val(1:NCONS,iY)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
 
@@ -196,7 +202,7 @@ module PhysicsNS
          real(kind=RP), pointer             :: F(:,:) , G(:,:)
          real(kind=RP), allocatable         :: vx(:) , vy(:)  , p(:)
 
-         allocate( val(0:size(u,1)-1 , 1:NEC , 1:NDIM ) )
+         allocate( val(0:size(u,1)-1 , 1:NCONS , 1:NDIM ) )
          allocate( vx(0:size(u,1)-1) )
          allocate( vy(0:size(u,1)-1) )
          allocate( p(0:size(u,1)-1) )
@@ -236,7 +242,7 @@ module PhysicsNS
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
          real(kind=RP), allocatable         :: vx(:,:) , vy(:,:)  , p(:,:)
 
-         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NEC , 1:NDIM ) )
+         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NCONS , 1:NDIM ) )
          allocate( vx(0:size(u,1)-1 , 0:size(u,2)-1) )
          allocate( vy(0:size(u,1)-1 , 0:size(u,2)-1) )
          allocate(  p(0:size(u,1)-1 , 0:size(u,2)-1) )
@@ -272,8 +278,8 @@ module PhysicsNS
      
       function F_inviscidFlux(u) result(F)
          implicit none
-         real(kind=RP)        :: u(NEC)
-         real(kind=RP)        :: F(NEC)
+         real(kind=RP)        :: u(NCONS)
+         real(kind=RP)        :: F(NCONS)
          real(kind=RP)        :: vx , vy , p
    
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )    
@@ -334,13 +340,13 @@ module PhysicsNS
       function ExactRiemannSolver(qL3D , qR3D , T , Tinv ) result (Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC)   :: qL , qR
+         real(kind=RP), dimension(NCONS)   :: qL , qR
          real(kind=RP), dimension(NPRIM) :: WL , WR
          real(kind=RP)                   :: pstar , ustar
          real(kind=RP)                   :: rhostar , uFan , pFan
@@ -480,20 +486,20 @@ module PhysicsNS
       function RoeFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP), dimension(NCONS) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , HL
          real(kind=RP)                 :: rhoR , uR , vR , HR
          real(kind=RP)                 :: invrho , u , v , H , a
-         real(kind=RP)                 :: dq(NEC)
-         real(kind=RP)                 :: lambda(NEC)
-         real(kind=RP)                 :: K(NEC,NEC)
-         real(kind=RP)                 :: alpha(NEC)
+         real(kind=RP)                 :: dq(NCONS)
+         real(kind=RP)                 :: lambda(NCONS)
+         real(kind=RP)                 :: K(NCONS,NCONS)
+         real(kind=RP)                 :: alpha(NCONS)
          integer                       :: eq
          integer                       :: negativeWaves
          integer                       :: wave
@@ -555,10 +561,10 @@ module PhysicsNS
 !
 !        3/ Compute the averaged right eigenvectors
 !           ---------------------------------------
-            K(1:NEC , 1)  = reshape( (/ 1.0_RP , u-a    , v      , H-u*a                /)  ,  (/ NEC /) )
-            K(1:NEC , 2)  = reshape( (/ 1.0_RP , u      , v      , 0.5_RP * (u*u + v*v) /)  ,  (/ NEC /) )
-            K(1:NEC , 3)  = reshape( (/ 0.0_RP , 0.0_RP , 1.0_RP , v                    /)  ,  (/ NEC /) )
-            K(1:NEC , 4)  = reshape( (/ 1.0_RP , u + a  , v      , H + u*a              /)  ,  (/ NEC /) )
+            K(1:NCONS , 1)  = reshape( (/ 1.0_RP , u-a    , v      , H-u*a                /)  ,  (/ NCONS /) )
+            K(1:NCONS , 2)  = reshape( (/ 1.0_RP , u      , v      , 0.5_RP * (u*u + v*v) /)  ,  (/ NCONS /) )
+            K(1:NCONS , 3)  = reshape( (/ 0.0_RP , 0.0_RP , 1.0_RP , v                    /)  ,  (/ NCONS /) )
+            K(1:NCONS , 4)  = reshape( (/ 1.0_RP , u + a  , v      , H + u*a              /)  ,  (/ NCONS /) )
 !
 !        4/ Compute the wave strengths
 !           --------------------------
@@ -575,7 +581,7 @@ module PhysicsNS
             Fstar = F_inviscidFlux(qL) 
                
             do wave = 1 , negativeWaves
-               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NEC , wave)
+               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NCONS , wave)
             end do
   
 !        6/ Return to the 3D Space
@@ -594,13 +600,13 @@ module PhysicsNS
       function HLLFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP), dimension(NCONS) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , HL , aL , pL
          real(kind=RP)                 :: rhoR , uR , vR , HR , aR , pR
          real(kind=RP)                 :: invrho , u , v , H , a
@@ -685,13 +691,13 @@ module PhysicsNS
       function AUSMFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP), dimension(NCONS) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , pL , aL , ML
          real(kind=RP)                 :: rhoR , uR , vR , pR , aR , MR
          real(kind=RP)                 :: MplusL , MminusR , pplusL , pminusR 

@@ -265,7 +265,7 @@ module DGTimeIntegrator
          class(QuadMesh_t)                  :: mesh
          integer, parameter               :: ShowLabels = 50
          integer, save                    :: shown = 0
-         real(kind=RP)                    :: residuals(NEC)
+         real(kind=RP)                    :: residuals(NCONS)
 
          if ( mod( shown , ShowLabels) .eq. 0 ) then     ! Show labels
             write(STD_OUT , '(/)')
@@ -331,7 +331,7 @@ module DGTimeIntegrator
          call NetCDF_putDimension( trim(fileName) , "one" , 1 )
          call NetCDF_putDimension( trim(fileName) , "NDOF" , size(Storage % Q) )
          call NetCDF_putDimension( trim(fileName) , "N" , Setup % N )
-         call NetCDF_putDimension( trim(fileName) , "NEC" , NEC )
+         call NetCDF_putDimension( trim(fileName) , "NCONS" , NCONS )
          call NetCDF_putDimension( trim(fileName) , "no_of_elements" , mesh % no_of_elements )
 
          call NetCDF_putVariable( trim(fileName) , "t" , ["one"] , [self % t] )

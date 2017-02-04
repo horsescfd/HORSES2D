@@ -4,7 +4,7 @@ function UserDefinedInitialCondition(x) result (val)
    use Physics
    implicit none
    real(kind=RP)     :: x(NDIM)
-   real(kind=RP)     :: val(NEC)
+   real(kind=RP)     :: val(NCONS)
 
    val = 0.0_RP * x(1) + 0.0_RP * x(2)
 

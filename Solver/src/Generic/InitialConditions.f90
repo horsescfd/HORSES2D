@@ -31,7 +31,7 @@ module InitialConditions
          use Physics
          implicit none
          real(kind=RP)     :: x(NDIM)
-         real(kind=RP)     :: val(NEC)
+         real(kind=RP)     :: val(NCONS)
       end function ICFcn
 !
 !  *************
@@ -58,7 +58,7 @@ module InitialConditions
                use Physics
                implicit none
                real(kind=RP)     :: x(NDIM)
-               real(kind=RP)     :: val(NEC)
+               real(kind=RP)     :: val(NCONS)
             end function UserDefinedInitialCondition
          end interface
          
@@ -168,7 +168,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: val(NCONS)
          real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
 
          associate ( gamma => Thermodynamics % gamma ) 
@@ -189,7 +189,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: val(NCONS)
          real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
          real(kind=RP), parameter   :: perturbation = 0.1_RP
          real(kind=RP)              :: per
@@ -219,7 +219,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: val(NCONS)
 
          val(IRHO) = 1.0_RP
          val(IRHOU) = 0.0_RP
@@ -236,7 +236,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: val(NCONS)
          real(kind=RP), parameter      :: R = 0.1_RP                         ! This is the "vortex radius" (dimensionless)
          real(kind=RP), parameter      :: Beta = 0.01_RP                      ! This is the "vortex strength"
          real(kind=RP), parameter      :: XC = 0.5_RP                         ! Vortex X position (in dimensionless coordinates)
@@ -270,7 +270,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: val(NCONS)
          real(kind=RP)        :: rho , u , v , p
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
@@ -296,7 +296,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)        :: val(NCONS)
          real(kind=RP)        :: rho , u , v , p
          real(kind=RP), parameter      :: k = 10.0_RP
 
@@ -321,7 +321,7 @@ module InitialConditions
          use Physics
          implicit none
          real(kind=RP)              :: x(NDIM)
-         real(kind=RP)              :: val(NEC)
+         real(kind=RP)              :: val(NCONS)
          real(kind=RP)        :: rho , u , v , p
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
@@ -345,7 +345,7 @@ module InitialConditions
          use SMConstants
          implicit none
          real(kind=RP)              :: x(NDIM)
-         real(kind=RP)              :: val(NEC)
+         real(kind=RP)              :: val(NCONS)
 
          associate ( gamma => Thermodynamics % Gamma  , Mach => Dimensionless % Mach ) 
          val(IRHO) = 1.0_RP

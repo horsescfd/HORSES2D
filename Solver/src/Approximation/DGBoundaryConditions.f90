@@ -55,7 +55,7 @@ module DGBoundaryConditions
 !  **********************************
 !
    type, extends(BoundaryCondition_t)           :: DirichletBC_t
-      real(kind=RP), dimension(NEC)       :: q
+      real(kind=RP), dimension(NCONS)       :: q
       contains
          procedure ::      Construct => DirichletBC_Construct
          procedure ::      Associate => DirichletBC_Associate
@@ -67,7 +67,7 @@ module DGBoundaryConditions
 !  *********************************
 !
    type, extends(BoundaryCondition_t)           :: FarfieldBC_t
-      real(kind=RP), dimension(NEC)       :: q
+      real(kind=RP), dimension(NCONS)       :: q
       real(kind=RP)                       :: AngleOfAttack
       real(kind=RP)                       :: Tt
       real(kind=RP)                       :: pt
@@ -83,7 +83,7 @@ module DGBoundaryConditions
 !  ********************************
 !
    type, extends(BoundaryCondition_t)           :: PressureOutletBC_t
-      real(kind=RP), dimension(NEC)       :: q
+      real(kind=RP), dimension(NCONS)       :: q
       real(kind=RP)                       :: AngleOfAttack
       real(kind=RP)                       :: Tt
       real(kind=RP)                       :: pt
@@ -99,7 +99,7 @@ module DGBoundaryConditions
 !  ***************************************
 !
    type, extends(BoundaryCondition_t)           :: PressureInletBC_t
-      real(kind=RP), dimension(NEC)       :: q
+      real(kind=RP), dimension(NCONS)       :: q
       real(kind=RP)                       :: AngleOfAttack
       real(kind=RP)                       :: Tt
       real(kind=RP)                       :: pt
@@ -118,7 +118,7 @@ module DGBoundaryConditions
 !  ********************************
 !
    type, extends(BoundaryCondition_t)           :: RiemannBC_t
-      real(kind=RP), dimension(NEC)       :: q
+      real(kind=RP), dimension(NCONS)       :: q
       real(kind=RP)                       :: AngleOfAttack
       real(kind=RP)                       :: Tt
       real(kind=RP)                       :: pt
@@ -320,25 +320,25 @@ module DGBoundaryConditions
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % gB(0:N,NCONS,NDIM) )   ! Normal gradients
                
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+                  edge % uB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % gB(0:N , 1:NCONS , 1:NDIM ) = 0.0_RP
                
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )
+               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % gB(0:N,NCONS,NDIM) )
 
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = 0.0_RP    ! Its value is not given until the update routine is invoked
+                  edge % uB(i , 1:NCONS) = 0.0_RP    ! Its value is not given until the update routine is invoked
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % gB(0:N , 1:NCONS , 1:NDIM ) = 0.0_RP
 
          end select
 
@@ -359,17 +359,17 @@ module DGBoundaryConditions
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % FB(0:N,NEC) )
+               allocate( edge % FB(0:N,NCONS) )
                
                do i = 0 , N
-                  edge % FB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+                  edge % FB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
                end do
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % FB(0:N,NEC) )
+               allocate( edge % FB(0:N,NCONS) )
 
                do i = 0 , N
-                  edge % FB(i , 1:NEC) = 0.0_RP    ! Its value is not given until the update routine is invoked
+                  edge % FB(i , 1:NCONS) = 0.0_RP    ! Its value is not given until the update routine is invoked
                end do
 
          end select

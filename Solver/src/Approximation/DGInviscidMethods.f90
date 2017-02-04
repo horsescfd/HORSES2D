@@ -147,7 +147,7 @@
 !
          associate ( N => edge % spA % N )
 
-         allocate( Fstar( 0 : N , NEC ) )
+         allocate( Fstar( 0 : N , NCONS ) )
 !        Compute the averaged flux
          Fstar = self % RiemannFlux( edge )
 !
@@ -204,7 +204,7 @@
 !
          associate ( N => edge % spA % N )
 
-         allocate( Fstar( 0 : N , NEC ) )
+         allocate( Fstar( 0 : N , NCONS ) )
 !        Compute the averaged flux
          Fstar = self % RiemannFlux( edge )
 !
@@ -213,25 +213,25 @@
             type is (Edge_t)
 
             associate ( QDot => edge % quads(LEFT) % e % QDot )
-               QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % F(0:N,1:NEC,LEFT) )
+               QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % F(0:N,1:NCONS,LEFT) )
             end associate
             associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
-               QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % F(0:N,1:NEC,RIGHT) )
+               QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % F(0:N,1:NCONS,RIGHT) )
             end associate
 
             type is (StraightBdryEdge_t)
             associate ( QDot => edge % quads(1) % e % QDot )
                if ( .not. edge % inverted ) then
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) )
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NCONS,1) )
                else
-                  QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) )
+                  QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NCONS,1) )
                end if
                
             end associate
 
             type is (CurvedBdryEdge_t)
             associate ( QDot => edge % quads(1) % e % QDot )
-               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NEC,1) ) 
+               QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F(0:N,1:NCONS,1) ) 
             end associate
 
             class default
@@ -265,12 +265,12 @@
                pos = RIGHT                    ! Where to interpolate the test function
                index = iX                     ! The coordinate (xi/eta) in which the boundary is located
 
-               allocate(Fstar2D(1,0:N,NEC))
+               allocate(Fstar2D(1,0:N,NCONS))
                
                if ( direction .eq. FORWARD ) then
-                  Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) )
+                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) )
                elseif ( direction .eq. BACKWARD ) then
-                  Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC ) )
+                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) )
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
@@ -281,12 +281,12 @@
                direction = - e % edgesDirection ( edge % edgeLocation(loc) ) 
                pos = RIGHT
                index = iY
-               allocate(Fstar2D(0:N,1,NEC))
+               allocate(Fstar2D(0:N,1,NCONS))
    
                if ( direction .eq. FORWARD ) then
-                  Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
                elseif ( direction .eq. BACKWARD ) then
-                  Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
@@ -297,12 +297,12 @@
                direction = - e % edgesDirection ( edge % edgeLocation(loc) )
                pos = LEFT
                index = iX
-               allocate(Fstar2D(1,0:N,NEC))
+               allocate(Fstar2D(1,0:N,NCONS))
    
                if ( direction .eq. FORWARD ) then
-                  Fstar2D(1,0:N,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
                elseif ( direction .eq. BACKWARD ) then
-                  Fstar2D(1,N:0:-1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
@@ -313,12 +313,12 @@
                direction = e % edgesDirection ( edge % edgeLocation(loc) ) 
                pos = LEFT
                index = iY
-               allocate(Fstar2D(0:N,1,NEC))
+               allocate(Fstar2D(0:N,1,NCONS))
    
                if ( direction .eq. FORWARD ) then
-                  Fstar2D(0:N,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
                elseif ( direction .eq. BACKWARD ) then
-                  Fstar2D(N:0:-1,1,1:NEC) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NEC) ) 
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
@@ -328,7 +328,7 @@
 
              lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
              
-             allocate ( dFJ(0:N,0:N,NEC) )
+             allocate ( dFJ(0:N,0:N,NCONS) )
              dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
 
              lj2D=>NULL()
@@ -363,7 +363,7 @@
                     w    => element % spA % w  , &
                     N    => element % spA % N      )
 
-         do eq = 1 , NEC
+         do eq = 1 , NCONS
 
             if ( self % formulation .eq. FORMI ) then
 !
@@ -408,11 +408,11 @@
 
          associate( N => element % spA % N )
 
-         allocate( F(0:N , 0:N , NEC , NDIM) ) 
+         allocate( F(0:N , 0:N , NCONS , NDIM) ) 
 
          F = InviscidFlux( element % Q )
 
-            do eq = 1 , NEC
+            do eq = 1 , NCONS
                FJa = [1,1]
                GJa = [2,1]
                element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
@@ -503,25 +503,25 @@
 
             type is (StraightBdryEdge_t)
                associate( N => edge % spA % N )
-               allocate( Fstar ( 0 : N , NEC ) )
+               allocate( Fstar ( 0 : N , NCONS ) )
 
                if ( associated( edge % FB ) ) then
                   Fstar = edge % FB
 
                elseif ( associated ( edge % uB ) ) then
                   do iXi = 0 , N
-                     allocate ( QL(NEC) , QR(NEC) )
+                     allocate ( QL(NCONS) , QR(NCONS) )
    
                      if ( edge % inverted ) then
-                        QR = edge % Q(iXi , 1:NEC , 1)
-                        QL = edge % uB(iXi, 1:NEC)
+                        QR = edge % Q(iXi , 1:NCONS , 1)
+                        QL = edge % uB(iXi, 1:NCONS)
                      else
-                        QL = edge % Q(iXi , 1:NEC , 1)
-                        QR = edge % uB(iXi, 1:NEC)
+                        QL = edge % Q(iXi , 1:NCONS , 1)
+                        QR = edge % uB(iXi, 1:NCONS)
                      end if
 
-                     T  => edge % T(1:NEC , 1:NEC , iXi)
-                     Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+                     T  => edge % T(1:NCONS , 1:NCONS , iXi)
+                     Tinv => edge % Tinv(1:NCONS , 1:NCONS , iXi)
                      if ( associated ( edge % RiemannSolver ) ) then
                         Fstar(iXi , :) = edge % RiemannSolver(QL , QR , T , Tinv)
                         
@@ -540,20 +540,20 @@
             type is (CurvedBdryEdge_t)
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NEC ) )
+               allocate( Fstar ( 0 : N , NCONS ) )
 
                if ( associated( edge % FB) ) then
                   Fstar = edge % FB
 
                elseif ( associated ( edge % uB) ) then
                   do iXi = 0 , N
-                     allocate ( QL(NEC) , QR(NEC) )
+                     allocate ( QL(NCONS) , QR(NCONS) )
    
-                     QL = edge % Q(iXi , 1:NEC , 1)
-                     QR = edge % uB(iXi, 1:NEC)
+                     QL = edge % Q(iXi , 1:NCONS , 1)
+                     QR = edge % uB(iXi, 1:NCONS)
          
-                     T  => edge % T(1:NEC , 1:NEC , iXi)
-                     Tinv => edge % Tinv(1:NEC , 1:NEC , iXi)
+                     T  => edge % T(1:NCONS , 1:NCONS , iXi)
+                     Tinv => edge % Tinv(1:NCONS , 1:NCONS , iXi)
       
                      if ( associated ( edge % RiemannSolver ) ) then
                         Fstar(iXi , :) = edge % RiemannSolver(QL , QR , T , Tinv)
@@ -575,17 +575,17 @@
       
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NEC ) )
+               allocate( Fstar ( 0 : N , NCONS ) )
 
                do iXi = 0 , N
 
-                  allocate( QL(NEC) , QR(NEC) )
+                  allocate( QL(NCONS) , QR(NCONS) )
 
-                  QL    = edge % Q(iXi , 1:NEC , LEFT )
-                  QR    = edge % Q(iXi , 1:NEC , RIGHT)
+                  QL    = edge % Q(iXi , 1:NCONS , LEFT )
+                  QR    = edge % Q(iXi , 1:NCONS , RIGHT)
    
-                  T     => edge % T(1:NEC , 1:NEC , iXi)
-                  Tinv  => edge % Tinv(1:NEC , 1:NEC , iXi)
+                  T     => edge % T(1:NCONS , 1:NCONS , iXi)
+                  Tinv  => edge % Tinv(1:NCONS , 1:NCONS , iXi)
 
                   Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
 

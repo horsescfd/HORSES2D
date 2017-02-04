@@ -182,10 +182,10 @@ module QuadElementClass
 !               These two arrays were before 
 !               allocated inside each element.
 !               Now they are just linked.
-!                   allocate ( self % Q    ( 0:N , 0:N , NEC )  ) 
-!                   allocate ( self % QDot ( 0:N , 0:N , NEC )  ) 
-!                   allocate ( self % F    ( 0:N , 0:N , NEC )  ) 
-!                   allocate ( self % dQ   ( 0:N , 0:N , NEC )  ) 
+!                   allocate ( self % Q    ( 0:N , 0:N , NCONS )  ) 
+!                   allocate ( self % QDot ( 0:N , 0:N , NCONS )  ) 
+!                   allocate ( self % F    ( 0:N , 0:N , NCONS )  ) 
+!                   allocate ( self % dQ   ( 0:N , 0:N , NCONS )  ) 
 !            ---------------------------------------
 !
              self % address = address
@@ -218,17 +218,17 @@ module QuadElementClass
         
 
             associate ( N => self % spA % N )
-             self % Q    ( 0:N , 0:N , 1:NEC          ) => storage % Q    ( self % address: ) 
-             self % QDot ( 0:N , 0:N , 1:NEC          ) => storage % QDot ( self % address: ) 
-             self % dQ   ( 0:N , 0:N , 1:NEC , 1:NDIM ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
+             self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
+             self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
+             self % dQ   ( 0:N , 0:N , 1:NCONS , 1:NDIM ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
 
              if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
-               self % F (0: self % spI % N , 0: self % spI % N , 1:NEC , 1:NDIM) => &
-                           storage % F ( (self % ID -1)*(self % spI % N+1)**2*NEC*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NEC*NDIM )
+               self % F (0: self % spI % N , 0: self % spI % N , 1:NCONS , 1:NDIM) => &
+                           storage % F ( (self % ID -1)*(self % spI % N+1)**2*NCONS*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NCONS*NDIM )
 
              else
 
-               self % F    ( 0:N , 0:N , 1:NEC , 1:NDIM )  => storage % F ( (self % address-1)*NDIM+1: ) 
+               self % F    ( 0:N , 0:N , 1:NCONS , 1:NDIM )  => storage % F ( (self % address-1)*NDIM+1: ) 
 
              end if
 
@@ -312,21 +312,21 @@ module QuadElementClass
             allocate ( self % f % X    ( NDIM , 0 : self % f % spA % N       )  ) 
             allocate ( self % f % dX   ( NDIM , 0 : self % f % spA % N       )  ) 
             allocate ( self % f % dS   ( NDIM , 0 : self % f % spA % N       )  ) 
-            allocate ( self % f % T    ( NEC  , NEC , 0 : self % f % spA % N )  ) 
-            allocate ( self % f % Tinv ( NEC  , NEC , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % T    ( NCONS  , NCONS , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % Tinv ( NCONS  , NCONS , 0 : self % f % spA % N )  ) 
             allocate ( self % f % n    ( NDIM , 0 : self % f % spA % N       )  ) 
 
             if (edgeType .eq. FACE_INTERIOR) then
          
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE        )  ) 
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , QUADS_PER_EDGE )  ) 
-               allocate ( self % f % F  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE )  ) 
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE        )  ) 
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NCONS , NDIM , QUADS_PER_EDGE )  ) 
+               allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE )  ) 
 
             else
    
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , 1        )  ) 
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , 1 )  ) 
-               allocate ( self % f % F  ( 0 : self % f % spA % N , NEC , 1 )  ) 
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , 1        )  ) 
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NCONS , NDIM , 1 )  ) 
+               allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , 1 )  ) 
 
             end if 
 
@@ -451,16 +451,16 @@ module QuadElementClass
             associate( N => self % spA % N )
       
             do iXi = 0 , N
-             self % T(1:NEC,1:NEC,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
+             self % T(1:NCONS,1:NCONS,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
                                                       0.0_RP , self % dS(iX,iXi)  , self % dS(iY,iXi) , 0.0_RP , &
                                                       0.0_RP , -self % dS(iY,iXi) , self % dS(iX,iXi) , 0.0_RP , &
-                                                      0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NEC,NEC/),ORDER=(/2,1/)) 
+                                                      0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NCONS,NCONS/),ORDER=(/2,1/)) 
       
              associate ( dS_square => self % T(IRHOE,IRHOE,iXi) )
-             self % Tinv(1:NEC,1:NEC,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
+             self % Tinv(1:NCONS,1:NCONS,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
                                                          0.0_RP , self % dS(iX,iXi) , -self % dS(iY,iXi) , 0.0_RP , &
                                                          0.0_RP , self % dS(iY,iXi) , self % dS(iX,iXi)  , 0.0_RP , &
-                                                         0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NEC,NEC/),ORDER=(/2,1/)) / dS_square 
+                                                         0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NCONS,NCONS/),ORDER=(/2,1/)) / dS_square 
              end associate
             end do
             end associate

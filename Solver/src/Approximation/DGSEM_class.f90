@@ -89,14 +89,14 @@
 !           Allocate memory for solution and its derivative
 !           ***********************************************
 !
-            allocate ( self % Storage % Q    ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
-            allocate ( self % Storage % QDot ( NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-            allocate ( self % Storage % dQ   ( NDIM * NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
+            allocate ( self % Storage % Q    ( NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
+            allocate ( self % Storage % QDot ( NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % dQ   ( NDIM * NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
                 
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
-               allocate ( self % Storage % F   ( NDIM * NEC * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )
+               allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )
             else
-               allocate ( self % Storage % F   ( NDIM * NEC * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+               allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             end if
 
 !
