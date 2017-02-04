@@ -195,11 +195,11 @@ module QuadElementClass
 !            Allocate data
 !            *************
 !
-             allocate ( self % x     ( NDIM  , 0:N , 0:N        )  ) 
-             allocate ( self % dx    ( NDIM  , 0:N , 0:N , NDIM )  ) 
-             allocate ( self % jac   ( 0:N , 0:N                )  ) 
-             allocate ( self % invM2Djac   ( 0:N , 0:N                )  ) 
-             allocate ( self % edges ( EDGES_PER_QUAD           )  ) 
+             allocate ( self % x         ( NDIM  , 0:N , 0:N         )  ) 
+             allocate ( self % dx        ( 0:N   , 0:N , NDIM , NDIM )  ) 
+             allocate ( self % jac       ( 0:N   , 0:N               )  ) 
+             allocate ( self % invM2Djac ( 0:N   , 0:N               )  ) 
+             allocate ( self % edges     ( EDGES_PER_QUAD            )  ) 
       
              do edge = 1 , EDGES_PER_QUAD
                self % edges(edge) % f => NULL()
