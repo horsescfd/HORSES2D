@@ -156,20 +156,20 @@ module ChecksModule
                if ( allocated (dxiX ) ) deallocate ( dxiX  ) 
                if ( allocated (detaX) ) deallocate ( detaX ) 
           
-               allocate(dxiX  ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
-               allocate(detaX ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
+               allocate(dxiX  ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
+               allocate(detaX ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
 
-               dxiX         = MatrixMultiplyInIndex_F( e % X , e % spA % DT  , 2)
-               detaX        = MatrixMultiplyInIndex_F( e % X , e % spA % DT , 3)
+               dxiX         = MatrixMultiplyInIndex_F( e % X , e % spA % DT  , 1)
+               detaX        = MatrixMultiplyInIndex_F( e % X , e % spA % DT , 2)
 
                if (eID .eq. 1) then
                   current = eID
-                  error = maxval(abs(dxiX - e % dX(:,:,:,iX))) 
+                  error = maxval(abs(dxiX - e % dX(:,:,:,IX))) 
                    
                else
 
                   if ( maxval(abs(dxiX - e % dX(:,:,:,iX) ) ) .gt. error ) then
-                     error = maxval(abs(dxiX - e % dX(:,:,:,iX) ) )
+                     error = maxval(abs(dxiX - e % dX(:,:,:,IX) ) )
                      current = eID
                   end if
                end if

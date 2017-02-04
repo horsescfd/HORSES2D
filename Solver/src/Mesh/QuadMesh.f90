@@ -281,11 +281,13 @@ module QuadMeshClass
              integer                  :: eID
              integer                  :: iXi
              integer                  :: iEta
+             real(kind=RP)            :: X(NDIM)
 
              do eID = 1 , self % no_of_elements
                do iXi = 0 , self % elements(eID) % spA % N
                   do iEta = 0 , self % elements(eID) % spA % N
-                     self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( self % elements(eID) % x(iX:iY,iXi,iEta) ) 
+                     X = self % elements(eID) % X(iXi,iEta,IX:IY)
+                     self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X ) 
                   end do
                end do
              end do

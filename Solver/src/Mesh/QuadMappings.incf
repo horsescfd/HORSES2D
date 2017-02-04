@@ -23,17 +23,17 @@
          do ixi = 0 , N
             do ieta = 0 , N 
                
-               self % x(iX:iY, ixi , ieta) =  (1.0_RP - eta(iEta)) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getX(iEta,dRIGHT) + &
+               self % X(iXi , iEta, IX:IY) =  (1.0_RP - eta(iEta)) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getX(iEta,dRIGHT) + &
                                               (1.0_RP - xi(iXi) )  * gLEFT % getX(iEta,-dLEFT) + eta(iEta)*gTOP % getX(iXi,-dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                               -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
 
-               self % dx(iXi,iEta,IX:IY,IX) = (1.0_RP - eta(iEta)) * gBOT % getdX(iXi,dBOT) + gRIGHT % getX(iEta,dRIGHT) + &
+               self % dX(iXi,iEta,IX:IY,IX) = (1.0_RP - eta(iEta)) * gBOT % getdX(iXi,dBOT) + gRIGHT % getX(iEta,dRIGHT) + &
                                                    eta(iEta) * gTOP % getdX(iXi,-dTOP) + (-1.0_RP) * gLEFT % getX(iEta,-dLEFT) + &
                                               -n1 *(1.0_RP - eta(iEta))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
                                               -n3 * eta(iEta) - n4 * (-1.0_RP) * eta(iEta)
 
-               self % dx(iXi,iEta,IX:IY,IY) =  (-1.0_RP) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getdX(iEta,dRIGHT) + &
+               self % dX(iXi,iEta,IX:IY,IY) =  (-1.0_RP) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getdX(iEta,dRIGHT) + &
                                               (1.0_RP - xi(iXi) )  * gLEFT % getdX(iEta,-dLEFT) + gTOP % getX(iXi,-dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * xi(iXi) * (-1.0_RP) & 
                                               -n3* xi(iXi) - n4 * (1.0_RP - xi(iXi))

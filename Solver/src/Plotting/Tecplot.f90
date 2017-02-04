@@ -216,8 +216,8 @@ module Tecplot
 
          do iEta = 0 , N
             do iXi = 0 , N
-               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") mesh % elements(eID) % x(iX,iXi,iEta) * RefValues % L &
-                                                                              , mesh % elements(eID) % x(iY,iXi,iEta) * RefValues % L &
+               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
+                                                                              , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
                                                                               , 0.0_RP  
 !
 !              Save quantities
