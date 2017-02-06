@@ -139,11 +139,12 @@
             
         end subroutine DGSEM_construct
             
-        subroutine DGSEM_SetInitialCondition( self )
+        subroutine DGSEM_SetInitialCondition( self , verbose )
             use InitialConditions
             use Setup_class
             implicit none
             class(DGSEM_t)                   :: self
+            logical, optional                :: verbose
 
             if ( Setup % IC .eq. "Restart" ) then
                call self % loadRestartFile( trim ( Setup % Restart_file ) ) 
@@ -151,7 +152,15 @@
                call self % mesh % SetInitialCondition ()
             end if
 
-            call InitialCondition_Describe
+            if ( present ( verbose ) ) then
+               if ( verbose ) then
+                  call InitialCondition_Describe
+   
+               end if
+            else
+               call InitialCondition_Describe
+
+            end if
 
         end subroutine DGSEM_SetInitialCondition
       

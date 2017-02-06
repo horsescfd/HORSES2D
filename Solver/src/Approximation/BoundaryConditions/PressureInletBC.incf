@@ -165,7 +165,9 @@
 
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     F = inviscidFlux( edge % Q(iXi,1:NCONS,1) )
+                  
+                     q = edge % Q(iXi,1:NCONS,1)
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
       
                   end if

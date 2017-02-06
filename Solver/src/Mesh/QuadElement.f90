@@ -480,6 +480,7 @@ module QuadElementClass
             class(QuadElement_t)          :: self
 
             associate ( N => self % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma )
+
                self % W(0:N,0:N,IRHO) = self % Q(0:N,0:N,IRHO)
                self % W(0:N,0:N,IU  ) = self % Q(0:N,0:N,IRHOU) / self % Q(0:N,0:N,IRHO)
                self % W(0:N,0:N,IV  ) = self % Q(0:N,0:N,IRHOV) / self % Q(0:N,0:N,IRHO)

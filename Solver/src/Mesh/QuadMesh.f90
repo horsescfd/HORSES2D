@@ -248,7 +248,7 @@ module QuadMeshClass
                end do
          end subroutine constructElementsAndEdges
            
-         subroutine setInitialCondition( self , which)
+         subroutine SetInitialCondition( self , which)
              use InitialConditions
              implicit none
              class(QuadMesh_t)            :: self
@@ -270,30 +270,44 @@ module QuadMeshClass
 !            Apply the initial condition to the solution
 !            *******************************************
 !
-             call self % applyInitialCondition()
+             call self % ApplyInitialCondition()
 
 
           end subroutine setInitialCondition
 
-          subroutine applyInitialCondition( self )
+          subroutine ApplyInitialCondition( self , argin)
              use Physics
              implicit none
              class(QuadMesh_t)        :: self
+             real(kind=RP), optional  :: argin
              integer                  :: eID
              integer                  :: iXi
              integer                  :: iEta
              real(kind=RP)            :: X(NDIM)
 
-             do eID = 1 , self % no_of_elements
-               do iXi = 0 , self % elements(eID) % spA % N
-                  do iEta = 0 , self % elements(eID) % spA % N
-                     X = self % elements(eID) % X(iXi,iEta,IX:IY)
-                     self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X ) 
+             if ( present ( argin ) ) then
+                do eID = 1 , self % no_of_elements
+                  do iXi = 0 , self % elements(eID) % spA % N
+                     do iEta = 0 , self % elements(eID) % spA % N
+                        X = self % elements(eID) % X(iXi,iEta,IX:IY)
+                        self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X , argin) 
+                     end do
                   end do
-               end do
-             end do
-             
-          end subroutine applyInitialCondition
+                end do
+
+            else
+                do eID = 1 , self % no_of_elements
+                  do iXi = 0 , self % elements(eID) % spA % N
+                     do iEta = 0 , self % elements(eID) % spA % N
+                        X = self % elements(eID) % X(iXi,iEta,IX:IY)
+                        self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X ) 
+                     end do
+                  end do
+                end do
+   
+            end if
+
+          end subroutine ApplyInitialCondition
 
           subroutine QuadMesh_SetStorage( self , storage )
             use Storage_module

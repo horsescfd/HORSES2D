@@ -72,7 +72,8 @@ ifeq ($(COMPILER),gfortran)
    FC=gfortran
    ifeq ($(MODE),DEBUG)
       $(info Compiling with gfortran in DEBUG mode.)
-      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+#      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+       FFLAGS = -cpp -O0 -g -fcheck=all -ffree-line-length-0 -fbacktrace -fbounds-check -Wall -fcheck-array-temporaries -fbackslash -ffpe-trap=invalid,zero,overflow -static-libgfortran
    else 
   	$(info Compiling with gfortran in RELEASE mode.)
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
@@ -111,6 +112,9 @@ all: 	$(EXECUTABLE)
 
 runcyl: 	
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
+
+debugcyl:
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && gdb ./$(EXECUTABLE))		
 
 runvortex: 	
 	(cd ../TestCases/Benchmarktests/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		

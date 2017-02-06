@@ -9,7 +9,7 @@ module DGSpatialDiscretizationMethods
 
    private
    public DGSpatial_Initialization , DGSpatial_computeTimeDerivative , DGSpatial_interpolateToBoundaries
-   public DGSpatial_computeGradient
+   public DGSpatial_computeGradient , DGSpatial_newTimeStep
 
    class(ViscousMethod_t), pointer     :: ViscousMethod
    class(InviscidMethod_t), pointer      :: InviscidMethod

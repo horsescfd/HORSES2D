@@ -27,14 +27,16 @@ module DGBoundaryConditions
 !
    type BoundaryCondition_t
       character(len=STR_LEN_BC)                         :: Name
+      integer                                           :: marker
       integer                                           :: BCType
       character(len=STR_LEN_BC)                         :: RiemannSolverName
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
-         procedure ::     Construct => BaseClass_Construct
-         procedure ::     Associate => BaseClass_Associate
-         procedure ::     Update    => BaseClass_Update
-         procedure ::     Describe  => BaseClass_Describe
+         procedure :: Construct        => BaseClass_Construct
+         procedure :: SetRiemannSolver => BoundaryConditions_SetRiemannSolver
+         procedure :: Associate        => BaseClass_Associate
+         procedure :: Update           => BaseClass_Update
+         procedure :: Describe         => BaseClass_Describe
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -193,7 +195,9 @@ module DGBoundaryConditions
          character(len=STR_LEN_BC)           :: BCType
          character(len=STR_LEN_BC)           :: in_label
 
+
          write(in_label,'(A,I0)') "# define zone ",marker
+
 
          call ReadValueInRegion( trim(Setup % bdry_file) , "Type" , BCType , in_label , "# end" )
 
@@ -244,14 +248,42 @@ module DGBoundaryConditions
 
          end if
    
+         self % marker = marker
+
          call readValueInRegion( trim(Setup % bdry_file) , "Name" , self % Name , in_label , "# end" )
-         call readValueInRegion( trim(Setup % bdry_file) , "Riemann solver" , self % RiemannSolverName ,  in_label , "# end" )
+
+         call self % SetRiemannSolver()
+
+         call self % Construct( marker , in_label)
+
+      end subroutine BoundaryConditions_construct
+
+      subroutine BoundaryConditions_SetRiemannSolver( self , RiemannSolver )
+         use Setup_class
+         implicit none
+         class(BoundaryCondition_t)                :: self
+         character(len=*), optional                :: RiemannSolver
+         character(len=STR_LEN_BC)                 :: in_label
+         
+         if ( present ( RiemannSolver ) ) then
+
+            self % RiemannSolverName = trim(RiemannSolver)
+
+         else
+
+            write(in_label,'(A,I0)') "# define zone ", self % marker
+            call readValueInRegion( trim(Setup % bdry_file) , "Riemann solver" , self % RiemannSolverName ,  in_label , "# end" )
+
+         end if
 
          if (trim(self % RiemannSolverName ) .eq. "Exact") then
             self % RiemannSolver => ExactRiemannSolver
 
          elseif ( trim(self % RiemannSolverName) .eq. "Roe" ) then
             self % RiemannSolver => RoeFlux
+
+         elseif ( trim(self % RiemannSolverName) .eq. "HLL" ) then
+            self % RiemannSolver => HLLFlux
 
          elseif ( trim(self % RiemannSolverName) .eq. "Interior" ) then
             self % RiemannSolver => NULL()
@@ -262,9 +294,7 @@ module DGBoundaryConditions
 
          end if
 
-         call self % Construct( marker , in_label)
-
-      end subroutine BoundaryConditions_construct
+      end subroutine BoundaryConditions_SetRiemannSolver
    
       subroutine BaseClass_Construct( self , marker , in_label)
          implicit none
