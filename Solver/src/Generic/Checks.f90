@@ -346,7 +346,8 @@ module ChecksModule
 
             end associate
          end do
-          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
+
+         write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
 
         end subroutine CheckMetricIdentities
    
@@ -552,11 +553,9 @@ module ChecksModule
 
          write(STD_OUT,'(/)')
          call SubSection_Header("Testing Gradients")
-
-
 !
-!         Set the polynomic initial condition
-!         -----------------------------------
+!        Set the polynomic initial condition
+!        -----------------------------------
          call sem % mesh % SetInitialCondition("ChecksPolynomic")
          call sem % mesh % ApplyInitialCondition
 
@@ -582,15 +581,13 @@ module ChecksModule
 
          write(STD_OUT , '(30X,A,A50,ES16.10,A,I0,A)') "-> ", "Error in gradients for polynomic state: " , error," (cell  ",elem,")."
 !
-!         Set the trigonometric initial condition
-!         -----------------------------------
+!        Set the trigonometric initial condition
+!        -----------------------------------
          L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
          call sem % mesh % SetInitialCondition("ChecksTrigonometric")
          call sem % mesh % ApplyInitialCondition( L )
 
-
-
-          call DGSpatial_newTimeStep( sem % mesh )
+         call DGSpatial_newTimeStep( sem % mesh )
 
          error = 0.0_RP
          elem = -1
@@ -620,7 +617,13 @@ module ChecksModule
          call sem % SetInitialCondition( verbose = .false. )
 
         end subroutine CheckGradients
-
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           CHECK AUXILIAR ROUTINES
+!           -----------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
         function dQPolynomicFcn ( x ) result ( val )
          use Physics
          implicit none
@@ -690,17 +693,10 @@ module ChecksModule
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE) = H * (ux + vy) + Hx * u + Hy * v
-
-!
-!
 !
          val = -val / (sqrt(gamma) * Mach)
-
-
          
          end associate
-         
-
 
         end function QDotTrigonometricFCN
 
@@ -713,14 +709,12 @@ module ChecksModule
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
 
-
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
          u = sqrt(gamma) * Mach * x(IX) / L
          v = sqrt(gamma) * Mach * x(IY) / L
          p = 1.0_RP + gamma * Mach * Mach * ( x(IX) * x(IX) + x(IY) * x(IY)) / (L **2.0_RP)
          H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
-
 
          ux = sqrt(gamma) * Mach / L
          uy = 0.0_RP
@@ -734,23 +728,14 @@ module ChecksModule
          Hx = cp * px + u * ux + v * vx
          Hy = cp * py + u * uy + v * vy
 
-         
-   
          val(IRHO)      = ux + vy
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE)     = H * (ux + vy) + Hx * u + Hy * v
-
-!
-!
 !
          val = -val / (sqrt(gamma) * Mach)
 
-
-         
          end associate
-         
-
 
         end function QDotPolynomicFCN        
       

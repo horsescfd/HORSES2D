@@ -92,4 +92,30 @@
 
       
    end function QuadElement_MetricMatrix
+
+   function QuadElement_Compute_X ( self , xi , eta ) result (val)
+      use MatrixOperations
+      implicit none
+      class(QuadElement_t), intent(in)       :: self
+      real(kind=RP)       , intent(in)       :: xi
+      real(kind=RP)       , intent(in)       :: eta
+      real(kind=RP)                          :: val(NDIM)
+!     ---------------------------------------------------------
+      real(kind=RP), allocatable             :: l_xi(:) , l_eta(:)
+
+      associate ( N => self % spA % N )
+
+      allocate( l_xi ( 0 : N ) , l_eta ( 0 : N ) )
+
+      l_xi = self % spA % lj(xi)
+      l_eta = self % spA % lj(eta)
+
+      call BilinearForm( self % X(0:N,0:N,IX) , l_xi , l_eta , val(IX) )
+      call BilinearForm( self % X(0:N,0:N,IY) , l_xi , l_eta , val(IY) )
+
+      deallocate( l_xi , l_eta )
+
+      end associate
+
+   end function QuadElement_Compute_X
    

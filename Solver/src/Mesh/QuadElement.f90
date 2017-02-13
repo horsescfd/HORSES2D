@@ -43,6 +43,7 @@ module QuadElementClass
             procedure      :: SetMappings => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
             procedure      :: ComputePrimitiveVariables => QuadElement_ComputePrimitiveVariables
             procedure      :: Ja          => QuadElement_MetricMatrix
+            procedure      :: Compute_X   => QuadElement_Compute_X
     end type QuadElement_t
 
 !

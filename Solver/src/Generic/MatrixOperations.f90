@@ -384,7 +384,7 @@ module MatrixOperations
 
       end function Mat_x_Mat_F
 
-      subroutine TripleMatrixProduct( A , B , C , val )
+      subroutine TripleMatrixProduct( A , B , C , val , trA , trB , trC )
 !
 !        ***********************************
 !           Computes the product 
@@ -395,9 +395,36 @@ module MatrixOperations
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
          real(kind=RP), intent(in)        :: C(:,:)
+         logical,       optional          :: trA , trB , trC
+         logical                          :: tA , tB , tC
          real(kind=RP), intent(out)       :: val(:,:)
 
-         val = Mat_X_Mat_F( Mat_X_Mat_F( A,B ) , C)
+         if ( present ( trA ) ) then
+            tA = trA
+   
+         else
+            tA = .false.
+
+         end if
+
+         if ( present ( trB ) ) then
+            tB = trB
+   
+         else
+            tB = .false.
+
+         end if
+
+         if ( present ( trC ) ) then
+            tC = trC
+   
+         else
+            tC = .false.
+
+         end if
+
+
+         val = Mat_X_Mat_F( Mat_X_Mat_F( A,B , trA = tA , trB = tB ) , C , trB = tC)
 
       end subroutine TripleMatrixProduct
 

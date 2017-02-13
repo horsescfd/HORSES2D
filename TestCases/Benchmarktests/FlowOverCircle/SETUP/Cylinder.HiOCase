@@ -50,6 +50,8 @@
 		      Solution file: ./RESULTS/Cylinder.HiORst
                   Autosave interval: 1000
                     Output interval: 10
+		Output file type: Interpolated
+	Number of representation points: 10
                      Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
 
 !
