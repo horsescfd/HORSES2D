@@ -203,10 +203,13 @@ module DGTimeIntegrator
 
             if (m .eq. 1) then
                G = Storage % QDot
+
             else
                G = am(m) * G + Storage % QDot
-               Storage % Q = Storage % Q + gm(m) * dt * G
+
             end if
+
+            Storage % Q = Storage % Q + gm(m) * dt * G
 
          end do 
          
@@ -242,10 +245,13 @@ module DGTimeIntegrator
 
             if (m .eq. 1) then
                G = dt * Storage % QDot
+
             else
                G = am(m) * G + dt * Storage % QDot
-               Storage % Q = Storage % Q + gm(m) * G
+
             end if
+
+            Storage % Q = Storage % Q + gm(m) * G
 
          end do 
          
