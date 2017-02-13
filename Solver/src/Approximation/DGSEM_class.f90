@@ -8,8 +8,6 @@
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-
-
 !   *****************
     module DGSEM_class
 !   *****************
@@ -27,12 +25,18 @@
     use Storage_module
     use DGBoundaryConditions
     implicit none
-
+!
+    private
+    public DGSEM_t , DGSEM_Initialize
+!
+!                                   *******************
     integer, parameter           :: STR_LEN_DGSEM = 128
-
-!   ---------------
-!   type DEFINITION
-!   ---------------
+!                                   *******************
+!
+!   ---------------------
+!   DGSEM type DEFINITION
+!   ---------------------
+!
     type DGSEM_t
         type(QuadMesh_t)                    :: mesh
         type(NodalStorage)                  :: spA             ! Interpolation nodes and weights structure
@@ -46,28 +50,26 @@
             procedure       :: Integrate => DGSEM_Integrate
             procedure       :: LoadRestartFile => DGSEM_LoadRestartFile
     end type DGSEM_t
-
-    private
-    public DGSEM_t , DGSEM_Initialize
-!   --------------------
-!   Internal subroutines
-!   --------------------
-    CONTAINS
-
-
-!   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-!                       CONSTRUCTION subroutines
-!   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!   ========
+    contains
+!   ========
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
         function DGSEM_Initialize() result(sem)
             type(DGSEM_t)         :: sem
 !
-!           *********************************
-!           Initialize mesh and Nodal Storage
-!           *********************************
-!
+!           Initialize mesh
+!           ---------------
             sem % mesh = InitializeMesh()
+!
+!           Initialize Spectral Approximation object
+!           ----------------------------------------
             sem % spA  = newNodalStorage()
-    
+!
+!           Initialize Storage
+!           ------------------ 
             sem % Storage = newStorage()
              
         end function DGSEM_Initialize
@@ -85,61 +87,67 @@
             integer                                                      :: fID
             class(Edge_t), pointer                                       :: face
 !
-!           ***********************************************
-!           Allocate memory for solution and its derivative
-!           ***********************************************
-!
-            allocate ( self % Storage % Q    ( NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
-            allocate ( self % Storage % W    ( NPRIM * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
-            allocate ( self % Storage % QDot ( NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-            allocate ( self % Storage % dQ   ( NDIM * NGRAD * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements        )  )  ) 
+!           Allocate memory for Q , W , QDot , dQ , and F
+!              The sizes are the following:
+!                 Q    -> NCONS * (N+1) * (N+1) * no_of_elements
+!                 W    -> NPRIM * (N+1) * (N+1) * no_of_elements
+!                 QDot -> NCONS * (N+1) * (N+1) * no_of_elements
+!                 dQ   -> NGRAD * NDIM * (N+1) * (N+1) * no_of_elements
+!                 F    -> NCONS * NDIM * (N+1) * (N*1) * no_of_elements (N = integration_points for over integration)
+!           ---------------------------------------------------------------------------------------------------------
+            allocate ( self % Storage % Q    ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % W    ( NPRIM *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % QDot ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % dQ   ( NDIM  * NGRAD * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
                 
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )
+
             else
                allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+!
             end if
-
 !
-!           ******************
-!           Construct the mesh
-!           ******************
-!
+!           Construct the spectral Integration class if Over-Integration is selected
+!           ------------------------------------------------------------------------
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate( self % spI )
                call self % spI % init( Setup % integration_points , Setup % nodes )
-            end if
 
+            end if
+!
+!           Construct the mesh
+!           ------------------
             call self % mesh % constructFromFile(meshFile , self % spA , self % Storage , self % spI)
 !
-!           ********************************
-!           Construct the integration points
-!           ********************************
-!
+!           Prepare the spectral Approximation structures generated for Over-Integration
+!           ----------------------------------------------------------------------------
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
 !          
 !              Set the interpolation matrices
-!
+!              ------------------------------
                call self % spA % computeInterpolationMatrices( self % spI )
 
             end if
-              
 !
-!           ***************************
-!           Set the boundary conditions
-!           ***************************
-!
+!           Construct the domain zones
+!           --------------------------              
             call self % mesh % ConstructZones( meshFile )
 !
-!           ***************
-!           Prepare methods
-!           ***************
-!
+!           Initialize Inviscid and Viscous discretization methods
+!           ------------------------------------------------------
             call DGSpatial_Initialization() 
             
         end subroutine DGSEM_construct
             
         subroutine DGSEM_SetInitialCondition( self , verbose )
+!
+!           *********************************************************
+!                 This routine sets the initial condition from one 
+!              previously selected from the library, or from the
+!              Restart file *.HiORst
+!           *********************************************************
+!              
             use InitialConditions
             use Setup_class
             implicit none
@@ -151,7 +159,9 @@
             else
                call self % mesh % SetInitialCondition ()
             end if
-
+!
+!           Describe the initial condition
+!           ------------------------------
             if ( present ( verbose ) ) then
                if ( verbose ) then
                   call InitialCondition_Describe
@@ -165,18 +175,30 @@
         end subroutine DGSEM_SetInitialCondition
       
         subroutine DGSEM_Integrate( self )
+!
+!           *********************************************************
+!                 This routine constructs the Time Integrator,
+!              and performs the time integration of the problem.
+!           *********************************************************
+!
             use Setup_Class
             use Tecplot
             implicit none
             class(DGSEM_t)                   :: self
             character(len=STR_LEN_DGSEM)     :: solutionpltName
             integer                          :: pos
-
+!
+!           Construct Time Integrator
+!           -------------------------
             self % Integrator = NewTimeIntegrator( self % mesh )
             call self % Integrator % Describe()
-
+!
+!           Integrate
+!           ---------
             call self % Integrator % Integrate( self % mesh , self % Storage)
-
+!
+!           Save the solution file
+!           ----------------------
             pos = index( Setup % solution_file , '.HiORst')
 
             if ( pos .gt. 0 ) then
@@ -186,8 +208,19 @@
             call ExportToTecplot( self % mesh , trim(solutionpltname))  
 
         end subroutine DGSEM_Integrate
-   
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!            
+!              AUXILIAR FUNCTIONS
+!              ------------------ 
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
         subroutine DGSEM_loadRestartFile( self , fileName ) 
+!     
+!           ************************************************************************
+!                 Loads a previous state from a Restart *.HiORst file
+!           ************************************************************************
+!
             use NetCDFInterface
             use Setup_class
             implicit none
@@ -196,19 +229,20 @@
             real(kind=RP), allocatable    :: t(:)
             integer, allocatable          :: iter(:)
             real(kind=RP), allocatable    :: Q(:)
-
+!
+!           Get the current time and iteration
+!           ----------------------------------
             call NetCDF_getVariable ( trim ( fileName )  , "t"    , t    ) 
             call NetCDF_getVariable ( trim ( fileName )  , "iter" , iter ) 
-
-            call NetCDF_getVariable ( trim ( fileName )  , "Q"    , Q    ) 
-
             call Setup % SetInitialTime ( t(1) , iter(1)) 
-
+!
+!           Load the state vector
+!           ---------------------
+            call NetCDF_getVariable ( trim ( fileName )  , "Q"    , Q    ) 
             self % Storage % Q = Q
       
             deallocate( t , Q ) 
    
         end subroutine DGSEM_loadRestartFile
-       
 
-end module DGSEM_class
+   end module DGSEM_class
