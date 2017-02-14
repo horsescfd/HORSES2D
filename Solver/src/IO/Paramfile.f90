@@ -15,7 +15,7 @@ module ParamfileIO
 !  ******************
 !
    private
-   public   readValue , readValueInRegion
+   public   readValue , readValueInRegion , getSquashedLine
    character, parameter       :: comment = '!'
    character, parameter       :: equal(2) = ['=',':'] 
    integer,   parameter       :: STR_LEN_PARAM = 512

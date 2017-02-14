@@ -31,6 +31,7 @@ module QuadMeshClass
              procedure  :: SurfaceIntegral           => Compute_SurfaceIntegral
              procedure  :: ComputeResiduals          => Mesh_ComputeResiduals
              procedure  :: ComputePrimitiveVariables => Mesh_ComputePrimitiveVariables
+             procedure  :: FindElementWithCoords     => Mesh_FindElementWithCoords
     end type QuadMesh_t
 
     type Zone_t
@@ -446,12 +447,47 @@ module QuadMeshClass
             residuals = 0.0_RP
          
             do eID = 1 , self % no_of_elements
-               residuals(IRHO) = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
+               residuals(IRHO)  = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
                residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOU))) )
                residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOV))) )
                residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOE))) )
             end do   
 
          end function Mesh_ComputeResiduals
+
+         subroutine Mesh_FindElementWithCoords( self , x , elemID , xi , eta )
+            use Physics
+            implicit none
+            class(QuadMesh_t) ,  intent (in)  :: self
+            real(kind=RP)     ,  intent (in)  :: x(NDIM)
+            integer           ,  intent (out) :: elemID
+            real(kind=RP)     ,  intent (out)  :: xi
+            real(kind=RP)     ,  intent (out)  :: eta
+!           ------------------------------------------------------------------
+            integer                           :: eID , edID
+            logical                           :: isInside
+            real(kind=RP)                     :: distance , minimumDistance
+
+elloop:     do eID = 1 , self % no_of_elements
+
+               isInside = self % elements(eID) % FindPointWithCoords( x , xi , eta )
+
+               if ( isInside ) then
+                  elemID = eID
+                  exit elloop
+      
+               end if
+
+            end do elloop
+
+            if ( .not. isInside ) then
+               print*, "Warning, the point probe was not found in the mesh."
+               elemID = -1
+               xi = huge(0.0_RP)
+               eta = huge(0.0_RP)
+
+            end if
+
+         end subroutine Mesh_FindElementWithCoords
 
 end module QuadMeshClass   

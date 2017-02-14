@@ -44,6 +44,7 @@ module QuadElementClass
             procedure      :: ComputePrimitiveVariables => QuadElement_ComputePrimitiveVariables
             procedure      :: Ja          => QuadElement_MetricMatrix
             procedure      :: Compute_X   => QuadElement_Compute_X
+            procedure      :: FindPointWithCoords => QuadElement_FindPointWithCoords
     end type QuadElement_t
 
 !
@@ -511,7 +512,5 @@ module QuadElementClass
             end associate
 
          end subroutine Edge_ComputePrimitiveVariables
-
-
 
 end module QuadElementClass

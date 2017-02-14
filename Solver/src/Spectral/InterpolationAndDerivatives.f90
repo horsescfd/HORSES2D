@@ -83,6 +83,7 @@
 !    /////////////////////////////////////////////////////////////////
 !
       SUBROUTINE LagrangeInterpolatingPolynomialBarycentric( x, N, nodes, weights, p )
+      use Utilities
 !
 !---------------------------------------------------------------------
 ! Compute L_j(x), j = 0, ..., N of degree N whose zeros are at the nodes 
@@ -215,6 +216,7 @@
 !     ------------------------------------------------------------------
 !
       REAL(KIND=RP) FUNCTION LagrangeInterpolation( x, N, nodes, values, weights)
+      use Utilities
 !
 !     ---------
 !     Arguments
@@ -255,6 +257,7 @@
 !     ------------------------------------------------------------------
 !
       REAL(KIND=RP) FUNCTION LagrangeInterpolantDerivative( x, N, nodes, values, weights)
+      use Utilities
 !
 !     ---------
 !     Arguments
@@ -320,6 +323,7 @@
 !     ------------------------------------------------------------------
 !
       SUBROUTINE PolynomialInterpolationMatrix( N, M, oldNodes, weights, newNodes, T)
+      use Utilities
 !
 !     ---------
 !     Arguments

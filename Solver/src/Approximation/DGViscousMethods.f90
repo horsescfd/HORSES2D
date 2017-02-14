@@ -471,8 +471,6 @@ module DGViscousMethods
 
       end function dQFaceContribution
 
-
-
       subroutine ViscousMethod_describe( self )
          use Headers
          implicit none
@@ -498,6 +496,5 @@ module DGViscousMethods
          end select
 
       end subroutine ViscousMethod_describe
-
 
 end module DGViscousMethods

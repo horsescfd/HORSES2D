@@ -366,7 +366,7 @@ module DGInviscidMethods
 !
 !        *************************************************************************************
 !           This subroutine computes the following integral
-
+!
 !                 ---------------------------------
 !                 | dFJ = \int_e Fstar l_j l_i ds |
 !                 ---------------------------------

@@ -2,12 +2,21 @@ module DGTimeIntegrator
    use SMConstants
    use DGSpatialDiscretizationMethods
    use QuadMeshClass
+   use Monitors
 
    private
    public TimeIntegrator_t , NewTimeIntegrator
-
-   integer, parameter         :: STR_LEN_TIMEINTEGRATOR = 128
+!
+!                                *******************************
+   integer, parameter         :: STR_LEN_TIMEINTEGRATOR    = 128
    integer, parameter         :: estimateTimeStep_interval = 100
+!                                *******************************
+!
+!
+!                                ********
+   type(Monitor_t)            :: Monitors
+!                                ********
+!
 
    type TimeIntegrator_t
       integer                               :: iter
@@ -111,6 +120,10 @@ module DGTimeIntegrator
             stop "Stopped."
 
          end if
+!
+!        Create monitors
+!        ---------------
+         Monitors = ConstructMonitors( mesh )
            
 
       end function TimeIntegrator_NewTimeIntegrator
@@ -131,6 +144,8 @@ module DGTimeIntegrator
             call self % TimeStep( mesh , self % dt , Storage)
             self % t    = self % t + self % dt
 
+            call Monitors % UpdateValues ( mesh , self % t)
+
             if ( iter .eq. self % initial_iteration + 1 ) then
                call self % Display( mesh ) 
             elseif ( mod(iter , self % output_interval) .eq. 0 ) then
@@ -145,6 +160,7 @@ module DGTimeIntegrator
                call self % EstimateTimeStep( mesh )
             end if
 
+            call Monitors % WriteToFile()
 
          end do
 !
@@ -153,6 +169,8 @@ module DGTimeIntegrator
          call sleep(2)
          self % iter = self % initial_iteration + self % no_of_iterations
          call self % Autosave( Storage , mesh , trim(Setup % solution_file) ) 
+
+         call Monitors % WriteToFile ( force = .true. )
 
       end subroutine TimeIntegrator_Integrate
 !
@@ -277,15 +295,23 @@ module DGTimeIntegrator
          if ( mod( shown , ShowLabels) .eq. 0 ) then     ! Show labels
             write(STD_OUT , '(/)')
             write(STD_OUT , '(/)')
-            write(STD_OUT , '(A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
-            write(STD_OUT , '(A20,5X,A10,5X,A10,5X,A10,5X,A10,5X,A10)') "---------" , "--------" , "----------" , "----------" , "----------", "--------"
+
+            write(STD_OUT , '(A10,3X,A10,3X,A10,3X,A10,3X,A10,3X,A10)', advance = "no" ) "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
+            call Monitors % WriteLabel
+            write(STD_OUT , * ) 
+
+            write(STD_OUT , '(A10,3X,A10,3X,A10,3X,A10,3X,A10,3X,A10)' , advance = "no" ) "---------" , "--------" , "----------" , "----------" , "----------", "--------"
+            call Monitors % WriteUnderlines
+            write(STD_OUT , * ) 
          end if
          shown = shown + 1
 
          residuals = mesh % computeResiduals()
 
-         write(STD_OUT , '(I20,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3,2X,A,2X,ES10.3)') self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
+         write(STD_OUT , '(I10,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3)' , advance = "no") self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
                                           "|", residuals(IRHOV) , "|" , residuals(IRHOE)
+         call Monitors % WriteValues
+         
       end subroutine TimeIntegrator_Display
 
       subroutine TimeIntegrator_Describe( self )
@@ -347,7 +373,6 @@ module DGTimeIntegrator
          
          write(STD_OUT , '(A,/)' ) "..  Saved"
 
-
       end subroutine TimeIntegrator_Autosave
 !
 !////////////////////////////////////////////////////////////////////////////
@@ -401,9 +426,5 @@ module DGTimeIntegrator
          self % dt = dt
 
       end subroutine TimeIntegrator_EstimateTimeStep
-
-
-
-
 
 end module DGTimeIntegrator

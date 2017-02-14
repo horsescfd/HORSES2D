@@ -67,6 +67,7 @@
 !                    will be compared
 !        **********************************************************************
 !
+            use Utilities
             use Physics
             implicit none
             class(Zone_t)           :: zone1

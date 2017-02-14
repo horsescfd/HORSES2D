@@ -13,6 +13,7 @@ module Setup_class
 !              Reference quantities
 !       -------------------------------------------------------------------------------------
 !
+        character(len=STR_LEN_SETUP) :: case_file
         character(len=STR_LEN_SETUP) :: mesh_file           
         character(len=STR_LEN_SETUP) :: bdry_file            
 !
@@ -136,6 +137,7 @@ module Setup_class
 !
 !         Read from case file
 !         -------------------
+          Setup % case_file = trim(case_name)
           call readValue(trim(case_name) , "Mesh file" , Setup % mesh_file )
           call readValue(trim(case_name) , "Boundary file" , Setup % bdry_file )
 

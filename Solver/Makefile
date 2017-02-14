@@ -25,9 +25,9 @@ Physics: PhysicsNS Headers
 PhysicsNS: Setup SMConstants Headers MatrixOperations
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
-InterpolationAndDerivatives: SMConstants
+InterpolationAndDerivatives: SMConstants Utilities
 LegendreAlgorithms: SMConstants
-QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions
+QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions Utilities
 MeshFile: Setup SMConstants NetCDF_Interface Headers
 QuadElement: src/Mesh/QuadAuxiliar.incf src/Mesh/QuadMappings.incf NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives MatrixOperations MetricMatrix
 QuadDefinitions: SMConstants
@@ -45,7 +45,8 @@ DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesA
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants
-DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot Monitors
+Monitors: SMConstants Setup Paramfile Physics QuadMesh
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
