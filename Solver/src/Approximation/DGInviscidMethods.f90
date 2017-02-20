@@ -186,11 +186,6 @@ module DGInviscidMethods
          class(Edge_t), pointer     :: edge
 !        -------------------------------------------------------
          real(kind=RP), allocatable :: Fstar(:,:)
-         real(kind=RP), allocatable :: Fstar2D(:,:,:)
-         real(kind=RP), pointer     :: lj2D(:,:)
-         integer                    :: direction
-         integer                    :: pos
-         integer                    :: index
 
          associate ( N => edge % spA % N )
 !
@@ -282,11 +277,6 @@ module DGInviscidMethods
          class(Edge_t), pointer     :: edge
 !        -------------------------------------------------
          real(kind=RP), allocatable :: Fstar(:,:)
-         real(kind=RP), allocatable :: Fstar2D(:,:,:)
-         real(kind=RP), pointer     :: lj2D(:,:)
-         integer                    :: direction
-         integer                    :: pos
-         integer                    :: index
 !
          associate ( N => edge % spA % N )
 

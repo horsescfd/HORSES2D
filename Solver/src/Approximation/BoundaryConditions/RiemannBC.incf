@@ -129,7 +129,7 @@
 
       end subroutine RiemannBC_Associate
 
-      subroutine RiemannBC_Update( self , edge )
+      subroutine RiemannBC_UpdateSolution( self , edge )
          implicit none
          class(RiemannBC_t)          :: self
          class(Edge_t)                       :: edge
@@ -317,6 +317,6 @@
 
          end associate
 
-      end subroutine RiemannBC_Update
+      end subroutine RiemannBC_UpdateSolution
 
 

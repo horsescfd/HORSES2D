@@ -124,7 +124,7 @@ runchan:
 	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
 
 runfree: 	
-	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) -check)		
+	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
 
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 

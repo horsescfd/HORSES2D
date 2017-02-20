@@ -5,6 +5,46 @@
 !              ---------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
+      subroutine ViscousWall_Construct ( self , marker , in_label) 
+         use Setup_class
+         implicit none
+         class(ViscousWall_t)       :: self
+         integer                    :: marker
+         character(len=*)           :: in_label
+!        ----------------------------------------------         
+         character(len=STR_LEN_BC)  :: wall_type
+         real(kind=RP), allocatable :: Tw
+
+         call readValueInRegion( trim(Setup % bdry_file) , "Wall type" , wall_type , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Wall temperature" , Tw , in_label , "# end")
+
+         if ( trim(wall_type) .eq. "Isothermal" ) then
+            self % wall_type = ISOTHERMAL_WALL
+
+         elseif ( trim(wall_type) .eq. "Adiabatic" ) then  
+            self % wall_type = ADIABATIC_WALL
+
+         else
+               if ( len_trim (wall_type) .eq. 0 ) then
+                  print*, "Viscous wall type was not specified for marker " , marker , "."
+
+               else
+                  print*, 'Viscous wall type "',trim(wall_type),'" in marker ', marker, ' not implemented yet.'
+                  print*, "Options available are:"
+                  print*, "   * Isothermal"
+                  print*, "   * Adiabatic"
+                  stop "Stopped."
+
+               end if
+         end if
+
+         if ( allocated ( Tw ) ) then
+            self % Tw = Tw
+
+         end if
+
+      end subroutine ViscousWall_Construct
+
       subroutine ViscousWall_Associate(self , edge)
          implicit none
          class(ViscousWall_t)          :: self
@@ -21,17 +61,19 @@
       
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % gB(0:N,NCONS,NDIM) )   ! Normal gradients
+               allocate( edge % wB(0:N,NPRIM) )
+               allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
    
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % gB(0:N,NCONS,NDIM) )
+               allocate( edge % wB(0:N,NPRIM) )
+               allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
 
          end select
          end associate
       end subroutine ViscousWall_Associate
 
-      subroutine ViscousWall_Update( self , edge )
+      subroutine ViscousWall_UpdateSolution( self , edge )
          implicit none  
          class(ViscousWall_t)                  :: self
          class(Edge_t)                       :: edge
@@ -42,6 +84,17 @@
 !              UB(IRHOU) = -Q(IRHOU)
 !              UB(IRHOV) = -Q(IRHOV)
 !              UB(IRHOE) = Q(IRHOE)
+!
+!           The primitive variables are set as follows:
+!              WB(IU) = 0
+!              WB(IV) = 0
+!              WB(IT) = Tint / Text (Adiabatic/Isothermal)
+!
+!           The gradients are set such that the stresses are
+!           computed from the inner flow, while the temperature
+!           flux is:
+!                 dT = dTi for Isothermal
+!                 dT = -dTi for Adiabatic
 !        ***************************************************
 !
          associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
@@ -54,6 +107,17 @@
                edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
                edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
 
+               edge % wB(0 : N , IU) = 0.0_RP
+               edge % wB(0 : N , IV) = 0.0_RP
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % wB( 0:N , IT ) = self % Tw
+
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % wB( 0 : N , IT ) = edge % Q( 0 : N , IT , 1 )
+
+               end if
+
             type is (CurvedBdryEdge_t)
 
                edge % uB(0 : N , IRHO)  =  edge % Q(0 : N , IRHO  , 1)
@@ -61,10 +125,81 @@
                edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
                edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
       
+               edge % wB(0 : N , IU) = 0.0_RP
+               edge % wB(0 : N , IV) = 0.0_RP
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % wB( 0:N , IT ) = self % Tw
+
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % wB( 0 : N , IT ) = edge % W( 0 : N , IT , 1 )
+
+               end if
+
             class default
          end select
 
          end associate
 
-      end subroutine ViscousWall_Update
+      end subroutine ViscousWall_UpdateSolution
+ 
+      subroutine ViscousWall_UpdateGradient( self , edge )
+         implicit none  
+         class(ViscousWall_t)                  :: self
+         class(Edge_t)                       :: edge
+!
+!        ***************************************************
+!           For each edge the ghost cell state is computed as
+!              UB(IRHO) = Q(IRHO)
+!              UB(IRHOU) = -Q(IRHOU)
+!              UB(IRHOV) = -Q(IRHOV)
+!              UB(IRHOE) = Q(IRHOE)
+!
+!           The primitive variables are set as follows:
+!              WB(IU) = 0
+!              WB(IV) = 0
+!              WB(IT) = Tint / Text (Adiabatic/Isothermal)
+!
+!           The gradients are set such that the stresses are
+!           computed from the inner flow, while the temperature
+!           flux is:
+!                 dT = dTi for Isothermal
+!                 dT = -dTi for Adiabatic
+!        ***************************************************
+!
+         associate( N => edge % spA % N )
+   
+         select type ( edge ) 
+            type is (StraightBdryEdge_t)
+   
+               edge % gB(0:N , 1:NDIM , IGU) = edge % dQ(0 : N , 1:NDIM , IGU , 1)
+               edge % gB(0:N , 1:NDIM , IGV) = edge % dQ(0 : N , 1:NDIM , IGV , 1)
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % gB( 0:N , 1:NDIM , IT ) = edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % gB( 0:N , 1:NDIM , IT ) = -edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+
+               end if
+
+            type is (CurvedBdryEdge_t)
+
+               edge % gB(0:N , 1:NDIM , IGU) = edge % dQ(0 : N , 1:NDIM , IGU , 1)
+               edge % gB(0:N , 1:NDIM , IGV) = edge % dQ(0 : N , 1:NDIM , IGV , 1)
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+
+               end if
+
+            class default
+         end select
+
+         end associate
+
+      end subroutine ViscousWall_UpdateGradient
 

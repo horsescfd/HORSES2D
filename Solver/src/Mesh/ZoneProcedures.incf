@@ -135,8 +135,12 @@
                         edge2 % associated = .true.
                         edge1 % associated = .true.
 
-                        edge1 % uB(0:,1:) => edge2 % Q(0:,1:,1)
-                        edge2 % uB(0:,1:) => edge1 % Q(0:,1:,1)
+                        edge1 % uB(0:,1:)    => edge2 % Q(0:,1:,1)
+                        edge1 % wB(0:,1:)    => edge2 % W(0:,1:,1)
+                        edge1 % gB(0:,1:,1:) => edge2 % dQ(0:,1:,1:,1)
+                        edge2 % uB(0:,1:)    => edge1 % Q(0:,1:,1)
+                        edge2 % wB(0:,1:)    => edge1 % W(0:,1:,1)
+                        edge2 % gB(0:,1:,1:) => edge1 % dQ(0:,1:,1:,1)
 
                      end if
                   end if
@@ -149,17 +153,27 @@
 
          end subroutine Zone_LinkPeriodicZones
 
-         subroutine Zone_Update( self )
+         subroutine Zone_UpdateSolution( self )
             implicit none
             class(Zone_t)           :: self
             integer                 :: edID
 
             do edID = 1 , self % no_of_edges
-               call self % BC % Update( self % edges(edID) % f )
+               call self % BC % UpdateSolution( self % edges(edID) % f )
             end do
-            
 
-         end subroutine Zone_Update
+         end subroutine Zone_UpdateSolution
+
+         subroutine Zone_UpdateGradient( self )
+            implicit none
+            class(Zone_t)           :: self
+            integer                 :: edID
+
+            do edID = 1 , self % no_of_edges
+               call self % BC % UpdateGradient( self % edges(edID) % f )
+            end do
+
+         end subroutine Zone_UpdateGradient
 
          subroutine Zone_Describe( self ) 
             use Headers

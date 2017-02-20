@@ -21,6 +21,8 @@ module DGBoundaryConditions
    integer, parameter         :: STR_LEN_BC             = 128
    integer, parameter         :: SPECIFY_SPEED          = 1
    integer, parameter         :: SPECIFY_TOTAL_PRESSURE = 2
+   integer, parameter         :: ISOTHERMAL_WALL        = 1
+   integer, parameter         :: ADIABATIC_WALL         = 2
 !  **********************************************************
 !
 !
@@ -38,7 +40,8 @@ module DGBoundaryConditions
          procedure :: Construct        => BaseClass_Construct
          procedure :: SetRiemannSolver => BoundaryConditions_SetRiemannSolver
          procedure :: Associate        => BaseClass_Associate
-         procedure :: Update           => BaseClass_Update
+         procedure :: UpdateSolution   => BaseClass_UpdateSolution
+         procedure :: UpdateGradient   => BaseClass_UpdateGradient
          procedure :: Describe         => BaseClass_Describe
    end type BoundaryCondition_t
 !
@@ -79,7 +82,7 @@ module DGBoundaryConditions
       contains
          procedure ::      Construct => FarfieldBC_Construct
          procedure ::      Associate => FarfieldBC_Associate
-         procedure ::      Update    => FarfieldBC_Update
+         procedure ::      UpdateSolution    => FarfieldBC_UpdateSolution
          procedure ::      Describe  => FarfieldBC_Describe
    end type FarFieldBC_t
 !
@@ -95,7 +98,7 @@ module DGBoundaryConditions
       contains
          procedure ::      Construct => PressureOutletBC_Construct
          procedure ::      Associate => PressureOutletBC_Associate
-         procedure ::      Update    => PressureOutletBC_Update
+         procedure ::      UpdateSolution    => PressureOutletBC_UpdateSolution
          procedure ::      Describe  => PressureOutletBC_Describe
    end type PressureOutletBC_t
 !
@@ -114,7 +117,7 @@ module DGBoundaryConditions
       contains
          procedure ::      Construct => PressureInletBC_Construct
          procedure ::      Associate => PressureInletBC_Associate
-         procedure ::      Update    => PressureInletBC_Update
+         procedure ::      UpdateSolution    => PressureInletBC_UpdateSolution
          procedure ::      Describe  => PressureInletBC_Describe
    end type PressureInletBC_t
 !
@@ -133,7 +136,7 @@ module DGBoundaryConditions
       contains
          procedure ::      Construct => RiemannBC_Construct
          procedure ::      Associate => RiemannBC_Associate
-         procedure ::      Update    => RiemannBC_Update
+         procedure ::      UpdateSolution    => RiemannBC_UpdateSolution
          procedure ::      Describe  => RiemannBC_Describe
    end type RiemannBC_t
 
@@ -145,7 +148,7 @@ module DGBoundaryConditions
    type, extends(BoundaryCondition_t)           :: EulerWall_t
       contains
          procedure   ::    Associate => EulerWall_Associate
-         procedure   ::    Update    => EulerWall_Update
+         procedure   ::    UpdateSolution    => EulerWall_UpdateSolution
          procedure   ::    Describe  => EulerWall_Describe
    end type EulerWall_t
 !
@@ -154,9 +157,13 @@ module DGBoundaryConditions
 !  *************************************
 !
    type, extends(BoundaryCondition_t)           :: ViscousWall_t
+      real(kind=RP)                 :: Tw
+      integer                       :: wall_type
       contains
+         procedure   ::    Construct => ViscousWall_Construct
          procedure   ::    Associate => ViscousWall_Associate
-         procedure   ::    Update    => ViscousWall_Update
+         procedure   ::    UpdateSolution    => ViscousWall_UpdateSolution
+         procedure   ::    UpdateGradient    => ViscousWall_UpdateGradient
          procedure   ::    Describe  => ViscousWall_Describe
    end type ViscousWall_t
 
@@ -365,7 +372,7 @@ module DGBoundaryConditions
 !
       end subroutine BaseClass_Associate
 
-      subroutine BaseClass_Update( self , edge )
+      subroutine BaseClass_UpdateSolution( self , edge )
          implicit none
          class(BoundaryCondition_t)          :: self
          class(Edge_t)                       :: edge
@@ -374,7 +381,18 @@ module DGBoundaryConditions
 !           The base class does nothing
 !        *****************************************
 !
-      end subroutine BaseClass_Update
+      end subroutine BaseClass_UpdateSolution
+
+      subroutine BaseClass_UpdateGradient( self , edge )
+         implicit none
+         class(BoundaryCondition_t)          :: self
+         class(Edge_t)                       :: edge
+!
+!        *****************************************
+!           The base class does nothing
+!        *****************************************
+!
+      end subroutine BaseClass_UpdateGradient
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -409,19 +427,15 @@ module DGBoundaryConditions
 !
 !           -----------------------------------------------------------        
             type is (StraightBdryEdge_t)
-               allocate ( edge % uB ( 0 : N , NCONS        )  ) 
-               allocate ( edge % gB ( 0 : N , NCONS , NDIM )  ) ! Normal gradients
+               allocate ( edge % uB ( 0 : N , NCONS )  ) 
                
-               edge % uB ( 0 : N , 1 : NCONS            )  = 0.0_RP      ! Its value is not given until the update routine is invoked
-               edge % gB ( 0 : N , 1 : NCONS , 1 : NDIM )  = 0.0_RP
+               edge % uB ( 0 : N , 1 : NCONS )  = 0.0_RP      ! Its value is not given until the update routine is invoked
 !
 !           -----------------------------------------------------------        
             type is (CurvedBdryEdge_t)
-               allocate ( edge % uB ( 0 : N , NCONS        )  ) 
-               allocate ( edge % gB ( 0 : N , NCONS , NDIM )  ) 
+               allocate ( edge % uB ( 0 : N , NCONS )  ) 
 
-               edge % uB ( 0 : N , 1 : NCONS            )  = 0.0_RP    ! Its value is not given until the update routine is invoked
-               edge % gB ( 0 : N , 1 : NCONS , 1 : NDIM )  = 0.0_RP
+               edge % uB ( 0 : N , 1 : NCONS )  = 0.0_RP    ! Its value is not given until the update routine is invoked
 !
 !        **********
          end select

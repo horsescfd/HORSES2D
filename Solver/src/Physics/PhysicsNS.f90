@@ -8,7 +8,7 @@ module PhysicsNS
     public :: IGU , IGV , IGT
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
-    public :: InviscidFlux
+    public :: InviscidFlux , ViscousFlux , ViscousNormalFlux
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver , ExactRiemann_ComputePStar
 !
 !   *****************************************
@@ -28,9 +28,9 @@ module PhysicsNS
     integer, parameter :: IX = 1
     integer, parameter :: IY = 2
 !
-!   ******************++**********************
+!   ******************************************
 !        Parameters to select variables
-!   ******************++**********************
+!   ******************************************
 !
 !   --- Conservative variables ---
     integer, parameter :: IRHO  = 1
@@ -65,6 +65,7 @@ module PhysicsNS
       real(kind=RP)        :: invgm1      ! 1.0_RP / (gamma - 1 )
       real(kind=RP)        :: cp
       real(kind=RP)        :: cv
+      real(kind=RP)        :: lambda
     end type Thermodynamics_t
 
     type RefValues_t
@@ -102,7 +103,8 @@ module PhysicsNS
       end function RiemannSolverFunction
     end interface
 
-    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
+    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , &
+                              0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP , 2.0_RP / 3.0_RP )
     type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
@@ -111,13 +113,21 @@ module PhysicsNS
     interface inviscidFlux
       module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D , inviscidFlux2D_PRIM
     end interface inviscidFlux
-!
-!    interface viscousFlux
-!      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
-!    end interface viscousFlux
-!
-    contains
 
+    interface viscousFlux
+      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
+    end interface viscousFlux
+
+    interface viscousNormalFlux
+      module procedure viscousNormalFlux0D , viscousNormalFlux1D , viscousNormalFlux2D
+    end interface viscousNormalFlux
+!
+!   ========
+    contains
+!   ========
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
        subroutine InitializePhysics()
          implicit none
 !
@@ -151,14 +161,13 @@ module PhysicsNS
 !        Initialize the dimensionless values
 !        ***********************************
 !
-         dimensionless % mu         = sqrt( thermodynamics % gamma ) * refValues % Mach / Setup % reynolds_number
-         dimensionless % kappa      = dimensionless % mu * thermodynamics % gogm1 / Setup % prandtl_number
+         dimensionless % mu         = 1.0_RP / Setup % reynolds_number
+         dimensionless % kappa      = dimensionless  % mu * thermodynamics % gogm1 / Setup % prandtl_number
          dimensionless % cp         = thermodynamics % gogm1
          dimensionless % cv         = thermodynamics % invgm1
          dimensionless % Re         = Setup % reynolds_number
          dimensionless % Pr         = Setup % prandtl_number
          dimensionless % Mach       = Setup % Mach_number
-
 
          call Describe
 
@@ -308,7 +317,6 @@ module PhysicsNS
    
          end associate
 
-
       end function inviscidFlux2D_PRIM
      
       function F_inviscidFlux(u) result(F)
@@ -330,43 +338,153 @@ module PhysicsNS
 
          end associate
       end function F_inviscidFlux
+!
+!     ****************************************************
+!        Viscous fluxes
+!     ****************************************************
+!
+      function viscousFlux0D( w , dq) result(val)
+         implicit none
+         real(kind=RP)          :: w(NPRIM)
+         real(kind=RP)          :: dq(NDIM , NGRAD)
+         real(kind=RP), target  :: val(NCONS,NDIM)
+         real(kind=RP), pointer :: F(:) , G(:)
 
-!
-!      function viscousFlux0D(g,u) result(val)
-!         implicit none
-!         real(kind=RP), optional     :: u
-!         real(kind=RP)               :: g
-!         real(kind=RP)               :: val
-!
-!
-!         val = Setup % nu * g
-!
-!      end function viscousFlux0D
-!
-!      function viscousFlux1D(g,u) result(val)
-!         implicit none
-!         real(kind=RP), optional     :: u(:)
-!         real(kind=RP)               :: g(:)
-!         real(kind=RP), allocatable     :: val(:)
-!
-!         allocate(val( size(g,1)) )
-!
-!         val = Setup % nu * g
-!
-!      end function viscousFlux1D
-!
-!      function viscousFlux2D(g,u) result(val)
-!         implicit none
-!         real(kind=RP), optional     :: u(:,:)
-!         real(kind=RP)               :: g(:,:)
-!         real(kind=RP), allocatable     :: val(:,:)
-!
-!         allocate(val( size(g,1) , size(g,2) ) )
-!
-!         val = Setup % nu * g
-!
-!      end function viscousFlux2D
+         F(1:NCONS)    => val(1:NCONS,IX)
+         G(1:NCONS)    => val(1:NCONS,IY)
 
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+           
+         F(IRHO)  = 0.0_RP
+         F(IRHOU) = mu * ( 2.0_RP * dq(IX , IGU) - lambda * ( dq(IX,IGU) + dq(IY,IGV) ) )
+         F(IRHOV) = mu * ( dq(IY,IGU) + dq(IX,IGV) )
+         F(IRHOE) = F(IRHOU) * w(IU) + F(IRHOV) * w(IV) + kappa * dq(IX,IGT) 
+
+         G(IRHO)  = 0.0_RP
+         G(IRHOU) = F(IRHOV)
+         G(IRHOV) = mu * ( 2.0_RP * dq(IY , IGV) - lambda * ( dq(IX,IGU) + dq(IY,IGV) ) )
+         G(IRHOE) = G(IRHOU) * w(IU) + G(IRHOV) * w(IV) + kappa * dq(IY,IGT) 
+
+         end associate
+
+      end function viscousFlux0D
+
+      function viscousFlux1D( w , dq ) result ( val )
+         implicit none
+         real(kind=RP)                      :: w(0:,:)
+         real(kind=RP)                      :: dq(0:,:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:)
+         real(kind=RP), pointer             :: F(:,:) , G(:,:)
+
+         allocate( val(0:size(w,1)-1 , 1:NCONS , 1:NDIM ) )
+
+         F(0:,1:)    => val(0:,1:,IX)
+         G(0:,1:)    => val(0:,1:,IY)
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+
+         F(:,IRHO)  = 0.0_RP
+         F(:,IRHOU) = mu * ( 2.0_RP * dq(:,IX , IGU) - lambda * ( dq(:,IX,IGU) + dq(:,IY,IGV) ) )
+         F(:,IRHOV) = mu * ( dq(:,IY,IGU) + dq(:,IX,IGV) )
+         F(:,IRHOE) = F(:,IRHOU) * w(:,IU) + F(:,IRHOV) * w(:,IV) + kappa * dq(:,IX,IGT) 
+
+         G(:,IRHO)  = 0.0_RP
+         G(:,IRHOU) = F(:,IRHOV)
+         G(:,IRHOV) = mu * ( 2.0_RP * dq(:,IY , IGV) - lambda * ( dq(:,IX,IGU) + dq(:,IY,IGV) ) )
+         G(:,IRHOE) = G(:,IRHOU) * w(:,IU) + G(:,IRHOV) * w(:,IV) + kappa * dq(:,IY,IGT) 
+
+         end associate 
+
+      end function viscousFlux1D
+
+      function viscousFlux2D( w , dq ) result ( val )
+         implicit none
+         real(kind=RP)                      :: w(0:,0:,:)
+         real(kind=RP)                      :: dq(0:,0:,:,:)
+         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+
+         allocate( val(0:size(w,1)-1 , 0:size(w,2)-1 , 1:NCONS , 1:NDIM ) )
+
+         F(0:,0:,1:)    => val(0:,0:,1:,iX)
+         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+
+         F(:,:,IRHO)  = 0.0_RP
+         F(:,:,IRHOU) = mu * ( 2.0_RP * dq(:,:,IX , IGU) - lambda * ( dq(:,:,IX,IGU) + dq(:,:,IY,IGV) ) )
+         F(:,:,IRHOV) = mu * ( dq(:,:,IY,IGU) + dq(:,:,IX,IGV) )
+         F(:,:,IRHOE) = F(:,:,IRHOU) * w(:,:,IU) + F(:,:,IRHOV) * w(:,:,IV) + kappa * dq(:,:,IX,IGT) 
+
+         G(:,:,IRHO)  = 0.0_RP
+         G(:,:,IRHOU) = F(:,:,IRHOV)
+         G(:,:,IRHOV) = mu * ( 2.0_RP * dq(:,:,IY , IGV) - lambda * ( dq(:,:,IX,IGU) + dq(:,:,IY,IGV) ) )
+         G(:,:,IRHOE) = G(:,:,IRHOU) * w(:,:,IU) + G(:,:,IRHOV) * w(:,:,IV) + kappa * dq(:,:,IY,IGT) 
+
+         end associate 
+
+      end function viscousFlux2D
+
+      function viscousNormalFlux0D( w , dq , dS ) result ( val )
+         implicit none
+         real(kind=RP), intent(in)  :: w(NPRIM)
+         real(kind=RP), intent(in)  :: dq(NDIM,NGRAD)
+         real(kind=RP), intent(in)  :: dS(NDIM) 
+         real(kind=RP)              :: val(NCONS)
+!        ----------------------------------------------------------
+         real(kind=RP)              :: Fv(NCONS , NDIM)
+
+         Fv = viscousFlux0D ( w , dq )
+
+         val = Fv(1:NCONS,IX) * dS(IX) + Fv(1:NCONS,IY) * dS(IY)
+
+      end function viscousNormalFlux0D
+
+      function viscousNormalFlux1D ( w , dq , dS ) result ( val )
+         implicit none
+         real(kind=RP), intent(in)  :: w(0: ,1:)
+         real(kind=RP), intent(in)  :: dq(0: , 1: , 1: )
+         real(kind=RP), intent(in)  :: dS(1: , 0: )
+         real(kind=RP), allocatable :: val(: , :)
+!        ---------------------------------------------------------
+         real(kind=RP), allocatable :: Fv(:,:,:)
+         integer                    :: eq
+
+         allocate ( Fv ( 0 : size(w,1)-1 , 1:NCONS , 1:NDIM ) )
+         allocate ( val ( 0 : size(w,1)-1 , 1:NCONS  ) )
+
+         Fv = viscousFlux1D ( w , dq )
+   
+         do eq = 1 , NCONS
+            val(:,eq) = Fv(:,eq,IX) * dS(IX,:) + Fv(:,eq,IY) * dS(IY,:)
+         end do
+
+         deallocate( Fv )
+
+      end function viscousNormalFlux1D
+
+      function viscousNormalFlux2D ( w , dq , dS ) result ( val )
+         implicit none
+         real(kind=RP), intent(in)  :: w(0: , 0: , 1:)
+         real(kind=RP), intent(in)  :: dq(0: , 0: , 1: , 1: )
+         real(kind=RP), intent(in)  :: dS(1: , 0: , 0: )
+         real(kind=RP), allocatable :: val(: , : , :)
+!        ---------------------------------------------------------
+         real(kind=RP), allocatable :: Fv(:,:,:,:)
+         integer                    :: eq
+
+         allocate ( Fv ( 0 : size(w,1)-1 , 0 : size(w,2) - 1 , 1:NCONS , 1:NDIM ) )
+         allocate ( val ( 0 : size(w,1)-1 , 0 : size(w,2) - 1 , 1:NCONS  ) )
+
+         Fv = viscousFlux2D ( w , dq )
+   
+         do eq = 1 , NCONS
+            val(:,:,eq) = Fv(:,:,eq,IX) * dS(IX,:,:) + Fv(:,:,eq,IY) * dS(IY,:,:)
+         end do
+
+         deallocate( Fv )
+
+      end function viscousNormalFlux2D
 !
 !     ****************************************************
 !        Riemann solvers

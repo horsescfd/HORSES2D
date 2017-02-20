@@ -1,4 +1,4 @@
-module Monitors
+module MonitorsClass
    use SMConstants
    use Physics
    use QuadMeshClass
@@ -395,7 +395,7 @@ readloop:do
          class(Probe_t)             :: self
          integer                    :: bufferLine
 
-         write(STD_OUT , '(1X,A,1X,ES10.3)' ) "|" , self % values ( bufferLine ) 
+         write(STD_OUT , '(1X,A,1X,ES10.3)' , advance = "no") "|" , self % values ( bufferLine ) 
 
       end subroutine Probe_WriteValue 
 
@@ -419,4 +419,4 @@ readloop:do
       
       end subroutine Probe_WriteToFile
 
-end module Monitors
+end module MonitorsClass

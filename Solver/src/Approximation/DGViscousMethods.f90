@@ -21,11 +21,14 @@ module DGViscousMethods
    type ViscousMethod_t
       character(len=STR_LEN_VISCOUS)     :: method
       contains
-         procedure ::   QDotFaceLoop   => BaseClass_QDotFaceLoop
-         procedure ::   dQFaceLoop     => BaseClass_dQFaceLoop
-         procedure ::   QDotVolumeLoop => BaseClass_QDotVolumeLoop
-         procedure ::   dQVolumeLoop   => BaseClass_dQVolumeLoop
-         procedure ::   Describe       => ViscousMethod_describe
+         procedure ::   IntercellFlux      => BaseClass_IntercellFlux
+         procedure ::   QDotFaceLoop       => BaseClass_QDotFaceLoop
+         procedure ::   dQFaceLoop         => BaseClass_dQFaceLoop
+         procedure ::   QDotVolumeLoop     => BaseClass_QDotVolumeLoop
+         procedure ::   dQVolumeLoop       => BaseClass_dQVolumeLoop
+         procedure ::   ComputeInnerFluxes => BaseClass_ComputeInnerFluxes
+         procedure ::   ComputeFaceFluxes  => BaseClass_ComputeFaceFluxes
+         procedure ::   Describe           => ViscousMethod_describe
    end type ViscousMethod_t
 !  *******************************************************
 !  ---------------- Interior penalty method --------------
@@ -50,6 +53,7 @@ module DGViscousMethods
          procedure ::  QDotVolumeLoop => BR1_QDotVolumeLoop
          procedure ::  dQFaceLoop     => BR1_dQFaceLoop
          procedure ::  dQVolumeLoop   => BR1_dQVolumeLoop
+         procedure ::  IntercellFlux  => BR1_IntercellFlux
    end type BR1Method_t
 !  *******************************************************
 !  -------------------------------------------------------
@@ -182,7 +186,96 @@ module DGViscousMethods
 !        ------------------------------------
 !
       end subroutine BaseClass_dQVolumeLoop
- 
+
+      subroutine BaseClass_ComputeInnerFluxes( self , element ) 
+!
+!        **********************************************************************
+!              This subroutine computes the contravariant fluxes of the element
+!           The fluxes read:
+!                 F <- F * Ja(1,1) + G * Ja(2,1)
+!                 G <- F * Ja(1,2) + G * Ja(2,2)
+!        **********************************************************************
+!
+         implicit none  
+         class(ViscousMethod_t)    :: self
+         class(QuadElement_t)       :: element
+!        -------------------------------------------------------------
+         real(kind=RP), allocatable :: F(:,:,:,:)
+         integer                    :: eq
+         integer                    :: FJa(NDIM) , GJa(NDIM)
+
+         associate( N => element % spA % N )
+
+         allocate( F(0:N , 0:N , NCONS , NDIM) ) 
+
+         F = ViscousFlux( element % W , element % dQ )
+
+         do eq = 1 , NCONS
+!        
+!           F flux (contravariant)
+!           ----------------------
+            FJa = [1,1]
+            GJa = [2,1]
+            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+!        
+!           G flux (contravariant)
+!           ----------------------
+            FJa = [1,2]
+            GJa = [2,2]
+            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+         end do
+
+         deallocate( F ) 
+
+         end associate
+         
+      end subroutine BaseClass_ComputeInnerFluxes
+
+      subroutine BaseClass_ComputeFaceFluxes ( self , edge )
+!
+!        **********************************************************************
+!              This subroutine computes the viscous normal fluxes at both
+!           sides of the face
+!        **********************************************************************
+!
+         implicit none
+         class(ViscousMethod_t)        :: self
+         class(Edge_t)          :: edge
+!        ------------------------------------------------
+         integer                       :: side
+
+         associate ( N => edge % spA % N )
+
+         select type ( edge )
+
+            type is (Edge_t)
+
+               do side = 1 , 2
+                  edge % F ( 0:N , 1:NGRAD , side ) = ViscousNormalFlux( edge % w(0:N , 1:NPRIM , side) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , side) , edge % dS )
+
+               end do
+
+            type is (StraightBdryEdge_t)
+               edge % F ( 0:N , 1:NGRAD , 1 ) = ViscousNormalFlux( edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS )
+
+            type is (CurvedBdryEdge_t)
+               edge % F ( 0:N , 1:NGRAD , 1 ) = ViscousNormalFlux( edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS)
+
+         end select
+
+         end associate
+
+
+      end subroutine BaseClass_ComputeFaceFluxes
+
+      function BaseClass_IntercellFlux ( self , edge ) result ( Fstar )
+         implicit none
+         class( ViscousMethod_t )   :: self
+         class( Edge_t )            :: edge
+         real(kind=RP), allocatable :: Fstar(:,:)
+
+
+      end function BaseClass_IntercellFlux
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -255,23 +348,52 @@ module DGViscousMethods
 
             type is ( StraightBdryEdge_t )
 
-               uStar(0:N,IGU) = edge % W(0:N,IU,1)
-               uStar(0:N,IGV) = edge % W(0:N,IV,1)
-               uStar(0:N,IGT) = edge % W(0:N,IT,1)
+               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
          
                associate ( dQ => edge % quads(1) % e % dQ ) 
+
+               if ( .not. edge % inverted ) then
+!
+!                 If the normal points towards the domain exterior
+!                 ------------------------------------------------
                   dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+
+               else
+!
+!                 If the normal points towards the domain interior
+!                 ------------------------------------------------
+                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+
+               end if
+               
                end associate
+!
    
             type is ( CurvedBdryEdge_t )
 
-               uStar(0:N,IGU) = edge % W(0:N,IU,1)
-               uStar(0:N,IGV) = edge % W(0:N,IV,1)
-               uStar(0:N,IGT) = edge % W(0:N,IT,1)
+               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
 
                associate ( dQ => edge % quads(1) % e % dQ )
+
+               if ( .not. edge % inverted ) then
+!
+!                 If the normal points towards the domain exterior
+!                 ------------------------------------------------
                   dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-               end associate 
+
+               else
+!
+!                 If the normal points towards the domain interior
+!                 ------------------------------------------------
+                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+
+               end if
+ 
+               end associate
 
             class default
 
@@ -318,21 +440,198 @@ module DGViscousMethods
 
      end subroutine BR1_dQVolumeLoop
 
-     subroutine BR1_QDotFaceLoop( self , edge ) 
+     subroutine BR1_QDotFaceLoop( self , edge )
+!
+!        **************************************************************
+!              This routine computes the edge loop according to the
+!           "Form I" formulation:
+!                 QDot +-= \int_e F^* l_j l_i ds
+!           in where F^* represents the F·n product, that is, the 
+!           result is added to the LEFT element, and substracted to 
+!           the RIGHT element. 
+!        **************************************************************
+!
          use MatrixOperations
          implicit none
-         class(BR1Method_t)                     :: self
-         class(Edge_t)                          :: edge
-         
+         class(BR1Method_t)    :: self
+         class(Edge_t)     :: edge
+!        -------------------------------------------------------
+         real(kind=RP), allocatable :: Fstar(:,:)
+
+         associate ( N => edge % spA % N )
+!
+!        Compute face fluxes
+!        -------------------
+         call self % ComputeFaceFluxes ( edge )
+!
+!        Allocate the interface flux F·n
+!        -------------------------------
+         allocate( Fstar( 0 : N , NCONS ) )
+
+!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
+!        -------------------------------------------------------------------------------
+         Fstar = self % IntercellFlux( edge )
+!
+!        Perform the loop in both elements
+!        ---------------------------------
+!
+!        ********************
+         select type ( edge )
+!        ********************
+!
+!           --------------------------------------------------------------------------
+            type is (Edge_t)
+!
+!              The obtained term is added to the LEFT element
+!              ----------------------------------------------
+               associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+               end associate
+!
+!              The obtained term is substracted to the RIGHT element
+!              -----------------------------------------------------
+               associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+               end associate
+!
+!           --------------------------------------------------------------------------
+            type is (StraightBdryEdge_t)
+
+               associate ( QDot => edge % quads(1) % e % QDot )
+
+                  if ( .not. edge % inverted ) then
+!
+!                    If the normal points towards the domain exterior
+!                    ------------------------------------------------
+                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
+                  else
+!
+!                    If the normal points towards the domain interior
+!                    ------------------------------------------------
+                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
+                  end if
+               
+               end associate
+!
+!           --------------------------------------------------------------------------
+            type is (CurvedBdryEdge_t)
+
+               associate ( QDot => edge % quads(1) % e % QDot )
+!
+!                 The normal for curved elements always points towards the domain exterior
+!                 ------------------------------------------------------------------------
+                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
+               end associate
+!
+!           --------------------------------------------------------------------------
+            class default
+               STOP "Stopped."
+!
+!        **********
+         end select
+!        **********
+!
+        end associate
+ 
      end subroutine BR1_QDotFaceLoop
 
      subroutine BR1_QDotVolumeLoop( self , element ) 
+!
+!        *******************************************************************************
+!           This routine computes the standard DG volumetric terms according to:
+!                 QDot -= tr(D) M F M + M G M D         
+!           The details about this matricial form is shown in the doc HiODG2DTech.pdf
+!        *******************************************************************************
+!
          use MatrixOperations
          implicit none
-         class(BR1Method_t)             :: self
-         class(QuadElement_t)                 :: element
+         class(BR1Method_t) :: self
+         class(QuadElement_t)    :: element
+         integer                 :: eq
+!
+!        Compute inner Euler fluxes
+!        --------------------------
+         call self % computeInnerFluxes ( element )
+!
+!        Perform the matrix multiplication
+!        ---------------------------------
+         associate( QDot => element % QDot     , &
+                    MD   => element % spA % MD , &
+                    M    => element % spA % M  , &
+                    w    => element % spA % w  , &
+                    N    => element % spA % N      )
+
+         do eq = 1 , NCONS
+!
+!           F Loop
+!           ------
+            call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , 2 ) , C=QDot(0:N,0:N,eq) , &
+                        trA = .true. , reset = .false. )
+
+!
+!           G Loop
+!           ------
+            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
+                         reset = .false. )
+
+         end do
+
+         end associate
 
      end subroutine BR1_QDotVolumeLoop
+
+     function BR1_IntercellFlux ( self , edge ) result ( Fstar )
+         implicit none
+         class(BR1Method_t)    :: self
+         class(Edge_t)     :: edge
+         real(kind=RP), allocatable :: Fstar(:,:)
+!        -------------------------------------------------------
+!
+!        ********************
+         select type ( edge )
+!        ********************
+!
+!           -----------------------------------------------------------------
+            type is (StraightBdryEdge_t)
+
+               associate( N => edge % spA % N )
+
+               allocate( Fstar ( 0 : N , NCONS ) )
+
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
+
+               end associate
+!               
+!           -----------------------------------------------------------------
+            type is (CurvedBdryEdge_t)
+
+               associate( N => edge % spA % N )
+
+               allocate( Fstar ( 0 : N , NCONS ) )
+
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
+
+               end associate
+!
+!           -----------------------------------------------------------------
+            type is (Edge_t)
+      
+               associate( N => edge % spA % N )
+
+               allocate( Fstar ( 0 : N , NCONS ) )
+
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , LEFT ) + edge % F( 0:N , 1:NCONS , RIGHT ) ) 
+
+               end associate
+!
+!           ------------------------------------------------------------------
+            class default
+!
+!        **********
+         end select
+!        **********
+!
+   end function BR1_IntercellFlux
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -356,7 +655,6 @@ module DGViscousMethods
          integer                            :: index
          integer                            :: i , j , var , iDim
 !
-
          associate( N=> edge % quads(loc) % e % spA % N, &
              e=> edge % quads(loc) % e)
  
@@ -370,7 +668,6 @@ module DGViscousMethods
                direction = e % edgesDirection( edge % edgeLocation(loc) )
                pos = RIGHT                    ! Where to interpolate the test function
                index = iX                     ! The coordinate (xi/eta) in which the boundary is located
-
                
                if ( direction .eq. FORWARD ) then
                   uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1 )
@@ -470,6 +767,197 @@ module DGViscousMethods
          end associate
 
       end function dQFaceContribution
+
+      function QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
+!
+!        *************************************************************************************
+!           This subroutine computes the following integral
+!
+!                 ---------------------------------
+!                 | dFJ = \int_e Fstar l_j l_i ds |
+!                 ---------------------------------
+!
+!           For a given edge, and for its neighbouring element "loc" (LEFT/RIGHT)
+!           The following quantities are used:
+!              * direction: the edge direction in the element in its local system
+!
+!                    \\ Direction is FORWARD if the edge is oriented such that:
+!
+!                                  --------->
+!                                --------------
+!                             ^  |            | ^
+!                             |  |            | |
+!                             |  |            | |
+!                             |  |            | |
+!                                --------------
+!                                  --------->
+!
+!              * pos: where the lagrange polynomials are interpolated.
+!                    \\ pos is RIGHT for RIGHT and TOP edges
+!                    \\ pos is LEFT  for LEFT and BOTTOM edges 
+!
+!              * index: where the boundary is located referred to the element local system 
+!                    \\ IX for  xi = const boundaries
+!                    \\ IY for eta = const boundaries
+!
+!        *************************************************************************************
+!
+         use MatrixOperations
+         implicit none
+         class(Edge_t)              :: edge
+         integer                    :: loc
+         real(kind=RP)              :: Fstar(0:,:)
+         real(kind=RP), allocatable :: dFJ(:,:,:)
+!        ---------------------------------------------------------------------
+         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: lj2D(:,:)
+         integer                            :: direction
+         integer                            :: pos
+         integer                            :: index
+!
+
+         associate( N => edge % quads(loc) % e % spA % N, &
+                    e => edge % quads(loc) % e)
+!
+!        **************************************
+         select case (edge % edgeLocation(loc))
+!        **************************************
+!
+!           ------------------------------------------------------------------------------------------------
+            case (ERIGHT)
+!
+!              Set the three parameters
+!              ------------------------ 
+               direction = e % edgesDirection( edge % edgeLocation(loc) )
+               pos       = RIGHT                  
+               index     = IX                     
+
+               allocate(Fstar2D(1,0:N,NCONS))
+               
+               if ( direction .eq. FORWARD ) then
+!        
+!                 Introduce the result in the same order
+!                 --------------------------------------
+                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) )
+
+               elseif ( direction .eq. BACKWARD ) then
+!
+!                 Introduce the result in the opposite order
+!                 ------------------------------------------
+                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) )
+
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+
+               end if
+!
+!           ------------------------------------------------------------------------------------------------
+            case (ETOP)
+!
+!              Set the three parameters
+!              ------------------------      
+               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
+               pos       = RIGHT
+               index     = IY
+
+               allocate(Fstar2D(0:N,1,NCONS))
+   
+               if ( direction .eq. FORWARD ) then
+!        
+!                 Introduce the result in the same order
+!                 --------------------------------------
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+
+               elseif ( direction .eq. BACKWARD ) then
+!        
+!                 Introduce the result in the opposite order
+!                 ------------------------------------------
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+
+               end if
+!
+!           ------------------------------------------------------------------------------------------------
+            case (ELEFT)
+!
+!              Set the three parameters
+!              ------------------------   
+               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
+               pos       = LEFT
+               index     = IX
+
+               allocate(Fstar2D(1,0:N,NCONS))
+   
+               if ( direction .eq. FORWARD ) then
+!        
+!                 Introduce the result in the same order
+!                 --------------------------------------
+                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+
+               elseif ( direction .eq. BACKWARD ) then
+!        
+!                 Introduce the result in the opposite order
+!                 ------------------------------------------
+                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+
+               end if
+!
+!           ------------------------------------------------------------------------------------------------
+            case (EBOTTOM)
+
+               direction = e % edgesDirection ( edge % edgeLocation(loc) )
+               pos       = LEFT
+               index     = iY
+
+               allocate(Fstar2D(0:N,1,NCONS))
+   
+               if ( direction .eq. FORWARD ) then
+!        
+!                 Introduce the result in the same order
+!                 --------------------------------------
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+
+               elseif ( direction .eq. BACKWARD ) then
+!        
+!                 Introduce the result in the opposite order
+!                 ------------------------------------------
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+
+               else
+                  print*, "Direction not forward nor backward"
+                  stop "Stopped."
+
+               end if
+!
+!        **********
+         end select
+!        **********
+!
+!        Get the interpolated lagrange polynomials
+!        ----------------------------------------- 
+         lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+!
+!        Obtain the result             
+!        -----------------
+         allocate ( dFJ(0:N,0:N,NCONS) )
+         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+!
+!        Free the variables
+!        ------------------
+         lj2D=>NULL()
+         deallocate(Fstar2D)
+
+         end associate
+
+      end function QDotFaceContribution
 
       subroutine ViscousMethod_describe( self )
          use Headers

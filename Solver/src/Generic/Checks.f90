@@ -425,7 +425,7 @@ module ChecksModule
 
         end subroutine Integration_checks
 
-        subroutine checkQDot( sem )
+        subroutine CheckQDot( sem )
          use DGSEM_Class
          use DGSpatialDiscretizationMethods
          use Headers
@@ -464,7 +464,7 @@ module ChecksModule
                   QDot = QDotPolynomicFCN( x , L )
 
                   localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
- 
+
                   elementIsInterior = .true.
 
                   if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
@@ -527,7 +527,7 @@ module ChecksModule
 !        ----------------------------------------------------------
          call sem % SetInitialCondition ( verbose = .false. )
 
-        end subroutine checkQDot
+        end subroutine CheckQDot
    
         subroutine CheckGradients( sem ) 
           use DGSEM_Class
@@ -734,6 +734,13 @@ module ChecksModule
          val(IRHOE)     = H * (ux + vy) + Hx * u + Hy * v
 !
          val = -val / (sqrt(gamma) * Mach)
+
+         end associate
+
+         associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
+
+         val(IRHOE) = gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
+
 
          end associate
 

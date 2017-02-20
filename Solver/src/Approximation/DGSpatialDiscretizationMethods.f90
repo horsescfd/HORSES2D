@@ -103,7 +103,7 @@ module DGSpatialDiscretizationMethods
 !
 !        Interpolate gradient to boundaries
 !        ----------------------------------
-!         call DGSpatial_interpolateToBoundaries( mesh , "dQ" )
+         call DGSpatial_interpolateGradientsToBoundaries( mesh )
 
       end subroutine DGSpatial_newTimeStep
 !
@@ -119,7 +119,7 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_resetQDot
 
-      recursive subroutine DGSpatial_interpolateToBoundaries( mesh , var )
+      subroutine DGSpatial_interpolateToBoundaries( mesh , var )
 !
 !        ***************************************************************************
 !              This routine interpolates to the edges the variable "var".
@@ -150,14 +150,6 @@ module DGSpatialDiscretizationMethods
 !           ------------------------------------------
             case ("Q")
                varID = IQ
-!
-!           ------------------------------------------
-            case ("dxiQ")
-               varID = IDXIQ
-!
-!           ------------------------------------------
-            case ("detaQ")
-               varID = IDETAQ
 !
 !           ------------------------------------------
             case ("Fluxes")
@@ -194,10 +186,6 @@ module DGSpatialDiscretizationMethods
                select case ( varID )
                   case (IQ)
                      variable(0:, 0:,1: )   => e % Q(0:,0:,1:)
-                  case (IDXIQ)
-                     variable(0: , 0:,1: )   => e % dQ(0:,0:,1:,iX)
-                  case (IDETAQ)
-                     variable(0: , 0:,1: )   => e % dQ(0:,0:,1:,iY)
                   case (IFLUXES)
                      if ( (edID .eq. EBOTTOM) .or. (edID .eq. ETOP) ) then
                         variable(0: , 0:,1: )   => e % F(0:,0:,1:,iY)
@@ -258,28 +246,6 @@ module DGSpatialDiscretizationMethods
                      end if
 !
 !                 --------------------------------------------------------------------------------------
-                  case (IDXIQ)
-            
-                     if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iX) = variable_b
-
-                     else
-                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iX) = variable_b(N:0:-1,1:NCONS)
-
-                     end if
-!
-!                 --------------------------------------------------------------------------------------
-                  case (IDETAQ)
-            
-                     if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iY) = variable_b
-
-                     else
-                        ed % dQ(0:N , 1:NCONS , e % quadPosition(edID),iY) = variable_b(N:0:-1,1:NCONS)
-
-                     end if
-!
-!                 --------------------------------------------------------------------------------------
                   case (IFLUXES)
    
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
@@ -304,6 +270,90 @@ module DGSpatialDiscretizationMethods
             
       end subroutine DGSpatial_interpolateToBoundaries
 
+      subroutine DGSpatial_interpolateGradientsToBoundaries( mesh )
+!
+!        ***************************************************************************
+!              This routine interpolates to the edges the gradients.
+
+!        ***************************************************************************
+!
+         use Physics
+         use MatrixOperations
+         implicit none
+         class(QuadMesh_t) :: mesh
+!        --------------------------------------------------------------------
+         integer                 :: eID , edID , eq , iDim
+         real(kind=RP), pointer  :: variable(:,:,:,:)     ! will point to dQ in the elements, (0:N,0:N,NDIM,NGRAD)
+         real(kind=RP), pointer  :: variable_b(:,:,:)     ! will point to dQ in the faces, (0:N,NDIM,NGRAD,SIDE)
+
+         do eID = 1 , mesh % no_of_elements
+   
+            associate ( N => mesh % elements(eID) % spA % N , e => mesh % elements(eID) )
+
+            do edID = 1 , EDGES_PER_QUAD
+
+               associate( ed => e % edges(edID) % f )
+
+               allocate( variable_b ( 0 : N , 1 : NDIM , 1 : NGRAD ) ) 
+!
+!              Gather the variable
+!              -------------------
+               variable(0:,0:,1:,1:) => e % dQ(0:,0:,1:,1:)
+
+               if ( e % spA % nodes .eq. LG ) then   
+                  do eq = 1 , NGRAD
+                     do iDim = 1 , NDIM
+!
+!                       Compute the interpolation
+!                       -------------------------
+                        if ( edID .eq. EBOTTOM ) then
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,LEFT) )
+                        elseif ( edID .eq. ERIGHT ) then
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,RIGHT) , trA = .true. )
+                        elseif ( edID .eq. ETOP ) then    
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,RIGHT) )
+                        elseif ( edID .eq. ELEFT ) then 
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,LEFT) , trA = .true. )
+                        end if
+                     end do
+                  end do
+
+               elseif ( e % spA % nodes .eq. LGL ) then
+!
+!                    Just associate with its value
+!                    -----------------------------
+                     if ( edID .eq. EBOTTOM ) then
+                        variable_b = variable(0:N,0,1:NDIM,1:NGRAD)
+                     elseif ( edID .eq. ERIGHT ) then
+                        variable_b = variable(N , 0:N,1:NDIM,1:NGRAD) 
+                     elseif ( edID .eq. ETOP ) then
+                        variable_b = variable(0:N,N,1:NDIM,1:NGRAD)
+                     elseif ( edID .eq. ELEFT ) then
+                        variable_b = variable(0,0:N,1:NDIM,1:NGRAD)
+                     end if
+
+               end if
+              
+!              Return its value
+!              ----------------
+               if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
+                  ed % dQ ( 0:N , 1:NDIM , 1:NGRAD , e % quadPosition(edID) ) = variable_b
+
+               else
+                  ed % dQ ( 0:N , 1:NDIM , 1:NGRAD , e % quadPosition(edID) ) = variable_b( N:0:-1 , 1:NDIM , 1:NGRAD )
+
+               end if
+
+               deallocate( variable_b )
+   
+               end associate
+            end do
+      
+            end associate
+         end do
+            
+      end subroutine DGSpatial_interpolateGradientsToBoundaries
+
       subroutine DGSpatial_computeGradient( mesh )
 !
 !        ***************************************************
@@ -322,6 +372,7 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID
          integer                 :: fID 
          integer                 :: iDim , eq
+         integer                 :: zoneID
 !        --------------------------------
 !
 !        Set gradients to zero
@@ -329,6 +380,13 @@ module DGSpatialDiscretizationMethods
          do eID = 1 , mesh % no_of_elements
             mesh % elements(eID) % dQ = 0.0_RP
          end do 
+!
+!        Update the zones solution
+!        -------------------------
+         do zoneID = 1 , size(mesh % zones) - 1
+            call mesh % zones(zoneID) % UpdateSolution
+         end do 
+
 !
 !        Perform volume loop
 !        -------------------
@@ -380,25 +438,30 @@ module DGSpatialDiscretizationMethods
          integer                 :: eq
 !        -------------------------------
 !
+!
+!        Update the zones gradients
+!        --------------------------
+         do zoneID = 1 , size(mesh % zones) - 1
+            call mesh % zones(zoneID) % UpdateGradient
+         end do 
+
+!
+!        **************
+!        Inviscid terms
+!        **************
+!
+!
 !        Volume loops
 !        ------------
          do eID = 1 , mesh % no_of_elements
             call InviscidMethod % QDotVolumeLoop( mesh % elements(eID) )
-!            call ViscousMethod % QDotVolumeLoop( mesh % elements(eID) )
          end do
-!
-!        Update the zones
-!        ----------------
-         do zoneID = 1 , size(mesh % zones) - 1
-            call mesh % zones(zoneID) % Update
-         end do 
 !
 !        Face loops ( Perform the fluxes interpolation if needed )
 !        ---------------------------------------------------------
          if ( Setup % inviscid_formulation .eq. FORMI ) then
             do fID = 1 , mesh % no_of_edges
                call InviscidMethod % QDotFaceLoopFormI( mesh % edges(fID) % f )
-!               call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f)
 
             end do
         
@@ -407,11 +470,29 @@ module DGSpatialDiscretizationMethods
 
             do fID = 1 , mesh % no_of_edges
                call InviscidMethod % QDotFaceLoopFormII( mesh % edges(fID) % f )
-!               call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f)
 
             end do
 
          end if
+!
+!        *************
+!        Viscous terms
+!        *************
+!
+!
+!        Volume loops
+!        ------------
+         do eID = 1 , mesh % no_of_elements
+            call ViscousMethod % QDotVolumeLoop( mesh % elements(eID) )
+         end do
+!
+!        Face loops
+!        ----------
+         do fID = 1 , mesh % no_of_edges
+            call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f ) 
+
+         end do
+
 !
 !        Perform the scaling with the mass matrix
 !        ----------------------------------------

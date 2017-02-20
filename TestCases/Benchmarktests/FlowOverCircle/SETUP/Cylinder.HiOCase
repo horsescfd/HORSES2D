@@ -14,7 +14,7 @@
    	          Reference pressure    : 101325.0
 			       Reference Temperature : 273.15
 			       Reynolds length       : 1.0
-			       Reynolds number       : 1600.0
+			       Reynolds number       : 100.0
 			       Prandtl number        : 0.72
 			       Mach number           : 0.1
 	
@@ -38,13 +38,13 @@
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
-                    Integration mode: Steady
-                    Integration scheme: Williamson RK3
-                           Time step: 1.0e-4
-			CFL Number: 0.4
-			Simulation time: 1.0
-                 Number of iterations: 250
-                Initial time: 0.0
+               Integration mode     : Steady
+               Integration scheme   : Williamson RK3
+               Time step            : 1.0e-2
+               CFL Number           : 0.1
+               Simulation time      : 1.0
+               Number of iterations : 250
+               Initial time         : 0.0
 
 !----------------------------------: Output variables
 		      Solution file: ./RESULTS/Cylinder.HiORst
@@ -76,25 +76,29 @@
 
 # define zone 3
 	Name = Inflow
-	Type = Pressure inlet
+   Type = Dirichlet
+!	Type = Pressure inlet
    Riemann solver = Exact
-   Mach = 0.1
+!   Mach = 0.1
 # end
 
 # define zone 4
 	Name = Outflow
-	Type = Pressure outlet
+   Type = Dirichlet
+!	Type = Pressure outlet
    Riemann solver = Exact
 # end
 
 # define zone 5
 	Name = Wall
-	Type = Euler wall
+   Type = Viscous wall
+   Wall type = Adiabatic
+!   Type = Dirichlet
 # end
 
 # define probe 1
    Name = Probe2
    x position = 0.5
    y position = 0.0
-   Variable = u
+   Variable = Mach
 # end

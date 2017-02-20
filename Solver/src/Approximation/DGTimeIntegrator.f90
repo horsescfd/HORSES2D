@@ -2,7 +2,7 @@ module DGTimeIntegrator
    use SMConstants
    use DGSpatialDiscretizationMethods
    use QuadMeshClass
-   use Monitors
+   use MonitorsClass
 
    private
    public TimeIntegrator_t , NewTimeIntegrator
@@ -311,6 +311,7 @@ module DGTimeIntegrator
          write(STD_OUT , '(I10,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3)' , advance = "no") self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
                                           "|", residuals(IRHOV) , "|" , residuals(IRHOE)
          call Monitors % WriteValues
+         write(STD_OUT,*)
          
       end subroutine TimeIntegrator_Display
 

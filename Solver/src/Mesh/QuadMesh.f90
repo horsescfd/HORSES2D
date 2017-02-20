@@ -41,9 +41,10 @@ module QuadMeshClass
        class(Edge_p), pointer              :: edges(:)
        class(BoundaryCondition_t), pointer :: BC
        contains
-          procedure      :: Construct => Zone_Construct
-          procedure      :: Update    => Zone_Update
-          procedure      :: Describe  => Zone_Describe
+          procedure      :: Construct      => Zone_Construct
+          procedure      :: UpdateSolution => Zone_UpdateSolution
+          procedure      :: UpdateGradient => Zone_UpdateGradient
+          procedure      :: Describe       => Zone_Describe
     end type Zone_t
  
 

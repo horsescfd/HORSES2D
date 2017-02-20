@@ -72,10 +72,23 @@
          class(Edge_t)                 :: edge
 
          call Initialize_WeakPrescribed(self , edge)
-         
+
+         associate ( N=> edge % spA % N )
+         select type ( edge )
+            type is (StraightBdryEdge_t)
+
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+
+            type is (CurvedBdryEdge_t)
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+
+        end select
+        end associate
       end subroutine PressureInletBC_Associate
 
-      subroutine PressureInletBC_Update( self , edge )
+      subroutine PressureInletBC_UpdateSolution( self , edge )
          implicit none
          class(PressureInletBC_t) :: self
          class(Edge_t)            :: edge
@@ -245,5 +258,5 @@
 
          end associate
 
-      end subroutine PressureInletBC_Update
+      end subroutine PressureInletBC_UpdateSolution
 

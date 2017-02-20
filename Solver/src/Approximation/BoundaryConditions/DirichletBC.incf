@@ -76,24 +76,25 @@
       
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % gB(0:N,NCONS,NDIM) )   ! Normal gradients
                
                do i = 0 , N
                   edge % uB(i , 1:NCONS) = self % q
                end do
 
-               edge % gB(0:N , 1:NCONS , 1:NDIM ) = 0.0_RP
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
                
    
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % gB(0:N,NCONS,NDIM) )
 
                do i = 0 , N
                   edge % uB(i , 1:NCONS) = self % q
                end do
 
-               edge % gB(0:N , 1:NCONS , 1:NDIM ) = 0.0_RP
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+
 
          end select
          end associate
