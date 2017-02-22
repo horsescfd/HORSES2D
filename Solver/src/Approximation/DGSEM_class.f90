@@ -172,6 +172,8 @@
 
             end if
 
+            call DGSpatial_ComputeTimeDerivative( self % mesh )
+
         end subroutine DGSEM_SetInitialCondition
       
         subroutine DGSEM_Integrate( self )

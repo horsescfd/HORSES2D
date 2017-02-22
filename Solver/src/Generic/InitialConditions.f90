@@ -16,7 +16,7 @@ module InitialConditions
    character(len = *), parameter :: VortexIC       = "Vortex transport"
    character(len = *), parameter :: TaylorIC       = "Taylor vortex"
    character(len = *), parameter :: TurbulenceIC   = "Turbulence2D"
-   character(len = *), parameter :: UserDefinedIC  = "UserDefined"
+   character(len = *), parameter :: UserDefinedIC  = "User-defined"
    character(len = *), parameter :: RestartIC      = "Restart"
    character(len = *), parameter :: ChecksPolyIC   = "ChecksPolynomic"
    character(len = *), parameter :: ChecksTrigIC   = "ChecksTrigonometric"
@@ -160,6 +160,7 @@ module InitialConditions
                print*, "      * ",trim(ChecksTrigIC)
                print*, "      * ",trim(RestartIC) 
                print*, "      * ",trim(PerturbationIC) 
+               print*, "      * ",trim(UserDefinedIC) 
                STOP "Stopped." 
 !
 !        **********
