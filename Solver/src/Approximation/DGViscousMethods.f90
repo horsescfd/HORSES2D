@@ -1,3 +1,5 @@
+#ifdef NAVIER_STOKES
+
 module DGViscousMethods
    use SMConstants
    use QuadMeshClass
@@ -986,3 +988,5 @@ module DGViscousMethods
       end subroutine ViscousMethod_describe
 
 end module DGViscousMethods
+
+#endif

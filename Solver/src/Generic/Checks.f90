@@ -53,8 +53,9 @@ module ChecksModule
             call CheckMetricIdentities( sem % mesh )
 
             call checkQDot( sem )
-
+#ifdef NAVIER_STOKES
             call checkGradients ( sem ) 
+#endif
 
          end if
 
@@ -529,7 +530,7 @@ module ChecksModule
          call sem % SetInitialCondition ( verbose = .false. )
 
         end subroutine CheckQDot
-   
+#ifdef NAVIER_STOKES   
         subroutine CheckGradients( sem ) 
           use DGSEM_Class
           use SMConstants
@@ -618,6 +619,7 @@ module ChecksModule
          call sem % SetInitialCondition( verbose = .false. )
 
         end subroutine CheckGradients
+#endif
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -625,6 +627,7 @@ module ChecksModule
 !           -----------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
+#ifdef NAVIER_STOKES
         function dQPolynomicFcn ( x ) result ( val )
          use Physics
          implicit none
@@ -657,7 +660,7 @@ module ChecksModule
          end associate
 
         end function dQTrigonometricFcn
-
+#endif
         function QDotTrigonometricFCN( x , L ) result( val )
          use Physics
          implicit none
@@ -699,7 +702,7 @@ module ChecksModule
 !
          val = -val / (sqrt(gamma) * Mach)
          
-
+#ifdef NAVIER_STOKES
          associate ( mu => dimensionless % mu , kappa => dimensionless % kappa )
 
          tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
@@ -718,6 +721,7 @@ module ChecksModule
 
 
          end associate
+#endif
          end associate
 
         end function QDotTrigonometricFCN
@@ -758,14 +762,14 @@ module ChecksModule
          val = -val / (sqrt(gamma) * Mach)
 
          end associate
-
+#ifdef NAVIER_STOKES
          associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
 
          val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
 
 
          end associate
-
+#endif
         end function QDotPolynomicFCN        
       
 end module

@@ -13,10 +13,11 @@ MODE ?=DEBUG
 BLAS_LIB = 
 LAPACK_LIB = 
 LIBS=
+GLOB_MACROS :=
 
 # --------------- MACROS ---------------------------------------------------
 
-GLOB_MACROS ?=   -D_USE_LAPACK
+GLOB_MACROS +=-D_USE_LAPACK
 
 # --------------- DEPENDENCIES ---------------------------------------------------
 
@@ -109,7 +110,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 # ------------- Main rules -----------------------
 	
 
-all: 	$(EXECUTABLE)
+all: 	def_navier_stokes_macro $(EXECUTABLE)
 
 runcyl: 	
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
@@ -126,14 +127,22 @@ runchan:
 runfree: 	
 	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
 
+Euler:  def_euler_macro $(EXECUTABLE)
+
+def_euler_macro:
+	$(eval EXECUTABLE:=HiODG2D.Euler)
+
+def_navier_stokes_macro:
+	$(eval NS_COMP:=-DNAVIER_STOKES)
+
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
-	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
+	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
 	$(OBJS_EXEC) $(LIBS)\
 
 # ---------- Default compilation rule -----------
 $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
-	$(FC) $(FFLAGS) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$@.f90),$(wildcard $(SRC_DIR)/$@.f90)) -o $(BUILD_DIR)/$@.o
+	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$@.f90),$(wildcard $(SRC_DIR)/$@.f90)) -o $(BUILD_DIR)/$@.o
 
 
 clean:

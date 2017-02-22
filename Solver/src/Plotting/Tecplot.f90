@@ -228,7 +228,9 @@ module Tecplot
 !        --------------------------------------------------------------------------
          real(kind=RP), pointer  :: rho (:,:) , rhou (:,:) , rhov (:,:) , rhoe (:,:)
          real(kind=RP), pointer  :: rhot(:,:) , rhout(:,:) , rhovt(:,:) , rhoet(:,:)
+#ifdef NAVIER_STOKES
          real(kind=RP), pointer  :: ux(:,:) , uy(:,:) , vx(:,:) , vy(:,:)
+#endif
          integer                 :: iXi , iEta
          integer                 :: var
 
@@ -250,10 +252,12 @@ module Tecplot
          rhout(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
          rhovt(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
          rhoet(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
+#ifdef NAVIER_STOKES
          ux(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGU)
          uy(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGU)
          vx(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGV)
          vy(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGV)
+#endif
 
 
          do iEta = 0 , N
@@ -303,8 +307,10 @@ module Tecplot
                      case ("Mach")
                         write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
 
+#ifdef NAVIER_STOKES
                      case ("Vorticity")
                         write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
+#endif
 
                   end select                        
 
@@ -342,10 +348,12 @@ module Tecplot
 !        --------------------------------------------------------------------------
          real(kind=RP), pointer     :: rhoDG  (:,:) ,  rhouDG  (:,:) ,  rhovDG  (:,:) ,  rhoeDG  (:,:) 
          real(kind=RP), pointer     :: rhotDG (:,:) ,  rhoutDG (:,:) ,  rhovtDG (:,:) ,  rhoetDG (:,:) 
-         real(kind=RP), pointer     :: uxDG   (:,:) ,  uyDG    (:,:) ,  vxDG    (:,:) ,  vyDG    (:,:)
          real(kind=RP), pointer     :: rho    (:,:) ,  rhou    (:,:) ,  rhov    (:,:) ,  rhoe    (:,:) 
          real(kind=RP), pointer     :: rhot   (:,:) ,  rhout   (:,:) ,  rhovt   (:,:) ,  rhoet   (:,:) 
+#ifdef NAVIER_STOKES
+         real(kind=RP), pointer     :: uxDG   (:,:) ,  uyDG    (:,:) ,  vxDG    (:,:) ,  vyDG    (:,:)
          real(kind=RP), pointer     :: ux     (:,:) ,  uy      (:,:) ,  vx      (:,:) ,  vy      (:,:)
+#endif
          real(kind=RP), allocatable :: xi(:) , T(:,:) , x(:)
          integer                    :: iXi , iEta
          integer                    :: Nout
@@ -379,17 +387,20 @@ module Tecplot
          rhoutDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
          rhovtDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
          rhoetDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
+#ifdef NAVIER_STOKES
          uxDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGU)
          uyDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGU)
          vxDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGV)
          vyDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGV)
+#endif
 !
 !        Obtain the interpolation to a new set of equispaced points
 !        ----------------------------------------------------------
          allocate  (  rho(0:Nout  , 0:Nout) , rhou(0:Nout  , 0:Nout) , rhov(0:Nout  , 0:Nout) , rhoe(0:Nout  , 0:Nout) )
          allocate  (  rhot(0:Nout , 0:Nout) , rhout(0:Nout , 0:Nout) , rhovt(0:Nout , 0:Nout) , rhoet(0:Nout , 0:Nout) )
+#ifdef NAVIER_STOKES
          allocate  (  ux(0:Nout , 0:Nout) , uy(0:Nout , 0:Nout) , vx(0:Nout , 0:Nout) , vy(0:Nout,0:Nout) )
-
+#endif
          call TripleMatrixProduct ( T , rhoDG   , T , rho   , trC = .true. ) 
          call TripleMatrixProduct ( T , rhouDG  , T , rhou  , trC = .true. ) 
          call TripleMatrixProduct ( T , rhovDG  , T , rhov  , trC = .true. ) 
@@ -398,10 +409,12 @@ module Tecplot
          call TripleMatrixProduct ( T , rhoutDG , T , rhout , trC = .true. ) 
          call TripleMatrixProduct ( T , rhovtDG , T , rhovt , trC = .true. ) 
          call TripleMatrixProduct ( T , rhoetDG , T , rhoet , trC = .true. ) 
+#ifdef NAVIER_STOKES
          call TripleMatrixProduct ( T , uxDG    , T , ux    , trC = .true. ) 
          call TripleMatrixProduct ( T , uyDG    , T , uy    , trC = .true. ) 
          call TripleMatrixProduct ( T , vxDG    , T , vx    , trC = .true. ) 
          call TripleMatrixProduct ( T , vyDG    , T , vy    , trC = .true. ) 
+#endif
 
          do iEta = 0 , Nout
             do iXi = 0 , Nout
@@ -451,10 +464,10 @@ module Tecplot
       
                      case ("Mach")
                         write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
-
+#ifdef NAVIER_STOKES
                      case ("Vorticity")
                         write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
-
+#endif
                   end select                        
 
                end do

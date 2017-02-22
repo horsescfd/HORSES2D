@@ -41,7 +41,9 @@ module DGBoundaryConditions
          procedure :: SetRiemannSolver => BoundaryConditions_SetRiemannSolver
          procedure :: Associate        => BaseClass_Associate
          procedure :: UpdateSolution   => BaseClass_UpdateSolution
+#ifdef NAVIER_STOKES
          procedure :: UpdateGradient   => BaseClass_UpdateGradient
+#endif
          procedure :: Describe         => BaseClass_Describe
    end type BoundaryCondition_t
 !
@@ -163,7 +165,9 @@ module DGBoundaryConditions
          procedure   ::    Construct => ViscousWall_Construct
          procedure   ::    Associate => ViscousWall_Associate
          procedure   ::    UpdateSolution    => ViscousWall_UpdateSolution
+#ifdef NAVIER_STOKES
          procedure   ::    UpdateGradient    => ViscousWall_UpdateGradient
+#endif
          procedure   ::    Describe  => ViscousWall_Describe
    end type ViscousWall_t
 
@@ -185,17 +189,14 @@ module DGBoundaryConditions
 !
 !//////////////////////////////////////////////////////////////////////////////////
 !
-      include './BoundaryConditions/DirichletBC.incf'
-      include './BoundaryConditions/EulerWallBC.incf'
-      include './BoundaryConditions/FarfieldBC.incf'
-      include './BoundaryConditions/PeriodicBC.incf'
-      include './BoundaryConditions/PressureInletBC.incf'
-      include './BoundaryConditions/PressureOutletBC.incf'
-      include './BoundaryConditions/RiemannBC.incf'
-      include './BoundaryConditions/ViscousWall.incf'
-
-
-      
+#include "./BoundaryConditions/DirichletBC.incf"
+#include "./BoundaryConditions/EulerWallBC.incf"
+#include "./BoundaryConditions/FarfieldBC.incf"
+#include "./BoundaryConditions/PeriodicBC.incf"
+#include "./BoundaryConditions/PressureInletBC.incf"
+#include "./BoundaryConditions/PressureOutletBC.incf"
+#include "./BoundaryConditions/RiemannBC.incf"
+#include "./BoundaryConditions/ViscousWall.incf"
 
       subroutine BoundaryConditions_construct( self , marker)
          use Setup_class

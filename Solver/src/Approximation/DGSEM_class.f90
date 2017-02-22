@@ -98,7 +98,9 @@
             allocate ( self % Storage % Q    ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             allocate ( self % Storage % W    ( NPRIM *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             allocate ( self % Storage % QDot ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+#ifdef NAVIER_STOKES
             allocate ( self % Storage % dQ   ( NDIM  * NGRAD * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+#endif
                 
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )

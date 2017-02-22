@@ -29,7 +29,9 @@ module QuadElementClass
         real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
         real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
         real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( xi , eta , eq , X/Y) : contravariant fluxes
+#ifdef NAVIER_STOKES
         real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( xi ,eta , X/Y , eq):   solution gradient
+#endif
         real(kind=RP), pointer             :: W(:,:,:)                       ! *   W ( xi ,eta , var) : solution in primitive variables
         type(Node_p)                       :: nodes(POINTS_PER_QUAD)         ! Pointer to neighbour nodes
         class(Edge_p), pointer             :: edges(:)                       ! Pointer to neighbour eges
@@ -77,7 +79,9 @@ module QuadElementClass
         real(kind=RP),              pointer :: Tinv(:,:,:)                ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
         real(kind=RP),              pointer :: W(:,:,:)                   ! Primitive variables interpolation to boundaries ( xi , eq , LEFT/RIGHT)
+#ifdef NAVIER_STOKES
         real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
+#endif
         real(kind=RP),              pointer :: F(:,:,:)                   ! Solution NORMAL fluxes interpolation to boundaries ( xi ,eq , LEFT/RIGHT )
         type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
         class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
@@ -101,7 +105,9 @@ module QuadElementClass
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
         real(kind=RP), pointer            :: wB(:,:)   => NULL()         ! Primitive variables at the boundary (used for gradients computation)
+#ifdef NAVIER_STOKES
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
+#endif
         real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
     end type StraightBdryEdge_t 
 
@@ -111,7 +117,9 @@ module QuadElementClass
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
         real(kind=RP), pointer            :: wB(:,:)   => NULL()         ! Primitive variables at the boundary (used for gradients computation)
+#ifdef NAVIER_STOKES
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
+#endif
         real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
         contains
             procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
@@ -229,7 +237,9 @@ module QuadElementClass
              self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
              self % W    ( 0:N , 0:N , 1:NPRIM          ) => storage % W    ( (self % address-1)/NCONS*NPRIM + 1: )
              self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
+#ifdef NAVIER_STOKES
              self % dQ   ( 0:N , 0:N , 1:NDIM , 1:NGRAD ) => storage % dQ   ( (self % address-1)/NCONS*NGRAD*NDIM + 1: ) 
+#endif
 
              if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
                self % F (0: self % spI % N , 0: self % spI % N , 1:NCONS , 1:NDIM) => &
@@ -329,14 +339,18 @@ module QuadElementClass
          
                allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE         )  ) 
                allocate ( self % f % W  ( 0 : self % f % spA % N , NPRIM , QUADS_PER_EDGE         )  ) 
+#ifdef NAVIER_STOKES
                allocate ( self % f % dQ ( 0 : self % f % spA % N , NDIM  , NGRAD , QUADS_PER_EDGE )  ) 
+#endif
                allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE )  ) 
 
             else
    
                allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , 1        )  ) 
                allocate ( self % f % W  ( 0 : self % f % spA % N , NPRIM , 1        )  ) 
+#ifdef NAVIER_STOKES
                allocate ( self % f % dQ ( 0 : self % f % spA % N , NDIM , NGRAD , 1 )  ) 
+#endif
                allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , 1 )  ) 
 
             end if 

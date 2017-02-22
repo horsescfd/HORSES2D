@@ -3,20 +3,27 @@ module DGSpatialDiscretizationMethods
    use Physics
    use QuadMeshClass
    use QuadMeshDefinitions
-   use DGViscousMethods
    use DGInviscidMethods
+#ifdef NAVIER_STOKES
+   use DGViscousMethods
+#endif
    implicit none
 !
    private
    public DGSpatial_Initialization  , DGSpatial_computeTimeDerivative , DGSpatial_interpolateToBoundaries
-   public DGSpatial_computeGradient , DGSpatial_newTimeStep
+   public DGSpatial_newTimeStep
+#ifdef NAVIER_STOKES
+   public DGSpatial_computeGradient
+#endif
 !
 !  ************************************
 !  Inviscid and Viscous methods objects
 !  ************************************
 !
    class(InviscidMethod_t), pointer  :: InviscidMethod
+#ifdef NAVIER_STOKES
    class(ViscousMethod_t),  pointer  :: ViscousMethod
+#endif
 !
 !                                ***********                             
    integer, parameter         :: IQ      = 1
@@ -45,7 +52,9 @@ module DGSpatialDiscretizationMethods
 !
 !        Initialize Viscous method
 !        -------------------------
+#ifdef NAVIER_STOKES
          ViscousMethod  => ViscousMethod_Initialization()
+#endif
   
       end subroutine DGSpatial_Initialization
 
@@ -103,6 +112,7 @@ module DGSpatialDiscretizationMethods
          do zoneID = 1 , size(mesh % zones) - 1
             call mesh % zones(zoneID) % UpdateSolution
          end do 
+#ifdef NAVIER_STOKES
 !
 !        Compute the solution Q gradient dQ
 !        ----------------------------------
@@ -111,6 +121,7 @@ module DGSpatialDiscretizationMethods
 !        Interpolate gradient to boundaries
 !        ----------------------------------
          call DGSpatial_interpolateGradientsToBoundaries( mesh )
+#endif
 
       end subroutine DGSpatial_newTimeStep
 !
@@ -277,6 +288,7 @@ module DGSpatialDiscretizationMethods
             
       end subroutine DGSpatial_interpolateToBoundaries
 
+#ifdef NAVIER_STOKES
       subroutine DGSpatial_interpolateGradientsToBoundaries( mesh )
 !
 !        ***************************************************************************
@@ -415,7 +427,7 @@ module DGSpatialDiscretizationMethods
         end do
 
       end subroutine DGSpatial_computeGradient
-
+#endif
       subroutine DGSpatial_computeQDot( mesh )
 !
 !        *************************************************************
@@ -438,12 +450,14 @@ module DGSpatialDiscretizationMethods
          integer                 :: eq
 !        -------------------------------
 !
+#ifdef NAVIER_STOKES
 !
 !        Update the zones gradients
 !        --------------------------
          do zoneID = 1 , size(mesh % zones) - 1
             call mesh % zones(zoneID) % UpdateGradient
          end do 
+#endif
 
 !
 !        **************
@@ -479,6 +493,7 @@ module DGSpatialDiscretizationMethods
 !        Viscous terms
 !        *************
 !
+#ifdef NAVIER_STOKES
 !
 !        Volume loops
 !        ------------
@@ -492,7 +507,7 @@ module DGSpatialDiscretizationMethods
             call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f ) 
 
          end do
-
+#endif
 !
 !        Perform the scaling with the mass matrix
 !        ----------------------------------------

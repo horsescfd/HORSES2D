@@ -22,14 +22,18 @@
                edge % RiemannSolver => self % RiemannSolver
 
                edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
          
             type is (CurvedBdryEdge_t)
                allocate( edge % FB(0:N,NCONS) )
                edge % RiemannSolver => self % RiemannSolver
                
                edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
 
             class default
          end select

@@ -43,7 +43,9 @@ module QuadMeshClass
        contains
           procedure      :: Construct      => Zone_Construct
           procedure      :: UpdateSolution => Zone_UpdateSolution
+#ifdef NAVIER_STOKES
           procedure      :: UpdateGradient => Zone_UpdateGradient
+#endif
           procedure      :: Describe       => Zone_Describe
     end type Zone_t
  
@@ -54,7 +56,7 @@ module QuadMeshClass
 
     contains
 
-         include 'ZoneProcedures.incf'
+#include "ZoneProcedures.incf"
 
          function newMesh()
              implicit none
