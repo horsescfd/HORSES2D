@@ -84,6 +84,7 @@ module DGSpatialDiscretizationMethods
 !
          implicit none
          class(QuadMesh_t)         :: mesh
+         integer                   :: zoneID
 !
 !        Reset QDot
 !        ----------
@@ -96,6 +97,12 @@ module DGSpatialDiscretizationMethods
 !        Compute primitive variables
 !        ---------------------------
          call mesh % computePrimitiveVariables
+!
+!        Update the zones solution
+!        -------------------------
+         do zoneID = 1 , size(mesh % zones) - 1
+            call mesh % zones(zoneID) % UpdateSolution
+         end do 
 !
 !        Compute the solution Q gradient dQ
 !        ----------------------------------
@@ -380,13 +387,6 @@ module DGSpatialDiscretizationMethods
          do eID = 1 , mesh % no_of_elements
             mesh % elements(eID) % dQ = 0.0_RP
          end do 
-!
-!        Update the zones solution
-!        -------------------------
-         do zoneID = 1 , size(mesh % zones) - 1
-            call mesh % zones(zoneID) % UpdateSolution
-         end do 
-
 !
 !        Perform volume loop
 !        -------------------
