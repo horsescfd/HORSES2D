@@ -5,25 +5,26 @@
 !
 
 !-------------------------------------: Geometry
-			     Mesh file: ./MESH/Channel.HiOMesh
+			     Mesh file: ./MESH/Cylinder.HiOMesh
 			 Boundary file: _this_
+
 
 !-------------------------------------: Physics
 			           Gas: Air
 		    Reference pressure: 101325.0
 		 Reference Temperature: 273.15
 	       	       Reynolds length: 1.0
-		       Reynolds number: 250.0
+		       Reynolds number: 16000000000.0
 		        Prandtl number: 0.72
-		           Mach number: 0.1
+		           Mach number: 0.01
 	
 !------------------------------------: DG Discretization
 		  Interpolation nodes: Legendre-Gauss
-		     Polynomial order: 3
+		     Polynomial order: 4
 
 !------------------------------------: Initialization
-		    Initial condition : Uniform
-		    Restart file      : ./RESULTS/Channel_50.HiORst
+		    Initial condition: Uniform
+		         Restart file: ./RESULTS/Cylinder.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy: Standard
@@ -38,42 +39,53 @@
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
-                    Integration mode     : Steady
-                    Integration scheme   : Williamson RK5
-                    Time step            : 1.0e-2
-                    CFL Number           : 0.1
-                    Simulation time      : 1.0
-                    Number of iterations : 100
-                    Initial time         : 0.0
+                    Integration mode: Steady
+                    Integration scheme: Williamson RK3
+                           Time step: 1.0e-4
+			CFL Number: 0.4
+			Simulation time: 1.0
+                 Number of iterations: 250
+                Initial time: 0.0
 
 !----------------------------------: Output variables
-                  Solution file: ./RESULTS/Channel.HiORst
-                  Autosave interval: 10
-                    Output interval: 1
-      Output file type: Interpolated
-   Number of representation points: 10
-                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach_Vorticity
+		      Solution file: ./RESULTS/Cylinder.HiORst
+                  Autosave interval: 1000
+                    Output interval: 10
+		Output file type: Interpolated
+	Number of representation points: 10
+                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+
+!
+!            **********************************
+! 	     * Cylinder boundary mapping file *
+!	     **********************************
+!
 
 
 
 # define zone 1
-	Name = Bottom
-	Type = Viscous wall
-   Wall type = Adiabatic
+	Name = Symmetry
+	Type = Dirichlet
+	Mach = 0.0
 # end 
 
 # define zone 2
-	Name = Top
-	Type = Viscous wall
-   Wall type = Adiabatic
+	Name = Symmetry
+	Type = Dirichlet
+	Mach = 0.0
 # end 
 
 # define zone 3
-	Name = Left
+	Name = Inflow
 	Type = Dirichlet
 # end
 
 # define zone 4
-	Name = Right
+	Name = Outflow
 	Type = Pressure outlet
+# end
+
+# define zone 5
+	Name = Wall
+	Type = Euler wall
 # end

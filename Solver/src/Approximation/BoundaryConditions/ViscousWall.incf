@@ -118,7 +118,7 @@
                   edge % wB( 0:N , IT ) = self % Tw
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % wB( 0 : N , IT ) = edge % Q( 0 : N , IT , 1 )
+                  edge % wB( 0 : N , IT ) = edge % W( 0 : N , IT , 1 )
 
                end if
 
@@ -180,10 +180,10 @@
                edge % gB(0:N , 1:NDIM , IGV) = edge % dQ(0 : N , 1:NDIM , IGV , 1)
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IT ) = edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % dQ( 0:N , 1:NDIM , IGT , 1 )
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IT ) = -edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % dQ( 0:N , 1:NDIM , IGT , 1 )
 
                end if
 
