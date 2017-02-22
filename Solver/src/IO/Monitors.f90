@@ -8,9 +8,12 @@ module MonitorsClass
    public      Monitor_t , ConstructMonitors
 !
 !                                ***********************
-   integer, parameter         :: BUFFER_SIZE      = 1000
+   integer, parameter         :: BUFFER_SIZE      = 100
    integer, parameter         :: STR_LEN_MONITORS = 128
    integer, parameter         :: MONITOR_LENGTH   = 10
+   integer, parameter         :: SCALAR_INTEGRAL  = 1
+   integer, parameter         :: VECTOR_INTEGRAL  = 2
+   integer, parameter         :: FORCE_INTEGRAL   = 3
 !                                ***********************
 !
 !  **********************
@@ -19,8 +22,8 @@ module MonitorsClass
 !
    type Probe_t
       logical                         :: active
-      integer                         :: eID
       integer                         :: ID
+      integer                         :: eID
       real(kind=RP)                   :: x(NDIM)
       real(kind=RP)                   :: xi, eta
       real(kind=RP)                   :: values(BUFFER_SIZE)
@@ -41,7 +44,16 @@ module MonitorsClass
 !  ********************************
 !
    type SurfaceMonitor_t
-
+      logical                         :: active
+      integer                         :: ID
+      integer                         :: marker
+      integer                         :: mode
+      real(kind=RP)                   :: values(BUFFER_SIZE)
+      character(len=STR_LEN_MONITORS) :: monitorName
+      character(len=STR_LEN_MONITORS) :: fileName
+      character(len=STR_LEN_MONITORS) :: variable
+      contains
+         procedure   :: Initialization => SurfaceMonitor_Initialization
    end type SurfaceMonitor_t
 !
 !  *******************************
@@ -63,6 +75,7 @@ module MonitorsClass
       integer                                  :: no_of_surfaceMonitors
       integer                                  :: no_of_volumeMonitors
       integer                                  :: bufferLine
+      integer                                  :: iter(BUFFER_SIZE)
       real(kind=RP)                            :: t(BUFFER_SIZE)
       class ( Probe_t          ) , allocatable :: probes          ( : )
       class ( SurfaceMonitor_t ) , allocatable :: surfaceMonitors ( : )
@@ -154,6 +167,10 @@ readloop:do
             call Monitors % probes(i) % Initialization(mesh , i)
          end do
 
+         do i = 1 , Monitors % no_of_surfaceMonitors
+            call Monitors % surfaceMonitors(i) % Initialization ( mesh , i )
+
+         end do
          Monitors % bufferLine = 0
 
       end function ConstructMonitors
@@ -201,16 +218,19 @@ readloop:do
 
       end subroutine Monitor_WriteValues
 
-      subroutine Monitor_UpdateValues ( self , mesh , t )
+      subroutine Monitor_UpdateValues ( self , mesh , t , iter)
          implicit none
          class(Monitor_t)              :: self
          class(QuadMesh_t)             :: mesh
          real(kind=RP)                 :: t
+         integer                       :: iter
+!        -------------------------------------------------
          integer                       :: i 
 
          self % bufferLine = self % bufferLine + 1
 
-         self % t ( self % bufferLine ) = t
+         self % t    ( self % bufferLine )  = t
+         self % iter ( self % bufferLine )  = iter
 
          do i = 1 , self % no_of_probes
             call self % probes(i) % Update( mesh , self % bufferLine )
@@ -236,7 +256,7 @@ readloop:do
 
          if ( forceVal ) then 
             do i = 1 , self % no_of_probes
-               call self % probes(i) % WriteToFile ( self % t , self % bufferLine )
+               call self % probes(i) % WriteToFile ( self % iter , self % t , self % bufferLine )
 
             end do
 
@@ -246,7 +266,7 @@ readloop:do
 
             if ( self % bufferLine .eq. BUFFER_SIZE ) then
                do i = 1 , self % no_of_probes
-                  call self % probes(i) % WriteToFile ( self % t , BUFFER_SIZE ) 
+                  call self % probes(i) % WriteToFile ( self % iter , self % t , BUFFER_SIZE ) 
 
                end do
 
@@ -268,6 +288,7 @@ readloop:do
       subroutine Probe_Initialization( self , mesh , ID ) 
          use ParamfileIO
          use Setup_Class
+         use MatrixOperations
          implicit none
          class(Probe_t)          :: self
          class(QuadMesh_t)       :: mesh
@@ -301,6 +322,12 @@ readloop:do
 
          self % l_xi  = mesh % elements(self % eID) % spA % lj( self % xi  )
          self % l_eta = mesh % elements(self % eID) % spA % lj( self % eta )
+!
+!        Obtain the real coordinates
+!        ---------------------------
+         self % x = [ BilinearForm_F ( mesh % elements(self % eID) % X(:,:,IX) , self % l_xi , self % l_eta ) , &
+                      BilinearForm_F ( mesh % elements(self % eID) % X(:,:,IY) , self % l_xi , self % l_eta ) ]
+                      
 
          fileName = trim(Setup % solution_file)
    
@@ -311,7 +338,12 @@ readloop:do
 !        Create file
 !        -----------
          open ( newunit = fID , file = trim(self % fileName) , status = "unknown" , action = "write" ) 
-         write( fID , '(A24,2X,A24)' ) "time" , trim(self % variable)
+         write( fID , '(A20,A)') "Probe name : ", trim(self % monitorName)
+         write( fID , '(A20,F10.3)') "x position : " , self % x(IX) 
+         write( fID , '(A20,F10.3)') "y position : " , self % x(IY) 
+         write( fID , '(A20,A)') "Tracked variable : " , trim( self % variable )
+         write( fID , * )
+         write( fID , '(A10,2X,A24,2X,A24)' ) "Iteration" , "Time" , trim(self % variable)
          close ( fID ) 
               
       end subroutine Probe_Initialization
@@ -399,9 +431,10 @@ readloop:do
 
       end subroutine Probe_WriteValue 
 
-      subroutine Probe_WriteToFile ( self , t , no_of_lines)
+      subroutine Probe_WriteToFile ( self , iter , t , no_of_lines)
          implicit none  
          class(Probe_t)             :: self
+         integer                    :: iter(:)
          real(kind=RP)              :: t(:)
          integer                    :: no_of_lines
 !        -------------------------------------------
@@ -411,12 +444,79 @@ readloop:do
          open( newunit = fID , file = trim ( self % fileName ) , action = "write" , access = "append" , status = "old" )
          
          do i = 1 , no_of_lines
-            write( fID , '(ES24.16,2X,ES24.16)' ) t(i) , self % values(i)
+            write( fID , '(I10,2X,ES24.16,2X,ES24.16)' ) iter(i) , t(i) , self % values(i)
 
          end do
         
          close ( fID )
       
       end subroutine Probe_WriteToFile
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           SURFACE MONITOR PROCEDURES
+!           --------------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine SurfaceMonitor_Initialization( self , mesh , ID )
+         use ParamfileIO
+         use Setup_Class
+         use MatrixOperations
+         implicit none
+         class(SurfaceMonitor_t) :: self
+         class(QuadMesh_t)       :: mesh
+         integer                 :: ID
+!        ----------------------------------------------
+         character(len=STR_LEN_MONITORS)  :: in_label
+         character(len=STR_LEN_MONITORS)  :: fileName
+         character(len=STR_LEN_MONITORS)  :: mode
+         integer, allocatable             :: marker
+         integer                          :: pos
+         integer                          :: fID
 
+         self % ID = ID
+
+         write(in_label , '(A,I0)') "#define surface monitor " , self % ID
+         
+         call readValueInRegion ( trim ( Setup % case_file )  , "Name"     , self % monitorName , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Marker"   , marker             , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Mode"     , mode               , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Variable" , self % variable    , in_label , "# end" ) 
+
+         self % active = .true.
+
+         if ( trim(mode) .eq. "Scalar" ) then
+            self % mode = SCALAR_INTEGRAL
+
+         elseif ( trim(mode) .eq. "Vector" ) then
+            self % mode = VECTOR_INTEGRAL
+
+         elseif ( trim(mode) .eq. "Force" ) then
+            self % mode = FORCE_INTEGRAL
+
+         end if
+
+         if ( allocated ( marker ) ) then
+            self % marker = marker
+
+         end if
+
+         fileName = trim(Setup % solution_file)
+   
+         pos = index(trim(fileName) , '.HiORst' )
+         write( self % fileName , '(A,A,A,A)') fileName(1:pos-1) , "." , trim(self % monitorName) , ".surface"  
+!
+!        Create file
+!        -----------
+         open ( newunit = fID , file = trim(self % fileName) , status = "unknown" , action = "write" ) 
+         write( fID , '(A20,A)') "Monitor name : ", trim(self % monitorName)
+         write( fID , '(A20,I0)') "Surface marker : ", self % marker
+         write( fID , '(A20,A)') "Monitor mode: " , trim(mode)
+         write( fID , '(A20,A)') "Selected variable: " , trim(self % variable)
+         write( fID , * )
+         write( fID , '(A10,2X,A24,2X,A24)' ) "Iteration" , "Time" , trim(self % variable)
+         close ( fID ) 
+              
+
+      end subroutine SurfaceMonitor_Initialization
 end module MonitorsClass

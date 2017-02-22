@@ -144,7 +144,7 @@ module DGTimeIntegrator
             call self % TimeStep( mesh , self % dt , Storage)
             self % t    = self % t + self % dt
 
-            call Monitors % UpdateValues ( mesh , self % t)
+            call Monitors % UpdateValues ( mesh , self % t , self % iter)
 
             if ( iter .eq. self % initial_iteration + 1 ) then
                call self % Display( mesh ) 

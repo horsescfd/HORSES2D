@@ -28,7 +28,8 @@ module QuadMeshClass
              procedure  :: ApplyInitialCondition
              procedure  :: SetStorage                => QuadMesh_SetStorage
              procedure  :: VolumeIntegral            => Compute_VolumeIntegral
-             procedure  :: SurfaceIntegral           => Compute_SurfaceIntegral
+             procedure  :: ScalarSurfaceIntegral     => Compute_ScalarSurfaceIntegral
+             procedure  :: VectorSurfaceIntegral     => Compute_VectorSurfaceIntegral
              procedure  :: ComputeResiduals          => Mesh_ComputeResiduals
              procedure  :: ComputePrimitiveVariables => Mesh_ComputePrimitiveVariables
              procedure  :: FindElementWithCoords     => Mesh_FindElementWithCoords
@@ -381,7 +382,13 @@ module QuadMeshClass
             end do
 
          end subroutine Mesh_ComputePrimitiveVariables
-
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           VOLUME AND SURFACE INTEGRALS
+!           ----------------------------
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          function Compute_volumeIntegral( self , var ) result ( val )
             use MatrixOperations
             implicit none
@@ -410,7 +417,49 @@ module QuadMeshClass
                
          end function Compute_volumeIntegral
    
-         function Compute_surfaceIntegral( self , var , zone ) result ( val )
+         function Compute_scalarSurfaceIntegral( self , var , zone ) result ( val )
+            use MatrixOperations
+            use Physics
+            implicit none
+            class(QuadMesh_t)             :: self
+            character(len=*)              :: var
+            integer                       :: zone
+            real(kind=RP)                 :: val
+!           --------------------------------------------------------------
+            real(kind=RP), pointer        :: variable(:) => NULL()
+            integer                       :: edID
+
+            val = 0.0_RP
+
+            select case ( trim(var) ) 
+   
+               case ( "Surface" )
+                  
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     val = val + dot_product(f % spA % w , norm2( f % dS , dim = 1 ))
+                     end associate
+                  end do
+
+               case ( "pressure" )
+               
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     variable => f % w(0:N , IP , 1 )
+                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+
+                     end associate
+                     end associate
+                  end do
+
+            end select
+
+         end function Compute_scalarSurfaceIntegral
+
+         function Compute_VectorSurfaceIntegral( self , var , zone ) result ( val )
+            use Physics
             use MatrixOperations
             implicit none
             class(QuadMesh_t)             :: self
@@ -418,28 +467,47 @@ module QuadMeshClass
             integer                       :: zone
             real(kind=RP)                 :: val
 !           --------------------------------------------------------------
-            real(kind=RP), allocatable    :: variable(:)
+            real(kind=RP), allocatable    :: variable(:,:)
             integer                       :: edID
 
             val = 0.0_RP
 
-            do edID = 1 , self % Zones(zone) % no_of_edges
-               associate( f => self % Zones(zone) % edges(edID) % f )
-
-               if ( trim(var) .eq. "One" ) then
-                  if (allocated(variable) ) deallocate( variable )
-                  allocate (variable(0 : f % spA % N) )
-                  variable = 1.0_RP
-               end if
-
-               variable = variable * norm2( f % dS , dim = 1 )
-               val = val + dot_product(variable , f % spA % w)
-               
-               end associate
-            end do
-
-         end function Compute_surfaceIntegral
+            select case ( trim(var) ) 
    
+               case ( "mass-flow" )
+               
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     val = val + dot_product ( f % spA % w , ( f % Q(0:N,IRHOU,1) * f % dS(IX,0:N) + f % Q(0:N,IRHOV,1) * f % dS(IY,0:N) ) )
+
+                     end associate
+                     end associate
+                  end do
+
+               case ( "flow" )
+
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     val = val + dot_product ( f % spA % w , ( f % W(0:N,IU,1) * f % dS(IX,0:N) + f % W(0:N,IV,1) * f % dS(IY,0:N) ) )
+
+                     end associate
+                     end associate
+                  end do
+
+            end select
+
+         end function Compute_VectorSurfaceIntegral
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              EXTRA SUBROUTINES
+!              ----------------- 
+!//////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          function Mesh_ComputeResiduals( self ) result ( residuals )
             use Physics
             implicit none

@@ -102,3 +102,17 @@
    y position = 0.0
    Variable = Mach
 # end
+
+# define surface monitor 1
+   Name = Surface_1
+   Marker = 5
+   Mode = Scalar
+   Variable = pressure
+# end
+
+# define surface monitor 2
+   Name = Flow_out
+   Marker = 4
+   Mode = Vector
+   Variable = mass-flow
+# end
