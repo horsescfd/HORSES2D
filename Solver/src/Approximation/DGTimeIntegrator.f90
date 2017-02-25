@@ -296,22 +296,12 @@ module DGTimeIntegrator
             write(STD_OUT , '(/)')
             write(STD_OUT , '(/)')
 
-            write(STD_OUT , '(A10,3X,A10,3X,A10,3X,A10,3X,A10,3X,A10)', advance = "no" ) "Iteration" , "time" , "continuity" , "x-momentum" , "y-momentum", "energy"
             call Monitors % WriteLabel
-            write(STD_OUT , * ) 
-
-            write(STD_OUT , '(A10,3X,A10,3X,A10,3X,A10,3X,A10,3X,A10)' , advance = "no" ) "---------" , "--------" , "----------" , "----------" , "----------", "--------"
             call Monitors % WriteUnderlines
-            write(STD_OUT , * ) 
          end if
          shown = shown + 1
 
-         residuals = mesh % computeResiduals()
-
-         write(STD_OUT , '(I10,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3,1X,A,1X,ES10.3)' , advance = "no") self % iter ,"|", self % t ,"|", residuals(IRHO) , "|" , residuals(IRHOU) , &
-                                          "|", residuals(IRHOV) , "|" , residuals(IRHOE)
          call Monitors % WriteValues
-         write(STD_OUT,*)
          
       end subroutine TimeIntegrator_Display
 

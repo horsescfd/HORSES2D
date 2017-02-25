@@ -104,15 +104,13 @@
 # end
 
 # define surface monitor 1
-   Name = Surface_1
-   Marker = 5
-   Mode = Scalar
-   Variable = pressure
+   Name = out-pressure
+   Marker = 4
+   Variable = pressure-average
 # end
 
 # define surface monitor 2
-   Name = Flow_out
-   Marker = 4
-   Mode = Vector
+   Name = mass-cyl
+   Marker = 5
    Variable = mass-flow
 # end

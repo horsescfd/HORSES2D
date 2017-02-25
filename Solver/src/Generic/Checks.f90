@@ -241,7 +241,7 @@ module ChecksModule
 
 !           Compute faces surface            
             do zone = 1 , size(mesh % Zones) - 1
-               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % ScalarSurfaceIntegral("Surface",zone) * RefValues % L ,"." 
+               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % ScalarScalarSurfaceIntegral("Surface",zone) * RefValues % L ,"." 
             end do
 
         end subroutine CheckMappings

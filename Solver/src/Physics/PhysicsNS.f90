@@ -8,7 +8,7 @@ module PhysicsNS
     public :: IGU , IGV , IGT
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
-    public :: InviscidFlux , ViscousFlux , ViscousNormalFlux
+    public :: InviscidFlux , ViscousFlux , ViscousNormalFlux , ComputeViscousTensor
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver , ExactRiemann_ComputePStar
 !
 !   *****************************************
@@ -485,6 +485,24 @@ module PhysicsNS
          deallocate( Fv )
 
       end function viscousNormalFlux2D
+
+      function ComputeViscousTensor ( N , dQ ) result ( tau )
+         implicit none
+         integer,          intent(in)     :: N
+         real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NGRAD)
+         real(kind=RP)                    :: tau(0:N,1:NDIM,1:NDIM)
+
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda )
+
+         tau(0:N , IX , IX ) = mu * ( 2.0_RP * dQ(0:N , IX , IGU ) - lambda * ( dQ(0:N,IX,IGU) + dQ(0:N,IY,IGV) ) )
+         tau(0:N , IY , IY ) = mu * ( 2.0_RP * dQ(0:N , IY , IGV ) - lambda * ( dQ(0:N,IX,IGU) + dQ(0:N,IY,IGV) ) )
+         tau(0:N , IX , IY ) = mu * ( dQ(0:N,IY,IGU) + dQ(0:N,IX,IGV) )
+         tau(0:N , IY , IX ) = tau(0:N , IX , IY )
+
+         end associate
+
+      end function ComputeViscousTensor
 !
 !     ****************************************************
 !        Riemann solvers

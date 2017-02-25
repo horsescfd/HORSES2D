@@ -11,15 +11,24 @@ module MonitorsClass
    integer, parameter         :: BUFFER_SIZE      = 100
    integer, parameter         :: STR_LEN_MONITORS = 128
    integer, parameter         :: MONITOR_LENGTH   = 10
-   integer, parameter         :: SCALAR_INTEGRAL  = 1
-   integer, parameter         :: VECTOR_INTEGRAL  = 2
-   integer, parameter         :: FORCE_INTEGRAL   = 3
 !                                ***********************
 !
 !  **********************
 !  Probe class definition
 !  **********************
 !
+   type Residuals_t
+      logical                         :: active
+      real(kind=RP)                   :: values(NCONS,BUFFER_SIZE)
+      character(len=STR_LEN_MONITORS) :: fileName
+      contains
+         procedure   :: Initialization => Residuals_Initialization
+         procedure   :: Update         => Residuals_Update
+         procedure   :: WriteLabel     => Residuals_WriteLabel
+         procedure   :: WriteValues    => Residuals_WriteValue
+         procedure   :: WriteToFile    => Residuals_WriteToFile
+   end type Residuals_t
+
    type Probe_t
       logical                         :: active
       integer                         :: ID
@@ -45,15 +54,22 @@ module MonitorsClass
 !
    type SurfaceMonitor_t
       logical                         :: active
+      logical                         :: isDimensionless
       integer                         :: ID
+      integer, allocatable            :: direction
       integer                         :: marker
-      integer                         :: mode
+      real(kind=RP), allocatable      :: referenceSurface
       real(kind=RP)                   :: values(BUFFER_SIZE)
+      real(kind=RP)                   :: dynamicPressure
       character(len=STR_LEN_MONITORS) :: monitorName
       character(len=STR_LEN_MONITORS) :: fileName
       character(len=STR_LEN_MONITORS) :: variable
       contains
          procedure   :: Initialization => SurfaceMonitor_Initialization
+         procedure   :: Update         => SurfaceMonitor_Update
+         procedure   :: WriteLabel     => SurfaceMonitor_WriteLabel
+         procedure   :: WriteValues    => SurfaceMonitor_WriteValue
+         procedure   :: WriteToFile    => SurfaceMonitor_WriteToFile
    end type SurfaceMonitor_t
 !
 !  *******************************
@@ -77,6 +93,7 @@ module MonitorsClass
       integer                                  :: bufferLine
       integer                                  :: iter(BUFFER_SIZE)
       real(kind=RP)                            :: t(BUFFER_SIZE)
+      type  ( Residuals_t      )               :: residuals
       class ( Probe_t          ) , allocatable :: probes          ( : )
       class ( SurfaceMonitor_t ) , allocatable :: surfaceMonitors ( : )
       class ( VolumeMonitor_t  ) , allocatable :: volumeMonitors  ( : )
@@ -163,6 +180,8 @@ readloop:do
 !
 !        Initialize
 !        ----------
+         call Monitors % residuals % Initialization
+
          do i = 1 , Monitors % no_of_probes
             call Monitors % probes(i) % Initialization(mesh , i)
          end do
@@ -180,18 +199,24 @@ readloop:do
          class(Monitor_t)              :: self
          integer                       :: i 
 
+         write(STD_OUT , '(A10)' , advance = "no") "Iteration"
+         write(STD_OUT , '(3X,A10)' , advance = "no") "Time"
+
+         call self % residuals % WriteLabel
+
          do i = 1 , self % no_of_probes
             call self % probes(i) % WriteLabel
          end do
 
          do i = 1 , self % no_of_surfaceMonitors
-!            call self % probe(i) % WriteLab
+            call self % surfaceMonitors(i) % WriteLabel
          end do
 
          do i = 1 , self % no_of_volumeMonitors
 !            call self % probe(i) % WriteLabel
          end do
          
+         write(STD_OUT , *) 
 
       end subroutine Monitor_WriteLabel
 
@@ -200,10 +225,23 @@ readloop:do
          class(Monitor_t)             :: self
          integer                      :: i
          character(len=MONITOR_LENGTH), parameter :: dashes = "----------"
-   
+
+         write(STD_OUT , '(A10)' , advance = "no" ) trim(dashes)
+         write(STD_OUT , '(3X,A10)' , advance = "no" ) trim(dashes)
+
+         do i = 1 , NCONS
+            write(STD_OUT , '(3X,A10)' , advance = "no" ) trim(dashes)
+         end do
+  
          do i = 1 , self % no_of_probes
             write(STD_OUT , '(3X,A10)' , advance = "no" ) dashes(1 : min(10 , len_trim( self % probes(i) % monitorName ) + 2 ) )
          end do
+
+         do i = 1 , self % no_of_surfaceMonitors
+            write(STD_OUT , '(3X,A10)' , advance = "no" ) dashes(1 : min(10 , len_trim( self % surfaceMonitors(i) % monitorName ) + 2 ) )
+         end do
+
+         write(STD_OUT , *) 
 
       end subroutine Monitor_WriteUnderlines
 
@@ -212,19 +250,31 @@ readloop:do
          class(Monitor_t)           :: self
          integer                    :: i
 
+         write(STD_OUT , '(I10)' , advance = "no")  self % iter(self % bufferLine)
+         write(STD_OUT , '(1X,A,1X,ES10.3)' , advance = "no") "|" , self % t(self % bufferLine)
+
+         call self % residuals % WriteValues( self % bufferLine )
+
          do i = 1 , self % no_of_probes
             call self % probes(i) % WriteValues ( self % bufferLine )
          end do
 
+         do i = 1 , self % no_of_surfaceMonitors
+            call self % surfaceMonitors(i) % WriteValues ( self % bufferLine )
+         end do
+
+         write(STD_OUT , *) 
+
       end subroutine Monitor_WriteValues
 
-      subroutine Monitor_UpdateValues ( self , mesh , t , iter)
+      subroutine Monitor_UpdateValues ( self , mesh , t , iter )
          implicit none
          class(Monitor_t)              :: self
          class(QuadMesh_t)             :: mesh
          real(kind=RP)                 :: t
          integer                       :: iter
 !        -------------------------------------------------
+         real(kind=RP)                 :: max_residuals(NCONS)
          integer                       :: i 
 
          self % bufferLine = self % bufferLine + 1
@@ -232,8 +282,17 @@ readloop:do
          self % t    ( self % bufferLine )  = t
          self % iter ( self % bufferLine )  = iter
 
+         max_residuals = mesh % ComputeResiduals()
+
+         call self % residuals % Update( max_residuals , self % bufferLine )
+
          do i = 1 , self % no_of_probes
             call self % probes(i) % Update( mesh , self % bufferLine )
+
+         end do
+
+         do i = 1 , self % no_of_surfaceMonitors
+            call self % surfaceMonitors(i) % Update( mesh , self % bufferLine )
 
          end do
 
@@ -255,8 +314,16 @@ readloop:do
          end if
 
          if ( forceVal ) then 
+
+            call self % residuals % WriteToFile ( self % iter , self % t , self % bufferLine )
+
             do i = 1 , self % no_of_probes
                call self % probes(i) % WriteToFile ( self % iter , self % t , self % bufferLine )
+
+            end do
+
+            do i = 1 , self % no_of_surfaceMonitors
+               call self % surfaceMonitors(i) % WriteToFile ( self % iter , self % t , self % bufferLine )
 
             end do
 
@@ -265,8 +332,16 @@ readloop:do
          else
 
             if ( self % bufferLine .eq. BUFFER_SIZE ) then
+
+               call self % residuals % WriteToFile ( self % iter , self % t , BUFFER_SIZE )
+
                do i = 1 , self % no_of_probes
                   call self % probes(i) % WriteToFile ( self % iter , self % t , BUFFER_SIZE ) 
+
+               end do
+
+               do i = 1 , self % no_of_surfaceMonitors
+                  call self % surfaceMonitors(i) % WriteToFile ( self % iter , self % t , self % bufferLine )
 
                end do
 
@@ -278,6 +353,96 @@ readloop:do
          end if
 
       end subroutine Monitor_WriteToFile
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           RESIDUALS ROUTINES
+!           ------------------
+!//////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine Residuals_Initialization( self ) 
+         use ParamfileIO
+         use Setup_Class
+         use MatrixOperations
+         implicit none
+         class(Residuals_t)      :: self
+!        ----------------------------------------------
+         character(len=STR_LEN_MONITORS)  :: fileName
+         integer                          :: fID
+         integer                          :: pos
+
+         self % active = .true.
+
+         fileName = trim(Setup % solution_file)
+   
+         pos = index(trim(fileName) , '.HiORst' )
+            
+         write( self % fileName , '(A,A,A,A)') fileName(1:pos-1) , ".residuals"  
+!
+!        Create file
+!        -----------
+         open ( newunit = fID , file = trim(self % fileName) , status = "unknown" , action = "write" ) 
+         write( fID , '(A)') "Residuals file"
+         write( fID , '(A10,2X,A24,2X,A24,2X,A24,2X,A24,2X,A24)' ) "Iteration" , "Time" , "continuity" , "x-momentum" , "y-momentum" , "energy"
+         close ( fID ) 
+              
+      end subroutine Residuals_Initialization
+
+      subroutine Residuals_Update ( self , max_residuals , bufferPosition )
+         use MatrixOperations
+         implicit none
+         class(Residuals_t)            :: self
+         real(kind=RP), intent(in) :: max_residuals(NCONS)
+         integer                   :: bufferPosition
+      
+         self % values( 1:NCONS , bufferPosition ) = max_residuals
+
+      end subroutine Residuals_Update
+
+      subroutine Residuals_WriteLabel ( self )
+         implicit none
+         class(Residuals_t)             :: self
+
+         write(STD_OUT , '(3X,A10)' , advance = "no") "continuity"
+         write(STD_OUT , '(3X,A10)' , advance = "no") "x-momentum"
+         write(STD_OUT , '(3X,A10)' , advance = "no") "y-momentum"
+         write(STD_OUT , '(3X,A10)' , advance = "no") "energy"
+
+      end subroutine Residuals_WriteLabel
+   
+      subroutine Residuals_WriteValue ( self , bufferLine ) 
+         implicit none
+         class(Residuals_t)             :: self
+         integer                    :: bufferLine
+         integer                    :: eq
+      
+         do eq = 1 , NCONS
+            write(STD_OUT , '(1X,A,1X,ES10.3)' , advance = "no") "|" , self % values(eq , bufferLine)
+         end do
+
+      end subroutine Residuals_WriteValue 
+
+      subroutine Residuals_WriteToFile ( self , iter , t , no_of_lines)
+         implicit none  
+         class(Residuals_t)             :: self
+         integer                    :: iter(:)
+         real(kind=RP)              :: t(:)
+         integer                    :: no_of_lines
+!        -------------------------------------------
+         integer                    :: i
+         integer                    :: fID
+
+         open( newunit = fID , file = trim ( self % fileName ) , action = "write" , access = "append" , status = "old" )
+         
+         do i = 1 , no_of_lines
+            write( fID , '(I10,2X,ES24.16,4(2X,ES24.16))' ) iter(i) , t(i) , self % values(1:NCONS,i)
+
+         end do
+        
+         close ( fID )
+      
+      end subroutine Residuals_WriteToFile
+
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -478,28 +643,56 @@ readloop:do
 
          write(in_label , '(A,I0)') "#define surface monitor " , self % ID
          
-         call readValueInRegion ( trim ( Setup % case_file )  , "Name"     , self % monitorName , in_label , "# end" ) 
-         call readValueInRegion ( trim ( Setup % case_file )  , "Marker"   , marker             , in_label , "# end" ) 
-         call readValueInRegion ( trim ( Setup % case_file )  , "Mode"     , mode               , in_label , "# end" ) 
-         call readValueInRegion ( trim ( Setup % case_file )  , "Variable" , self % variable    , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Name"              , self % monitorName      , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Marker"            , marker                  , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Variable"          , self % variable         , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Reference surface" , self % referenceSurface , in_label , "# end" ) 
+         call readValueInRegion ( trim ( Setup % case_file )  , "Direction"         , self % direction        , in_label , "# end" ) 
 
          self % active = .true.
-
-         if ( trim(mode) .eq. "Scalar" ) then
-            self % mode = SCALAR_INTEGRAL
-
-         elseif ( trim(mode) .eq. "Vector" ) then
-            self % mode = VECTOR_INTEGRAL
-
-         elseif ( trim(mode) .eq. "Force" ) then
-            self % mode = FORCE_INTEGRAL
-
-         end if
 
          if ( allocated ( marker ) ) then
             self % marker = marker
 
          end if
+
+         if ( .not. allocated ( self % referenceSurface ) ) then
+            allocate ( self % referenceSurface ) 
+            self % referenceSurface = 1.0_RP
+
+         end if
+            
+
+         select case ( trim ( self % variable ) )
+
+            case ("mass-flow")
+               self % isDimensionless = .false.
+
+            case ("flow")
+               self % isDimensionless = .false.
+
+            case ("pressure-force")
+               self % isDimensionless = .false.
+            
+
+            case ("viscous-force")
+               self % isDimensionless = .false.
+
+            case ("force")
+               self % isDimensionless = .false.
+
+            case ("lift")
+               self % isDimensionless = .true.
+               self % dynamicPressure = 0.5_RP * refValues % rho * refValues % V * refValues % V * self % referenceSurface
+
+            case ("drag")
+               self % isDimensionless = .true.
+               self % dynamicPressure = 0.5_RP * refValues % rho * refValues % V * refValues % V * self % referenceSurface
+
+            case ("pressure-average")
+               self % isDimensionless = .false.
+
+         end select
 
          fileName = trim(Setup % solution_file)
    
@@ -509,14 +702,108 @@ readloop:do
 !        Create file
 !        -----------
          open ( newunit = fID , file = trim(self % fileName) , status = "unknown" , action = "write" ) 
+
          write( fID , '(A20,A)') "Monitor name : ", trim(self % monitorName)
          write( fID , '(A20,I0)') "Surface marker : ", self % marker
-         write( fID , '(A20,A)') "Monitor mode: " , trim(mode)
          write( fID , '(A20,A)') "Selected variable: " , trim(self % variable)
+
+         if ( self % isDimensionless ) then
+            write(fID , '(A20,ES24.10)') "Dynamic pressure: " , self % dynamicPressure
+         end if
+
          write( fID , * )
          write( fID , '(A10,2X,A24,2X,A24)' ) "Iteration" , "Time" , trim(self % variable)
+
          close ( fID ) 
-              
 
       end subroutine SurfaceMonitor_Initialization
+
+      subroutine SurfaceMonitor_Update ( self , mesh , bufferPosition )
+         use MatrixOperations
+         implicit none
+         class(SurfaceMonitor_t)          :: self
+         class(QuadMesh_t)       :: mesh
+         integer                 :: bufferPosition
+!        ------------------------------------------------------
+         real(kind=RP)           :: vector(NDIM)
+      
+         associate ( N => mesh % elements( self % ID ) % spA % N )
+
+         select case ( trim( self % variable ) )
+
+            case ("mass-flow")
+               self % values(bufferPosition) = mesh % VectorVectorSurfaceIntegral("mass-flow" , self % marker ) * RefValues % L * refValues % a * refValues % a * refValues % rho
+
+            case ("flow")
+               self % values(bufferPosition) = mesh % VectorVectorSurfaceIntegral("flow" , self % marker ) * RefValues % L * refValues % a * refValues % a
+            
+            case ("pressure-force")
+               vector(IX:IY) =  mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
+               self % values(bufferPosition) = vector(self % direction)
+   
+            case ("viscous-force") 
+               vector(IX:IY) = mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * sqrt(thermodynamics % gamma) * dimensionless % Mach
+               self % values(bufferPosition) = vector(self % direction)
+      
+            case ("force") 
+               vector(IX:IY) = mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
+               vector(IX:IY) = vector(IX:IY) + mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * sqrt(thermodynamics % gamma) * dimensionless % Mach
+               self % values(bufferPosition) = vector(self % direction)
+
+            case ("lift")
+               vector(IX:IY) = mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
+               vector(IX:IY) = vector(IX:IY) + mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * sqrt(thermodynamics % gamma) * dimensionless % Mach
+               self % values(bufferPosition) = vector(IY) / self % dynamicPressure
+
+            case ("drag")
+               vector(IX:IY) = mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
+               vector(IX:IY) = vector(IX:IY) + mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * sqrt(thermodynamics % gamma) * dimensionless % Mach
+               self % values(bufferPosition) = vector(IX) / self % dynamicPressure
+
+            case ("pressure-average")
+               self % values(bufferPosition) = mesh % ScalarScalarSurfaceIntegral("pressure",self % marker) / mesh % ScalarScalarSurfaceIntegral("Surface",self % marker) * refValues % p
+         end select                        
+
+         end associate
+
+      end subroutine SurfaceMonitor_Update
+
+      subroutine SurfaceMonitor_WriteLabel ( self )
+         implicit none
+         class(SurfaceMonitor_t)             :: self
+
+         write(STD_OUT , '(3X,A10)' , advance = "no") trim(self % monitorName(1 : MONITOR_LENGTH))
+
+      end subroutine SurfaceMonitor_WriteLabel
+   
+      subroutine SurfaceMonitor_WriteValue ( self , bufferLine ) 
+         implicit none
+         class(SurfaceMonitor_t)             :: self
+         integer                    :: bufferLine
+
+         write(STD_OUT , '(1X,A,1X,ES10.3)' , advance = "no") "|" , self % values ( bufferLine ) 
+
+      end subroutine SurfaceMonitor_WriteValue 
+
+      subroutine SurfaceMonitor_WriteToFile ( self , iter , t , no_of_lines)
+         implicit none  
+         class(SurfaceMonitor_t)             :: self
+         integer                    :: iter(:)
+         real(kind=RP)              :: t(:)
+         integer                    :: no_of_lines
+!        -------------------------------------------
+         integer                    :: i
+         integer                    :: fID
+
+         open( newunit = fID , file = trim ( self % fileName ) , action = "write" , access = "append" , status = "old" )
+         
+         do i = 1 , no_of_lines
+            write( fID , '(I10,2X,ES24.16,2X,ES24.16)' ) iter(i) , t(i) , self % values(i)
+
+         end do
+        
+         close ( fID )
+      
+      end subroutine SurfaceMonitor_WriteToFile
+
 end module MonitorsClass
