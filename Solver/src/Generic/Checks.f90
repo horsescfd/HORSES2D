@@ -93,8 +93,10 @@ module ChecksModule
                allocate(dxiX  ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
                allocate(detaX ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
 
-               dxiX         = MatrixMultiplyInIndex_F( e % X , e % spA % DT  , 1)
-               detaX        = MatrixMultiplyInIndex_F( e % X , e % spA % DT , 2)
+               associate ( N => e % spA % N )
+               dxiX         = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 1 ) 
+               detaX        = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 2 ) 
+               end associate
 
                if (eID .eq. 1) then
                   current = eID
@@ -137,9 +139,9 @@ module ChecksModule
 !              BOTTOM Edge
 !              -----------
                which = [1,2]
-               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  )
+               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
                which = [2,2]
-               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  )
+               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
                   dSe = e % edges(EBOTTOM) % f % dS 
@@ -161,9 +163,9 @@ module ChecksModule
 !              RIGHT Edge
 !              -----------
                which = [1,1]
-               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , trA = .true.  )
+               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.  )
                which = [2,1]
-               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , trA = .true.  )
+               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.  )
                
                if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
                   dSe = e % edges(ERIGHT) % f % dS 
@@ -185,9 +187,9 @@ module ChecksModule
 !              TOP Edge
 !              -----------
                which = [1,2]
-               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP)  )
+               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
                which = [2,2]
-               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP)  )
+               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
                   dSe = e % edges(ETOP) % f % dS 
@@ -209,9 +211,9 @@ module ChecksModule
 !              LEFT Edge
 !              -----------
                which = [1,1]
-               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  , trA = .true.)
+               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
                which = [2,1]
-               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  , trA = .true.)
+               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1  , trA = .true.)
 
                if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
                   dSe = e % edges(ELEFT) % f % dS 
@@ -333,7 +335,9 @@ module ChecksModule
                which = [coord,2]
                Ja2 = e % Ja(which)
 
-               metricID = Mat_x_Mat_F( A = e % spA % D , B = Ja1 ) + Mat_x_Mat_F( A = Ja2 , B = e % spA % DT )
+               associate ( N => e % spA % N )
+               metricID = Mat_x_Mat_F( A = e % spA % D , B = Ja1 , rowC = N+1, colC = N+1 ) + Mat_x_Mat_F( A = Ja2 , B = e % spA % DT , rowC = N+1 , colC = N+1)
+               end associate
                
                currenterror = abs(BilinearForm_F( A = metricID , X = e % spA % w , Y = e % spA % w ))
                

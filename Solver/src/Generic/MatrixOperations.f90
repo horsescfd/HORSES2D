@@ -108,19 +108,22 @@ module MatrixOperations
 
       end subroutine MatrixTimesVector
 
-      function MatrixTimesVector_F( A , X , trA ) result( Y )
+      function MatrixTimesVector_F( A , X , Nout , trA ) result( Y )
 !
 !     -------------------------------------------------------------
 !        Computes the product
 !           Y = A * X, to compute X*A just set trA to .true.
+!           Nout -> Size of the output: Nrows(A) if trA = .false.
+!                                       Ncols(A) if trA = .true.
 !     -------------------------------------------------------------
 !
          implicit none
          real(kind=RP), intent(in)           :: A(:,:)
          real(kind=RP), intent(in)           :: X(:)
+         integer, intent(in)                 :: Nout
          logical      , intent(in), optional :: trA
          logical                             :: tA
-         real(kind=RP), allocatable          :: Y(:)
+         real(kind=RP)                       :: Y(1:Nout)
 
          if (present(trA)) then
             tA = trA
@@ -128,36 +131,28 @@ module MatrixOperations
             tA = .false.
          end if
 
-         if (.not. tA) then
-            allocate(Y(size(A,1)))
-         elseif (tA) then
-            allocate(Y(size(A,2)))
-         end if
-
          call MatrixTimesVector( A=A , X=X , Y=Y , trA = trA , reset = .true. )
 
       end function MatrixTimesVector_F
 
-      function MatrixByVectorInIndex_F( A , X , index ) result( B ) 
+      function MatrixByVectorInIndex_F( A , X , M , N , index ) result( B ) 
          implicit none
-         real(kind=RP), intent(in)           :: A(:,:)
+         integer, intent(in)                 :: M , N
+         real(kind=RP), intent(in)           :: A(M,N)
          real(kind=RP), intent(in)           :: X(:)
          integer                             :: index
-         real(kind=RP), allocatable          :: B(:,:)
+         real(kind=RP)                       :: B(M,N)
          integer                             :: i , j 
 
-         allocate( B , source = A )
-
-
          if ( index .eq. 1 ) then
-           do j = 1 , size(A,2)
-               do i = 1 , size(A,1)
+           do j = 1 , N
+               do i = 1 , M
                   B(i,j) = A(i,j) * X(i) 
                end do
            end do
          elseif ( index .eq. 2 ) then
-           do j = 1 , size(A,2)
-               do i = 1 , size(A,1)
+           do j = 1 , N
+               do i = 1 , M
                   B(i,j) = A(i,j) * X(j) 
                end do
            end do
@@ -186,9 +181,9 @@ module MatrixOperations
          end if 
           
          if (.not. tA) then
-            B = dot_product(X , MatrixTimesVector_F(A,Y) ) 
+            B = dot_product(X , MatrixTimesVector_F(A,Y,size(A,1)) ) 
          else
-            B = dot_product(Y , MatrixTimesVector_F(A,X) )
+            B = dot_product(Y , MatrixTimesVector_F(A,X,size(A,2)) )
          end if
       end subroutine BilinearForm
 
@@ -337,7 +332,7 @@ module MatrixOperations
 
       end subroutine Mat_x_Mat
 
-      function Mat_x_Mat_F( A , B , trA , trB) result ( C )
+      function Mat_x_Mat_F( A , B , rowC , colC ,  trA , trB) result ( C )
 !     -----------------------------
 !        Computes the product
 !           C = op(A) * op(B)
@@ -345,9 +340,11 @@ module MatrixOperations
          implicit none
          logical      , optional          :: trA
          logical      , optional          :: trB
+         integer, intent(in)              :: rowC
+         integer, intent(in)              :: colC
          real(kind=RP), intent(in)        :: A(:,:)
          real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), allocatable       :: C(:,:)
+         real(kind=RP)                    :: C(rowC,colC)
 !        ---------------------------------------------------------------
          logical                 :: tA , tB
          integer                 :: N , M 
@@ -378,8 +375,6 @@ module MatrixOperations
             N = size(B,2)
          end if
 
-         allocate( C(M,N) )
-      
          call Mat_x_Mat( A=A , B=B , C=C , trA=trA , trB=trB , reset=.true. )
 
       end function Mat_x_Mat_F
@@ -392,12 +387,13 @@ module MatrixOperations
 !        ***********************************
 !
          implicit none
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), intent(in)        :: C(:,:)
-         logical,       optional          :: trA , trB , trC
-         logical                          :: tA , tB , tC
-         real(kind=RP), intent(out)       :: val(:,:)
+         real(kind=RP), intent(in)    :: A(:,:)
+         real(kind=RP), intent(in)    :: B(:,:)
+         real(kind=RP), intent(in)    :: C(:,:)
+         real(kind=RP), intent(inout) :: val(:,:)
+         logical,       optional      :: trA , trB , trC
+         logical                      :: tA , tB , tC
+         integer                      :: rowAB , colAB , colABC
 
          if ( present ( trA ) ) then
             tA = trA
@@ -423,14 +419,29 @@ module MatrixOperations
 
          end if
 
+         if ( .not. tA ) then
+            rowAB = size(A,1)
+         else
+            rowAB = size(A,2)
+         end if
 
-         val = Mat_X_Mat_F( Mat_X_Mat_F( A,B , trA = tA , trB = tB ) , C , trB = tC)
+         if ( .not. tB ) then
+            colAB = size(B,2)
+         else
+            colAB = size(B,1)
+         end if
+
+         if ( .not. tC ) then
+            colABC = size(C,2)
+         else
+            colABC = size(C,1)
+         end if
+
+         val = Mat_x_Mat_F( Mat_X_Mat_F( A , B , rowAB , colAB , trA = tA , trB = tB ) , C , rowAB , colABC , trB = tC )
 
       end subroutine TripleMatrixProduct
 
-
-
-      function MatrixMultiplyInIndex_F( A , B , index) result( C )
+      function MatrixMultiplyInIndex_F( A , B , d1C , d2C , d3C , index) result( C )
          use, intrinsic    :: iso_c_binding
 !
 !     ----------------------------------------------------
@@ -440,10 +451,11 @@ module MatrixOperations
 !     ----------------------------------------------------
 !
          implicit none
+         integer, intent(in)                :: d1C , d2C , d3C
          real(kind=RP), target, intent(in)  :: A(:,:,:)
          real(kind=RP), target, intent(in)  :: B(:,:)
          integer                            :: index
-         real(kind=RP), allocatable, target :: C(:,:,:)
+         real(kind=RP), target              :: C(d1C,d2C,d3C)
          real(kind=RP), pointer             :: PC(:,:)
          real(kind=RP), pointer             :: P1C(:)
          real(kind=RP), pointer             :: PA(:,:)
@@ -468,44 +480,47 @@ module MatrixOperations
             I3 = size(B,2)
          end if
 
-         
-         allocate(C(I1,I2,I3))
-
          if (index .eq. 1) then
             do i = 1 , I2
                do j = 1 , I3
-                  C(1:I1,i,j) = MatrixTimesVector_F ( A=B , X=A(:,i,j) , trA=.true. ) 
+                  C(1:I1,i,j) = MatrixTimesVector_F ( A=B , X=A(:,i,j) , Nout=size(B,2), trA=.true. ) 
                end do
             end do
          
          elseif (index .eq. 2) then
             do i = 1 , I3
-               C(1:I1,1:I2,i) = Mat_X_Mat_F( A=A(:,:,i) , B=B  ) 
+               C(1:I1,1:I2,i) = Mat_X_Mat_F( A=A(:,:,i) , B=B , rowC = I1 , colC = I2 ) 
             end do
          elseif (index .eq. 3) then
             call c_f_pointer ( c_loc( A ) , P1A , [size(A)] )
             call c_f_pointer ( c_loc( C ) , P1C , [size(C)] )
             PA(1:size(A,1)*size(A,2),1:size(A,3)) => P1A(1:)
             PC(1:I1*I2,1:I3)  => P1C(1:)
-            PC = Mat_X_Mat_F( A=PA , B=B ) 
+            PC = Mat_X_Mat_F( A=PA , B=B , rowC = I1*I2 , colC = I3 ) 
          end if
 
       end function MatrixMultiplyInIndex_F
 
-      subroutine innerProduct2D( A , M , val )
+      subroutine innerProduct2D( A , M , rowA , colA , val )
 !     
 !     ******************************************************
 !        Computes the product
 !           val = tr(A) M A
+!           
+!           rowA and colA are the dimensions of A
+!           M(rowA , rowA)
+!           val(colA , colA)
 !     ******************************************************
 !
          implicit none
-         real(kind=RP), intent(in)     :: A(:,:)
-         real(kind=RP), intent(in)     :: M(:,:)
-         real(kind=RP), intent(out)     :: val(:,:)
+         integer                       :: rowA , colA
+         real(kind=RP), intent(in)     :: A(rowA,colA)
+         real(kind=RP), intent(in)     :: M(rowA,rowA)
+         real(kind=RP), intent(out)     :: val(colA,colA)
 
       
-         val = Mat_x_Mat_F( Mat_x_Mat_F( trA=.true. , trB=.false. , A=A, B=M ) , A )
+         val = Mat_x_Mat_F ( trA = .true. , trB = .false. , A=A , B=M , rowC = colA , colC = rowA )
+         val = Mat_x_Mat_F ( val , A , rowC = colA , colC = colA )
 
       end subroutine innerProduct2D
 

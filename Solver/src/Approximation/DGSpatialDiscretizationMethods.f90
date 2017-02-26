@@ -218,13 +218,13 @@ module DGSpatialDiscretizationMethods
 !                    Compute the interpolation
 !                    -------------------------
                      if ( edID .eq. EBOTTOM ) then
-                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,LEFT) )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,LEFT) , N+1)
                      elseif ( edID .eq. ERIGHT ) then
-                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,RIGHT) , trA = .true. )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,RIGHT) , N+1 , trA = .true. )
                      elseif ( edID .eq. ETOP ) then    
-                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,RIGHT) )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,RIGHT) , N+1)
                      elseif ( edID .eq. ELEFT ) then 
-                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,LEFT) , trA = .true. )
+                        variable_b(:,eq) = MatrixTimesVector_F( variable(:,:,eq) , e % spA % lb(:,LEFT) , N+1 , trA = .true. )
                      end if
 
                   end do
@@ -326,13 +326,13 @@ module DGSpatialDiscretizationMethods
 !                       Compute the interpolation
 !                       -------------------------
                         if ( edID .eq. EBOTTOM ) then
-                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,LEFT) )
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,LEFT) , N+1)
                         elseif ( edID .eq. ERIGHT ) then
-                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,RIGHT) , trA = .true. )
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,RIGHT) , N+1 , trA = .true. )
                         elseif ( edID .eq. ETOP ) then    
-                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,RIGHT) )
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,RIGHT) , N+1)
                         elseif ( edID .eq. ELEFT ) then 
-                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,LEFT) , trA = .true. )
+                           variable_b(:,iDim,eq) = MatrixTimesVector_F( variable(:,:,iDim,eq) , e % spA % lb(:,LEFT) , N+1 , trA = .true. )
                         end if
                      end do
                   end do
@@ -403,7 +403,7 @@ module DGSpatialDiscretizationMethods
 !        Perform volume loop
 !        -------------------
          do eID = 1 , mesh % no_of_elements
-            call ViscousMethod % dQVolumeLoop(mesh % elements(eID))
+            call ViscousMethod % dQVolumeLoop(mesh % elements(eID) )
          end do
 !
 !        Perform face loop

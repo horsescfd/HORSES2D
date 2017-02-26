@@ -34,7 +34,7 @@
 !
 !       Compute intermediate points
 !       ---------------------------
-        Xintermediate = Mat_x_Mat_F ( A = points , B = T , trB = .true. ) 
+        Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = N+1, trB = .true. ) 
 
         deallocate( wb , T )
    
@@ -46,11 +46,11 @@
   
 !       Compute points
 !       --------------
-        self % X  = Mat_x_Mat_F ( A = Xintermediate  , B = T              , trB = .true. ) 
+        self % X  = Mat_x_Mat_F ( A = Xintermediate  , B = T , rowC = NDIM , colC = N+1 , trB = .true. ) 
 
 !       Compute tangent vector
 !       ----------------------
-        self % dX = Mat_x_Mat_F ( A = self % X , B = self % spA % D , trB = .true. ) 
+        self % dX = Mat_x_Mat_F ( A = self % X , B = self % spA % D , rowC = NDIM , colC = N+1 , trB = .true. ) 
 
 !       Compute normal vector
 !       ---------------------
@@ -112,7 +112,7 @@
         correctedXi = xi
       end if 
        
-      p = MatrixTimesVector_F( self % X , self % spA % lj(correctedXi) )
+      p = MatrixTimesVector_F( self % X , self % spA % lj(correctedXi) , size(self % X ,1 ))
       
   end function Curvilinear_InterpolantX
 
@@ -139,7 +139,7 @@
         correctedXi = xi
       end if 
         
-      dS = MatrixTimesVector_F( self % dS , self % spA % lj(correctedXi) )
+      dS = MatrixTimesVector_F( self % dS , self % spA % lj(correctedXi) , NDIM )
 
    end function Curvilinear_InterpolantdS
 
@@ -166,7 +166,7 @@
         correctedXi = xi
       end if 
    
-      dX = real(dir , kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) )
+      dX = real(dir , kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) , NDIM)
 
   end function Curvilinear_InterpolantdX
 

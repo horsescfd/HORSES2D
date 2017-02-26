@@ -45,14 +45,15 @@ module DGTimeIntegrator
    end interface NewTimeIntegrator
 
    abstract interface
-      subroutine TimeScheme( mesh , dt , Storage)
+      subroutine TimeScheme( mesh , NDOF , dt , Storage)
          use SMConstants
          use Storage_module
          use QuadMeshClass
          implicit none
-         class(QuadMesh_t)      :: mesh
-         real(kind=RP)        :: dt
-         class(Storage_t)     :: Storage
+         class(QuadMesh_t), intent(in)   :: mesh
+         integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: dt
+         class(Storage_t), intent(inout) :: Storage
       end subroutine TimeScheme
    end interface
 
@@ -136,12 +137,15 @@ module DGTimeIntegrator
          class(QuadMesh_t)                  :: mesh
          class(Storage_t)                 :: Storage
          integer                          :: iter
+         integer                          :: NDOF
+
+         NDOF = size( Storage % QDot )
 
          do iter = self % initial_iteration + 1 , self % initial_iteration + self % no_of_iterations
 
             self % iter = iter
 
-            call self % TimeStep( mesh , self % dt , Storage)
+            call self % TimeStep( mesh , NDOF , self % dt , Storage)
             self % t    = self % t + self % dt
 
             call Monitors % UpdateValues ( mesh , self % t , self % iter)
@@ -180,12 +184,13 @@ module DGTimeIntegrator
 !              --------------------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine TimeIntegrator_ExplicitEuler( mesh , dt , Storage)
+      subroutine TimeIntegrator_ExplicitEuler( mesh , NDOF , dt , Storage)
          use Storage_module
          implicit none
-         class(QuadMesh_t)         :: mesh
-         real(kind=RP)           :: dt
-         class(Storage_t)        :: Storage
+         class(QuadMesh_t), intent(in)   :: mesh
+         integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: dt
+         class(Storage_t), intent(inout) :: Storage
 !
 !        Compute the time derivative
 !  
@@ -197,22 +202,21 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_ExplicitEuler
 
-      subroutine TimeIntegrator_WilliamsonRK3( mesh , dt , Storage )
+      subroutine TimeIntegrator_WilliamsonRK3( mesh , NDOF , dt , Storage )
          use Storage_module
          implicit none
-         class(QuadMesh_t)          :: mesh
-         real(kind=RP)              :: dt
-         class(Storage_t)           :: Storage
+         class(QuadMesh_t), intent(in)   :: mesh
+         integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: dt
+         class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
-         real(kind=RP), allocatable, save :: G(:)
+         real(kind=RP)              :: G(1:NDOF)
          integer                    :: m 
          integer, parameter         :: N_STAGES = 3
          real(kind=RP), parameter   :: am(3) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
          real(kind=RP), parameter   :: bm(3) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
          real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
          
-         if (.not. allocated(G) ) allocate ( G , source  = Storage % QDot )
-
          do m = 1 , N_STAGES
 !
 !           Compute time derivative
@@ -234,7 +238,7 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_WilliamsonRK3
 
-      subroutine TimeIntegrator_WilliamsonRK5( mesh , dt , Storage )
+      subroutine TimeIntegrator_WilliamsonRK5( mesh , NDOF , dt , Storage )
 !  
 !        *****************************************************************************************
 !           These coefficients have been extracted from the paper: "Fourth-Order 2N-Storage
@@ -243,18 +247,17 @@ module DGTimeIntegrator
 !
          use Storage_module
          implicit none
-         class(QuadMesh_t)          :: mesh
-         real(kind=RP)              :: dt
-         class(Storage_t)           :: Storage
+         class(QuadMesh_t), intent(in)   :: mesh
+         integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: dt
+         class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
-         real(kind=RP), save, allocatable :: G(:)
+         real(kind=RP)                   :: G(1:NDOF)
          integer                    :: m 
          integer, parameter         :: N_STAGES = 5
          real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
          real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
          
-         if (.not. allocated(G) ) allocate ( G , source  = Storage % QDot )
-
          do m = 1 , N_STAGES
 !
 !           Compute time derivative

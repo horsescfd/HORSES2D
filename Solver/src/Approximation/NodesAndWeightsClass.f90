@@ -338,7 +338,7 @@ module nodesAndWeights_class
                call TripleMatrixProduct(spI % M , current % T , current % D , current % tildeMTD )
 
 !              Compute the mass matrix M
-               call InnerProduct( current % T , spI % M , current % M )
+               call InnerProduct( current % T , spI % M , size(current % T,1) , size(current % T,2) , current % M )
 
 !              Compute the inverse of the mass matrix
                current % Minv = inv( current % M )

@@ -202,15 +202,13 @@ module DGViscousMethods
          class(ViscousMethod_t)    :: self
          class(QuadElement_t)       :: element
 !        -------------------------------------------------------------
-         real(kind=RP), allocatable :: F(:,:,:,:)
+         real(kind=RP)              :: F(0:element % spA % N,0:element % spA % N,1:NCONS,1:NDIM)
          integer                    :: eq
          integer                    :: FJa(NDIM) , GJa(NDIM)
 
          associate( N => element % spA % N )
 
-         allocate( F(0:N , 0:N , NCONS , NDIM) ) 
-
-         F = ViscousFlux( element % W , element % dQ )
+         F = ViscousFlux( N , element % W , element % dQ )
 
          do eq = 1 , NCONS
 !        
@@ -226,8 +224,6 @@ module DGViscousMethods
             GJa = [2,2]
             element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
          end do
-
-         deallocate( F ) 
 
          end associate
          
@@ -253,15 +249,15 @@ module DGViscousMethods
             type is (Edge_t)
 
                do side = 1 , 2
-                  edge % F ( 0:N , 1:NGRAD , side ) = ViscousNormalFlux( edge % w(0:N , 1:NPRIM , side) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , side) , edge % dS )
+                  edge % F ( 0:N , 1:NCONS , side ) = ViscousNormalFlux( N , edge % w(0:N , 1:NPRIM , side) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , side) , edge % dS )
 
                end do
 
             type is (StraightBdryEdge_t)
-               edge % F ( 0:N , 1:NGRAD , 1 ) = ViscousNormalFlux( edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS )
+               edge % F ( 0:N , 1:NCONS , 1 ) = ViscousNormalFlux( N , edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS )
 
             type is (CurvedBdryEdge_t)
-               edge % F ( 0:N , 1:NGRAD , 1 ) = ViscousNormalFlux( edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS)
+               edge % F ( 0:N , 1:NCONS , 1 ) = ViscousNormalFlux( N , edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS)
 
          end select
 
@@ -272,9 +268,9 @@ module DGViscousMethods
 
       function BaseClass_IntercellFlux ( self , edge ) result ( Fstar )
          implicit none
-         class( ViscousMethod_t )   :: self
-         class( Edge_t )            :: edge
-         real(kind=RP), allocatable :: Fstar(:,:)
+         class( ViscousMethod_t ) :: self
+         class( Edge_t )          :: edge
+         real(kind=RP)            :: Fstar(0:edge % spA % N,1:NCONS)
 
 
       end function BaseClass_IntercellFlux
@@ -326,12 +322,10 @@ module DGViscousMethods
          implicit none
          class(BR1Method_t)             :: self
          class(Edge_t)                  :: edge
-         real(kind=RP), allocatable     :: ustar(:,:)
+         real(kind=RP)                  :: ustar(0:edge % spA % N,1:NGRAD)
          
          associate ( N => edge % spA % N ) 
         
-         allocate( uStar ( 0 : N , NGRAD ) )
-
          select type ( edge ) 
 
             type is ( Edge_t ) 
@@ -425,12 +419,12 @@ module DGViscousMethods
 
                which = [iDim , 1]
                call Mat_x_Mat(A = -MD , &
-                     B = MatrixByVectorInIndex_F( element % Ja(which) * W(0:N,0:N,PrimVariable(iVar)) , weights , 2 ) , & 
+                     B = MatrixByVectorInIndex_F( element % Ja(which) * W(0:N,0:N,PrimVariable(iVar)) , weights , N+1 , N+1 , 2 ) , & 
                      C = dQ(0:N,0:N,iDim,iVar) , & 
                      trA = .true. , reset = .false. )
 
                which = [iDim , 2]
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % Ja(which) * W(0:N,0:N,PrimVariable(iVar)) , weights , 1) , &
+               call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % Ja(which) * W(0:N,0:N,PrimVariable(iVar)) , weights , N+1 , N+1 , 1) , &
                      B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
                      reset = .false. )
 
@@ -458,7 +452,7 @@ module DGViscousMethods
          class(BR1Method_t)    :: self
          class(Edge_t)     :: edge
 !        -------------------------------------------------------
-         real(kind=RP), allocatable :: Fstar(:,:)
+         real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
 
          associate ( N => edge % spA % N )
 !
@@ -466,10 +460,6 @@ module DGViscousMethods
 !        -------------------
          call self % ComputeFaceFluxes ( edge )
 !
-!        Allocate the interface flux F·n
-!        -------------------------------
-         allocate( Fstar( 0 : N , NCONS ) )
-
 !        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
 !        -------------------------------------------------------------------------------
          Fstar = self % IntercellFlux( edge )
@@ -567,13 +557,13 @@ module DGViscousMethods
 !
 !           F Loop
 !           ------
-            call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , 2 ) , C=QDot(0:N,0:N,eq) , &
+            call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
                         trA = .true. , reset = .false. )
 
 !
 !           G Loop
 !           ------
-            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
+            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
                          reset = .false. )
 
          end do
@@ -584,9 +574,9 @@ module DGViscousMethods
 
      function BR1_IntercellFlux ( self , edge ) result ( Fstar )
          implicit none
-         class(BR1Method_t)    :: self
-         class(Edge_t)     :: edge
-         real(kind=RP), allocatable :: Fstar(:,:)
+         class(BR1Method_t) :: self
+         class(Edge_t)      :: edge
+         real(kind=RP)      :: Fstar(0:edge % spA % N,1:NCONS)
 !        -------------------------------------------------------
 !
 !        ********************
@@ -598,9 +588,7 @@ module DGViscousMethods
 
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NCONS ) )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
 
                end associate
 !               
@@ -609,9 +597,7 @@ module DGViscousMethods
 
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NCONS ) )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
 
                end associate
 !
@@ -619,8 +605,6 @@ module DGViscousMethods
             type is (Edge_t)
       
                associate( N => edge % spA % N )
-
-               allocate( Fstar ( 0 : N , NCONS ) )
 
                Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , LEFT ) + edge % F( 0:N , 1:NCONS , RIGHT ) ) 
 
@@ -647,22 +631,19 @@ module DGViscousMethods
          class(Edge_t)              :: edge
          integer                    :: loc
          real(kind=RP)              :: ustar(0:,:)
-         real(kind=RP), allocatable :: duF(:,:,:,:)
+         real(kind=RP)              :: duF(0:edge % spA % N,0:edge % spA % N,1:NDIM,1:NGRAD)
 !        ---------------------------------------------------------------------
-         real(kind=RP), allocatable         :: uTimesW(:,:)
-         real(kind=RP), allocatable         :: auxdS(:,:)
-         real(kind=RP), pointer             :: lj(:)
-         integer                            :: direction
-         integer                            :: pos
-         integer                            :: index
-         integer                            :: i , j , var , iDim
+         real(kind=RP)          :: uTimesW(0:edge % spA % N,1:NGRAD)
+         real(kind=RP)          :: auxdS(1:NDIM,0:edge % spA % N)
+         real(kind=RP), pointer :: lj(:)
+         integer                :: direction
+         integer                :: pos
+         integer                :: index
+         integer                :: i , j , var , iDim
 !
          associate( N=> edge % quads(loc) % e % spA % N, &
              e=> edge % quads(loc) % e)
  
-         allocate(uTimesW(0:N,NGRAD))
-         allocate(auxdS(NDIM,0:N))
-
          select case (edge % edgeLocation(loc))
 
             case (ERIGHT)
@@ -672,10 +653,10 @@ module DGViscousMethods
                index = iX                     ! The coordinate (xi/eta) in which the boundary is located
                
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1 )
+                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 )
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1 )
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 )
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
 
                else
@@ -690,10 +671,10 @@ module DGViscousMethods
                index = iY
    
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1) 
+                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1) 
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1 ) 
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 ) 
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
                else
                   print*, "Direction not forward nor backward"
@@ -707,10 +688,10 @@ module DGViscousMethods
                index = iX
    
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1 ) 
+                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 ) 
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1)  
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1)  
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
                else
                   print*, "Direction not forward nor backward"
@@ -724,10 +705,10 @@ module DGViscousMethods
                index = iY
    
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1)  
+                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1)  
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , 1)  
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1)  
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
                else
                   print*, "Direction not forward nor backward"
@@ -737,8 +718,6 @@ module DGViscousMethods
             end select
 
              lj(0:N) => e % spA % lb(0:N,pos)
-
-             allocate ( duF(0:N,0:N,NDIM,NGRAD) )
 
             if ( index .eq. IY ) then
                do var = 1 , NGRAD
@@ -765,7 +744,6 @@ module DGViscousMethods
 
             lj=>NULL()
    
-            deallocate ( uTimesW )
          end associate
 
       end function dQFaceContribution
@@ -809,7 +787,7 @@ module DGViscousMethods
          class(Edge_t)              :: edge
          integer                    :: loc
          real(kind=RP)              :: Fstar(0:,:)
-         real(kind=RP), allocatable :: dFJ(:,:,:)
+         real(kind=RP)              :: dFJ(0:edge % spA % N,0:edge % spA % N,1:NCONS)
 !        ---------------------------------------------------------------------
          real(kind=RP), allocatable         :: Fstar2D(:,:,:)
          real(kind=RP), pointer             :: lj2D(:,:)
@@ -840,13 +818,13 @@ module DGViscousMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) )
+                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS )
 
                elseif ( direction .eq. BACKWARD ) then
 !
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) )
+                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ), rowC = N+1 , colC = NCONS )
 
                else
                   print*, "Direction not forward nor backward"
@@ -869,13 +847,13 @@ module DGViscousMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
@@ -898,13 +876,13 @@ module DGViscousMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
@@ -925,13 +903,13 @@ module DGViscousMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
@@ -949,8 +927,7 @@ module DGViscousMethods
 !
 !        Obtain the result             
 !        -----------------
-         allocate ( dFJ(0:N,0:N,NCONS) )
-         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , N+1 , N+1 , NCONS , index ) 
 !
 !        Free the variables
 !        ------------------

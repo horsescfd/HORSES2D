@@ -89,6 +89,8 @@ module PhysicsNS
       real(kind=RP)        :: Pr
       real(kind=RP)        :: kappa
       real(kind=RP)        :: Mach
+      real(kind=RP)        :: sqrtGammaMach
+      real(kind=RP)        :: invsqrtGammaMach
     end type Dimensionless_t
 
     abstract interface
@@ -161,13 +163,15 @@ module PhysicsNS
 !        Initialize the dimensionless values
 !        ***********************************
 !
-         dimensionless % mu         = 1.0_RP / Setup % reynolds_number
-         dimensionless % kappa      = dimensionless  % mu * thermodynamics % gogm1 / Setup % prandtl_number
-         dimensionless % cp         = thermodynamics % gogm1
-         dimensionless % cv         = thermodynamics % invgm1
-         dimensionless % Re         = Setup % reynolds_number
-         dimensionless % Pr         = Setup % prandtl_number
-         dimensionless % Mach       = Setup % Mach_number
+         dimensionless % mu               = 1.0_RP / Setup % reynolds_number
+         dimensionless % kappa            = dimensionless  % mu * thermodynamics % gogm1 / Setup % prandtl_number
+         dimensionless % cp               = thermodynamics % gogm1
+         dimensionless % cv               = thermodynamics % invgm1
+         dimensionless % Re               = Setup % reynolds_number
+         dimensionless % Pr               = Setup % prandtl_number
+         dimensionless % Mach             = Setup % Mach_number
+         dimensionless % sqrtGammaMach    = sqrt(thermodynamics % gamma) * dimensionless % Mach
+         dimensionless % invSqrtGammaMach = 1.0_RP / (sqrt(thermodynamics % gamma) * dimensionless % Mach)
 
          call Describe
 
@@ -199,24 +203,20 @@ module PhysicsNS
          G(IRHOV) = u(IRHOV) * vy + p
          G(IRHOE) = (u(IRHOE) + p) * vy
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
 
          end associate
 
       end function inviscidFlux0D
 
-      function inviscidFlux1D(u) result(val)
+      function inviscidFlux1D(N,u) result(val)
          implicit none
-         real(kind=RP)                      :: u(0:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:)
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: u(0:N,1:NCONS)
+         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:) , G(:,:)
-         real(kind=RP), allocatable         :: vx(:) , vy(:)  , p(:)
-
-         allocate( val(0:size(u,1)-1 , 1:NCONS , 1:NDIM ) )
-         allocate( vx(0:size(u,1)-1) )
-         allocate( vy(0:size(u,1)-1) )
-         allocate( p(0:size(u,1)-1) )
+         real(kind=RP)                      :: vx(0:N) , vy(0:N)  , p(0:N)
 
          F(0:,1:)    => val(0:,1:,iX)
          G(0:,1:)    => val(0:,1:,iY)
@@ -237,30 +237,23 @@ module PhysicsNS
          G(:,IRHOV) = u(:,IRHOV) * vy + p
          G(:,IRHOE) = (u(:,IRHOE) + p) * vy
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
 
          end associate
 
-         deallocate( vx , vy , p )
-
       end function inviscidFlux1D
 
-      function InviscidFlux2D(u) result(val)
+      function InviscidFlux2D(N,u) result(val)
          implicit none
-         real(kind=RP)                      :: u(0:,0:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: u(0:N,0:N,1:NCONS)
+         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
-         real(kind=RP), allocatable         :: vx(:,:) , vy(:,:)  , p(:,:)
-
-         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NCONS , 1:NDIM ) )
-         allocate( vx(0:size(u,1)-1 , 0:size(u,2)-1) )
-         allocate( vy(0:size(u,1)-1 , 0:size(u,2)-1) )
-         allocate(  p(0:size(u,1)-1 , 0:size(u,2)-1) )
+         real(kind=RP)                      :: vx(0:N,0:N) , vy(0:N,0:N)  , p(0:N,0:N)
 
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
-
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
@@ -278,24 +271,20 @@ module PhysicsNS
          G(:,:,IRHOV) = u(:,:,IRHOV) * vy + p
          G(:,:,IRHOE) = (u(:,:,IRHOE) + p) * vy
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
 
          end associate
 
-         deallocate( vx,vy,p )
-
       end function inviscidFlux2D
 
-      function inviscidFlux2D_PRIM(u,w) result(val)
+      function inviscidFlux2D_PRIM(N,u,w) result(val)
          implicit none
-         real(kind=RP)                      :: u(0:,0:,:)
-         real(kind=RP)                      :: w(0:,0:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         integer, intent(in)                :: N
+         real(kind=RP)                      :: u(0:N,0:N,1:NCONS)
+         real(kind=RP)                      :: w(0:N,0:N,1:NPRIM)
+         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
-
-         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NCONS , 1:NDIM ) )
-
 
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
@@ -312,8 +301,8 @@ module PhysicsNS
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
    
          end associate
 
@@ -369,14 +358,13 @@ module PhysicsNS
 
       end function viscousFlux0D
 
-      function viscousFlux1D( w , dq ) result ( val )
+      function viscousFlux1D( N , w , dq ) result ( val )
          implicit none
-         real(kind=RP)                      :: w(0:,:)
-         real(kind=RP)                      :: dq(0:,:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:)
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: w(0:N,1:NPRIM)
+         real(kind=RP)                      :: dq(0:N,1:NDIM,1:NGRAD)
+         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:) , G(:,:)
-
-         allocate( val(0:size(w,1)-1 , 1:NCONS , 1:NDIM ) )
 
          F(0:,1:)    => val(0:,1:,IX)
          G(0:,1:)    => val(0:,1:,IY)
@@ -397,14 +385,13 @@ module PhysicsNS
 
       end function viscousFlux1D
 
-      function viscousFlux2D( w , dq ) result ( val )
+      function viscousFlux2D( N , w , dq ) result ( val )
          implicit none
-         real(kind=RP)                      :: w(0:,0:,:)
-         real(kind=RP)                      :: dq(0:,0:,:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: w(0:N,0:N,1:NPRIM)
+         real(kind=RP)                      :: dq(0:N,0:N,1:NDIM,1:NGRAD)
+         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
-
-         allocate( val(0:size(w,1)-1 , 0:size(w,2)-1 , 1:NCONS , 1:NDIM ) )
 
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
@@ -440,49 +427,41 @@ module PhysicsNS
 
       end function viscousNormalFlux0D
 
-      function viscousNormalFlux1D ( w , dq , dS ) result ( val )
+      function viscousNormalFlux1D ( N , w , dq , dS ) result ( val )
          implicit none
-         real(kind=RP), intent(in)  :: w(0: ,1:)
-         real(kind=RP), intent(in)  :: dq(0: , 1: , 1: )
-         real(kind=RP), intent(in)  :: dS(1: , 0: )
-         real(kind=RP), allocatable :: val(: , :)
+         integer, intent(in)        :: N
+         real(kind=RP), intent(in)  :: w(0:N ,1:NPRIM)
+         real(kind=RP), intent(in)  :: dq(0:N , 1:NDIM , 1:NGRAD )
+         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N )
+         real(kind=RP)              :: val(0:N , 1:NCONS)
 !        ---------------------------------------------------------
-         real(kind=RP), allocatable :: Fv(:,:,:)
+         real(kind=RP)              :: Fv(0:N,1:NCONS,1:NDIM)
          integer                    :: eq
 
-         allocate ( Fv ( 0 : size(w,1)-1 , 1:NCONS , 1:NDIM ) )
-         allocate ( val ( 0 : size(w,1)-1 , 1:NCONS  ) )
-
-         Fv = viscousFlux1D ( w , dq )
+         Fv = viscousFlux1D ( N , w , dq )
    
          do eq = 1 , NCONS
             val(:,eq) = Fv(:,eq,IX) * dS(IX,:) + Fv(:,eq,IY) * dS(IY,:)
          end do
 
-         deallocate( Fv )
-
       end function viscousNormalFlux1D
 
-      function viscousNormalFlux2D ( w , dq , dS ) result ( val )
+      function viscousNormalFlux2D ( N , w , dq , dS ) result ( val )
          implicit none
-         real(kind=RP), intent(in)  :: w(0: , 0: , 1:)
-         real(kind=RP), intent(in)  :: dq(0: , 0: , 1: , 1: )
-         real(kind=RP), intent(in)  :: dS(1: , 0: , 0: )
-         real(kind=RP), allocatable :: val(: , : , :)
+         integer, intent(in)        :: N 
+         real(kind=RP), intent(in)  :: w(0:N , 0:N , 1:NPRIM)
+         real(kind=RP), intent(in)  :: dq(0:N , 0:N , 1:NDIM , 1:NGRAD )
+         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N , 0:N )
+         real(kind=RP)              :: val(0:N , 0:N , 1:NCONS)
 !        ---------------------------------------------------------
-         real(kind=RP), allocatable :: Fv(:,:,:,:)
+         real(kind=RP)              :: Fv(0:N,0:N,1:NCONS,1:NDIM)
          integer                    :: eq
 
-         allocate ( Fv ( 0 : size(w,1)-1 , 0 : size(w,2) - 1 , 1:NCONS , 1:NDIM ) )
-         allocate ( val ( 0 : size(w,1)-1 , 0 : size(w,2) - 1 , 1:NCONS  ) )
-
-         Fv = viscousFlux2D ( w , dq )
+         Fv = viscousFlux2D ( N , w , dq )
    
          do eq = 1 , NCONS
             val(:,:,eq) = Fv(:,:,eq,IX) * dS(IX,:,:) + Fv(:,:,eq,IY) * dS(IY,:,:)
          end do
-
-         deallocate( Fv )
 
       end function viscousNormalFlux2D
 
@@ -491,7 +470,6 @@ module PhysicsNS
          integer,          intent(in)     :: N
          real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NGRAD)
          real(kind=RP)                    :: tau(0:N,1:NDIM,1:NDIM)
-
 
          associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda )
 
@@ -643,7 +621,7 @@ module PhysicsNS
 
 !        3/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar , Nout = NCONS)
 
 !        4/ Scale it with the Mach number
 !           -----------------------------
@@ -757,7 +735,7 @@ module PhysicsNS
   
 !        6/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar , Nout = NCONS)
 
 !        7/ Scale it with the Mach number
 !           -----------------------------
@@ -849,7 +827,7 @@ module PhysicsNS
          
 !        4/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar , Nout = NCONS)
 
 !        5/ Scale it with the Mach number
 !           -----------------------------
@@ -943,7 +921,7 @@ module PhysicsNS
                
 !        4/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar  , Nout = NCONS )
 
 !        5/ Scale it with the Mach number
 !           -----------------------------

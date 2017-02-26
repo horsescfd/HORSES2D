@@ -5,7 +5,7 @@
 !
 
 !-------------------------------------: Geometry
-			               Mesh file     : ./MESH/KevinHelmholtz.HiOMesh
+			               Mesh file     : ./MESH/KelvinHelmholtz.HiOMesh
 			               Boundary file : _this_
 
 
@@ -14,16 +14,16 @@
 			           Reference pressure    : 101325.0
 			           Reference Temperature : 273.15
 			           Reynolds length       : 1.0
-			           Reynolds number       : 50.0
+			           Reynolds number       : 1000.0
 			           Prandtl number        : 0.72
 			           Mach number           : 0.1
 	
 !------------------------------------: DG Discretization
          		  Interpolation nodes : Legendre-Gauss
-         		  Polynomial order    : 5
+         		  Polynomial order    : 10
 
 !------------------------------------: Initialization
-         		    Initial condition : Restart
+         		    Initial condition : User-defined
 	         	    Restart file      : ./RESULTS/KevinHelmholtz.HiORst
 
 !---------------------------------------------: Inviscid discretization
@@ -40,20 +40,20 @@
 
 !----------------------------------------: Time integration
                     Integration mode     : Steady
-                    Integration scheme   : Williamson RK5
+                    Integration scheme   : Williamson RK3
                     Time step            : 1.0e-4
                     CFL Number           : 0.1
                     Simulation time      : 1.0
-                    Number of iterations : 100
+                    Number of iterations : 10000
                     Initial time         : 0.0
 
 !----------------------------------: Output variables
-		           Solution file     : ./RESULTS/KevinHelmholtz.HiORst
+		           Solution file     : ./RESULTS/KelvinHelmholtz.HiORst
 		           Autosave interval : 1000
 		           Output interval   : 10
             Output file type       : Interpolated
    Number of representation points : 10
-		           Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+		           Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach_Vorticity
 
 !
 !       *************************************
@@ -63,12 +63,17 @@
 
 # define zone 1
 	Name      = Bottom
-	Type      = Euler wall
+	Type      = Periodic
+   Direction = y
+   Marker    = 2
+   Mach      = 0.0
 # end 
 
 # define zone 2
 	Name      = Top
-	Type      = Euler wall
+	Type      = Periodic
+   Direction = y
+   Marker    = 1
 # end 
 
 # define zone 3
@@ -83,4 +88,11 @@
 	Type      = Periodic
 	Direction = x
 	Marker    = 3
+# end
+
+# define probe 1
+   Name = Inter_v
+   x position = 0.5
+   y position = 0.0
+   variable = v
 # end

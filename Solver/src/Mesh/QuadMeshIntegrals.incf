@@ -1,0 +1,207 @@
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           VOLUME AND SURFACE INTEGRALS
+!           ----------------------------
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+         function Compute_volumeIntegral( self , var ) result ( val )
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_T)          :: self
+            character(len=*)           :: var
+            real(kind=RP)              :: val
+            real(kind=RP), allocatable :: variable(:,:)
+!           ----------------------------------------------            
+            integer                    :: eID
+            
+            val = 0.0_RP
+            do eID = 1 , self % no_of_elements
+               associate( e => self % elements(eID) )
+               if ( trim(var) .eq. "One" ) then
+                  if (allocated(variable) ) deallocate(variable)
+                  allocate(variable(0:e % spA % N , 0:e % spA % N))
+                  variable = 1.0_RP
+               end if
+
+               variable = variable * e % jac
+
+               val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
+
+               end associate
+            end do
+               
+         end function Compute_volumeIntegral
+   
+         function Compute_ScalarScalarSurfaceIntegral( self , var , zone ) result ( val )
+            use MatrixOperations
+            use Physics
+            implicit none
+            class(QuadMesh_t)             :: self
+            character(len=*)              :: var
+            integer                       :: zone
+            real(kind=RP)                 :: val
+!           --------------------------------------------------------------
+            real(kind=RP), pointer        :: variable(:) => NULL()
+            integer                       :: edID
+
+            val = 0.0_RP
+
+            select case ( trim(var) ) 
+   
+               case ( "Surface" )
+                  
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     val = val + dot_product(f % spA % w , norm2( f % dS , dim = 1 ))
+                     end associate
+                  end do
+
+               case ( "pressure" )
+               
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     variable => f % w(0:N , IP , 1 )
+                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+
+                     end associate
+                     end associate
+                  end do
+
+               case ( "density" )
+
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     variable => f % w(0:N , IP , 1 )
+                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+
+                     end associate
+                     end associate
+                  end do
+   
+            end select
+
+         end function Compute_ScalarScalarSurfaceIntegral
+
+         function Compute_ScalarVectorSurfaceIntegral( self , var , zone ) result ( val )
+            use Physics
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_t)             :: self
+            character(len=*)              :: var
+            integer                       :: zone
+            real(kind=RP)                 :: val(1:NDIM)
+!           --------------------------------------------------------------
+            integer                       :: edID , j
+
+            val = 0.0_RP
+
+            select case ( trim(var) ) 
+   
+               case ( "pressure" )
+               
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     do j = 0 , N
+                        val(IX:IY) = val(IX:IY) + f % W(j,IP,1) * f % spA % w(j) * f % dS(IX:IY,j)
+                     end do
+
+                     end associate
+                     end associate
+                  end do
+
+            end select
+
+         end function Compute_ScalarVectorSurfaceIntegral
+
+         function Compute_VectorVectorSurfaceIntegral( self , var , zone ) result ( val )
+            use Physics
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_t)             :: self
+            character(len=*)              :: var
+            integer                       :: zone
+            real(kind=RP)                 :: val
+!           --------------------------------------------------------------
+            integer                       :: edID
+
+            val = 0.0_RP
+
+            select case ( trim(var) ) 
+   
+               case ( "mass-flow" )
+               
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     val = val + dot_product ( f % spA % w , ( f % Q(0:N,IRHOU,1) * f % dS(IX,0:N) + f % Q(0:N,IRHOV,1) * f % dS(IY,0:N) ) )
+
+                     end associate
+                     end associate
+                  end do
+
+               case ( "flow" )
+
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+
+                     val = val + dot_product ( f % spA % w , ( f % W(0:N,IU,1) * f % dS(IX,0:N) + f % W(0:N,IV,1) * f % dS(IY,0:N) ) )
+
+                     end associate
+                     end associate
+                  end do
+
+            end select
+
+         end function Compute_VectorVectorSurfaceIntegral
+
+         function Compute_TensorVectorSurfaceIntegral( self , var , zone ) result ( val )
+            use Physics
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_t)             :: self
+            character(len=*)              :: var
+            integer                       :: zone
+            real(kind=RP)                 :: val(NDIM)
+!           --------------------------------------------------------------
+            real(kind=RP), allocatable    :: tau(:,:,:)
+            real(kind=RP), pointer        :: dQ(:,:,:)
+            integer                       :: edID , j 
+
+            val = 0.0_RP
+
+            select case ( trim(var) ) 
+   
+               case ( "viscous" )
+               
+                  do edID = 1 , self % zones(zone) % no_of_edges
+                     associate ( f => self % zones(zone) % edges(edID) % f )
+                     associate ( N => f % spA % N )
+                     allocate ( tau(0:N , 1:NDIM , 1:NDIM ) )
+
+                     dQ => f % dQ ( 0:N,1:NDIM,1:NPRIM,1 ) 
+
+                     tau = ComputeViscousTensor( N , dQ )
+
+                     do j = 0 , N
+                        val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % dS(IX,j) + tau(j,IX,IY) * f % dS(IY,j) )
+                        val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % dS(IX,j) + tau(j,IY,IY) * f % dS(IY,j) )
+                     end do
+
+                     deallocate( tau )
+
+                     end associate
+                     end associate
+                  end do
+
+            end select
+
+         end function Compute_TensorVectorSurfaceIntegral

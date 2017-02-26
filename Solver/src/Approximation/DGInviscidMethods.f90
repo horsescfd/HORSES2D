@@ -185,14 +185,10 @@ module DGInviscidMethods
          class(InviscidMethod_t)    :: self
          class(Edge_t), pointer     :: edge
 !        -------------------------------------------------------
-         real(kind=RP), allocatable :: Fstar(:,:)
+         real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
 
          associate ( N => edge % spA % N )
 !
-!        Allocate the interface flux F·n
-!        -------------------------------
-         allocate( Fstar( 0 : N , NCONS ) )
-
 !        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
 !        -------------------------------------------------------------------------------
          Fstar = self % RiemannFlux( edge )
@@ -276,12 +272,10 @@ module DGInviscidMethods
          class(InviscidMethod_t)    :: self
          class(Edge_t), pointer     :: edge
 !        -------------------------------------------------
-         real(kind=RP), allocatable :: Fstar(:,:)
+         real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
 !
          associate ( N => edge % spA % N )
-
-         allocate( Fstar( 0 : N , NCONS ) )
-
+!
 !        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
 !        -------------------------------------------------------------------------------
          Fstar = self % RiemannFlux( edge )
@@ -390,8 +384,8 @@ module DGInviscidMethods
          implicit none
          class(Edge_t)              :: edge
          integer                    :: loc
-         real(kind=RP)              :: Fstar(0:,:)
-         real(kind=RP), allocatable :: dFJ(:,:,:)
+         real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
+         real(kind=RP)              :: dFJ(0:edge % spA % N,0:edge % spA % N,1:NCONS)
 !        ---------------------------------------------------------------------
          real(kind=RP), allocatable         :: Fstar2D(:,:,:)
          real(kind=RP), pointer             :: lj2D(:,:)
@@ -422,13 +416,13 @@ module DGInviscidMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) )
+                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS )
 
                elseif ( direction .eq. BACKWARD ) then
 !
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) )
+                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) , rowC = N+1 , colC = NCONS)
 
                else
                   print*, "Direction not forward nor backward"
@@ -451,13 +445,13 @@ module DGInviscidMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS) 
 
                else
                   print*, "Direction not forward nor backward"
@@ -480,13 +474,13 @@ module DGInviscidMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
@@ -507,13 +501,13 @@ module DGInviscidMethods
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) ) 
+                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
@@ -531,8 +525,7 @@ module DGInviscidMethods
 !
 !        Obtain the result             
 !        -----------------
-         allocate ( dFJ(0:N,0:N,NCONS) )
-         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , index ) 
+         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , N+1 , N+1 , NCONS , index ) 
 !
 !        Free the variables
 !        ------------------
@@ -543,7 +536,7 @@ module DGInviscidMethods
 
       end function StdDG_QDotFaceContribution
 
-      subroutine StdDG_QDotVolumeLoop( self , element )
+      subroutine StdDG_QDotVolumeLoop( self , element , reset , compute)
 !
 !        *******************************************************************************
 !           This routine computes the standard DG volumetric terms according to:
@@ -556,61 +549,83 @@ module DGInviscidMethods
          implicit none
          class(InviscidMethod_t) :: self
          class(QuadElement_t)    :: element
+         logical, optional       :: reset
+         logical, optional       :: compute
          integer                 :: eq
+         logical                 :: rst
+         logical                 :: cmpt
+
+         if ( present(reset) ) then
+            rst = reset
+
+         else
+            rst = .true.
+
+         end if
+
+         if ( present(compute) ) then
+            cmpt = compute
+
+         else
+            cmpt = .true.
+
+         end if
 !
 !        Compute inner Euler fluxes
 !        --------------------------
-         call self % computeInnerFluxes ( element )
+         call self % computeInnerFluxes ( element , rst)
 !
 !        Perform the matrix multiplication
 !        ---------------------------------
-         associate( QDot => element % QDot     , &
-                    MD   => element % spA % MD , &
-                    M    => element % spA % M  , &
-                    w    => element % spA % w  , &
-                    N    => element % spA % N      )
-
-         do eq = 1 , NCONS
-!
-!           FORM I
-!           ------
-            if ( self % formulation .eq. FORMI ) then
-!
-!              F Loop
+         if ( cmpt ) then
+            associate( QDot => element % QDot     , &
+                       MD   => element % spA % MD , &
+                       M    => element % spA % M  , &
+                       w    => element % spA % w  , &
+                       N    => element % spA % N      )
+   
+            do eq = 1 , NCONS
+!   
+!              FORM I
 !              ------
-               call Mat_x_Mat(A = MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , 2 ) , C=QDot(0:N,0:N,eq) , &
-                           trA = .true. , reset = .false. )
-
-!
-!              G Loop
-!              ------
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
-                            reset = .false. )
-!
-!           FORM II
-!           -------
-            elseif ( self % formulation .eq. FORMII ) then
-!
-!              F Loop
-!              ------
-               call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F(element % F(0:N,0:N,eq,IX) , w , 2 ) , C=QDot(0:N,0:N,eq) , &
-                            reset = .false. )
-
-!
-!              G Loop
-!              ------
-               call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
-                            trB = .true. , reset = .false. )
-
-            end if
-
-         end do
-
-         end associate
+               if ( self % formulation .eq. FORMI ) then
+!   
+!                 F Loop
+!                 ------
+                  call Mat_x_Mat(A = MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+                              trA = .true. , reset = .false. )
+   
+!   
+!                 G Loop
+!                 ------
+                  call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
+                               reset = .false. )
+!   
+!              FORM II
+!              -------
+               elseif ( self % formulation .eq. FORMII ) then
+!   
+!                 F Loop
+!                 ------
+                  call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F(element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 ,  2 ) , C=QDot(0:N,0:N,eq) , &
+                               reset = .false. )
+   
+!   
+!                 G Loop
+!                 ------
+                  call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
+                               trB = .true. , reset = .false. )
+   
+               end if
+   
+            end do
+   
+            end associate
+         end if
 
       end subroutine StdDG_QDotVolumeLoop
 
-      subroutine StdDG_ComputeInnerFluxes( self , element ) 
+      subroutine StdDG_ComputeInnerFluxes( self , element , reset) 
 !
 !        **********************************************************************
 !              This subroutine computes the contravariant fluxes of the element
@@ -622,43 +637,60 @@ module DGInviscidMethods
          implicit none  
          class(InviscidMethod_t)    :: self
          class(QuadElement_t)       :: element
+         logical                    :: reset
 !        -------------------------------------------------------------
-         real(kind=RP), allocatable :: F(:,:,:,:)
+         real(kind=RP)              :: F(0:element % spA % N,0:element % spA % N,1:NCONS,1:NDIM)
          integer                    :: eq
          integer                    :: FJa(NDIM) , GJa(NDIM)
 
          associate( N => element % spA % N )
+         
+         F = InviscidFlux( element % spA % N , element % Q , element % W)
 
-         allocate( F(0:N , 0:N , NCONS , NDIM) ) 
-
-         F = InviscidFlux( element % Q , element % W)
-
-         do eq = 1 , NCONS
-!        
-!           F flux (contravariant)
-!           ----------------------
-            FJa = [1,1]
-            GJa = [2,1]
-            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
-!        
-!           G flux (contravariant)
-!           ----------------------
-            FJa = [1,2]
-            GJa = [2,2]
-            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
-         end do
-
-         deallocate( F ) 
+         if ( reset ) then
+            do eq = 1 , NCONS
+!           
+!              F flux (contravariant)
+!              ----------------------
+               FJa = [1,1]
+               GJa = [2,1]
+               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+!           
+!              G flux (contravariant)
+!              ----------------------
+               FJa = [1,2]
+               GJa = [2,2]
+               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+            end do
+   
+         else
+            do eq = 1 , NCONS
+!           
+!              F flux (contravariant)
+!              ----------------------
+               FJa = [1,1]
+               GJa = [2,1]
+               element % F(0:N,0:N,eq,IX) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+!           
+!              G flux (contravariant)
+!              ----------------------
+               FJa = [1,2]
+               GJa = [2,2]
+               element % F(0:N,0:N,eq,IY) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+            end do
+         end if
 
          end associate
          
       end subroutine StdDG_ComputeInnerFluxes
 
-      subroutine OIDG_QDotVolumeLoop( self , element )
+      subroutine OIDG_QDotVolumeLoop( self , element , reset , compute)
          use MatrixOperations
          implicit none
          class(OverIntegrationDG_t)          :: self
          class(QuadElement_t)                  :: element
+         logical, optional                   :: reset
+         logical, optional                   :: compute
 !
 !        **********************************************
 !           Still under development...
@@ -666,10 +698,12 @@ module DGInviscidMethods
 !
       end subroutine OIDG_QDotVolumeLoop
 
-      subroutine SplitDG_QDotVolumeLoop( self , element )
+      subroutine SplitDG_QDotVolumeLoop( self , element , reset , compute)
          implicit none
          class(SplitDG_t)        :: self
          class(QuadElement_t)      :: element
+         logical, optional                   :: reset
+         logical, optional                   :: compute
 !
 !        **********************************************
 !           Still under development...
@@ -689,9 +723,9 @@ module DGInviscidMethods
          implicit none
          class(InviscidMethod_t)    :: self
          class(Edge_t), pointer     :: edge
-         real(kind=RP), allocatable :: Fstar(:,:)
 !        -------------------------------------------------------
-         real(kind=RP), allocatable :: QL(:) , QR(:)
+         real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
+         real(kind=RP)              :: QL(1:NCONS) , QR(1:NCONS)
          real(kind=RP), pointer     :: T(:,:) , Tinv(:,:)
          integer                    :: iXi
 !
@@ -704,7 +738,6 @@ module DGInviscidMethods
 
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NCONS ) )
 
                if ( associated( edge % FB ) ) then
 !
@@ -717,7 +750,6 @@ module DGInviscidMethods
 !                 Weak boundary conditions
 !                 -----------------------
                   do iXi = 0 , N
-                     allocate ( QL(NCONS) , QR(NCONS) )
 !
 !                    Select LEFT and RIGHT states depending on the edge orientation
 !                    -------------------------------------------------------------- 
@@ -749,8 +781,6 @@ module DGInviscidMethods
                         Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
    
                      end if
-     
-                     deallocate( QL , QR )
    
                   end do
 
@@ -763,8 +793,6 @@ module DGInviscidMethods
 
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NCONS ) )
-
                if ( associated( edge % FB ) ) then
 !
 !                 Prescribed boundary conditions
@@ -776,7 +804,6 @@ module DGInviscidMethods
 !                 Weak boundary conditions
 !                 -----------------------
                   do iXi = 0 , N
-                     allocate ( QL(NCONS) , QR(NCONS) )
 !
 !                    Select LEFT and RIGHT states depending on the edge orientation
 !                    -------------------------------------------------------------- 
@@ -809,7 +836,6 @@ module DGInviscidMethods
    
                      end if
      
-                     deallocate( QL , QR )
    
                   end do
 
@@ -822,13 +848,10 @@ module DGInviscidMethods
       
                associate( N => edge % spA % N )
 
-               allocate( Fstar ( 0 : N , NCONS ) )
-
                do iXi = 0 , N
 !
 !                 Select LEFT and RIGHT states
 !                 ----------------------------
-                  allocate( QL(NCONS) , QR(NCONS) )
                   QL    = edge % Q(iXi , 1:NCONS , LEFT )
                   QR    = edge % Q(iXi , 1:NCONS , RIGHT)
 !
@@ -840,8 +863,6 @@ module DGInviscidMethods
 !                 Compute the Riemann flux
 !                 ------------------------
                   Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
-
-                  deallocate( QL , QR )
   
                end do
 
