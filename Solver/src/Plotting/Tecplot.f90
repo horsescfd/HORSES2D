@@ -307,6 +307,10 @@ module Tecplot
                      case ("Mach")
                         write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
 
+                     case ("s")
+                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
+                                                  0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
+                                                    / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
 #ifdef NAVIER_STOKES
                      case ("Vorticity")
                         write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
@@ -464,6 +468,11 @@ module Tecplot
       
                      case ("Mach")
                         write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
+
+                     case ("s")
+                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
+                                                  0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
+                                                    / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
 #ifdef NAVIER_STOKES
                      case ("Vorticity")
                         write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L

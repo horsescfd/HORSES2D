@@ -626,7 +626,7 @@ module PhysicsNS
 !        4/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 
 
@@ -740,7 +740,7 @@ module PhysicsNS
 !        7/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 
 !
@@ -832,7 +832,7 @@ module PhysicsNS
 !        5/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 !        
       end function HLLFlux
@@ -926,7 +926,7 @@ module PhysicsNS
 !        5/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 !
       end function AUSMFlux

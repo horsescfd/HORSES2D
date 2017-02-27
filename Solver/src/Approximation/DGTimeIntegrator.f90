@@ -122,9 +122,11 @@ module DGTimeIntegrator
 
          end if
 !
-!        Create monitors
-!        ---------------
-         Monitors = ConstructMonitors( mesh )
+!        Create monitors just if the number of iterations is nonzero
+!        -----------------------------------------------------------
+         if ( Integrator % no_of_iterations .ne. 0 ) then
+            Monitors = ConstructMonitors( mesh )
+         end if
            
 
       end function TimeIntegrator_NewTimeIntegrator
@@ -174,7 +176,9 @@ module DGTimeIntegrator
          self % iter = self % initial_iteration + self % no_of_iterations
          call self % Autosave( Storage , mesh , trim(Setup % solution_file) ) 
 
-         call Monitors % WriteToFile ( force = .true. )
+         if ( self % no_of_iterations .ne. 0 ) then
+            call Monitors % WriteToFile ( force = .true. )
+         end if
 
       end subroutine TimeIntegrator_Integrate
 !

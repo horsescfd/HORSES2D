@@ -21,6 +21,7 @@ module QuadMeshClass
          class(QuadElement_t) , pointer        :: elements(:)
          class(Zone_t)        , pointer        :: zones(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
+         real(kind=RP)                         :: Volume
          contains
              procedure  :: ConstructFromFile
              procedure  :: ConstructZones            => Mesh_ConstructZones
@@ -137,6 +138,8 @@ module QuadMeshClass
 !            ============================
 !
              call constructElementsAndEdges( self , meshFile , spA, Storage , spI )
+
+             self % Volume = self % VolumeIntegral("One")            
 
          end subroutine constructFromFile
 

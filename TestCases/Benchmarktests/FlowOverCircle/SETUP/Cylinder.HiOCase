@@ -97,20 +97,22 @@
 # end
 
 # define probe 1
-   Name = Probe2
-   x position = 0.5
+   Name = Wake_v
+   x position = 0.75
    y position = 0.0
-   Variable = Mach
+   Variable = v
 # end
 
 # define surface monitor 1
-   Name = out-pressure
-   Marker = 4
-   Variable = pressure-average
+   Name = lift
+   Marker = 5
+   Variable = lift
+   Reference surface = 1.0
 # end
 
 # define surface monitor 2
-   Name = mass-cyl
+   Name = drag
    Marker = 5
-   Variable = mass-flow
+   Variable = drag
+   Reference surface = 1.0
 # end
