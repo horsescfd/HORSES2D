@@ -13,10 +13,11 @@ MODE ?=DEBUG
 BLAS_LIB = 
 LAPACK_LIB = 
 LIBS=
+GLOB_MACROS :=
 
 # --------------- MACROS ---------------------------------------------------
 
-GLOB_MACROS ?=   -D_USE_LAPACK
+#GLOB_MACROS +=-D_USE_LAPACK
 
 # --------------- DEPENDENCIES ---------------------------------------------------
 
@@ -25,9 +26,9 @@ Physics: PhysicsNS Headers
 PhysicsNS: Setup SMConstants Headers MatrixOperations
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
-InterpolationAndDerivatives: SMConstants
+InterpolationAndDerivatives: SMConstants Utilities
 LegendreAlgorithms: SMConstants
-QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions
+QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions Utilities
 MeshFile: Setup SMConstants NetCDF_Interface Headers
 QuadElement: src/Mesh/QuadAuxiliar.incf src/Mesh/QuadMappings.incf NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives MatrixOperations MetricMatrix
 QuadDefinitions: SMConstants
@@ -40,12 +41,13 @@ ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
 DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods
-DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh
+DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants
-DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot Monitors
+Monitors: SMConstants Setup Paramfile Physics QuadMesh
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
@@ -72,7 +74,8 @@ ifeq ($(COMPILER),gfortran)
    FC=gfortran
    ifeq ($(MODE),DEBUG)
       $(info Compiling with gfortran in DEBUG mode.)
-      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+#      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+       FFLAGS = -cpp -O0 -g -fcheck=all -ffree-line-length-0 -fbacktrace -fbounds-check -Wall -fcheck-array-temporaries -fbackslash -ffpe-trap=invalid,zero,overflow -static-libgfortran
    else 
   	$(info Compiling with gfortran in RELEASE mode.)
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
@@ -107,10 +110,13 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
 # ------------- Main rules -----------------------
 	
 
-all: 	$(EXECUTABLE)
+all: 	def_navier_stokes_macro $(EXECUTABLE)
 
 runcyl: 	
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
+
+debugcyl:
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && gdb ./$(EXECUTABLE))		
 
 runvortex: 	
 	(cd ../TestCases/Benchmarktests/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		
@@ -119,16 +125,24 @@ runchan:
 	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
 
 runfree: 	
-	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) -check)		
+	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
+
+Euler:  def_euler_macro $(EXECUTABLE)
+
+def_euler_macro:
+	$(eval EXECUTABLE:=HiODG2D.Euler)
+
+def_navier_stokes_macro:
+	$(eval NS_COMP:=-DNAVIER_STOKES)
 
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
-	$(FC) $(FFLAGS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
+	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
 	$(OBJS_EXEC) $(LIBS)\
 
 # ---------- Default compilation rule -----------
 $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
-	$(FC) $(FFLAGS) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$@.f90),$(wildcard $(SRC_DIR)/$@.f90)) -o $(BUILD_DIR)/$@.o
+	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$@.f90),$(wildcard $(SRC_DIR)/$@.f90)) -o $(BUILD_DIR)/$@.o
 
 
 clean:

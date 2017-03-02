@@ -124,7 +124,7 @@ With these quantities, we define the dimensionless quantities:
 Note that the state equation on these variables is:
 
 \begin{equation}
-\tilde{p} + 1 = \tilde{\rho}\tilde{T}.
+\tilde{p} = \tilde{\rho}\tilde{T}.
 \end{equation}
 
 \subsection{Euler equations}
@@ -323,5 +323,60 @@ Its numerical version reads:
 [\dot{\boldsymbol{Q}}_{eq}] &\leftarrow -[\boldsymbol{M}] [\boldsymbol{\tilde{G}}_{eq}] [\boldsymbol{D}]^T [\boldsymbol{M}]
 \end{split}
 \end{equation}
+
+
+\section{Navier-Stokes equations approximation}
+
+\subsection{Computation of gradients}
+
+The gradient of a variable $u$ in a curvilinear system reads:
+
+\begin{equation}
+\vec{g} = \nabla u = \frac{1}{J}\sum_{d=1}^{N_D} J\vec{a}^d \frac{\partial u}{\partial \xi_d}	
+\end{equation}
+
+First, lets define the metric terms tensor as:
+
+\begin{equation}
+[\boldsymbol{Ja}]_{ij} = Ja_i^j	
+\end{equation}
+
+So that the gradient can be written as:
+
+\begin{equation}
+\vec{g} = \frac{1}{J}[\boldsymbol{Ja}]\{\nabla_\xi \underline{u}\} = \frac{1}{J}\nabla_\xi \cdot \bigl([\boldsymbol{Ja}]u	\bigr),
+\end{equation}
+
+in which the metric identities have been used to derive the conservative form. The divergence of this tensor is such that the derivatives are applied by columns. Thus, one can write its weak form version as:
+
+\begin{equation}
+\int_{-1}^{1}\int_{-1}^{1} J \vec{g}\phi_{ij}d\xi d\eta	= \int_{\partial \Omega^{el}}u^\star \phi_{ij} [\boldsymbol{Ja}]\cdot \hat{n}_\xi d\Gamma_\xi -\int_{-1}^{1}\int_{-1}^{1} u [\boldsymbol{Ja}] \cdot \{\nabla_\xi \underline{\phi_{ij}}\}d\xi d\eta	
+\end{equation}
+
+Its discrete version, considering the use of numerical quadratures, and stating that:
+
+\begin{equation}
+d\vec{S} = 	[\boldsymbol{Ja}]\cdot \hat{n}_\xi d\Gamma_\xi = \pm J\vec{a}^\xi d\eta,
+\end{equation}
+
+for $\xi = \pm 1$ faces, and 
+
+\begin{equation}
+	d\vec{S} = [\boldsymbol{Ja}]\cdot \hat{n}_\xi d\Gamma_\xi = \pm J\vec{a}^\eta d\xi,
+\end{equation}
+
+for $\eta = \pm 1$ faces:
+
+\begin{equation}
+	J_{ij}w_iw_j \vec{g}_{ij} = \int_{\partial \Omega^{el}}u^\star \phi_{ij} d\vec{S} -\int_{-1}^{1}\int_{-1}^{1} u [\boldsymbol{Ja}] \cdot \{\nabla_\xi \underline{\phi_{ij}}\}d\xi d\eta	
+\end{equation}
+
+The discrete volume integral is similar to that of the euler fluxes. Focusing on a certain dimension, $d$:
+
+\begin{equation}
+	J_{ij}w_iw_j \vec{g}_{ij,d} = \int_{\partial \Omega^{el}}u^\star \phi_{ij} dS_d - (MD)^T[uJa^\xi_d]M - M[uJa^\eta_d]MD
+\end{equation}
+
+
 
 \end{document}

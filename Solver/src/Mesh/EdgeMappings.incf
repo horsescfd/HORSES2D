@@ -26,16 +26,16 @@
       associate( N => self % spA % N )
 
       do iXi = 0 , N
-       self % T(1:NEC,1:NEC,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
+       self % T(1:NCONS,1:NCONS,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
                                                 0.0_RP , self % dS(iX,iXi)  , self % dS(iY,iXi) , 0.0_RP , &
                                                 0.0_RP , -self % dS(iY,iXi) , self % dS(iX,iXi) , 0.0_RP , &
-                                                0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NEC,NEC/),ORDER=(/2,1/)) 
+                                                0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NCONS,NCONS/),ORDER=(/2,1/)) 
 
        associate ( dS_square => self % T(IRHOE,IRHOE,iXi) )
-       self % Tinv(1:NEC,1:NEC,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
+       self % Tinv(1:NCONS,1:NCONS,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
                                                    0.0_RP , self % dS(iX,iXi) , -self % dS(iY,iXi) , 0.0_RP , &
                                                    0.0_RP , self % dS(iY,iXi) , self % dS(iX,iXi)  , 0.0_RP , &
-                                                   0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NEC,NEC/),ORDER=(/2,1/)) / dS_square 
+                                                   0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NCONS,NCONS/),ORDER=(/2,1/)) / dS_square 
        end associate
       end do
 

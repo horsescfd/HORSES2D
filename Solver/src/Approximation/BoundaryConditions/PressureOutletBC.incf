@@ -78,33 +78,37 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               allocate( edge % uB(0:N,NCONS) )
                
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = 0.0_RP      ! Its value is not given until the update routine is invoked
+                  edge % uB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
                edge % RiemannSolver => self % RiemannSolver
                
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )
+               allocate( edge % uB(0:N,NCONS) )
 
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = 0.0_RP    ! Its value is not given until the update routine is invoked
+                  edge % uB(i , 1:NCONS) = 0.0_RP    ! Its value is not given until the update routine is invoked
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
                edge % RiemannSolver => self % RiemannSolver
 
          end select
          end associate
       end subroutine PressureOutletBC_Associate
 
-      subroutine PressureOutletBC_Update( self , edge )
+      subroutine PressureOutletBC_UpdateSolution( self , edge )
          implicit none
          class(PressureOutletBC_t)          :: self
          class(Edge_t)                       :: edge
@@ -158,7 +162,7 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     edge % uB(iXi , 1:NEC)  = self % q
+                     edge % uB(iXi , 1:NCONS)  = self % q
                
                   elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
                      pR = pInfty
@@ -170,7 +174,6 @@
                      edge % uB(iXi , IRHOU) = rhoR * uR
                      edge % uB(iXi , IRHOV) = rhoR * vR
                      edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
-                     print*, "Warning: Returning fluid through outflow in cell " , edge % ID
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
 !                      Rplus = vnL + 2.0_RP * aL * Dimensionless % cv
@@ -200,7 +203,7 @@
                      edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NEC) = edge % Q(iXi, 1:NEC , 1)
+                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
       
                   end if
                
@@ -224,7 +227,7 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     edge % uB(iXi , 1:NEC)  = self % q
+                     edge % uB(iXi , 1:NCONS)  = self % q
                
                   elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
                      pR = pInfty
@@ -249,7 +252,7 @@
                      edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NEC) = edge % Q(iXi, 1:NEC , 1)
+                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
       
                   end if
                
@@ -259,8 +262,6 @@
             class default
          end select
 
-
-
          end associate
 
-      end subroutine PressureOutletBC_Update
+      end subroutine PressureOutletBC_UpdateSolution

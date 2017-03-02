@@ -75,25 +75,30 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )   ! Normal gradients
+               allocate( edge % uB(0:N,NCONS) )
                
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = self % q
+                  edge % uB(i , 1:NCONS) = self % q
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
                
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % uB(0:N,NEC) )
-               allocate( edge % gB(0:N,NEC,NDIM) )
+               allocate( edge % uB(0:N,NCONS) )
 
                do i = 0 , N
-                  edge % uB(i , 1:NEC) = self % q
+                  edge % uB(i , 1:NCONS) = self % q
                end do
 
-               edge % gB(0:N , 1:NEC , 1:NDIM ) = 0.0_RP
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
+
 
          end select
          end associate

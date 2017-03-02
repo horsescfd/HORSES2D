@@ -18,12 +18,22 @@
                stop "Stopped"
 
             type is (StraightBdryEdge_t)
-               allocate( edge % FB(0:N,NEC) )
+               allocate( edge % FB(0:N,NCONS) )
                edge % RiemannSolver => self % RiemannSolver
+
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
          
             type is (CurvedBdryEdge_t)
-               allocate( edge % FB(0:N,NEC) )
+               allocate( edge % FB(0:N,NCONS) )
                edge % RiemannSolver => self % RiemannSolver
+               
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
 
             class default
          end select
@@ -32,11 +42,11 @@
       end subroutine EulerWall_Associate
 
 
-      subroutine EulerWall_Update( self , edge )
+      subroutine EulerWall_UpdateSolution( self , edge )
          implicit none  
          class(EulerWall_t)                  :: self
          class(Edge_t)                       :: edge
-         real(kind=RP)                       :: q(NEC) , F(NEC,NDIM)
+         real(kind=RP)                       :: q(NCONS) , F(NCONS,NDIM)
          real(kind=RP)                       :: rhovn , rhovt
          real(kind=RP)                       :: p
          integer                             :: iXi
@@ -58,7 +68,7 @@
 
                   F = inviscidFlux( q )
 
-                  edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC,IY) * edge % dS(IY,iXi)
+                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS,IY) * edge % dS(IY,iXi)
                end do
                   
          
@@ -76,7 +86,7 @@
 
                   F = inviscidFlux( q )
 
-                  edge % FB(iXi,1:NEC) = F(1:NEC,IX) * edge % dS(IX,iXi) + F(1:NEC,IY) * edge % dS(IY,iXi)
+                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS,IY) * edge % dS(IY,iXi)
                end do
  
             class default
@@ -85,5 +95,5 @@
 
          end associate
 
-      end subroutine EulerWall_Update
+      end subroutine EulerWall_UpdateSolution
 

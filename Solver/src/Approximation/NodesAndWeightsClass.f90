@@ -31,6 +31,7 @@ module nodesAndWeights_class
         class(NodesAndWeights_t), pointer :: next => NULL()
         contains
             procedure            :: lj   => polyevaluation
+            procedure            :: dlj  => polyDerivativeEvaluation
             procedure            :: init => initWithDegree
     end type NodesAndWeights_t
 !  
@@ -284,15 +285,27 @@ module nodesAndWeights_class
             
         function polyevaluation(self,x)   result(val)
             implicit none
-            class(NodesAndWeights_t)         :: self
-            real(kind=RP)           :: x
-            real(kind=RP), allocatable  :: val(:)
+            class(NodesAndWeights_t)   :: self
+            real(kind=RP)              :: x
+            real(kind=RP)              :: val( 0 : self % N )
     
-            allocate(val(0:self % N))
-
             call LagrangeInterpolatingPolynomialBarycentric(x , self % N , self % xi , self % wb , val)
 
         end function polyevaluation
+
+        function polyDerivativeEvaluation( self , x ) result(val)
+            implicit none
+            class(NodesAndWeights_t)         :: self
+            real(kind=RP), intent(in)        :: x
+            real(kind=RP)                    :: val( 0 : self % N )
+!           -------------------------------------------------------------
+            integer                          :: i
+
+            do i = 0 , self % N
+               val(i) = EvaluateLagrangePolyDerivative( i, x, self % N , self % xi)
+            end do
+
+        end function polyDerivativeEvaluation
 
         subroutine computeInterpolationMatrices( self , spI )
 !           
@@ -325,7 +338,7 @@ module nodesAndWeights_class
                call TripleMatrixProduct(spI % M , current % T , current % D , current % tildeMTD )
 
 !              Compute the mass matrix M
-               call InnerProduct( current % T , spI % M , current % M )
+               call InnerProduct( current % T , spI % M , size(current % T,1) , size(current % T,2) , current % M )
 
 !              Compute the inverse of the mass matrix
                current % Minv = inv( current % M )

@@ -21,15 +21,21 @@ module QuadMeshClass
          class(QuadElement_t) , pointer        :: elements(:)
          class(Zone_t)        , pointer        :: zones(:)
          procedure(ICFcn)   , pointer , NOPASS :: IC
+         real(kind=RP)                         :: Volume
          contains
              procedure  :: ConstructFromFile
-             procedure  :: ConstructZones          => Mesh_ConstructZones
+             procedure  :: ConstructZones            => Mesh_ConstructZones
              procedure  :: SetInitialCondition
              procedure  :: ApplyInitialCondition
-             procedure  :: SetStorage => QuadMesh_SetStorage
-             procedure  :: VolumeIntegral => Compute_VolumeIntegral
-             procedure  :: SurfaceIntegral => Compute_SurfaceIntegral
-             procedure  :: ComputeResiduals => Mesh_ComputeResiduals
+             procedure  :: SetStorage                  => QuadMesh_SetStorage
+             procedure  :: VolumeIntegral              => Compute_VolumeIntegral
+             procedure  :: ScalarScalarSurfaceIntegral => Compute_ScalarScalarSurfaceIntegral
+             procedure  :: ScalarVectorSurfaceIntegral => Compute_ScalarVectorSurfaceIntegral
+             procedure  :: VectorVectorSurfaceIntegral => Compute_VectorVectorSurfaceIntegral
+             procedure  :: TensorVectorSurfaceIntegral => Compute_TensorVectorSurfaceIntegral
+             procedure  :: ComputeResiduals            => Mesh_ComputeResiduals
+             procedure  :: ComputePrimitiveVariables   => Mesh_ComputePrimitiveVariables
+             procedure  :: FindElementWithCoords       => Mesh_FindElementWithCoords
     end type QuadMesh_t
 
     type Zone_t
@@ -39,9 +45,12 @@ module QuadMeshClass
        class(Edge_p), pointer              :: edges(:)
        class(BoundaryCondition_t), pointer :: BC
        contains
-          procedure      :: Construct => Zone_Construct
-          procedure      :: Update    => Zone_Update
-          procedure      :: Describe  => Zone_Describe
+          procedure      :: Construct      => Zone_Construct
+          procedure      :: UpdateSolution => Zone_UpdateSolution
+#ifdef NAVIER_STOKES
+          procedure      :: UpdateGradient => Zone_UpdateGradient
+#endif
+          procedure      :: Describe       => Zone_Describe
     end type Zone_t
  
 
@@ -51,7 +60,8 @@ module QuadMeshClass
 
     contains
 
-         include 'ZoneProcedures.incf'
+#include "ZoneProcedures.incf"
+#include "QuadMeshIntegrals.incf"
 
          function newMesh()
              implicit none
@@ -129,6 +139,8 @@ module QuadMeshClass
 !
              call constructElementsAndEdges( self , meshFile , spA, Storage , spI )
 
+             self % Volume = self % VolumeIntegral("One")            
+
          end subroutine constructFromFile
 
          subroutine constructElementsAndEdges( self  , meshFile , spA , Storage , spI)
@@ -165,7 +177,7 @@ module QuadMeshClass
                  end do
 
 
-                 address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NEC + 1 
+                 address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NCONS + 1 
                  call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
 
              end do
@@ -247,7 +259,7 @@ module QuadMeshClass
                end do
          end subroutine constructElementsAndEdges
            
-         subroutine setInitialCondition( self , which)
+         subroutine SetInitialCondition( self , which)
              use InitialConditions
              implicit none
              class(QuadMesh_t)            :: self
@@ -269,28 +281,44 @@ module QuadMeshClass
 !            Apply the initial condition to the solution
 !            *******************************************
 !
-             call self % applyInitialCondition()
+             call self % ApplyInitialCondition()
 
 
           end subroutine setInitialCondition
 
-          subroutine applyInitialCondition( self )
+          subroutine ApplyInitialCondition( self , argin)
              use Physics
              implicit none
              class(QuadMesh_t)        :: self
+             real(kind=RP), optional  :: argin
              integer                  :: eID
              integer                  :: iXi
              integer                  :: iEta
+             real(kind=RP)            :: X(NDIM)
 
-             do eID = 1 , self % no_of_elements
-               do iXi = 0 , self % elements(eID) % spA % N
-                  do iEta = 0 , self % elements(eID) % spA % N
-                     self % elements(eID) % Q(iXi,iEta,1:NEC)  = self % IC( self % elements(eID) % x(iX:iY,iXi,iEta) ) 
+             if ( present ( argin ) ) then
+                do eID = 1 , self % no_of_elements
+                  do iXi = 0 , self % elements(eID) % spA % N
+                     do iEta = 0 , self % elements(eID) % spA % N
+                        X = self % elements(eID) % X(iXi,iEta,IX:IY)
+                        self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X , argin) 
+                     end do
                   end do
-               end do
-             end do
-             
-          end subroutine applyInitialCondition
+                end do
+
+            else
+                do eID = 1 , self % no_of_elements
+                  do iXi = 0 , self % elements(eID) % spA % N
+                     do iEta = 0 , self % elements(eID) % spA % N
+                        X = self % elements(eID) % X(iXi,iEta,IX:IY)
+                        self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X ) 
+                     end do
+                  end do
+                end do
+   
+            end if
+
+          end subroutine ApplyInitialCondition
 
           subroutine QuadMesh_SetStorage( self , storage )
             use Storage_module
@@ -342,80 +370,82 @@ module QuadMeshClass
 !
          end subroutine Mesh_ConstructZones
 
-         function Compute_volumeIntegral( self , var ) result ( val )
-            use MatrixOperations
+         subroutine Mesh_ComputePrimitiveVariables( self )
             implicit none
-            class(QuadMesh_T)          :: self
-            character(len=*)           :: var
-            real(kind=RP)              :: val
-            real(kind=RP), allocatable :: variable(:,:)
-!           ----------------------------------------------            
-            integer                    :: eID
-            
-            val = 0.0_RP
+            class(QuadMesh_t)          :: self
+            integer                    :: eID , edID
+
             do eID = 1 , self % no_of_elements
-               associate( e => self % elements(eID) )
-               if ( trim(var) .eq. "One" ) then
-                  if (allocated(variable) ) deallocate(variable)
-                  allocate(variable(0:e % spA % N , 0:e % spA % N))
-                  variable = 1.0_RP
-               end if
 
-               variable = variable * e % jac
+               call self % elements(eID) % ComputePrimitiveVariables
 
-               val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
-
-               end associate
-            end do
-               
-         end function Compute_volumeIntegral
-   
-         function Compute_surfaceIntegral( self , var , zone ) result ( val )
-            use MatrixOperations
-            implicit none
-            class(QuadMesh_t)             :: self
-            character(len=*)              :: var
-            integer                       :: zone
-            real(kind=RP)                 :: val
-!           --------------------------------------------------------------
-            real(kind=RP), allocatable    :: variable(:)
-            integer                       :: edID
-
-            val = 0.0_RP
-
-            do edID = 1 , self % Zones(zone) % no_of_edges
-               associate( f => self % Zones(zone) % edges(edID) % f )
-
-               if ( trim(var) .eq. "One" ) then
-                  if (allocated(variable) ) deallocate( variable )
-                  allocate (variable(0 : f % spA % N) )
-                  variable = 1.0_RP
-               end if
-
-               variable = variable * norm2( f % dS , dim = 1 )
-               val = val + dot_product(variable , f % spA % w)
-               
-               end associate
             end do
 
-         end function Compute_surfaceIntegral
-   
+            do edID = 1 , self % no_of_edges
+
+               call self % edges(edID) % f % ComputePrimitiveVariables
+
+            end do
+
+         end subroutine Mesh_ComputePrimitiveVariables
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              EXTRA SUBROUTINES
+!              ----------------- 
+!//////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          function Mesh_ComputeResiduals( self ) result ( residuals )
             use Physics
             implicit none
             class(QuadMesh_t )               :: self
-            real(kind=RP)                    :: residuals(NEC)
+            real(kind=RP)                    :: residuals(NCONS)
             integer                          :: eID
 
             residuals = 0.0_RP
          
             do eID = 1 , self % no_of_elements
-               residuals(IRHO) = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
+               residuals(IRHO)  = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
                residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOU))) )
                residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOV))) )
                residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOE))) )
             end do   
 
          end function Mesh_ComputeResiduals
+
+         subroutine Mesh_FindElementWithCoords( self , x , elemID , xi , eta )
+            use Physics
+            implicit none
+            class(QuadMesh_t) ,  intent (in)  :: self
+            real(kind=RP)     ,  intent (in)  :: x(NDIM)
+            integer           ,  intent (out) :: elemID
+            real(kind=RP)     ,  intent (out)  :: xi
+            real(kind=RP)     ,  intent (out)  :: eta
+!           ------------------------------------------------------------------
+            integer                           :: eID , edID
+            logical                           :: isInside
+            real(kind=RP)                     :: distance , minimumDistance
+
+elloop:     do eID = 1 , self % no_of_elements
+
+               isInside = self % elements(eID) % FindPointWithCoords( x , xi , eta )
+
+               if ( isInside ) then
+                  elemID = eID
+                  exit elloop
+      
+               end if
+
+            end do elloop
+
+            if ( .not. isInside ) then
+               print*, "Warning, the point probe was not found in the mesh."
+               elemID = -1
+               xi = huge(0.0_RP)
+               eta = huge(0.0_RP)
+
+            end if
+
+         end subroutine Mesh_FindElementWithCoords
 
 end module QuadMeshClass   

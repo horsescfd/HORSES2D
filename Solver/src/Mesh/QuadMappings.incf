@@ -3,44 +3,58 @@
       implicit none
       class(QuadElement_t)          :: self 
       integer                       :: ixi , ieta
+      real(kind=RP)                 :: dX(NDIM,NDIM)
 !
 !     **************************************
 !     Set the mapping for the inner points X
 !        Also, compute dX, the derivatives
 !     **************************************
 !
-      associate ( N => self % spA % N , xi => self % spA % xi , eta => self % spA % xi , &
-                  gBOT => self % edges(EBOTTOM) % f , & 
-                  gTOP => self % edges(ETOP) % f  , & 
-                  gLEFT => self % edges(ELEFT) % f , & 
-                  gRIGHT => self % edges(ERIGHT) % f , & 
+      associate ( N => self % spA % N , &
+                  xi => self % spA % xi , &
+                  eta => self % spA % xi , &
+                  edBOT => self % edges(EBOTTOM) % f , & 
+                  edTOP => self % edges(ETOP) % f  , & 
+                  edLEFT => self % edges(ELEFT) % f , & 
+                  edRIGHT => self % edges(ERIGHT) % f , & 
                   dBOT => self % edgesDirection(EBOTTOM) , &
                   dTOP => self % edgesDirection(ETOP) , & 
                   dLEFT => self % edgesDirection(ELEFT) , & 
                   dRIGHT => self % edgesDirection(ERIGHT) , & 
-                  n1 => self % nodes(1) % n % X , n2 => self % nodes(2) % n % X , n3 => self % nodes(3) % n % X , n4 => self % nodes(4) % n % X ) 
+                  n1 => self % nodes(1) % n % X , &
+                  n2 => self % nodes(2) % n % X , &
+                  n3 => self % nodes(3) % n % X , &
+                  n4 => self % nodes(4) % n % X ) 
 
          do ixi = 0 , N
             do ieta = 0 , N 
                
-               self % x(iX:iY, ixi , ieta) =  (1.0_RP - eta(iEta)) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getX(iEta,dRIGHT) + &
-                                              (1.0_RP - xi(iXi) )  * gLEFT % getX(iEta,-dLEFT) + eta(iEta)*gTOP % getX(iXi,-dTOP)  &
+               self % X(iXi , iEta, IX:IY) =  (1.0_RP - eta(iEta)) * edBOT % getX(iXi,dBOT) + xi(iXi)*edRIGHT % getX(iEta,dRIGHT) + &
+                                              (1.0_RP - xi(iXi) )  * edLEFT % getX(iEta,-dLEFT) + eta(iEta)*edTOP % getX(iXi,-dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                               -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
 
-               self % dx(iX:iY,ixi,ieta,iX) = (1.0_RP - eta(iEta)) * gBOT % getdX(iXi,dBOT) + gRIGHT % getX(iEta,dRIGHT) + &
-                                                   eta(iEta) * gTOP % getdX(iXi,-dTOP) + (-1.0_RP) * gLEFT % getX(iEta,-dLEFT) + &
+               dX(IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % getdX(iXi,dBOT) + edRIGHT % getX(iEta,dRIGHT) + &
+                                                   eta(iEta) * edTOP % getdX(iXi,-dTOP) + (-1.0_RP) * edLEFT % getX(iEta,-dLEFT) + &
                                               -n1 *(1.0_RP - eta(iEta))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
                                               -n3 * eta(iEta) - n4 * (-1.0_RP) * eta(iEta)
 
-               self % dx(iX:iY,iXi,iEta,iY) =  (-1.0_RP) * gBOT % getX(iXi,dBOT) + xi(iXi)*gRIGHT % getdX(iEta,dRIGHT) + &
-                                              (1.0_RP - xi(iXi) )  * gLEFT % getdX(iEta,-dLEFT) + gTOP % getX(iXi,-dTOP)  &
+               dX(IX:IY,IY) =  (-1.0_RP) * edBOT % getX(iXi,dBOT) + xi(iXi)*edRIGHT % getdX(iEta,dRIGHT) + &
+                                              (1.0_RP - xi(iXi) )  * edLEFT % getdX(iEta,-dLEFT) + edTOP % getX(iXi,-dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * xi(iXi) * (-1.0_RP) & 
                                               -n3* xi(iXi) - n4 * (1.0_RP - xi(iXi))
 
-               self % jac(iXi,iEta)         = self % dX(iX,iXi,iEta,iX) * self % dX(iY,iXi,iEta,iY) - self % dX(iX,iXi,iEta,iY) * self % dX(iY,iXi,iEta,iX)
+
+               self % jac(iXi,iEta)         = dX(IX,IX) * dX(IY,IY) - dX(IX,IY) * dX(IY,IX)
 
                self % invM2Djac(iXi,iEta)   = self % spA % invM2D(iXi,iEta) / self % jac(iXi,iEta)
+!
+!              Compute the metric matrix
+!              -------------------------
+               self % Ja(iXi,iEta,IX,IX)    = dX(IY,IY)           ! Y_eta
+               self % Ja(iXi,iEta,IX,IY)    = -dX(IY,IX)          ! -Y_xi
+               self % Ja(iXi,iEta,IY,IX)    = -dX(IX,IY)          ! -X_eta
+               self % Ja(iXi,iEta,IY,IY)    = dX(IX,IX)           ! X_xi
 
             end do
          end do
@@ -50,46 +64,425 @@
 
    end subroutine QuadElement_SetMappings
 
-   function QuadElement_MetricMatrix ( self , which , iXi , iEta ) result (val)
+   function QuadElement_Compute_X ( self , xi , eta ) result (val)
+      use MatrixOperations
       implicit none
-      class(QuadElement_t),intent(in)           :: self
-      integer,             intent(in)           :: which(NDIM)
-      integer,             intent(in), optional :: iXi(:)
-      integer,             intent(in), optional :: iEta(:)
-      real(kind=RP), allocatable                :: val(:,:)
-      real(kind=RP)                             :: newsign
+      class(QuadElement_t), intent(in)       :: self
+      real(kind=RP)       , intent(in)       :: xi
+      real(kind=RP)       , intent(in)       :: eta
+      real(kind=RP)                          :: val(NDIM)
+!     ---------------------------------------------------------
+      real(kind=RP), allocatable             :: l_xi(:) , l_eta(:)
 
-      if (present(iXi) .and. present(iEta)) then
+      associate ( N => self % spA % N )
 
-         allocate ( val(size(iXi,1) , size(iEta,1) ) )
+      allocate( l_xi ( 0 : N ) , l_eta ( 0 : N ) )
 
-         if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
-            val = self % dX(iY,iXi,iEta,iY)
-         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -Y_xi            
-            val = -self % dX(iY,iXi,iEta,iX)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -X_eta
-            val = -self % dX(iX,iXi,iEta,iY)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
-            val = self % dX(iX,iXi,iEta,iX)
-         end if
+      l_xi = self % spA % lj(xi)
+      l_eta = self % spA % lj(eta)
+
+      call BilinearForm( self % X(0:N,0:N,IX) , l_xi , l_eta , val(IX) )
+      call BilinearForm( self % X(0:N,0:N,IY) , l_xi , l_eta , val(IY) )
+
+      deallocate( l_xi , l_eta )
+
+      end associate
+
+   end function QuadElement_Compute_X
+
+   function QuadElement_FindPointWithCoords( self , x , xi , eta ) result ( isInside )
+      implicit none
+      class(QuadElement_t), intent(in)             :: self
+      real(kind=RP),        intent(in)             :: x(NDIM)
+      real(kind=RP),        intent(out)            :: xi , eta
+      logical                                      :: isInside
+!     -------------------------------------------------------------------
+      logical                                      :: curvilinear = .false.
+      integer                                      :: edge
+      logical                                      :: isInsideStraight
+!
+!     Find whether the element has curvilinear edges or not    (TODO: save this parameter in self % curvilinear )
+!     -----------------------------------------------------
+      do edge = 1 , EDGES_PER_QUAD
+         select type ( f => self % edges(edge) % f )
+            type is (CurvedBdryEdge_t)
+               curvilinear = .true.
+         
+         end select
+      end do
+!
+!     Check if the point is inside the element
+!     ----------------------------------------
+      if ( .not. curvilinear ) then
+         isInside =  QuadElement_CheckIfInside_Straight ( self , x )
 
       else
-
-         allocate( val(size(self % dX,2),size(self % dX,3) ) )
-
-         if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
-            val = self % dX(iY,:,:,iY)
-         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -Y_xi            
-            val = -self % dX(iY,:,:,iX)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -X_eta
-            val = -self % dX(iX,:,:,iY)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
-            val = self % dX(iX,:,:,iX)
-         end if
-
+         isInside =  QuadElement_CheckIfInside_Curved ( self , x )
 
       end if
+!
+!     If the point is inside, get the coordinates
+!     -------------------------------------------
+      if ( isInside ) then
+         call QuadElement_FindLocalCoordinates_Straight( self , x , xi , eta )
 
-      
-   end function QuadElement_MetricMatrix
+         if ( .not. curvilinear ) then
+            return
+
+         else
+            call QuadElement_FindLocalCoordinates_Curved ( self , x , xi , eta ) 
+            return
+         end if
+      end if
+
+   end function QuadElement_FindPointWithCoords
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           AUXILIAR SUBROUTINES TO FIND IF A POINT BELONGS TO AN ELEMENT
+!           -------------------------------------------------------------
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+   function QuadElement_CheckIfInside_Straight ( self , x ) result ( isInside )
+      use QuadMeshDefinitions
+      use Utilities
+      implicit none
+      class(QuadElement_t), intent(in) :: self
+      real(kind=RP)       , intent(in) :: x(NDIM)
+      logical                          :: isInside
+!     -----------------------------------------------------------
+      integer                          :: iNode
+      integer                          :: refSign
+      integer                          :: currentSign
+      integer                          :: currentNode
+      integer, parameter               :: nodeLists(POINTS_PER_QUAD + 1) = reshape((/(iNode,iNode=1,POINTS_PER_QUAD),1/),(/POINTS_PER_QUAD+1/))
+
+
+      currentNode = 1
+
+      do 
+         refSign = newSign ( cross ( self % nodes(nodeLists(currentNode)) % n % x - x , self % nodes(nodeLists(currentNode+1)) % n % x - x )  ) 
+         
+         if ( refSign .ne. 0 ) then
+            exit
+
+         else
+            currentNode = currentNode + 1 
+         
+         end if
+
+      end do
+
+      do iNode = currentNode+1 , POINTS_PER_QUAD
+
+         currentSign = newSign ( cross ( self % nodes(nodeLists(iNode)) % n % x - x , self % nodes(nodeLists(iNode+1)) % n % x - x ) ) 
+
+         if ( currentSign .eq. 0 ) then
+!
+!           Do nothing
+!           ---------- 
+
+         elseif ( currentSign .ne. refSign ) then
+            isInside = .false.
+            return
+
+         end if
+
+      end do
+
+      isInside = .true.
+
+   end function QuadElement_CheckIfInside_Straight
+
+   function QuadElement_CheckIfInside_Curved ( self , x ) result ( isInside )
+      use QuadMeshDefinitions
+      use Utilities
+      implicit none
+      class(QuadElement_t), intent(in) :: self
+      real(kind=RP)       , intent(in) :: x(NDIM)
+      logical                          :: isInside
+!     ----------------------------------------------------------------
+      real(kind=RP), allocatable       :: edgePoints(:,:)
+      real(kind=RP)                    :: xc
+      integer                          :: iNode , iEdge
+      integer                          :: no_of_intersections = 0
+      integer                          :: j 
+!
+!     Check if equals one of the nodes
+!     --------------------------------
+      do iNode = 1 , POINTS_PER_QUAD
+
+         if ( almostEqual ( self % nodes(1) % n % x(IX) , x(IX) ) .and. almostEqual( self % nodes(1) % n % x(IY) , x(IY) ) ) then
+            isInside = .true.
+            return
+         end if
    
+      end do
+
+      do iEdge = 1 , EDGES_PER_QUAD
+
+         select type ( f => self % edges(iEdge) % f )
+
+            type is ( Edge_t )
+!
+!              Find if crosses the line
+!              ------------------------
+               if ( almostEqual ( f % nodes(1) % n % x(IY) , f % nodes(2) % n % x(IY) ) ) then  
+!                 
+!                 The edge is horizontal
+!                 ----------------------
+                  if ( almostEqual ( x(IY) , f % nodes(1) % n % x(IY) ) .and. ( newSign ( f % nodes(1) % n % x(IX) - x(IX)) .ne. newSign( f % nodes(2) % n % x(IX) - x(IX) ) )) then
+                     isInside = .true.
+                     return
+
+                  end if
+
+               elseif ( newSign ( f % nodes(1) % n % x(IY) - x(IY) ) .ne.  newSign ( f % nodes(2) % n % x(IY) - x(IY) ) ) then
+!
+!                 Crosses the line. Compute the x coordinate of the intersection
+!                 --------------------------------------------------------------
+                  xc = ( f % nodes(1) % n % x(IX) * ( f % nodes(2) % n % X(IY) - x(IY) )  + &
+                         f % nodes(2) % n % x(IX) * ( x(IY) - f % nodes(1) % n % x(IY) ) ) / &
+                       ( f % nodes(2) % n % x(IY) - f % nodes(1) % n % x(IY) )
+
+                  if ( xc .lt. x(IX) ) then
+                     no_of_intersections = no_of_intersections + 1 
+
+                  elseif ( almostEqual ( xc , x(IX) ) ) then
+                     isInside = .true.
+                     return
+
+                  end if
+                  
+               end if
+ 
+
+            type is ( StraightBdryEdge_t )
+!
+!              Find if crosses the line
+!              ------------------------
+               if ( almostEqual ( f % nodes(1) % n % x(IY) , f % nodes(2) % n % x(IY) ) ) then  
+!                 
+!                 The edge is horizontal
+!                 ----------------------
+                  if ( almostEqual ( x(IY) , f % nodes(1) % n % x(IY) ) .and. ( newSign ( f % nodes(1) % n % x(IX) - x(IX)) .ne. newSign( f % nodes(2) % n % x(IX) - x(IX) ) ) ) then
+                     isInside = .true.
+                     return
+
+                  end if
+
+               elseif ( newSign ( f % nodes(1) % n % x(IY) - x(IY) ) .ne.  newSign ( f % nodes(2) % n % x(IY) - x(IY) ) ) then
+!
+!                 Crosses the line. Compute the x coordinate of the intersection
+!                 --------------------------------------------------------------
+                  xc = ( f % nodes(1) % n % x(IX) * ( f % nodes(2) % n % X(IY) - x(IY) )  + &
+                         f % nodes(2) % n % x(IX) * ( x(IY) - f % nodes(1) % n % x(IY) ) ) / &
+                       ( f % nodes(2) % n % x(IY) - f % nodes(1) % n % x(IY) )
+
+                  if ( xc .lt. x(IX) ) then
+                     no_of_intersections = no_of_intersections + 1 
+
+                  elseif ( almostEqual ( xc , x(IX) ) ) then
+                     isInside = .true.
+                     return
+
+                  end if
+                  
+               end if
+   
+            type is ( CurvedBdryEdge_t ) 
+
+               associate ( N => f % spA % N )
+               allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+
+               edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+               edgePoints(IX:IY,1:N+1) = f % X(IX:IY,0:N)
+               edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+               
+               do j = 0 , N+1
+!
+!                 Find if crosses the line
+!                 ------------------------
+                  if ( almostEqual ( edgePoints(IY,j) , edgePoints(IY,j+1) ) ) then  
+!                 
+!                    The edge is horizontal
+!                    ----------------------
+                     if ( almostEqual ( x(IY) , edgePoints(IY,j) ) .and. ( newSign ( edgePoints(IX,j) - x(IX)) .ne. newSign( edgePoints(IX,j+1) - x(IX) )) ) then
+                        isInside = .true.
+                        return
+
+                     end if
+
+                  elseif ( newSign ( edgePoints(IY,j) - x(IY) ) .ne.  newSign ( edgePoints(IY,j+1) - x(IY) ) ) then
+!
+!                    Crosses the line. Compute the x coordinate of the intersection
+!                    --------------------------------------------------------------
+                     xc = ( edgePoints(IX,j) * ( edgePoints(IY,j+1) - x(IY) )  + &
+                         edgePoints(IX,j+1) * ( x(IY) - edgePoints(IY,j) ) ) / &
+                       ( edgePoints(IY,j+1) - edgePoints(IY,j) )
+
+                     if ( xc .lt. x(IX) ) then
+                        no_of_intersections = no_of_intersections + 1 
+
+                     elseif ( almostEqual ( xc , x(IX) ) ) then
+                        isInside = .true.
+                        return
+
+                     end if
+                  
+                  end if
+               end do
+
+               deallocate ( edgePoints ) 
+
+               end associate
+
+            class default
+
+         end select
+         
+      end do
+
+      if ( mod(no_of_intersections , 2) .eq. 0 ) then
+         isInside = .false.
+         return
+
+      else
+         isInside = .true.
+
+      end if
+   
+    end function QuadElement_CheckIfInside_Curved
+
+
+   subroutine QuadElement_FindLocalCoordinates_Straight ( self , x , xi , eta)
+      use Utilities
+!
+!     ***********************************************************************
+!           This routine solves the equation:
+!        x1(1-xi)(1-eta) + x2 xi ( 1-eta ) + x3 xi eta + x4 (1-xi) eta = x
+!
+!           Firstly, is formulated as follows
+!              a xi + b eta + c xi eta = d
+!        in which coefficients a,b,c,d are 2-dimensional. Then, it is 
+!        rewritten into a second order equation for eta, namely:
+!              a2 eta**2 + b2 eta + c2 = 0
+!        which is solved, and then xi is computed.
+!     ***********************************************************************
+!
+      implicit none
+      class(QuadElement_t)                :: self
+      real(kind=RP)                       :: x(NDIM)
+      real(kind=RP)                       :: xi
+      real(kind=RP)                       :: eta
+!     -------------------------------------------------------------
+      real(kind=RP)                       :: a(NDIM) , b(NDIM) , c(NDIM) , d(NDIM)
+      real(kind=RP)                       :: a2 , b2 , c2
+      real(kind=RP)                       :: xi2(NDIM) , eta2(NDIM)
+      integer                             :: flag
+
+      a = - self % nodes(1) % n % x + self % nodes(2) % n % x 
+      b = - self % nodes(1) % n % x + self % nodes(4) % n % x
+      c = self % nodes(1) % n % x - self % nodes(2) % n % x + self % nodes(3) % n % x - self % nodes(4) % n % x
+      d = - self % nodes(1) % n % x + x
+
+      a2 = b(2)*c(1) - c(2)*b(1)
+      b2 = -a(2)*b(1) + a(1)*b(2) + c(2)*d(1) - d(2)*c(1)
+      c2 = a(2)*d(1) - a(1)*d(2)
+
+      eta2 = solveSecondDegreeEquation(a2, b2, c2, flag)
+
+      if ( flag .eq. 0 ) then
+!
+!        Complex roots
+!        -------------
+      
+      elseif ( flag .eq. 1 ) then
+!
+!        Just one solution
+!        -----------------
+         xi2 = (d(1) - eta2 * b(1)) / (a(1) + c(1)*eta2)
+         
+         if ( ( xi2(1) .ge. 0.0_RP ) .and. ( xi2(1) .le. 1.0_RP ) .and. ( eta2(1) .ge. 0.0_RP ) .and. ( eta2(1) .le. 1.0_RP ) ) then
+            xi  = xi2(1)
+            eta = eta2(1)
+
+         end if
+         
+      elseif ( flag .eq. 2 ) then
+!
+!        Two solutions
+!        -------------
+         xi2 = (d(1) - eta2 * b(1)) / (a(1) + c(1)*eta2)
+
+         if ( ( xi2(1) .ge. 0.0_RP ) .and. ( xi2(1) .le. 1.0_RP ) .and. ( eta2(1) .ge. 0.0_RP ) .and. ( eta2(1) .le. 1.0_RP ) ) then
+            xi  = xi2(1)
+            eta = eta2(1)
+
+         elseif  ( ( xi2(2) .ge. 0.0_RP ) .and. ( xi2(2) .le. 1.0_RP ) .and. ( eta2(2) .ge. 0.0_RP ) .and. ( eta2(2) .le. 1.0_RP ) ) then
+            xi  = xi2(2)
+            eta = eta2(2)
+   
+         end if
+      end if
+
+   end subroutine QuadElement_FindLocalCoordinates_Straight
+
+   subroutine QuadElement_FindLocalCoordinates_Curved ( self , x , xi , eta )
+      use MatrixOperations
+      use Utilities
+      implicit none
+      class(QuadElement_t) , intent (in)    :: self
+      real(kind=RP)     ,    intent (in)    :: x(NDIM)
+      real(kind=RP)     ,    intent (inout) :: xi , eta
+!     -------------------------------------------------------
+      integer, parameter                  :: N_MAX_ITER = 20
+      real(kind=RP), parameter            :: TOLERANCE = 1.0e-10_RP , STEP = 1.0_RP
+      real(kind=RP)                       :: F(NDIM) , dxiF(NDIM) , detaF(NDIM)
+      real(kind=RP)                       :: lxi(0:self % spA % N) , leta(0:self % spA % N) , dxil(0:self % spA % N) , detal(0: self % spA % N)
+      real(kind=RP)                       :: A(NDIM,NDIM)
+      real(kind=RP)                       :: dx(NDIM)
+      integer                             :: iter
+
+      do iter = 1 , N_MAX_ITER
+
+         lxi   = self % spA % lj(xi)
+         dxil  = self % spA % dlj(xi)
+         leta  = self % spA % lj(eta)
+         detal = self % spA % dlj(eta)
+
+         call BilinearForm( self % X(:,:,IX) , lxi , leta , F(IX) )
+         call BilinearForm( self % X(:,:,IY) , lxi , leta , F(IY) )
+         F = F - x
+
+         if ( maxval(abs(F)) .lt. TOLERANCE ) then
+            return
+
+         end if
+
+         call BilinearForm( self % X(:,:,IX) , dxil , leta , dxiF(IX) )
+         call BilinearForm( self % X(:,:,IY) , dxil , leta , dxiF(IY) )
+
+         call BilinearForm( self % X(:,:,IX) , lxi , detal , detaF(IX) )
+         call BilinearForm( self % X(:,:,IY) , lxi , detal , detaF(IY) )
+
+         A(:,IX) = dxiF
+         A(:,IY) = detaF
+
+         dx = solveTwoEquationLinearSystem( A , -F )
+         
+         xi = xi + STEP * dx(IX)
+         eta = eta + STEP * dx(IY)
+
+         
+         if ( (xi .gt. 2.0_RP) .or. (xi .lt. -1.0_RP) .or. (eta .gt. 2.0_RP) .or. (eta .lt. -1.0_RP) ) then
+            print*, "The probe was not found in any element."
+            stop "Stopped"
+
+         end if
+
+      end do
+
+   end subroutine QuadElement_FindLocalCoordinates_Curved
+
+

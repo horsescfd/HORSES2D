@@ -53,78 +53,12 @@ module ChecksModule
             call CheckMetricIdentities( sem % mesh )
 
             call checkQDot( sem )
-      !    do eID = 1 , sem % mesh % no_of_elements
-      !      write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % x
-      !    end do
-       !           write(STD_OUT , *)  "IC"
-       !            do eID = 1 , sem % mesh  % no_of_elements
-                   !write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % Q(:,1)
-       !            end do
-      
-      
-      
-      !    call DGSpatial_computeGradient( sem % mesh )
-      
-      !    call DGSpatial_computeTimeDerivative ( sem % mesh ) 
-      
-      !    print*, "array"
-      !     write(STD_OUT , '(6F24.16)') sem % Storage % Q
-      
-      
-      !    print*, "Lets check the interpolation to boundaries"
-      !    do eID = 1 , sem % mesh % no_of_elements
-      !       write(STD_OUT , '(2F24.16)') sem % mesh % elements(eID) % Qb
-      !    enddo
-      
-      !            print*, "Checking boundary conditions"
-      
-      
-       !           print*, "normal faces"
-       !           do fID = 1 , sem % mesh % no_of_faces
-       !              write(STD_OUT , '(F10.3)') sem % mesh % faces(fID) % f % n
-       !           end do
-               
-       !           print*, "markers"
-       !           do fID = 1 , sem % mesh % no_of_faces
-       !              write(STD_OUT , '(I10)') sem % mesh % faces(fID) % f % faceType
-       !           end do
-         
-       !           print*, "BCLocations"
-       !           do fID = 1 , sem % mesh % no_of_faces
-       !              select type (f=>sem % mesh % faces(fID) % f)
-       !                 type is (BdryFace_t)
-       !                    print*, "Boundary face no ", fID ,"."
-       !                    print*, "      BCLocation: " , f % BCLocation
-       !                    print*, "Boundary value: " , f % uB
-       !              end select
-       !           end do
-                        
-       !           print*, "Elements ID , LEFT Face , RIGHT Face"
-       !           do fID = 1 , sem % mesh % no_of_elements
-       !              print*, fID, sem % mesh % elements(fID) % facesID(LEFT) , sem % mesh % elements(fID) % facesID(RIGHT)
-       !           end do
-       !           print*, "Faces ID"
-       !           do fID = 1 , sem % mesh % no_of_faces
-       !              print*, sem % mesh % faces(fID) % f % ID
-       !           end do
-      
-      
-       !    print*, "Checking gradients"
-       !    do eID = 1 , sem % mesh % no_of_elements
-       !       write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % dQ
-       !    end do
-      
-      !      print*, "Computing QDot......."
-      
-      !     do eID = 1 , sem % mesh % no_of_elements
-      !        write(STD_OUT , '(6F24.16)') sem % mesh % elements(eID) % QDot  
-      !     end do
-      
-      !     call Integration_checks(sem)
-      
-      
-            
+#ifdef NAVIER_STOKES
+            call checkGradients ( sem ) 
+#endif
+
          end if
+
         end subroutine checks
       
         subroutine CheckMappings( mesh )
@@ -139,45 +73,60 @@ module ChecksModule
             integer                    :: eID , edID
             real(kind=RP), allocatable :: dxiX(:,:,:)
             real(kind=RP), allocatable :: detaX(:,:,:)
-            real(kind=RP)              :: error
+            real(kind=RP)              :: error , localerror
             integer                    :: current , location
             integer                    :: zone
             real(kind=RP), allocatable :: dSx(:) , dSy(:)
             real(kind=RP), allocatable :: dSe(:,:)
-            integer                    :: which(NDIM)
+            real(kind=RP)              :: dX(NDIM,NDIM)
+            integer                    :: i , j 
 
             call SubSection_Header("Testing the mappings")
             
 !           This is to test the elements mappings derivatives formula
 !           ---------------------------------------------------------
+            error = 0.0_RP
+   
             do eID = 1 , mesh % no_of_elements
                associate (e => mesh % elements(eID) )
 
                if ( allocated (dxiX ) ) deallocate ( dxiX  ) 
                if ( allocated (detaX) ) deallocate ( detaX ) 
           
-               allocate(dxiX  ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
-               allocate(detaX ( NDIM , 0 : e % spA % N , 0 : e % spA % N ) ) 
+               allocate(dxiX  ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
+               allocate(detaX ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
 
-               dxiX         = MatrixMultiplyInIndex_F( e % X , e % spA % DT  , 2)
-               detaX        = MatrixMultiplyInIndex_F( e % X , e % spA % DT , 3)
+               associate ( N => e % spA % N )
+               dxiX         = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 1 ) 
+               detaX        = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 2 ) 
 
-               if (eID .eq. 1) then
-                  current = eID
-                  error = maxval(abs(dxiX - e % dX(:,:,:,iX))) 
-                   
-               else
+               do i = 0 , N
+                  do j = 0 , N
+!
+!                    Recover the mapping derivatives from the metric matrix
+!                    ------------------------------------------------------   
+                     dX(IX,IX) = e % Ja(i,j,IY,IY)
+                     dX(IX,IY) = -e % Ja(i,j,IY,IX)
+                     dX(IY,IX) = -e % Ja(i,j,IX,IY)
+                     dX(IY,IY) = e % Ja(i,j,IX,IX)
 
-                  if ( maxval(abs(dxiX - e % dX(:,:,:,iX) ) ) .gt. error ) then
-                     error = maxval(abs(dxiX - e % dX(:,:,:,iX) ) )
-                     current = eID
-                  end if
-               end if
-                     
-               if ( maxval(abs(detaX - e % dX(:,:,:,iY)) ) .gt. error) then
-                     error = maxval(abs(detaX - e % dX(:,:,:,iY) ) ) 
-                     current = eID
-               end if
+                     localerror = maxval(abs(dxiX(i,j,1:NDIM) - dX(1:NDIM,IX)))
+      
+                     if ( localerror .gt. error ) then
+                        error = localerror
+                        current = eID
+                     end if
+
+                     localerror = maxval(abs(detaX(i,j,1:NDIM) - dX(1:NDIM,IY)))
+                           
+                     if ( localerror .gt. error ) then
+                        error = localerror
+                        current = eID
+                     end if
+
+                  end do
+               end do 
+               end associate
                end associate
 
             end do
@@ -202,10 +151,8 @@ module ChecksModule
 
 !              BOTTOM Edge
 !              -----------
-               which = [1,2]
-               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  )
-               which = [2,2]
-               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  )
+               dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
+               dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
                   dSe = e % edges(EBOTTOM) % f % dS 
@@ -226,10 +173,8 @@ module ChecksModule
 
 !              RIGHT Edge
 !              -----------
-               which = [1,1]
-               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , trA = .true.  )
-               which = [2,1]
-               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , trA = .true.  )
+               dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
+               dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
                
                if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
                   dSe = e % edges(ERIGHT) % f % dS 
@@ -250,10 +195,8 @@ module ChecksModule
 
 !              TOP Edge
 !              -----------
-               which = [1,2]
-               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP)  )
-               which = [2,2]
-               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP)  )
+               dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
+               dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
                   dSe = e % edges(ETOP) % f % dS 
@@ -274,10 +217,8 @@ module ChecksModule
 
 !              LEFT Edge
 !              -----------
-               which = [1,1]
-               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  , trA = .true.)
-               which = [2,1]
-               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP)  , trA = .true.)
+               dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
+               dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
 
                if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
                   dSe = e % edges(ELEFT) % f % dS 
@@ -307,7 +248,7 @@ module ChecksModule
 
 !           Compute faces surface            
             do zone = 1 , size(mesh % Zones) - 1
-               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % SurfaceIntegral("One",zone) * RefValues % L ,"." 
+               write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % ScalarScalarSurfaceIntegral("Surface",zone) * RefValues % L ,"." 
             end do
 
         end subroutine CheckMappings
@@ -376,7 +317,6 @@ module ChecksModule
 !        --------------------------------------------
          integer                    :: eID
          integer                    :: coord
-         integer                    :: which(NDIM)
          real(kind=RP)              :: error = 0.0_RP , currenterror = 0.0_RP
          real(kind=RP), allocatable :: Ja1(:,:) , Ja2(:,:)
          real(kind=RP), allocatable :: metricID(:,:)
@@ -394,12 +334,12 @@ module ChecksModule
             allocate( metricID(0:e % spA % N , 0 : e % spA % N ) )
             do coord = 1 , NDIM
                
-               which = [coord,1]
-               Ja1 = e % Ja(which) 
-               which = [coord,2]
-               Ja2 = e % Ja(which)
+               Ja1 = e % Ja(0:e % spA % N,0:e % spA % N,coord,1) 
+               Ja2 = e % Ja(0:e % spA % N,0:e % spA % N,coord,2) 
 
-               metricID = Mat_x_Mat_F( A = e % spA % D , B = Ja1 ) + Mat_x_Mat_F( A = Ja2 , B = e % spA % DT )
+               associate ( N => e % spA % N )
+               metricID = Mat_x_Mat_F( A = e % spA % D , B = Ja1 , rowC = N+1, colC = N+1 ) + Mat_x_Mat_F( A = Ja2 , B = e % spA % DT , rowC = N+1 , colC = N+1)
+               end associate
                
                currenterror = abs(BilinearForm_F( A = metricID , X = e % spA % w , Y = e % spA % w ))
                
@@ -413,10 +353,11 @@ module ChecksModule
 
             end associate
          end do
-          write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
+
+         write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
 
         end subroutine CheckMetricIdentities
-
+   
         subroutine Integration_checks( sem ) 
           use DGSEM_Class
           use SMConstants
@@ -491,76 +432,269 @@ module ChecksModule
 
         end subroutine Integration_checks
 
-        subroutine checkQDot( sem )
+        subroutine CheckQDot( sem )
          use DGSEM_Class
          use DGSpatialDiscretizationMethods
          use Headers
+         use QuadMeshDefinitions
          implicit none
          class(DGSem_t)          :: sem
          integer                 :: iXi , iEta
-         integer                 :: eID
-         real(kind=RP)           :: error = 0.0_RP
-         real(kind=RP)           :: QDot(NEC)
-
-!
-!        Apply the "Checks" initial condition
-!        ------------------------------------
-         call sem % mesh % SetInitialCondition("Checks")
-         call sem % mesh % ApplyInitialCondition
+         integer                 :: eID , elem = -1 , zoneID
+         real(kind=RP)           :: error = 0.0_RP , localerror
+         real(kind=RP)           :: x(NDIM)
+         real(kind=RP)           :: L 
+         real(kind=RP)           :: QDot(NCONS)
+         logical                 :: elementIsInterior
 
          write(STD_OUT,'(/)')
          call SubSection_Header("Testing QDot calculation")
 
+!
+!        Apply the "ChecksPolynomic" initial condition
+!        ------------------------------------
+         L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call sem % mesh % SetInitialCondition("ChecksPolynomic")
+         call sem % mesh % ApplyInitialCondition( L )    
+
          call DGSpatial_ComputeTimeDerivative( sem % mesh )
 
-
+         error = 0.0_RP
          do eID = 1 , sem % mesh % no_of_elements
             associate( e => sem % mesh % elements(eID) ,  N => sem % mesh % elements(eID) % spA % N )
 
             do iXi = 0 , N
                do iEta = 0 , N
-                  QDot = QDotFCN( e % x(iX:iY,iXi,iEta) )
 
-                  error = max(error , maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)])))
+                  x = e % X(iXi , iEta , IX:IY)
+
+                  QDot = QDotPolynomicFCN( x , L )
+
+                  localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
+
+                  elementIsInterior = .true.
+
+                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+
+                  if ( (localerror .gt. error) .and. elementIsInterior ) then
+                     error = localerror
+                     elem = eID
+
+                  end if
 
                end do
             end do
 
             end associate
          end do
-         write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition time derivative error: " , error,"."
+         write(STD_OUT , '(30X,A,A60,ES16.10,A,I0,A)') "-> ", "Polynomic initial condition time derivative error: " , error," (cell  ",elem,")."
 !
-!        Return to the problem initial condition
-!        ---------------------------------------
-         call sem % SetInitialCondition
+!        Apply the "ChecksTrigonometric" initial condition
+!        ------------------------------------
+         L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call sem % mesh % SetInitialCondition("ChecksTrigonometric")
+         call sem % mesh % ApplyInitialCondition( L )
 
-        end subroutine checkQDot
 
-        function QDotFCN( x ) result( val )
+         call DGSpatial_ComputeTimeDerivative( sem % mesh )
+
+         error = 0.0_RP
+         do eID = 1 , sem % mesh % no_of_elements
+            associate( e => sem % mesh % elements(eID) ,  N => sem % mesh % elements(eID) % spA % N )
+
+            do iXi = 0 , N
+               do iEta = 0 , N
+
+                  x = e % X(iXi , iEta , IX:IY)
+                  QDot = QDotTrigonometricFCN( x , L )
+
+                  localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
+                  
+                  elementIsInterior = .true.
+                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+
+                  if ( (localerror .gt. error) .and. elementIsInterior ) then
+                     error = localerror
+                     elem = eID
+                  end if
+
+               end do
+            end do
+
+            end associate
+         end do
+         write(STD_OUT , '(30X,A,A60,ES16.10,A,I0,A)') "-> ", "Trigonometric initial condition time derivative error: " , error," (cell  ",elem,")."
+!
+!        Return to the problem initial condition and RiemannSolvers
+!        ----------------------------------------------------------
+         call sem % SetInitialCondition ( verbose = .false. )
+
+        end subroutine CheckQDot
+#ifdef NAVIER_STOKES   
+        subroutine CheckGradients( sem ) 
+          use DGSEM_Class
+          use SMConstants
+          use Physics
+          use NodesAndWeights_class
+          use QuadMeshClass
+          use MeshFileClass
+          use Setup_class
+          use DGSpatialDiscretizationMethods
+          use Storage_module
+          use DGBoundaryConditions  
+          use Headers
+          implicit none
+          class(DGSem_t)         :: sem
+          integer                :: eID
+          real(kind=RP)          :: error = 0.0_RP , localerror = 0.0_RP
+          integer                :: elem = -1
+          integer                :: iXi, iEta
+          real(kind=RP)          :: x(NDIM)
+          real(kind=RP)          :: dQ(NDIM , NGRAD)
+          real(kind=RP)          :: L 
+
+         write(STD_OUT,'(/)')
+         call SubSection_Header("Testing Gradients")
+!
+!        Set the polynomic initial condition
+!        -----------------------------------
+         call sem % mesh % SetInitialCondition("ChecksPolynomic")
+         call sem % mesh % ApplyInitialCondition
+
+          call DGSpatial_newTimeStep( sem % mesh )
+
+
+          do eID = 1 , sem % mesh % no_of_elements
+            do iXi = 0 , sem % mesh % elements(eID) % spA % N
+               do iEta = 0 , sem % mesh % elements(eID) % spA % N
+
+                  x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
+                  dQ = dQPolynomicFcn(x)
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NGRAD) - dQ ) )
+
+                  if ( localerror .gt. error ) then
+                     error = localerror
+                     elem = eID
+                  end if
+
+               end do
+            end do
+         end do
+
+         write(STD_OUT , '(30X,A,A50,ES16.10,A,I0,A)') "-> ", "Error in gradients for polynomic state: " , error," (cell  ",elem,")."
+!
+!        Set the trigonometric initial condition
+!        -----------------------------------
+         L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call sem % mesh % SetInitialCondition("ChecksTrigonometric")
+         call sem % mesh % ApplyInitialCondition( L )
+
+         call DGSpatial_newTimeStep( sem % mesh )
+
+         error = 0.0_RP
+         elem = -1
+
+          do eID = 1 , sem % mesh % no_of_elements
+            do iXi = 0 , sem % mesh % elements(eID) % spA % N
+               do iEta = 0 , sem % mesh % elements(eID) % spA % N
+
+                  x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
+                  dQ = dQTrigonometricFcn(x , L )
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NGRAD) - dQ ) ) * L
+
+                  if ( localerror .gt. error ) then
+                     error = localerror
+                     elem = eID
+                  end if
+
+               end do
+            end do
+         end do
+
+         write(STD_OUT , '(30X,A,A50,ES16.10,A,I0,A)') "-> ", "Error in gradients for trigonometric state: " , error," (cell  ",elem,")."
+
+!
+!        Return to the problem initial condition and RiemannSolvers
+!        ----------------------------------------------------------
+         call sem % SetInitialCondition( verbose = .false. )
+
+        end subroutine CheckGradients
+#endif
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           CHECK AUXILIAR ROUTINES
+!           -----------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+#ifdef NAVIER_STOKES
+        function dQPolynomicFcn ( x ) result ( val )
+         use Physics
+         implicit none
+         real(kind=RP)        :: x(NDIM)
+         real(kind=RP)        :: val(NDIM,NGRAD)
+         
+         associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+
+         val(IX:IY , IGU) = [sqrt(gamma)*Mach , 0.0_RP]
+         val(IX:IY , IGV) = [0.0_RP , sqrt(gamma)*Mach]
+         val(IX:IY , IGT) = 2.0_RP * gamma * Mach * Mach * [ x(IX) , x(IY) ]
+
+         end associate
+
+        end function dQPolynomicFcn
+
+        function dQTrigonometricFcn ( x , L ) result ( val )
+         use Physics
+         implicit none
+         real(kind=RP)        :: x(NDIM)
+         real(kind=RP)        :: L 
+         real(kind=RP)        :: val(NDIM,NGRAD)
+         
+         associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+
+         val(IX:IY , IGU) = sqrt(gamma)*Mach*PI * [ cos(PI*x(IX)/L)*cos(PI*x(IY)/L) , -sin(PI*x(IX)/L)*sin(PI*x(IY)/L)] / L
+         val(IX:IY , IGV) = sqrt(gamma)*Mach*PI * [ sin(PI*x(IX)/L)*sin(PI*x(IY)/L) , -cos(PI*x(IX)/L)*cos(PI*x(IY)/L)] / L
+         val(IX:IY , IGT) = -0.25_RP * gamma * Mach * Mach * PI * [ sin(2.0_RP * PI * x(IX)/L) , sin(2.0_RP * PI * x(IY)/L) ] / L 
+
+         end associate
+
+        end function dQTrigonometricFcn
+#endif
+        function QDotTrigonometricFCN( x , L ) result( val )
          use Physics
          implicit none
          real(kind=RP)           :: x(NDIM)
-         real(kind=RP)           :: val(NEC)
+         real(kind=RP)           :: L 
+         real(kind=RP)           :: val(NCONS)
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
+         real(kind=RP)           :: tauxx , tauxy , tauyy , tauxx_x , tauyy_y
+         real(kind=RP)           :: T_xx  , T_yy
 
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
-         u = sqrt(gamma) * Mach * sin(PI * x(iX)) * cos(PI * x(iY))
-         v = -sqrt(gamma)* Mach * cos(PI * x(iX)) * sin(PI * x(IY))
-         p = 1.0_RP + (gamma * Mach**2.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(iX)) + cos(2.0_RP * PI * x(iY)) )
+         u = sqrt(gamma) * Mach * sin(PI * x(IX) / L ) * cos(PI * x(IY) / L)
+         v = -sqrt(gamma)* Mach * cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
+         p = 1.0_RP + (gamma * Mach**2.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
          H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
 
 
-         ux = sqrt(gamma) * Mach * PI * cos(PI * x(iX)) * cos(PI * x(iY))
-         uy = -sqrt(gamma)* Mach * PI * sin(PI * x(IX)) * sin(PI * x(IY))
+         ux = sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+         uy = -sqrt(gamma)* Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
 
-         vx = sqrt(gamma) * Mach * PI * sin(PI * x(iX)) * sin(PI * x(IY))
-         vy = -sqrt(gamma) * Mach * PI * cos(PI * x(IX)) * cos(PI * x(IY))
+         vx = sqrt(gamma) * Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L 
+         vy = -sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L 
 
-         px = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IX))
-         py = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IY))
+         px = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
+         py = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
 
          Hx = cp * px + u * ux + v * vx
          Hy = cp * py + u * uy + v * vy
@@ -571,18 +705,77 @@ module ChecksModule
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE) = H * (ux + vy) + Hx * u + Hy * v
+!
+         val = -val / (sqrt(gamma) * Mach)
+         
+#ifdef NAVIER_STOKES
+         associate ( mu => dimensionless % mu , kappa => dimensionless % kappa )
 
-!
-!
+         tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+         tauyy = -2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+         tauxy = 0.0_RP
+
+         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
+         tauyy_y = 2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
+
+         T_xx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
+         T_yy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
+
+         val(IRHOU) = val(IRHOU) + tauxx_x
+         val(IRHOV) = val(IRHOV) + tauyy_y
+         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * T_xx + kappa * T_yy
+
+
+         end associate
+#endif
+         end associate
+
+        end function QDotTrigonometricFCN
+
+        function QDotPolynomicFCN( x , L ) result( val )
+         use Physics
+         implicit none
+         real(kind=RP)           :: x(NDIM) 
+         real(kind=RP)           :: L
+         real(kind=RP)           :: val(NCONS)
+         real(kind=RP)           :: u , v , p
+         real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
+
+         associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
+
+         u = sqrt(gamma) * Mach * x(IX) / L
+         v = sqrt(gamma) * Mach * x(IY) / L
+         p = 1.0_RP + gamma * Mach * Mach * ( x(IX) * x(IX) + x(IY) * x(IY)) / (L **2.0_RP)
+         H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
+
+         ux = sqrt(gamma) * Mach / L
+         uy = 0.0_RP
+
+         vx = 0.0_RP
+         vy = sqrt(gamma) * Mach / L 
+
+         px = gamma * Mach * Mach * 2 * x(IX) / L**2.0_RP
+         py = gamma * Mach * Mach * 2 * x(IY) / L**2.0_RP
+
+         Hx = cp * px + u * ux + v * vx
+         Hy = cp * py + u * uy + v * vy
+
+         val(IRHO)      = ux + vy
+         val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
+         val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
+         val(IRHOE)     = H * (ux + vy) + Hx * u + Hy * v
 !
          val = -val / (sqrt(gamma) * Mach)
 
-
-         
          end associate
-         
+#ifdef NAVIER_STOKES
+         associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
+
+         val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
 
 
-        end function QDotFCN
+         end associate
+#endif
+        end function QDotPolynomicFCN        
       
 end module

@@ -15,7 +15,7 @@ module ParamfileIO
 !  ******************
 !
    private
-   public   readValue , readValueInRegion
+   public   readValue , readValueInRegion , getSquashedLine
    character, parameter       :: comment = '!'
    character, parameter       :: equal(2) = ['=',':'] 
    integer,   parameter       :: STR_LEN_PARAM = 512
@@ -327,13 +327,23 @@ module ParamfileIO
          character(len=*), intent(in)     :: line
          character(len=STR_LEN_PARAM)     :: squashed
          integer                          :: pos
+!
+!        First remove comments
+!        ---------------------
+         pos = index(trim(line) , comment)
+         if ( pos .gt. 0 ) then
+            squashed = line(1:pos-1)
 
-         pos = index(trim(adjustl(line)),' ')
+         else
+            squashed = trim(adjustl(line))
+         end if
+
+         pos = index(trim(adjustl(squashed)),' ')
 
          if (pos .eq. 0) then
-            squashed = trim(adjustl(line))
+            squashed = trim(adjustl(squashed))
          else
-            squashed = line(1:pos-1) // line(pos+1:)
+            squashed = squashed(1:pos-1) // squashed(pos+1:)
          end if
 
          do

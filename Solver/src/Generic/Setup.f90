@@ -13,6 +13,7 @@ module Setup_class
 !              Reference quantities
 !       -------------------------------------------------------------------------------------
 !
+        character(len=STR_LEN_SETUP) :: case_file
         character(len=STR_LEN_SETUP) :: mesh_file           
         character(len=STR_LEN_SETUP) :: bdry_file            
 !
@@ -78,9 +79,11 @@ module Setup_class
 !
         integer, allocatable         :: autosaveInterval         
         integer, allocatable         :: output_interval          
+        integer, allocatable         :: no_of_plotPoints
         character(len=STR_LEN_SETUP) :: saveVariables            
         character(len=STR_LEN_SETUP) :: solution_file
         character(len=STR_LEN_SETUP) :: restart_file
+        character(len=STR_LEN_SETUP) :: outputType
 
         contains
             procedure :: Initialization => Setup_Initialization
@@ -134,6 +137,7 @@ module Setup_class
 !
 !         Read from case file
 !         -------------------
+          Setup % case_file = trim(case_name)
           call readValue(trim(case_name) , "Mesh file" , Setup % mesh_file )
           call readValue(trim(case_name) , "Boundary file" , Setup % bdry_file )
 
@@ -179,15 +183,18 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Gradient jumps penalty parameter" , Setup % sigma1IP          ) 
           call readValue ( trim ( case_name )  , "Integration mode"                 , Setup % integrationMode   ) 
           call readValue ( trim ( case_name )  , "Integration scheme"               , Setup % integrationMethod ) 
-          call readValue ( trim ( case_name )  , "CFL Number"                       , Setup % Ccfl                ) 
-          call readValue ( trim ( case_name )  , "Time step"                       , Setup % dt                ) 
+          call readValue ( trim ( case_name )  , "CFL Number"                       , Setup % Ccfl              ) 
+          call readValue ( trim ( case_name )  , "Time step"                        , Setup % dt                ) 
           call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
           call readValue ( trim ( case_name )  , "Number of iterations"             , Setup % no_of_iterations  ) 
           call readValue ( trim ( case_name )  , "Autosave interval"                , Setup % AutosaveInterval  ) 
           call readValue ( trim ( case_name )  , "Output interval"                  , Setup % Output_Interval   ) 
           call readValue ( trim ( case_name )  , "Save variables"                   , Setup % saveVariables     ) 
-          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % restart_file     ) 
-          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % solution_file      ) 
+          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % restart_file      ) 
+          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % solution_file     ) 
+          call readValue ( trim ( case_name )  , "Number of representation points"  , Setup % no_of_plotPoints  ) 
+          call readValue ( trim ( case_name )  , "Output file type"                 , Setup % outputType        ) 
+
 
           pos = index( trim(Setup % solution_file) , ".HiORst" )  
 

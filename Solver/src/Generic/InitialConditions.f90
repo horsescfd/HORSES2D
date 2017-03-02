@@ -16,9 +16,10 @@ module InitialConditions
    character(len = *), parameter :: VortexIC       = "Vortex transport"
    character(len = *), parameter :: TaylorIC       = "Taylor vortex"
    character(len = *), parameter :: TurbulenceIC   = "Turbulence2D"
-   character(len = *), parameter :: UserDefinedIC  = "UserDefined"
+   character(len = *), parameter :: UserDefinedIC  = "User-defined"
    character(len = *), parameter :: RestartIC      = "Restart"
-   character(len = *), parameter :: ChecksIC       = "Checks"
+   character(len = *), parameter :: ChecksPolyIC   = "ChecksPolynomic"
+   character(len = *), parameter :: ChecksTrigIC   = "ChecksTrigonometric"
    character(len = *), parameter :: WaveIC         = "Wave"
 
 ! 
@@ -26,12 +27,13 @@ module InitialConditions
    abstract interface
 !  ******************
 !
-      function ICFcn (x) result (val)
+      function ICFcn (x , argin) result (val)
          use SMConstants
          use Physics
          implicit none
-         real(kind=RP)     :: x(NDIM)
-         real(kind=RP)     :: val(NEC)
+         real(kind=RP)           :: x(NDIM)
+         real(kind=RP), optional :: argin
+         real(kind=RP)           :: val(NCONS)
       end function ICFcn
 !
 !  *************
@@ -52,13 +54,14 @@ module InitialConditions
          character(len=*), optional    :: which
          character(len=STR_LEN_IC)     :: ICName
          interface
-            function UserDefinedInitialCondition(x) result (val)
+            function UserDefinedInitialCondition(x , argin) result (val)
                use SMConstants
                use Setup_class
                use Physics
                implicit none
-               real(kind=RP)     :: x(NDIM)
-               real(kind=RP)     :: val(NEC)
+               real(kind=RP)           :: x(NDIM)
+               real(kind=RP), optional :: argin
+               real(kind=RP)           :: val(NCONS)
             end function UserDefinedInitialCondition
          end interface
          
@@ -105,10 +108,17 @@ module InitialConditions
                fcn => UserDefinedInitialCondition
 !
 !           ============================
-            case ( trim(ChecksIC) )
+            case ( trim(ChecksPolyIC) )
 !           ============================
 !
-               fcn => ChecksInitialCondition
+               fcn => ChecksPolynomicInitialCondition
+!
+!           ============================
+            case ( trim(ChecksTrigIC) )
+!           ============================
+!
+               fcn => ChecksTrigonometricInitialCondition
+
 !
 !           ============================
             case ( trim(TaylorIC) )
@@ -121,8 +131,6 @@ module InitialConditions
 !           ============================
 !
                fcn => Turbulence2DInitialCondition
-
-
 !
 !           ============================
             case ( trim(WaveIC) )
@@ -148,9 +156,11 @@ module InitialConditions
                print*, "      * ",trim(ConstantIC)
                print*, "      * ",trim(SteadyIC)
                print*, "      * ",trim(VortexIC)
-               print*, "      * ",trim(ChecksIC)
+               print*, "      * ",trim(ChecksPolyIC)
+               print*, "      * ",trim(ChecksTrigIC)
                print*, "      * ",trim(RestartIC) 
                print*, "      * ",trim(PerturbationIC) 
+               print*, "      * ",trim(UserDefinedIC) 
                STOP "Stopped." 
 !
 !        **********
@@ -161,15 +171,16 @@ module InitialConditions
 
       end subroutine InitialCondition
             
-      function UniformInitialCondition(x) result(val)
+      function UniformInitialCondition(x , argin ) result(val)
 !        ***************************************************************
 !           Loads an uniform initial condition from reference values
 !        ***************************************************************
          use SMConstants
          implicit none
-         real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
-         real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
+         real(kind=RP)            :: x(NDIM)
+         real(kind=RP), optional  :: argin
+         real(kind=RP)            :: val(NCONS)
+         real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
 
          associate ( gamma => Thermodynamics % gamma ) 
 
@@ -182,17 +193,18 @@ module InitialConditions
 
       end function UniformInitialCondition
 
-      function PerturbedUniformInitialCondition(x) result(val)
+      function PerturbedUniformInitialCondition(x , argin) result(val)
 !        ***************************************************************
 !           Loads an uniform initial condition from reference values
 !        ***************************************************************
          use SMConstants
          implicit none
-         real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
-         real(kind=RP), parameter   :: AngleOfAttack = 0.0_RP
-         real(kind=RP), parameter   :: perturbation = 0.1_RP
-         real(kind=RP)              :: per
+         real(kind=RP)            :: x(NDIM)
+         real(kind=RP), optional  :: argin
+         real(kind=RP)            :: val(NCONS)
+         real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+         real(kind=RP), parameter :: perturbation = 0.1_RP
+         real(kind=RP)            :: per
 
          associate ( gamma => Thermodynamics % gamma ) 
          per = 0.0_RP
@@ -212,14 +224,15 @@ module InitialConditions
 
 
 
-      function SteadyInitialCondition(x) result(val)
+      function SteadyInitialCondition(x , argin) result(val)
 !        ***************************************************************
 !           Loads a steady flow from the reference values
 !        ***************************************************************
          use SMConstants
          implicit none
-         real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
+         real(kind=RP)           :: x(NDIM)
+         real(kind=RP), optional :: argin
+         real(kind=RP)           :: val(NCONS)
 
          val(IRHO) = 1.0_RP
          val(IRHOU) = 0.0_RP
@@ -228,21 +241,22 @@ module InitialConditions
 
       end function SteadyInitialCondition
          
-      function InviscidVortexTransportInitialCondition(x) result(val)
+      function InviscidVortexTransportInitialCondition(x , argin) result(val)
 !        ****************************************************************
 !           Loads an initial condition consistent with the Taylor Green 
 !          vortex problem
 !        ****************************************************************
          use SMConstants
          implicit none
-         real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
-         real(kind=RP), parameter      :: R = 0.1_RP                         ! This is the "vortex radius" (dimensionless)
-         real(kind=RP), parameter      :: Beta = 0.01_RP                      ! This is the "vortex strength"
-         real(kind=RP), parameter      :: XC = 0.5_RP                         ! Vortex X position (in dimensionless coordinates)
-         real(kind=RP), parameter      :: YC = 0.5_RP                         ! Vortex Y position (in dimensionless coordinates)
-         real(kind=RP), parameter      :: AngleOfAttack = 0.0_RP
-         real(kind=RP)                 :: r2 , rho , u , v , T
+         real(kind=RP)            :: x(NDIM)
+         real(kind=RP), optional  :: argin
+         real(kind=RP)            :: val(NCONS)
+         real(kind=RP), parameter :: R = 0.1_RP                         ! This is the "vortex radius" (dimensionless)
+         real(kind=RP), parameter :: Beta = 0.01_RP                      ! This is the "vortex strength"
+         real(kind=RP), parameter :: XC = 0.5_RP                         ! Vortex X position (in dimensionless coordinates)
+         real(kind=RP), parameter :: YC = 0.5_RP                         ! Vortex Y position (in dimensionless coordinates)
+         real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+         real(kind=RP)            :: r2 , rho , u , v , T
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 
@@ -262,16 +276,17 @@ module InitialConditions
             
       end function InviscidVortexTransportInitialCondition
 
-      function TaylorVortexInitialCondition(x) result(val)
+      function TaylorVortexInitialCondition(x , argin) result(val)
 !        ****************************************************************
 !           Loads an initial condition consistent with the Taylor Green 
 !          vortex problem
 !        ****************************************************************
          use SMConstants
          implicit none
-         real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
-         real(kind=RP)        :: rho , u , v , p
+         real(kind=RP)           :: x(NDIM)
+         real(kind=RP), optional :: argin
+         real(kind=RP)           :: val(NCONS)
+         real(kind=RP)           :: rho , u , v , p
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 
@@ -289,16 +304,17 @@ module InitialConditions
             
       end function TaylorVortexInitialCondition
 
-      function Turbulence2DInitialCondition(x) result(val)
+      function Turbulence2DInitialCondition(x , argin) result(val)
 !        ****************************************************************
 !           Loads an initial condition to generate 2D Turbulence
 !        ****************************************************************
          use SMConstants
          implicit none
-         real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NEC)
-         real(kind=RP)        :: rho , u , v , p
-         real(kind=RP), parameter      :: k = 10.0_RP
+         real(kind=RP)            :: x(NDIM)
+         real(kind=RP), optional  :: argin
+         real(kind=RP)            :: val(NCONS)
+         real(kind=RP)            :: rho , u , v , p
+         real(kind=RP), parameter :: k = 10.0_RP
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 
@@ -316,20 +332,30 @@ module InitialConditions
             
       end function Turbulence2DInitialCondition
 
-      function ChecksInitialCondition (x) result (val)
+      function ChecksPolynomicInitialCondition (x , argin) result (val)
          use SMConstants
          use Physics
          implicit none
          real(kind=RP)              :: x(NDIM)
-         real(kind=RP)              :: val(NEC)
-         real(kind=RP)        :: rho , u , v , p
+         real(kind=RP), optional    :: argin
+         real(kind=RP)              :: val(NCONS)
+         real(kind=RP)              :: L
+         real(kind=RP)              :: rho , u , v , p
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 
+         if ( present( argin) ) then      
+            L = argin
+      
+         else     
+            L = 1.0_RP
+
+         end if
+
          rho = 1.0_RP
-         u = sqrt(gamma) * Mach * sin(PI*x(1)) * cos(PI*x(2))
-         v = -sqrt(gamma) * Mach *  cos(PI*x(1)) * sin(PI*x(2))
-         p = 1.0_RP + 0.125_RP * gamma * Mach * Mach * (cos(2.0_RP * PI * x(1)) + cos(2.0_RP * PI * x(2)) )
+         u = sqrt(gamma) * Mach * x(IX) / L
+         v = sqrt(gamma) * Mach * x(IY) / L 
+         p = 1.0_RP + gamma * Mach * Mach * ( x(IX) * x(IX)  + x(IY) * x(IY) ) / (L **2.0_RP)
 
          val(IRHO)  = rho
          val(IRHOU) = rho * u
@@ -339,13 +365,49 @@ module InitialConditions
          end associate
  
          
-      end function ChecksInitialCondition
+      end function ChecksPolynomicInitialCondition
 
-      function WaveInitialCondition ( x ) result( val )
+      function ChecksTrigonometricInitialCondition (x , argin) result (val)
+         use SMConstants
+         use Physics
+         implicit none
+         real(kind=RP)              :: x(NDIM)
+         real(kind=RP), optional    :: argin
+         real(kind=RP)              :: val(NCONS)
+         real(kind=RP)        :: rho , u , v , p
+         real(kind=RP)        :: L 
+
+         associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
+
+         if ( present ( argin ) ) then
+   
+            L = argin
+         else
+   
+            L = 1.0_RP
+         end if
+
+         rho = 1.0_RP
+         u = sqrt(gamma) * Mach * sin(PI*x(IX) / L ) * cos(PI*x(IY) / L)
+         v = -sqrt(gamma) * Mach *  cos(PI*x(IX) / L ) * sin(PI*x(IY) / L)
+         p = 1.0_RP + 0.125_RP * gamma * Mach * Mach * (cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L ) )
+
+         val(IRHO)  = rho
+         val(IRHOU) = rho * u
+         val(IRHOV) = rho * v
+         val(IRHOE) = cv * p + 0.5_RP * rho * ( u*u + v*v )
+
+         end associate
+ 
+         
+      end function ChecksTrigonometricInitialCondition
+
+      function WaveInitialCondition ( x , argin) result( val )
          use SMConstants
          implicit none
          real(kind=RP)              :: x(NDIM)
-         real(kind=RP)              :: val(NEC)
+         real(kind=RP), optional    :: argin
+         real(kind=RP)              :: val(NCONS)
 
          associate ( gamma => Thermodynamics % Gamma  , Mach => Dimensionless % Mach ) 
          val(IRHO) = 1.0_RP

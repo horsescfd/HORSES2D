@@ -5,7 +5,7 @@
 !
 
 !-------------------------------------: Geometry
-			     Mesh file: ./MESH/Cylinder.HiOMesh
+			     Mesh file: ./MESH/CylinderVeryCoarse.HiOMesh
 			 Boundary file: _this_
 
 
@@ -20,16 +20,16 @@
 	
 !------------------------------------: DG Discretization
 		           Interpolation nodes : Legendre-Gauss
-		           Polynomial order    : 4
+		           Polynomial order    : 10
 
 !------------------------------------: Initialization
 		             Initial condition : Uniform
-		             Restart file      : ./RESULTS/Cylinder.HiORst
+		             Restart file      : ./RESULTS/CylinderVeryCoarse.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy     : Standard
 	            Inviscid formulation  : Form I
-	            Inviscid Riemann Flux : HLL
+	            Inviscid Riemann Flux : Roe
 
 !------------------------------------: Viscous discretization
                      Viscous strategy: BR1
@@ -39,20 +39,20 @@
 
 !-----------------------------------: Time integration
                Integration mode     : Steady
-               Integration scheme   : Williamson RK3
+               Integration scheme   : Williamson RK5
                Time step            : 1.0e-2
-               CFL Number           : 0.1
+               CFL Number           : 0.2
                Simulation time      : 1.0
-               Number of iterations : 250
+               Number of iterations : 1000000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
-		      Solution file: ./RESULTS/Cylinder.HiORst
-                  Autosave interval: 1000
+		      Solution file: ./RESULTS/CylinderVeryCoarse.HiORst
+                  Autosave interval: 10000
                     Output interval: 10
 		Output file type: Interpolated
-	Number of representation points: 10
-                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+	Number of representation points: 15
+                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach_Vorticity
 
 !
 !            **********************************
@@ -62,19 +62,19 @@
 
 
 
-# define zone 1
-	Name = Symmetry
-	Type = Dirichlet
-   Riemann solver = Exact
-# end 
-
-# define zone 2
+# define zone 5
 	Name = Symmetry
 	Type = Dirichlet
    Riemann solver = Exact
 # end 
 
 # define zone 3
+	Name = Symmetry
+	Type = Dirichlet
+   Riemann solver = Exact
+# end 
+
+# define zone 2
 	Name = Inflow
    Type = Dirichlet
 !	Type = Pressure inlet
@@ -89,7 +89,7 @@
    Riemann solver = Exact
 # end
 
-# define zone 5
+# define zone 1
 	Name = Wall
    Type = Viscous wall
    Wall type = Adiabatic
@@ -97,10 +97,10 @@
 # end
 
 # define probe 1
-   Name = Wake_v
+   Name = Probe2
    x position = 0.75
    y position = 0.0
-   Variable = v
+   Variable = Mach
 # end
 
 # define surface monitor 1

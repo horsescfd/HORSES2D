@@ -3,19 +3,21 @@ module PhysicsNS
     use Setup_class
 
     private
-    public :: NEC , NPRIM, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
-    public :: IU , IV , IP , IA
+    public :: NCONS , NPRIM, NGRAD, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
+    public :: IU , IV , IP , IA , IT
+    public :: IGU , IGV , IGT
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
-    public :: InviscidFlux
+    public :: InviscidFlux , ViscousFlux , ViscousNormalFlux , ComputeViscousTensor
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver , ExactRiemann_ComputePStar
 !
 !   *****************************************
 !        Definitions
 !   *****************************************
 !
-    integer, parameter              :: NEC = 4
-    integer, parameter              :: NPRIM = 5
+    integer, parameter              :: NCONS = 4
+    integer, parameter              :: NPRIM = 6
+    integer, parameter              :: NGRAD = 3
     integer, parameter              :: NDIM = 2
     integer, parameter              :: STR_LEN_PHYSICS = 128
 !
@@ -26,9 +28,9 @@ module PhysicsNS
     integer, parameter :: IX = 1
     integer, parameter :: IY = 2
 !
-!   ******************++**********************
+!   ******************************************
 !        Parameters to select variables
-!   ******************++**********************
+!   ******************************************
 !
 !   --- Conservative variables ---
     integer, parameter :: IRHO  = 1
@@ -40,7 +42,13 @@ module PhysicsNS
     integer, parameter :: IU = 2
     integer, parameter :: IV = 3
     integer, parameter :: IP = 4 
-    integer, parameter :: IA = 5
+    integer, parameter :: IT = 5
+    integer, parameter :: IA = 6
+
+!   --- Gradient variables ---
+    integer, parameter :: IGU = 1
+    integer, parameter :: IGV = 2
+    integer, parameter :: IGT = 3
 !
 !   ********************************************
 !        Current solver
@@ -57,6 +65,7 @@ module PhysicsNS
       real(kind=RP)        :: invgm1      ! 1.0_RP / (gamma - 1 )
       real(kind=RP)        :: cp
       real(kind=RP)        :: cv
+      real(kind=RP)        :: lambda
     end type Thermodynamics_t
 
     type RefValues_t
@@ -80,36 +89,47 @@ module PhysicsNS
       real(kind=RP)        :: Pr
       real(kind=RP)        :: kappa
       real(kind=RP)        :: Mach
+      real(kind=RP)        :: sqrtGammaMach
+      real(kind=RP)        :: invsqrtGammaMach
     end type Dimensionless_t
 
     abstract interface
       function RiemannSolverFunction( QL , QR , T , Tinv ) result ( val )
          use SMConstants
-         import NEC , NDIM
-         real(kind=RP), dimension(NEC)     :: QL
-         real(kind=RP), dimension(NEC)     :: QR
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: val
+         import NCONS , NDIM
+         real(kind=RP), dimension(NCONS)     :: QL
+         real(kind=RP), dimension(NCONS)     :: QR
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: val
       end function RiemannSolverFunction
     end interface
 
-    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , 0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP)
+    type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , &
+                              0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP , 2.0_RP / 3.0_RP )
     type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
 
 !
     interface inviscidFlux
-      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D
+      module procedure inviscidFlux0D , inviscidFlux1D , inviscidFlux2D , inviscidFlux2D_PRIM
     end interface inviscidFlux
-!
-!    interface viscousFlux
-!      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
-!    end interface viscousFlux
-!
-    contains
 
+    interface viscousFlux
+      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
+    end interface viscousFlux
+
+    interface viscousNormalFlux
+      module procedure viscousNormalFlux0D , viscousNormalFlux1D , viscousNormalFlux2D
+    end interface viscousNormalFlux
+!
+!   ========
+    contains
+!   ========
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
        subroutine InitializePhysics()
          implicit none
 !
@@ -143,14 +163,15 @@ module PhysicsNS
 !        Initialize the dimensionless values
 !        ***********************************
 !
-         dimensionless % mu         = sqrt( thermodynamics % gamma ) * refValues % Mach / Setup % reynolds_number
-         dimensionless % kappa      = dimensionless % mu * thermodynamics % gogm1 / Setup % prandtl_number
-         dimensionless % cp         = thermodynamics % gogm1
-         dimensionless % cv         = thermodynamics % invgm1
-         dimensionless % Re         = Setup % reynolds_number
-         dimensionless % Pr         = Setup % prandtl_number
-         dimensionless % Mach       = Setup % Mach_number
-
+         dimensionless % mu               = 1.0_RP / Setup % reynolds_number
+         dimensionless % kappa            = dimensionless  % mu * thermodynamics % gogm1 / Setup % prandtl_number
+         dimensionless % cp               = thermodynamics % gogm1
+         dimensionless % cv               = thermodynamics % invgm1
+         dimensionless % Re               = Setup % reynolds_number
+         dimensionless % Pr               = Setup % prandtl_number
+         dimensionless % Mach             = Setup % Mach_number
+         dimensionless % sqrtGammaMach    = sqrt(thermodynamics % gamma) * dimensionless % Mach
+         dimensionless % invSqrtGammaMach = 1.0_RP / (sqrt(thermodynamics % gamma) * dimensionless % Mach)
 
          call Describe
 
@@ -158,13 +179,13 @@ module PhysicsNS
 !
       function inviscidFlux0D(u) result(val)
          implicit none
-         real(kind=RP)          :: u(NEC)
-         real(kind=RP), target  :: val(NEC,NDIM)
+         real(kind=RP)          :: u(NCONS)
+         real(kind=RP), target  :: val(NCONS,NDIM)
          real(kind=RP), pointer :: F(:) , G(:)
          real(kind=RP)          :: vx , vy  , p
 
-         F(1:NEC)    => val(1:NEC,iX)
-         G(1:NEC)    => val(1:NEC,iY)
+         F(1:NCONS)    => val(1:NCONS,iX)
+         G(1:NCONS)    => val(1:NCONS,iY)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
 
@@ -182,24 +203,20 @@ module PhysicsNS
          G(IRHOV) = u(IRHOV) * vy + p
          G(IRHOE) = (u(IRHOE) + p) * vy
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
 
          end associate
 
       end function inviscidFlux0D
 
-      function inviscidFlux1D(u) result(val)
+      function inviscidFlux1D(N,u) result(val)
          implicit none
-         real(kind=RP)                      :: u(0:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:)
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: u(0:N,1:NCONS)
+         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:) , G(:,:)
-         real(kind=RP), allocatable         :: vx(:) , vy(:)  , p(:)
-
-         allocate( val(0:size(u,1)-1 , 1:NEC , 1:NDIM ) )
-         allocate( vx(0:size(u,1)-1) )
-         allocate( vy(0:size(u,1)-1) )
-         allocate( p(0:size(u,1)-1) )
+         real(kind=RP)                      :: vx(0:N) , vy(0:N)  , p(0:N)
 
          F(0:,1:)    => val(0:,1:,iX)
          G(0:,1:)    => val(0:,1:,iY)
@@ -220,30 +237,23 @@ module PhysicsNS
          G(:,IRHOV) = u(:,IRHOV) * vy + p
          G(:,IRHOE) = (u(:,IRHOE) + p) * vy
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
 
          end associate
 
-         deallocate( vx , vy , p )
-
       end function inviscidFlux1D
 
-      function inviscidFlux2D(u) result(val)
+      function InviscidFlux2D(N,u) result(val)
          implicit none
-         real(kind=RP)                      :: u(0:,0:,:)
-         real(kind=RP), allocatable, target :: val(:,:,:,:)
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: u(0:N,0:N,1:NCONS)
+         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
          real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
-         real(kind=RP), allocatable         :: vx(:,:) , vy(:,:)  , p(:,:)
-
-         allocate( val(0:size(u,1)-1 , 0:size(u,2)-1 , 1:NEC , 1:NDIM ) )
-         allocate( vx(0:size(u,1)-1 , 0:size(u,2)-1) )
-         allocate( vy(0:size(u,1)-1 , 0:size(u,2)-1) )
-         allocate(  p(0:size(u,1)-1 , 0:size(u,2)-1) )
+         real(kind=RP)                      :: vx(0:N,0:N) , vy(0:N,0:N)  , p(0:N,0:N)
 
          F(0:,0:,1:)    => val(0:,0:,1:,iX)
          G(0:,0:,1:)    => val(0:,0:,1:,iY)
-
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
@@ -261,19 +271,47 @@ module PhysicsNS
          G(:,:,IRHOV) = u(:,:,IRHOV) * vy + p
          G(:,:,IRHOE) = (u(:,:,IRHOE) + p) * vy
 
-         F = F / (sqrt(gamma) * Mach)
-         G = G / (sqrt(gamma) * Mach)
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
 
          end associate
 
-         deallocate( vx,vy,p )
-
       end function inviscidFlux2D
+
+      function inviscidFlux2D_PRIM(N,u,w) result(val)
+         implicit none
+         integer, intent(in)                :: N
+         real(kind=RP)                      :: u(0:N,0:N,1:NCONS)
+         real(kind=RP)                      :: w(0:N,0:N,1:NPRIM)
+         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
+         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+
+         F(0:,0:,1:)    => val(0:,0:,1:,iX)
+         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+
+         F(:,:,IRHO)  = u(:,:,IRHOU)
+         F(:,:,IRHOU) = u(:,:,IRHOU) * w(:,:,IU) + w(:,:,IP)
+         F(:,:,IRHOV) = u(:,:,IRHOU) * w(:,:,IV)
+         F(:,:,IRHOE) = (u(:,:,IRHOE) + w(:,:,IP)) * w(:,:,IU)
+
+         G(:,:,IRHO)  = u(:,:,IRHOV)
+         G(:,:,IRHOU) = F(:,:,IRHOV)
+         G(:,:,IRHOV) = u(:,:,IRHOV) * w(:,:,IV) + w(:,:,IP)
+         G(:,:,IRHOE) = (u(:,:,IRHOE) + w(:,:,IP)) * w(:,:,IV)
+
+         associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
+
+         F = F * dimensionless % invSqrtGammaMach
+         G = G * dimensionless % invSqrtGammaMach
+   
+         end associate
+
+      end function inviscidFlux2D_PRIM
      
       function F_inviscidFlux(u) result(F)
          implicit none
-         real(kind=RP)        :: u(NEC)
-         real(kind=RP)        :: F(NEC)
+         real(kind=RP)        :: u(NCONS)
+         real(kind=RP)        :: F(NCONS)
          real(kind=RP)        :: vx , vy , p
    
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )    
@@ -289,43 +327,160 @@ module PhysicsNS
 
          end associate
       end function F_inviscidFlux
+!
+!     ****************************************************
+!        Viscous fluxes
+!     ****************************************************
+!
+      function viscousFlux0D( w , dq) result(val)
+         implicit none
+         real(kind=RP)          :: w(NPRIM)
+         real(kind=RP)          :: dq(NDIM , NGRAD)
+         real(kind=RP), target  :: val(NCONS,NDIM)
+         real(kind=RP), pointer :: F(:) , G(:)
 
-!
-!      function viscousFlux0D(g,u) result(val)
-!         implicit none
-!         real(kind=RP), optional     :: u
-!         real(kind=RP)               :: g
-!         real(kind=RP)               :: val
-!
-!
-!         val = Setup % nu * g
-!
-!      end function viscousFlux0D
-!
-!      function viscousFlux1D(g,u) result(val)
-!         implicit none
-!         real(kind=RP), optional     :: u(:)
-!         real(kind=RP)               :: g(:)
-!         real(kind=RP), allocatable     :: val(:)
-!
-!         allocate(val( size(g,1)) )
-!
-!         val = Setup % nu * g
-!
-!      end function viscousFlux1D
-!
-!      function viscousFlux2D(g,u) result(val)
-!         implicit none
-!         real(kind=RP), optional     :: u(:,:)
-!         real(kind=RP)               :: g(:,:)
-!         real(kind=RP), allocatable     :: val(:,:)
-!
-!         allocate(val( size(g,1) , size(g,2) ) )
-!
-!         val = Setup % nu * g
-!
-!      end function viscousFlux2D
+         F(1:NCONS)    => val(1:NCONS,IX)
+         G(1:NCONS)    => val(1:NCONS,IY)
 
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+           
+         F(IRHO)  = 0.0_RP
+         F(IRHOU) = mu * ( 2.0_RP * dq(IX , IGU) - lambda * ( dq(IX,IGU) + dq(IY,IGV) ) )
+         F(IRHOV) = mu * ( dq(IY,IGU) + dq(IX,IGV) )
+         F(IRHOE) = F(IRHOU) * w(IU) + F(IRHOV) * w(IV) + kappa * dq(IX,IGT) 
+
+         G(IRHO)  = 0.0_RP
+         G(IRHOU) = F(IRHOV)
+         G(IRHOV) = mu * ( 2.0_RP * dq(IY , IGV) - lambda * ( dq(IX,IGU) + dq(IY,IGV) ) )
+         G(IRHOE) = G(IRHOU) * w(IU) + G(IRHOV) * w(IV) + kappa * dq(IY,IGT) 
+
+         end associate
+
+      end function viscousFlux0D
+
+      function viscousFlux1D( N , w , dq ) result ( val )
+         implicit none
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: w(0:N,1:NPRIM)
+         real(kind=RP)                      :: dq(0:N,1:NDIM,1:NGRAD)
+         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
+         real(kind=RP), pointer             :: F(:,:) , G(:,:)
+
+         F(0:,1:)    => val(0:,1:,IX)
+         G(0:,1:)    => val(0:,1:,IY)
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+
+         F(:,IRHO)  = 0.0_RP
+         F(:,IRHOU) = mu * ( 2.0_RP * dq(:,IX , IGU) - lambda * ( dq(:,IX,IGU) + dq(:,IY,IGV) ) )
+         F(:,IRHOV) = mu * ( dq(:,IY,IGU) + dq(:,IX,IGV) )
+         F(:,IRHOE) = F(:,IRHOU) * w(:,IU) + F(:,IRHOV) * w(:,IV) + kappa * dq(:,IX,IGT) 
+
+         G(:,IRHO)  = 0.0_RP
+         G(:,IRHOU) = F(:,IRHOV)
+         G(:,IRHOV) = mu * ( 2.0_RP * dq(:,IY , IGV) - lambda * ( dq(:,IX,IGU) + dq(:,IY,IGV) ) )
+         G(:,IRHOE) = G(:,IRHOU) * w(:,IU) + G(:,IRHOV) * w(:,IV) + kappa * dq(:,IY,IGT) 
+
+         end associate 
+
+      end function viscousFlux1D
+
+      function viscousFlux2D( N , w , dq ) result ( val )
+         implicit none
+         integer, intent(in)                :: N 
+         real(kind=RP)                      :: w(0:N,0:N,1:NPRIM)
+         real(kind=RP)                      :: dq(0:N,0:N,1:NDIM,1:NGRAD)
+         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
+         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+
+         F(0:,0:,1:)    => val(0:,0:,1:,iX)
+         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+
+         F(:,:,IRHO)  = 0.0_RP
+         F(:,:,IRHOU) = mu * ( 2.0_RP * dq(:,:,IX , IGU) - lambda * ( dq(:,:,IX,IGU) + dq(:,:,IY,IGV) ) )
+         F(:,:,IRHOV) = mu * ( dq(:,:,IY,IGU) + dq(:,:,IX,IGV) )
+         F(:,:,IRHOE) = F(:,:,IRHOU) * w(:,:,IU) + F(:,:,IRHOV) * w(:,:,IV) + kappa * dq(:,:,IX,IGT) 
+
+         G(:,:,IRHO)  = 0.0_RP
+         G(:,:,IRHOU) = F(:,:,IRHOV)
+         G(:,:,IRHOV) = mu * ( 2.0_RP * dq(:,:,IY , IGV) - lambda * ( dq(:,:,IX,IGU) + dq(:,:,IY,IGV) ) )
+         G(:,:,IRHOE) = G(:,:,IRHOU) * w(:,:,IU) + G(:,:,IRHOV) * w(:,:,IV) + kappa * dq(:,:,IY,IGT) 
+
+         end associate 
+
+      end function viscousFlux2D
+
+      function viscousNormalFlux0D( w , dq , dS ) result ( val )
+         implicit none
+         real(kind=RP), intent(in)  :: w(NPRIM)
+         real(kind=RP), intent(in)  :: dq(NDIM,NGRAD)
+         real(kind=RP), intent(in)  :: dS(NDIM) 
+         real(kind=RP)              :: val(NCONS)
+!        ----------------------------------------------------------
+         real(kind=RP)              :: Fv(NCONS , NDIM)
+
+         Fv = viscousFlux0D ( w , dq )
+
+         val = Fv(1:NCONS,IX) * dS(IX) + Fv(1:NCONS,IY) * dS(IY)
+
+      end function viscousNormalFlux0D
+
+      function viscousNormalFlux1D ( N , w , dq , dS ) result ( val )
+         implicit none
+         integer, intent(in)        :: N
+         real(kind=RP), intent(in)  :: w(0:N ,1:NPRIM)
+         real(kind=RP), intent(in)  :: dq(0:N , 1:NDIM , 1:NGRAD )
+         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N )
+         real(kind=RP)              :: val(0:N , 1:NCONS)
+!        ---------------------------------------------------------
+         real(kind=RP)              :: Fv(0:N,1:NCONS,1:NDIM)
+         integer                    :: eq
+
+         Fv = viscousFlux1D ( N , w , dq )
+   
+         do eq = 1 , NCONS
+            val(:,eq) = Fv(:,eq,IX) * dS(IX,:) + Fv(:,eq,IY) * dS(IY,:)
+         end do
+
+      end function viscousNormalFlux1D
+
+      function viscousNormalFlux2D ( N , w , dq , dS ) result ( val )
+         implicit none
+         integer, intent(in)        :: N 
+         real(kind=RP), intent(in)  :: w(0:N , 0:N , 1:NPRIM)
+         real(kind=RP), intent(in)  :: dq(0:N , 0:N , 1:NDIM , 1:NGRAD )
+         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N , 0:N )
+         real(kind=RP)              :: val(0:N , 0:N , 1:NCONS)
+!        ---------------------------------------------------------
+         real(kind=RP)              :: Fv(0:N,0:N,1:NCONS,1:NDIM)
+         integer                    :: eq
+
+         Fv = viscousFlux2D ( N , w , dq )
+   
+         do eq = 1 , NCONS
+            val(:,:,eq) = Fv(:,:,eq,IX) * dS(IX,:,:) + Fv(:,:,eq,IY) * dS(IY,:,:)
+         end do
+
+      end function viscousNormalFlux2D
+
+      function ComputeViscousTensor ( N , dQ ) result ( tau )
+         implicit none
+         integer,          intent(in)     :: N
+         real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NGRAD)
+         real(kind=RP)                    :: tau(0:N,1:NDIM,1:NDIM)
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda )
+
+         tau(0:N , IX , IX ) = mu * ( 2.0_RP * dQ(0:N , IX , IGU ) - lambda * ( dQ(0:N,IX,IGU) + dQ(0:N,IY,IGV) ) )
+         tau(0:N , IY , IY ) = mu * ( 2.0_RP * dQ(0:N , IY , IGV ) - lambda * ( dQ(0:N,IX,IGU) + dQ(0:N,IY,IGV) ) )
+         tau(0:N , IX , IY ) = mu * ( dQ(0:N,IY,IGU) + dQ(0:N,IX,IGV) )
+         tau(0:N , IY , IX ) = tau(0:N , IX , IY )
+
+         end associate
+
+      end function ComputeViscousTensor
 !
 !     ****************************************************
 !        Riemann solvers
@@ -334,13 +489,13 @@ module PhysicsNS
       function ExactRiemannSolver(qL3D , qR3D , T , Tinv ) result (Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC)   :: qL , qR
+         real(kind=RP), dimension(NCONS)   :: qL , qR
          real(kind=RP), dimension(NPRIM) :: WL , WR
          real(kind=RP)                   :: pstar , ustar
          real(kind=RP)                   :: rhostar , uFan , pFan
@@ -466,12 +621,12 @@ module PhysicsNS
 
 !        3/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar , Nout = NCONS)
 
 !        4/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 
 
@@ -480,20 +635,20 @@ module PhysicsNS
       function RoeFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP), dimension(NCONS) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , HL
          real(kind=RP)                 :: rhoR , uR , vR , HR
          real(kind=RP)                 :: invrho , u , v , H , a
-         real(kind=RP)                 :: dq(NEC)
-         real(kind=RP)                 :: lambda(NEC)
-         real(kind=RP)                 :: K(NEC,NEC)
-         real(kind=RP)                 :: alpha(NEC)
+         real(kind=RP)                 :: dq(NCONS)
+         real(kind=RP)                 :: lambda(NCONS)
+         real(kind=RP)                 :: K(NCONS,NCONS)
+         real(kind=RP)                 :: alpha(NCONS)
          integer                       :: eq
          integer                       :: negativeWaves
          integer                       :: wave
@@ -555,10 +710,10 @@ module PhysicsNS
 !
 !        3/ Compute the averaged right eigenvectors
 !           ---------------------------------------
-            K(1:NEC , 1)  = reshape( (/ 1.0_RP , u-a    , v      , H-u*a                /)  ,  (/ NEC /) )
-            K(1:NEC , 2)  = reshape( (/ 1.0_RP , u      , v      , 0.5_RP * (u*u + v*v) /)  ,  (/ NEC /) )
-            K(1:NEC , 3)  = reshape( (/ 0.0_RP , 0.0_RP , 1.0_RP , v                    /)  ,  (/ NEC /) )
-            K(1:NEC , 4)  = reshape( (/ 1.0_RP , u + a  , v      , H + u*a              /)  ,  (/ NEC /) )
+            K(1:NCONS , 1)  = reshape( (/ 1.0_RP , u-a    , v      , H-u*a                /)  ,  (/ NCONS /) )
+            K(1:NCONS , 2)  = reshape( (/ 1.0_RP , u      , v      , 0.5_RP * (u*u + v*v) /)  ,  (/ NCONS /) )
+            K(1:NCONS , 3)  = reshape( (/ 0.0_RP , 0.0_RP , 1.0_RP , v                    /)  ,  (/ NCONS /) )
+            K(1:NCONS , 4)  = reshape( (/ 1.0_RP , u + a  , v      , H + u*a              /)  ,  (/ NCONS /) )
 !
 !        4/ Compute the wave strengths
 !           --------------------------
@@ -575,17 +730,17 @@ module PhysicsNS
             Fstar = F_inviscidFlux(qL) 
                
             do wave = 1 , negativeWaves
-               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NEC , wave)
+               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NCONS , wave)
             end do
   
 !        6/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar , Nout = NCONS)
 
 !        7/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 
 !
@@ -594,13 +749,13 @@ module PhysicsNS
       function HLLFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP), dimension(NCONS) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , HL , aL , pL
          real(kind=RP)                 :: rhoR , uR , vR , HR , aR , pR
          real(kind=RP)                 :: invrho , u , v , H , a
@@ -672,12 +827,12 @@ module PhysicsNS
          
 !        4/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar , Nout = NCONS)
 
 !        5/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 !        
       end function HLLFlux
@@ -685,13 +840,13 @@ module PhysicsNS
       function AUSMFlux(qL3D , qR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NEC)     :: qL3D
-         real(kind=RP), dimension(NEC)     :: qR3D
-         real(kind=RP), dimension(NEC,NEC) :: T
-         real(kind=RP), dimension(NEC,NEC) :: Tinv
-         real(kind=RP), dimension(NEC)     :: Fstar
+         real(kind=RP), dimension(NCONS)     :: qL3D
+         real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NCONS,NCONS) :: T
+         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
+         real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NEC) :: qL , qR
+         real(kind=RP), dimension(NCONS) :: qL , qR
          real(kind=RP)                 :: rhoL , uL , vL , pL , aL , ML
          real(kind=RP)                 :: rhoR , uR , vR , pR , aR , MR
          real(kind=RP)                 :: MplusL , MminusR , pplusL , pminusR 
@@ -766,12 +921,12 @@ module PhysicsNS
                
 !        4/ Return to the 3D Space
 !           ----------------------
-            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar )
+            Fstar = MatrixTimesVector_F( A = Tinv , X = Fstar  , Nout = NCONS )
 
 !        5/ Scale it with the Mach number
 !           -----------------------------
             associate( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
-            Fstar = Fstar / ( sqrt(gamma) * Mach)
+            Fstar = Fstar * dimensionless % invSqrtGammaMach
             end associate
 !
       end function AUSMFlux

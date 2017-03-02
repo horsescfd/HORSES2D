@@ -22,14 +22,17 @@ module QuadElementClass
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         integer                            :: edgesAssemblyDir(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges referred to the quad local frame
         integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
-        real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( X/Y , xi , eta )
-        real(kind=RP), allocatable         :: dx(:,:,:,:)                    ! Mapping derivatives (X/Y , xi , eta , dxi / deta)
+        real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( xi , eta , X/Y )
+        real(kind=RP), allocatable         :: Ja(:,:,:,:)                    ! Contravariant system metric matrix ( xi , eta , IROW , ICOL)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
         real(kind=RP), allocatable         :: invM2Djac(:,:)                 ! Inverse of the jacobian times the mass matrix ( xi , eta )
         real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
         real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
         real(kind=RP), pointer             :: F(:,:,:,:)                     ! *   F ( xi , eta , eq , X/Y) : contravariant fluxes
-        real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( xi ,eta , eq , X/Y):   solution gradient
+#ifdef NAVIER_STOKES
+        real(kind=RP), pointer             :: dQ(:,:,:,:)                    ! *   dQ( xi ,eta , X/Y , eq):   solution gradient
+#endif
+        real(kind=RP), pointer             :: W(:,:,:)                       ! *   W ( xi ,eta , var) : solution in primitive variables
         type(Node_p)                       :: nodes(POINTS_PER_QUAD)         ! Pointer to neighbour nodes
         class(Edge_p), pointer             :: edges(:)                       ! Pointer to neighbour eges
         class(NodesAndWeights_t), pointer  :: spA                            ! Pointer to the Nodal Storage
@@ -40,7 +43,9 @@ module QuadElementClass
             procedure      :: Construct   => QuadElement_Construct                                 ! Constructs/allocates data and points to the address in Storage
             procedure      :: SetStorage  => QuadElement_SetStorage                                ! Function to set the storage distribution
             procedure      :: SetMappings => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
-            procedure      :: Ja          => QuadElement_MetricMatrix
+            procedure      :: ComputePrimitiveVariables => QuadElement_ComputePrimitiveVariables
+            procedure      :: Compute_X   => QuadElement_Compute_X
+            procedure      :: FindPointWithCoords => QuadElement_FindPointWithCoords
     end type QuadElement_t
 
 !
@@ -72,7 +77,10 @@ module QuadElementClass
         real(kind=RP),              pointer :: T(:,:,:)                   ! Fluxes invariance rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Tinv(:,:,:)                ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
+        real(kind=RP),              pointer :: W(:,:,:)                   ! Primitive variables interpolation to boundaries ( xi , eq , LEFT/RIGHT)
+#ifdef NAVIER_STOKES
         real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
+#endif
         real(kind=RP),              pointer :: F(:,:,:)                   ! Solution NORMAL fluxes interpolation to boundaries ( xi ,eq , LEFT/RIGHT )
         type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
         class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
@@ -80,6 +88,7 @@ module QuadElementClass
         class(NodesAndWeights_t),   pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
         contains
             procedure      :: SetCurve    => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
+            procedure      :: ComputePrimitiveVariables => Edge_ComputePrimitiveVariables
             procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
             procedure      :: evaluateX   => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
             procedure      :: evaluatedX  => Edge_AnalyticaldX                 ! Function to compute an edge point in a local coordinate "xi"
@@ -93,18 +102,24 @@ module QuadElementClass
         logical                           :: inverted = .false.
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
-        real(kind=RP), pointer            :: uB(:,:)   => NULL()        ! Solution at the boundary
-        real(kind=RP), pointer            :: gB(:,:,:) => NULL()        ! Solution gradient at the boundary
-        real(kind=RP), pointer            :: FB(:,:)  => NULL()       ! Fluxes at the boundary
+        real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
+        real(kind=RP), pointer            :: wB(:,:)   => NULL()         ! Primitive variables at the boundary (used for gradients computation)
+#ifdef NAVIER_STOKES
+        real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
+#endif
+        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
         logical                           :: inverted = .false.
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
-        real(kind=RP), pointer            :: uB(:,:)   => NULL()          ! Solution at the boundary
+        real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
+        real(kind=RP), pointer            :: wB(:,:)   => NULL()         ! Primitive variables at the boundary (used for gradients computation)
+#ifdef NAVIER_STOKES
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
-        real(kind=RP), pointer            :: FB(:,:) => NULL()        ! Fluxes at the boundary
+#endif
+        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
         contains
             procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
             procedure      :: evaluateX  => Curvilinear_InterpolantX
@@ -182,10 +197,10 @@ module QuadElementClass
 !               These two arrays were before 
 !               allocated inside each element.
 !               Now they are just linked.
-!                   allocate ( self % Q    ( 0:N , 0:N , NEC )  ) 
-!                   allocate ( self % QDot ( 0:N , 0:N , NEC )  ) 
-!                   allocate ( self % F    ( 0:N , 0:N , NEC )  ) 
-!                   allocate ( self % dQ   ( 0:N , 0:N , NEC )  ) 
+!                   allocate ( self % Q    ( 0:N , 0:N , NCONS        )  ) 
+!                   allocate ( self % QDot ( 0:N , 0:N , NCONS        )  ) 
+!                   allocate ( self % F    ( 0:N , 0:N , NCONS        )  ) 
+!                   allocate ( self % dQ   ( 0:N , 0:N , NDIM , NGRAD )  ) 
 !            ---------------------------------------
 !
              self % address = address
@@ -195,11 +210,11 @@ module QuadElementClass
 !            Allocate data
 !            *************
 !
-             allocate ( self % x     ( NDIM  , 0:N , 0:N        )  ) 
-             allocate ( self % dx    ( NDIM  , 0:N , 0:N , NDIM )  ) 
-             allocate ( self % jac   ( 0:N , 0:N                )  ) 
-             allocate ( self % invM2Djac   ( 0:N , 0:N                )  ) 
-             allocate ( self % edges ( EDGES_PER_QUAD           )  ) 
+             allocate ( self % x         ( 0:N   , 0:N , NDIM        )  ) 
+             allocate ( self % Ja        ( 0:N   , 0:N , NDIM , NDIM )  ) 
+             allocate ( self % jac       ( 0:N   , 0:N               )  ) 
+             allocate ( self % invM2Djac ( 0:N   , 0:N               )  ) 
+             allocate ( self % edges     ( EDGES_PER_QUAD            )  ) 
       
              do edge = 1 , EDGES_PER_QUAD
                self % edges(edge) % f => NULL()
@@ -218,17 +233,20 @@ module QuadElementClass
         
 
             associate ( N => self % spA % N )
-             self % Q    ( 0:N , 0:N , 1:NEC          ) => storage % Q    ( self % address: ) 
-             self % QDot ( 0:N , 0:N , 1:NEC          ) => storage % QDot ( self % address: ) 
-             self % dQ   ( 0:N , 0:N , 1:NEC , 1:NDIM ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
+             self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
+             self % W    ( 0:N , 0:N , 1:NPRIM          ) => storage % W    ( (self % address-1)/NCONS*NPRIM + 1: )
+             self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
+#ifdef NAVIER_STOKES
+             self % dQ   ( 0:N , 0:N , 1:NDIM , 1:NGRAD ) => storage % dQ   ( (self % address-1)/NCONS*NGRAD*NDIM + 1: ) 
+#endif
 
              if ( trim(Setup % inviscid_discretization) .eq. "Over-Integration" ) then
-               self % F (0: self % spI % N , 0: self % spI % N , 1:NEC , 1:NDIM) => &
-                           storage % F ( (self % ID -1)*(self % spI % N+1)**2*NEC*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NEC*NDIM )
+               self % F (0: self % spI % N , 0: self % spI % N , 1:NCONS , 1:NDIM) => &
+                           storage % F ( (self % ID -1)*(self % spI % N+1)**2*NCONS*NDIM + 1: self % ID * ( self % spI % N + 1)**2*NCONS*NDIM )
 
              else
 
-               self % F    ( 0:N , 0:N , 1:NEC , 1:NDIM )  => storage % F ( (self % address-1)*NDIM+1: ) 
+               self % F    ( 0:N , 0:N , 1:NCONS , 1:NDIM )  => storage % F ( (self % address-1)*NDIM+1: ) 
 
              end if
 
@@ -312,21 +330,27 @@ module QuadElementClass
             allocate ( self % f % X    ( NDIM , 0 : self % f % spA % N       )  ) 
             allocate ( self % f % dX   ( NDIM , 0 : self % f % spA % N       )  ) 
             allocate ( self % f % dS   ( NDIM , 0 : self % f % spA % N       )  ) 
-            allocate ( self % f % T    ( NEC  , NEC , 0 : self % f % spA % N )  ) 
-            allocate ( self % f % Tinv ( NEC  , NEC , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % T    ( NCONS  , NCONS , 0 : self % f % spA % N )  ) 
+            allocate ( self % f % Tinv ( NCONS  , NCONS , 0 : self % f % spA % N )  ) 
             allocate ( self % f % n    ( NDIM , 0 : self % f % spA % N       )  ) 
 
             if (edgeType .eq. FACE_INTERIOR) then
          
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE        )  ) 
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , QUADS_PER_EDGE )  ) 
-               allocate ( self % f % F  ( 0 : self % f % spA % N , NEC , QUADS_PER_EDGE )  ) 
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE         )  ) 
+               allocate ( self % f % W  ( 0 : self % f % spA % N , NPRIM , QUADS_PER_EDGE         )  ) 
+#ifdef NAVIER_STOKES
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NDIM  , NGRAD , QUADS_PER_EDGE )  ) 
+#endif
+               allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE )  ) 
 
             else
    
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NEC , 1        )  ) 
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NEC , NDIM , 1 )  ) 
-               allocate ( self % f % F  ( 0 : self % f % spA % N , NEC , 1 )  ) 
+               allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , 1        )  ) 
+               allocate ( self % f % W  ( 0 : self % f % spA % N , NPRIM , 1        )  ) 
+#ifdef NAVIER_STOKES
+               allocate ( self % f % dQ ( 0 : self % f % spA % N , NDIM , NGRAD , 1 )  ) 
+#endif
+               allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , 1 )  ) 
 
             end if 
 
@@ -451,21 +475,57 @@ module QuadElementClass
             associate( N => self % spA % N )
       
             do iXi = 0 , N
-             self % T(1:NEC,1:NEC,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
+             self % T(1:NCONS,1:NCONS,iXi) = reshape((/ 1.0_RP , 0.0_RP             , 0.0_RP            , 0.0_RP , &
                                                       0.0_RP , self % dS(iX,iXi)  , self % dS(iY,iXi) , 0.0_RP , &
                                                       0.0_RP , -self % dS(iY,iXi) , self % dS(iX,iXi) , 0.0_RP , &
-                                                      0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NEC,NEC/),ORDER=(/2,1/)) 
+                                                      0.0_RP , 0.0_RP             , 0.0_RP            , self % dS(iX,iXi)* self % dS(iX,iXi) + self % dS(iY,iXi) * self % dS(iY,iXi)/),(/NCONS,NCONS/),ORDER=(/2,1/)) 
       
              associate ( dS_square => self % T(IRHOE,IRHOE,iXi) )
-             self % Tinv(1:NEC,1:NEC,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
+             self % Tinv(1:NCONS,1:NCONS,iXi) = reshape((/ dS_square , 0.0_RP            , 0.0_RP             , 0.0_RP , &
                                                          0.0_RP , self % dS(iX,iXi) , -self % dS(iY,iXi) , 0.0_RP , &
                                                          0.0_RP , self % dS(iY,iXi) , self % dS(iX,iXi)  , 0.0_RP , &
-                                                         0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NEC,NEC/),ORDER=(/2,1/)) / dS_square 
+                                                         0.0_RP , 0.0_RP            , 0.0_RP             , 1.0_RP /),(/NCONS,NCONS/),ORDER=(/2,1/)) / dS_square 
              end associate
             end do
             end associate
 
 
          end subroutine Edge_Invert
+
+         subroutine QuadElement_ComputePrimitiveVariables( self )
+            implicit none
+            class(QuadElement_t)          :: self
+
+            associate ( N => self % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma )
+
+               self % W(0:N,0:N,IRHO) = self % Q(0:N,0:N,IRHO)
+               self % W(0:N,0:N,IU  ) = self % Q(0:N,0:N,IRHOU) / self % Q(0:N,0:N,IRHO)
+               self % W(0:N,0:N,IV  ) = self % Q(0:N,0:N,IRHOV) / self % Q(0:N,0:N,IRHO)
+               self % W(0:N,0:N,IP  ) = gm1 * (self % Q(0:N,0:N,IRHOE) - 0.5_RP * (self % Q(0:N,0:N,IRHOU) * self % W(0:N,0:N,IU) &
+                                                + self % Q(0:N,0:N,IRHOV) * self % W(0:N,0:N,IV)) )
+               self % W(0:N,0:N,IT  ) = self % W(0:N,0:N,IP) / self % W(0:N,0:N,IRHO)
+               self % W(0:N,0:N,IA  ) = sqrt( gamma * self % W(0:N,0:N,IT) )
+
+            end associate
+
+         end subroutine QuadElement_ComputePrimitiveVariables
+
+         subroutine Edge_ComputePrimitiveVariables( self )
+            implicit none
+            class(Edge_t)          :: self
+
+            associate ( N => self % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma )
+
+               self % W(0:N,IRHO,:) = self % Q(0:N,IRHO,:)
+               self % W(0:N,IU,:  ) = self % Q(0:N,IRHOU,:) / self % Q(0:N,IRHO,:)
+               self % W(0:N,IV,:  ) = self % Q(0:N,IRHOV,:) / self % Q(0:N,IRHO,:)
+               self % W(0:N,IP,:  ) = gm1 * (self % Q(0:N,IRHOE,:) - 0.5_RP * (self % Q(0:N,IRHOU,:) * self % W(0:N,IU,:) &
+                                                + self % Q(0:N,IRHOV,:) * self % W(0:N,IV,:)) )
+               self % W(0:N,IT,:  ) = self % W(0:N,IP,:) / self % W(0:N,IRHO,:)
+               self % W(0:N,IA,:  ) = sqrt( gamma * self % W(0:N,IT,:) )
+
+            end associate
+
+         end subroutine Edge_ComputePrimitiveVariables
 
 end module QuadElementClass
