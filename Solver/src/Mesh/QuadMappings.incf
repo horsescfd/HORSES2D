@@ -3,6 +3,7 @@
       implicit none
       class(QuadElement_t)          :: self 
       integer                       :: ixi , ieta
+      real(kind=RP)                 :: dX(NDIM,NDIM)
 !
 !     **************************************
 !     Set the mapping for the inner points X
@@ -33,19 +34,27 @@
                                               -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                               -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
 
-               self % dX(iXi,iEta,IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % getdX(iXi,dBOT) + edRIGHT % getX(iEta,dRIGHT) + &
+               dX(IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % getdX(iXi,dBOT) + edRIGHT % getX(iEta,dRIGHT) + &
                                                    eta(iEta) * edTOP % getdX(iXi,-dTOP) + (-1.0_RP) * edLEFT % getX(iEta,-dLEFT) + &
                                               -n1 *(1.0_RP - eta(iEta))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
                                               -n3 * eta(iEta) - n4 * (-1.0_RP) * eta(iEta)
 
-               self % dX(iXi,iEta,IX:IY,IY) =  (-1.0_RP) * edBOT % getX(iXi,dBOT) + xi(iXi)*edRIGHT % getdX(iEta,dRIGHT) + &
+               dX(IX:IY,IY) =  (-1.0_RP) * edBOT % getX(iXi,dBOT) + xi(iXi)*edRIGHT % getdX(iEta,dRIGHT) + &
                                               (1.0_RP - xi(iXi) )  * edLEFT % getdX(iEta,-dLEFT) + edTOP % getX(iXi,-dTOP)  &
                                               -n1*(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * xi(iXi) * (-1.0_RP) & 
                                               -n3* xi(iXi) - n4 * (1.0_RP - xi(iXi))
 
-               self % jac(iXi,iEta)         = self % dX(iXi,iEta,IX,IX) * self % dX(iXi,iEta,IY,IY) - self % dX(iXi,iEta,IX,IY) * self % dX(iXi,iEta,IY,IX)
+
+               self % jac(iXi,iEta)         = dX(IX,IX) * dX(IY,IY) - dX(IX,IY) * dX(IY,IX)
 
                self % invM2Djac(iXi,iEta)   = self % spA % invM2D(iXi,iEta) / self % jac(iXi,iEta)
+!
+!              Compute the metric matrix
+!              -------------------------
+               self % Ja(iXi,iEta,IX,IX)    = dX(IY,IY)           ! Y_eta
+               self % Ja(iXi,iEta,IX,IY)    = -dX(IY,IX)          ! -Y_xi
+               self % Ja(iXi,iEta,IY,IX)    = -dX(IX,IY)          ! -X_eta
+               self % Ja(iXi,iEta,IY,IY)    = dX(IX,IX)           ! X_xi
 
             end do
          end do
@@ -54,49 +63,6 @@
 
 
    end subroutine QuadElement_SetMappings
-
-   function QuadElement_MetricMatrix ( self , which , iXi , iEta ) result (val)
-      implicit none
-      class(QuadElement_t),intent(in)           :: self
-      integer,             intent(in)           :: which(NDIM)
-      integer,             intent(in), optional :: iXi(:)
-      integer,             intent(in), optional :: iEta(:)
-      real(kind=RP), allocatable                :: val(:,:)
-      real(kind=RP)                             :: newsign
-
-      if (present(iXi) .and. present(iEta)) then
-
-         allocate ( val(size(iXi,1) , size(iEta,1) ) )
-
-         if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
-            val = self % dX(iXi,iEta,IY,IY)
-         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -Y_xi            
-            val = -self % dX(iXi,iEta,IY,IX)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -X_eta
-            val = -self % dX(iXi,iEta,IX,IY)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
-            val = self % dX(iXi,iEta,IX,IX)
-         end if
-
-      else
-
-         allocate( val(size(self % dX,2),size(self % dX,3) ) )
-
-         if ((which(1) .eq. 1) .and. (which(2) .eq. 1)) then      ! Ja(1,1) = Y_eta
-            val = self % dX(:,:,IY,IY)
-         elseif ((which(1) .eq. 1) .and. (which(2) .eq. 2)) then  ! Ja(1,2) = -Y_xi            
-            val = -self % dX(:,:,IY,IX)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 1)) then  ! Ja(2,1) = -X_eta
-            val = -self % dX(:,:,IX,IY)
-         elseif ((which(1) .eq. 2) .and. (which(2) .eq. 2)) then  ! Ja(2,2) = X_xi
-            val = self % dX(:,:,IX,IX)
-         end if
-
-
-      end if
-
-      
-   end function QuadElement_MetricMatrix
 
    function QuadElement_Compute_X ( self , xi , eta ) result (val)
       use MatrixOperations

@@ -195,7 +195,7 @@
                      associate ( N => f % spA % N )
                      allocate ( tau(0:N , 1:NDIM , 1:NDIM ) )
 #ifdef NAVIER_STOKES
-                     dQ => f % dQ ( 0:N,1:NDIM,1:NPRIM,1 ) 
+                     dQ => f % dQ ( 0:N,1:NDIM,1:NGRAD,1 ) 
 #endif
                      tau = ComputeViscousTensor( N , dQ )
 

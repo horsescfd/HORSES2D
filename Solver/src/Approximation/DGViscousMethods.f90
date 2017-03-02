@@ -204,7 +204,6 @@ module DGViscousMethods
 !        -------------------------------------------------------------
          real(kind=RP)              :: F(0:element % spA % N,0:element % spA % N,1:NCONS,1:NDIM)
          integer                    :: eq
-         integer                    :: FJa(NDIM) , GJa(NDIM)
 
          associate( N => element % spA % N )
 
@@ -214,15 +213,11 @@ module DGViscousMethods
 !        
 !           F flux (contravariant)
 !           ----------------------
-            FJa = [1,1]
-            GJa = [2,1]
-            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
 !        
 !           G flux (contravariant)
 !           ----------------------
-            FJa = [1,2]
-            GJa = [2,2]
-            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
          end do
 
          end associate
@@ -408,6 +403,7 @@ module DGViscousMethods
          integer              :: iVar
          integer              :: which(NDIM)
          integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
+         real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
 
          associate( N => element % spA % N , W => element % W , dQ => element % dQ , MD => element % spA % MD , &
                     weights => element % spA % w , M => element % spA % M , gm1 => Thermodynamics % gm1)
@@ -416,15 +412,14 @@ module DGViscousMethods
          do iDim = 1 , NDIM
    
             do iVar = 1 , NGRAD
-
-               which = [iDim , 1]
+               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
                call Mat_x_Mat(A = -MD , &
-                     B = MatrixByVectorInIndex_F( element % Ja(which) * W(0:N,0:N,PrimVariable(iVar)) , weights , N+1 , N+1 , 2 ) , & 
+                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
                      C = dQ(0:N,0:N,iDim,iVar) , & 
                      trA = .true. , reset = .false. )
 
-               which = [iDim , 2]
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % Ja(which) * W(0:N,0:N,PrimVariable(iVar)) , weights , N+1 , N+1 , 1) , &
+               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
+               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
                      B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
                      reset = .false. )
 
@@ -719,28 +714,20 @@ module DGViscousMethods
 
              lj(0:N) => e % spA % lb(0:N,pos)
 
-            if ( index .eq. IY ) then
-               do var = 1 , NGRAD
-                  do iDim = 1 , NDIM
-                     do j = 0 , N
-                        do i = 0 , N
-                           duF(i,j,iDim,var) = uTimesW(i,var) * lj(j) * auxdS(iDim , i)
-                        end do
-                     end do
-                  end do
-               end do
+            select case (index)
+            
+               case (IY)
+   
+                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
+                     duF(i,j,iDim,var) = uTimesW(i,var) * lj(j) * auxdS(iDim , i)
+                  end forall
 
-            elseif ( index .eq. IX ) then
-               do var = 1 , NGRAD
-                  do iDim = 1 , NDIM
-                     do j = 0 , N
-                        do i = 0 , N
-                           duF(i,j,iDim,var) = uTimesW(j,var) * lj(i) * auxdS(iDim , j)
-                        end do
-                   end do
-                  end do
-               end do
-            end if
+               case (IX)
+   
+                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
+                     duF(i,j,iDim,var) = uTimesW(j,var) * lj(i) * auxdS(iDim , j)
+                  end forall
+            end select
 
             lj=>NULL()
    

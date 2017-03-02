@@ -641,7 +641,6 @@ module DGInviscidMethods
 !        -------------------------------------------------------------
          real(kind=RP)              :: F(0:element % spA % N,0:element % spA % N,1:NCONS,1:NDIM)
          integer                    :: eq
-         integer                    :: FJa(NDIM) , GJa(NDIM)
 
          associate( N => element % spA % N )
          
@@ -652,15 +651,11 @@ module DGInviscidMethods
 !           
 !              F flux (contravariant)
 !              ----------------------
-               FJa = [1,1]
-               GJa = [2,1]
-               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
 !           
 !              G flux (contravariant)
 !              ----------------------
-               FJa = [1,2]
-               GJa = [2,2]
-               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
             end do
    
          else
@@ -668,15 +663,11 @@ module DGInviscidMethods
 !           
 !              F flux (contravariant)
 !              ----------------------
-               FJa = [1,1]
-               GJa = [2,1]
-               element % F(0:N,0:N,eq,IX) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+               element % F(0:N,0:N,eq,IX) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
 !           
 !              G flux (contravariant)
 !              ----------------------
-               FJa = [1,2]
-               GJa = [2,2]
-               element % F(0:N,0:N,eq,IY) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(FJa) + F(0:N,0:N,eq,IY) * element % Ja(GJa)
+               element % F(0:N,0:N,eq,IY) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
             end do
          end if
 

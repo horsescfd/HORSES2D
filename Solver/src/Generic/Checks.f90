@@ -73,17 +73,20 @@ module ChecksModule
             integer                    :: eID , edID
             real(kind=RP), allocatable :: dxiX(:,:,:)
             real(kind=RP), allocatable :: detaX(:,:,:)
-            real(kind=RP)              :: error
+            real(kind=RP)              :: error , localerror
             integer                    :: current , location
             integer                    :: zone
             real(kind=RP), allocatable :: dSx(:) , dSy(:)
             real(kind=RP), allocatable :: dSe(:,:)
-            integer                    :: which(NDIM)
+            real(kind=RP)              :: dX(NDIM,NDIM)
+            integer                    :: i , j 
 
             call SubSection_Header("Testing the mappings")
             
 !           This is to test the elements mappings derivatives formula
 !           ---------------------------------------------------------
+            error = 0.0_RP
+   
             do eID = 1 , mesh % no_of_elements
                associate (e => mesh % elements(eID) )
 
@@ -96,24 +99,34 @@ module ChecksModule
                associate ( N => e % spA % N )
                dxiX         = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 1 ) 
                detaX        = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 2 ) 
+
+               do i = 0 , N
+                  do j = 0 , N
+!
+!                    Recover the mapping derivatives from the metric matrix
+!                    ------------------------------------------------------   
+                     dX(IX,IX) = e % Ja(i,j,IY,IY)
+                     dX(IX,IY) = -e % Ja(i,j,IY,IX)
+                     dX(IY,IX) = -e % Ja(i,j,IX,IY)
+                     dX(IY,IY) = e % Ja(i,j,IX,IX)
+
+                     localerror = maxval(abs(dxiX(i,j,1:NDIM) - dX(1:NDIM,IX)))
+      
+                     if ( localerror .gt. error ) then
+                        error = localerror
+                        current = eID
+                     end if
+
+                     localerror = maxval(abs(detaX(i,j,1:NDIM) - dX(1:NDIM,IY)))
+                           
+                     if ( localerror .gt. error ) then
+                        error = localerror
+                        current = eID
+                     end if
+
+                  end do
+               end do 
                end associate
-
-               if (eID .eq. 1) then
-                  current = eID
-                  error = maxval(abs(dxiX - e % dX(:,:,:,IX))) 
-                   
-               else
-
-                  if ( maxval(abs(dxiX - e % dX(:,:,:,iX) ) ) .gt. error ) then
-                     error = maxval(abs(dxiX - e % dX(:,:,:,IX) ) )
-                     current = eID
-                  end if
-               end if
-                     
-               if ( maxval(abs(detaX - e % dX(:,:,:,iY)) ) .gt. error) then
-                     error = maxval(abs(detaX - e % dX(:,:,:,iY) ) ) 
-                     current = eID
-               end if
                end associate
 
             end do
@@ -138,10 +151,8 @@ module ChecksModule
 
 !              BOTTOM Edge
 !              -----------
-               which = [1,2]
-               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
-               which = [2,2]
-               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
+               dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
+               dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
                   dSe = e % edges(EBOTTOM) % f % dS 
@@ -162,10 +173,8 @@ module ChecksModule
 
 !              RIGHT Edge
 !              -----------
-               which = [1,1]
-               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.  )
-               which = [2,1]
-               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.  )
+               dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
+               dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
                
                if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
                   dSe = e % edges(ERIGHT) % f % dS 
@@ -186,10 +195,8 @@ module ChecksModule
 
 !              TOP Edge
 !              -----------
-               which = [1,2]
-               dSx = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
-               which = [2,2]
-               dSy = MatrixTimesVector_F( e % Ja(which) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
+               dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
+               dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
                   dSe = e % edges(ETOP) % f % dS 
@@ -210,10 +217,8 @@ module ChecksModule
 
 !              LEFT Edge
 !              -----------
-               which = [1,1]
-               dSx = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
-               which = [2,1]
-               dSy = -MatrixTimesVector_F( e % Ja(which) , e % spA % lj(0.0_RP) , e % spA % N + 1  , trA = .true.)
+               dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
+               dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
 
                if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
                   dSe = e % edges(ELEFT) % f % dS 
@@ -312,7 +317,6 @@ module ChecksModule
 !        --------------------------------------------
          integer                    :: eID
          integer                    :: coord
-         integer                    :: which(NDIM)
          real(kind=RP)              :: error = 0.0_RP , currenterror = 0.0_RP
          real(kind=RP), allocatable :: Ja1(:,:) , Ja2(:,:)
          real(kind=RP), allocatable :: metricID(:,:)
@@ -330,10 +334,8 @@ module ChecksModule
             allocate( metricID(0:e % spA % N , 0 : e % spA % N ) )
             do coord = 1 , NDIM
                
-               which = [coord,1]
-               Ja1 = e % Ja(which) 
-               which = [coord,2]
-               Ja2 = e % Ja(which)
+               Ja1 = e % Ja(0:e % spA % N,0:e % spA % N,coord,1) 
+               Ja2 = e % Ja(0:e % spA % N,0:e % spA % N,coord,2) 
 
                associate ( N => e % spA % N )
                metricID = Mat_x_Mat_F( A = e % spA % D , B = Ja1 , rowC = N+1, colC = N+1 ) + Mat_x_Mat_F( A = Ja2 , B = e % spA % DT , rowC = N+1 , colC = N+1)
