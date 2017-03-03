@@ -94,11 +94,13 @@ module PhysicsNS
     end type Dimensionless_t
 
     abstract interface
-      function RiemannSolverFunction( QL , QR , T , Tinv ) result ( val )
+      function RiemannSolverFunction( QL , QR , wL , wR , T , Tinv ) result ( val )
          use SMConstants
-         import NCONS , NDIM
+         import NCONS , NDIM , NPRIM
          real(kind=RP), dimension(NCONS)     :: QL
          real(kind=RP), dimension(NCONS)     :: QR
+         real(kind=RP), dimension(NPRIM)     :: wL
+         real(kind=RP), dimension(NPRIM)     :: wR
          real(kind=RP), dimension(NCONS,NCONS) :: T
          real(kind=RP), dimension(NCONS,NCONS) :: Tinv
          real(kind=RP), dimension(NCONS)     :: val
@@ -308,24 +310,20 @@ module PhysicsNS
 
       end function inviscidFlux2D_PRIM
      
-      function F_inviscidFlux(u) result(F)
+      function F_inviscidFlux(rho,u,v,p,H) result(F)
          implicit none
-         real(kind=RP)        :: u(NCONS)
+         real(kind=RP)        :: rho
+         real(kind=RP)        :: u 
+         real(kind=RP)        :: v
+         real(kind=RP)        :: p
+         real(kind=RP)        :: H
          real(kind=RP)        :: F(NCONS)
-         real(kind=RP)        :: vx , vy , p
    
-         associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )    
+         F(IRHO)  = rho * u
+         F(IRHOU) = F(IRHO) * u + p
+         F(IRHOV) = F(IRHO) * v
+         F(IRHOE) = H * F(IRHO)
 
-         vx = u(IRHOU) / u(IRHO)
-         vy = u(IRHOV) / u(IRHO)
-         p = gm1 * ( u(IRHOE) - 0.5_RP * u(IRHOU) * vx - 0.5_RP * u(IRHOV) * vy )
-
-         F(IRHO)  = u(IRHOU)
-         F(IRHOU) = u(IRHOU) * vx + p
-         F(IRHOV) = u(IRHOU) * vy
-         F(IRHOE) = ( u(IRHOE) + p ) * vx
-
-         end associate
       end function F_inviscidFlux
 !
 !     ****************************************************
@@ -486,11 +484,13 @@ module PhysicsNS
 !        Riemann solvers
 !     ****************************************************
 !
-      function ExactRiemannSolver(qL3D , qR3D , T , Tinv ) result (Fstar)
+      function ExactRiemannSolver(qL3D , qR3D , wL3D , wR3D , T , Tinv ) result (Fstar)
          use MatrixOperations
          implicit none
          real(kind=RP), dimension(NCONS)     :: qL3D
          real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NPRIM)     :: wL3D
+         real(kind=RP), dimension(NPRIM)     :: wR3D
          real(kind=RP), dimension(NCONS,NCONS) :: T
          real(kind=RP), dimension(NCONS,NCONS) :: Tinv
          real(kind=RP), dimension(NCONS)     :: Fstar
@@ -632,18 +632,20 @@ module PhysicsNS
 
       end function ExactRiemannSolver
          
-      function RoeFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+      function RoeFlux(qL3D , qR3D , wL3D , wR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
          real(kind=RP), dimension(NCONS)     :: qL3D
          real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NPRIM)     :: wL3D
+         real(kind=RP), dimension(NPRIM)     :: wR3D
          real(kind=RP), dimension(NCONS,NCONS) :: T
          real(kind=RP), dimension(NCONS,NCONS) :: Tinv
          real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
          real(kind=RP), dimension(NCONS) :: qL , qR
-         real(kind=RP)                 :: rhoL , uL , vL , HL
-         real(kind=RP)                 :: rhoR , uR , vR , HR
+         real(kind=RP)                 :: sqrtRhoL , rhoL , uL , vL , HL , TL , pL
+         real(kind=RP)                 :: sqrtRhoR , rhoR , uR , vR , HR , TR , pR
          real(kind=RP)                 :: invrho , u , v , H , a
          real(kind=RP)                 :: dq(NCONS)
          real(kind=RP)                 :: lambda(NCONS)
@@ -656,35 +658,28 @@ module PhysicsNS
 
 !        0/ Gather variables
 !           ----------------
-            qL(IRHO) = qL3D(IRHO)
-            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
-            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
-            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
+            rhoL = wL3D(IRHO)
+            sqrtRhoL = sqrt(rhoL)
+            uL   = wL3D(IU) * T(IRHOU,IRHOU) + wL3D(IV) * T(IRHOU,IRHOV)
+            vL   = wL3D(IU) * T(IRHOV,IRHOU) + wL3D(IV) * T(IRHOV,IRHOV)
+            pL   = wL3D(IP) * T(IRHOE,IRHOE)
+            TL   = wL3D(IT) * T(IRHOE,IRHOE)
+            HL   = dimensionless % cp * TL + 0.5_RP * ( uL*uL + vL*vL )
 
-            qR(IRHO) = qR3D(IRHO)
-            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
-            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
-            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
-
-
-            associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
-            rhoL = sqrt(qL(IRHO))
-            uL   = qL(IRHOU) / qL(IRHO)
-            vL   = qL(IRHOV) / qL(IRHO)
-            HL   = gamma * qL(IRHOE) / qL(IRHO) - 0.5_RP * gm1 * ( uL*uL + vL*vL )
-
-            rhoR = sqrt(qR(IRHO))
-            uR   = qR(IRHOU) / qR(IRHO)
-            vR   = qR(IRHOV) / qR(IRHO)
-            HR   = gamma * qR(IRHOE) / qR(IRHO) - 0.5_RP * gm1 * ( uR*uR + vR*vR )
-            end associate
+            rhoR = wR3D(IRHO)
+            sqrtRhoR = sqrt(rhoR)
+            uR   = wR3D(IU) * T(IRHOU,IRHOU) + wR3D(IV) * T(IRHOU,IRHOV)
+            vR   = wR3D(IU) * T(IRHOV,IRHOU) + wR3D(IV) * T(IRHOV,IRHOV)
+            pR   = wR3D(IP) * T(IRHOE,IRHOE)
+            TR   = wR3D(IT) * T(IRHOE,IRHOE)
+            HR   = dimensionless % cp * TR + 0.5_RP * ( uR*uR + vR*vR )
 
 !        1/ Compute Roe averages
 !           --------------------
-            invrho = 1.0_RP / (rhoL + rhoR)
-            u      = (rhoL*uL + rhoR*uR) * invrho
-            v      = (rhoL*vL + rhoR*vR) * invrho
-            H      = (rhoL*HL + rhoR*HR) * invrho
+            invrho = 1.0_RP / (sqrtRhoL + sqrtRhoR)
+            u      = (sqrtRhoL*uL + sqrtRhoR*uR) * invrho
+            v      = (sqrtRhoL*vL + sqrtRhoR*vR) * invrho
+            H      = (sqrtRhoL*HL + sqrtRhoR*HR) * invrho
             associate( gm1 => Thermodynamics % gm1 ) 
             a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
             end associate
@@ -718,7 +713,11 @@ module PhysicsNS
 !        4/ Compute the wave strengths
 !           --------------------------
             associate( gm1 => Thermodynamics % gm1 ) 
-            dq = qR - qL
+            dq(IRHO) = rhoR - rhoL
+            dq(IRHOU) = rhoR*uR - rhoL*uL
+            dq(IRHOV) = rhoR*vR - rhoL*vL
+            dq(IRHOE) = (qR3D(IRHOE) - qL3D(IRHOE)) * T(IRHOE,IRHOE)
+
             alpha(3) = dq(IRHOV) - v*dq(IRHO)
             alpha(2) = gm1 * (dq(IRHO) * (H - u*u) + u*dq(IRHOU) - dq(IRHOE) + (dq(IRHOV) - v*dq(IRHO))*v) / ( a*a )
             alpha(1) = (dq(IRHO) * (u + a) - dq(IRHOU) - a * alpha(2)) / (2.0_RP*a)
@@ -727,7 +726,7 @@ module PhysicsNS
 !
 !        5/ Compute the flux
 !           ----------------
-            Fstar = F_inviscidFlux(qL) 
+            Fstar = F_inviscidFlux(rhoL,uL,vL,pL,HL)
                
             do wave = 1 , negativeWaves
                Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NCONS , wave)
@@ -746,57 +745,57 @@ module PhysicsNS
 !
       end function RoeFlux
 
-      function HLLFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+      function HLLFlux(qL3D , qR3D , wL3D , wR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
          real(kind=RP), dimension(NCONS)     :: qL3D
          real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NPRIM)     :: wL3D
+         real(kind=RP), dimension(NPRIM)     :: wR3D
          real(kind=RP), dimension(NCONS,NCONS) :: T
          real(kind=RP), dimension(NCONS,NCONS) :: Tinv
          real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP), dimension(NCONS) :: qL , qR
-         real(kind=RP)                 :: rhoL , uL , vL , HL , aL , pL
-         real(kind=RP)                 :: rhoR , uR , vR , HR , aR , pR
+         real(kind=RP)                 :: rhoL , uL , vL , HL , aL , pL , rhoeL , TL , sqrtRhoL
+         real(kind=RP)                 :: rhoR , uR , vR , HR , aR , pR , rhoeR , TR , sqrtRhoR
          real(kind=RP)                 :: invrho , u , v , H , a
-         real(kind=RP)                 :: SL , SR , dS
+         real(kind=RP)                 :: SL , SR , invdS
+         real(kind=RP)                 :: sqrtS
         
 
 !        0/ Gather variables
 !           ----------------
-            qL(IRHO) = qL3D(IRHO)
-            qL(IRHOU) = qL3D(IRHOU) * T(IRHOU,IRHOU) + qL3D(IRHOV) * T(IRHOU,IRHOV)
-            qL(IRHOV) = qL3D(IRHOU) * T(IRHOV,IRHOU) + qL3D(IRHOV) * T(IRHOV,IRHOV)
-            qL(IRHOE) = qL3D(IRHOE) * T(IRHOE,IRHOE)
-
-            qR(IRHO) = qR3D(IRHO)
-            qR(IRHOU) = qR3D(IRHOU) * T(IRHOU,IRHOU) + qR3D(IRHOV) * T(IRHOU,IRHOV)
-            qR(IRHOV) = qR3D(IRHOU) * T(IRHOV,IRHOU) + qR3D(IRHOV) * T(IRHOV,IRHOV)
-            qR(IRHOE) = qR3D(IRHOE) * T(IRHOE,IRHOE)
-
-
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
-            rhoL = qL(IRHO)
-            uL   = qL(IRHOU) / qL(IRHO)
-            vL   = qL(IRHOV) / qL(IRHO)
-            HL   = gamma * qL(IRHOE) / qL(IRHO) - 0.5_RP * gm1 * ( uL*uL + vL*vL )
-            pL   = gm1*(qL(IRHOE) - 0.5_RP * rhoL * (uL*uL + vL*vL))
-            aL   = sqrt(gamma * pL / rhoL)
+            sqrtS = sqrt(T(IRHOE,IRHOE))
 
-            rhoR = qR(IRHO)
-            uR   = qR(IRHOU) / qR(IRHO)
-            vR   = qR(IRHOV) / qR(IRHO)
-            HR   = gamma * qR(IRHOE) / qR(IRHO) - 0.5_RP * gm1 * ( uR*uR + vR*vR )
-            pR   = gm1*(qR(IRHOE) - 0.5_RP * rhoR * (uR*uR + vR*vR))
-            aR   = sqrt(gamma * pR / rhoR)
+            rhoL = wL3D(IRHO)
+            uL   = wL3D(IU) * T(IRHOU,IRHOU) + wL3D(IV) * T(IRHOU,IRHOV)
+            vL   = wL3D(IU) * T(IRHOV,IRHOU) + wL3D(IV) * T(IRHOV,IRHOV)
+            pL   = wL3D(IP) * T(IRHOE,IRHOE)
+            TL   = wL3D(IT) * T(IRHOE,IRHOE)
+            rhoeL = dimensionless % cv * pL + 0.5_RP * rhoL * (uL * uL + vL * vL)
+            HL   = dimensionless % cp * TL + 0.5_RP * ( uL * uL + vL * vL )
+            aL   = wL3D(IA) * sqrtS
+
+            rhoR = wR3D(IRHO)
+            uR   = wR3D(IU) * T(IRHOU,IRHOU) + wR3D(IV) * T(IRHOU,IRHOV)
+            vR   = wR3D(IU) * T(IRHOV,IRHOU) + wR3D(IV) * T(IRHOV,IRHOV)
+            pR   = wR3D(IP) * T(IRHOE,IRHOE)
+            TR   = wR3D(IT) * T(IRHOE,IRHOE)
+            rhoeR = dimensionless % cv * pR + 0.5_RP * rhoR * (uR * uR + vR * vR)
+            HR   = dimensionless % cp * TR + 0.5_RP * ( uR * uR + vR * vR )
+            aR   = wR3D(IA) * sqrtS
+
             end associate
 
 !        1/ Compute Roe averages
 !           --------------------
-            invrho = 1.0_RP / (sqrt(rhoL) + sqrt(rhoR))
-            u      = (sqrt(rhoL)*uL + sqrt(rhoR)*uR) * invrho
-            v      = (sqrt(rhoL)*vL + sqrt(rhoR)*vR) * invrho
-            H      = (sqrt(rhoL)*HL + sqrt(rhoR)*HR) * invrho
+            sqrtRhoL = sqrt(rhoL)
+            sqrtRhoR = sqrt(rhoR)
+            invrho = 1.0_RP / (sqrtRhoL + sqrtRhoR)
+            u      = (sqrtRhoL*uL + sqrtRhoR*uR) * invrho
+            v      = (sqrtRhoL*vL + sqrtRhoR*vR) * invrho
+            H      = (sqrtRhoL*HL + sqrtRhoR*HR) * invrho
             associate( gm1 => Thermodynamics % gm1 ) 
             a   = sqrt(gm1*(H - 0.5_RP*(u*u + v*v) ) )
             end associate
@@ -811,17 +810,17 @@ module PhysicsNS
 !        3/ Compute the fluxes depending on the speeds 
 !           ------------------------------------------
             if ( SL .ge. 0.0_RP ) then
-               Fstar = F_inviscidFlux(qL)
+               Fstar = F_inviscidFlux(rhoL,uL,vL,pL,HL)
 
             elseif ( SR .le. 0.0_RP ) then
-               Fstar = F_inviscidFlux(qR)
+               Fstar = F_inviscidFlux(rhoR,uR,vR,pR,HR)
 
             elseif ( (SL .lt. 0.0_RP) .or. (SR .gt. 0.0_RP) ) then
-               dS = SR - SL
-               Fstar(IRHO) = (SR*rhoL*uL - SL*rhoR*uR + SL*SR*(rhoR-rhoL)) / dS
-               Fstar(IRHOU) = (SR*(rhoL*uL*uL+pL) - SL*(rhoR*uR*uR+pR) + SL*SR*(rhoR*uR-rhoL*uL))/dS
-               Fstar(IRHOV) = (SR*rhoL*uL*vL - SL*rhoR*uR*vR + SR*SL*(rhoR*vR-rhoL*vL)) / dS
-               Fstar(IRHOE) = (SR*uL*rhoL*HL - SL*uR*rhoR*HR + SR*SL*(qR(IRHOE)-qL(IRHOE)))/dS
+               invdS = 1.0_RP / (SR - SL)
+               Fstar(IRHO) = (SR*rhoL*uL - SL*rhoR*uR + SL*SR*(rhoR-rhoL)) * invdS
+               Fstar(IRHOU) = (SR*(rhoL*uL*uL+pL) - SL*(rhoR*uR*uR+pR) + SL*SR*(rhoR*uR-rhoL*uL)) * invdS
+               Fstar(IRHOV) = (SR*rhoL*uL*vL - SL*rhoR*uR*vR + SR*SL*(rhoR*vR-rhoL*vL)) * invdS
+               Fstar(IRHOE) = (SR*uL*rhoL*HL - SL*uR*rhoR*HR + SR*SL*(rhoeR-rhoeL)) * invdS
 
             end if
          
@@ -837,11 +836,13 @@ module PhysicsNS
 !        
       end function HLLFlux
 
-      function AUSMFlux(qL3D , qR3D , T , Tinv) result(Fstar)
+      function AUSMFlux(qL3D , qR3D , wL3D , wR3D , T , Tinv) result(Fstar)
          use MatrixOperations
          implicit none
          real(kind=RP), dimension(NCONS)     :: qL3D
          real(kind=RP), dimension(NCONS)     :: qR3D
+         real(kind=RP), dimension(NPRIM)     :: wL3D
+         real(kind=RP), dimension(NPRIM)     :: wR3D
          real(kind=RP), dimension(NCONS,NCONS) :: T
          real(kind=RP), dimension(NCONS,NCONS) :: Tinv
          real(kind=RP), dimension(NCONS)     :: Fstar

@@ -717,6 +717,7 @@ module DGInviscidMethods
 !        -------------------------------------------------------
          real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
          real(kind=RP)              :: QL(1:NCONS) , QR(1:NCONS)
+         real(kind=RP)              :: WL(1:NPRIM) , WR(1:NPRIM)
          real(kind=RP), pointer     :: T(:,:) , Tinv(:,:)
          integer                    :: iXi
 !
@@ -747,9 +748,13 @@ module DGInviscidMethods
                      if ( edge % inverted ) then
                         QR = edge % Q(iXi , 1:NCONS , 1)
                         QL = edge % uB(iXi, 1:NCONS)
+                        WR = edge % W(iXi , 1:NPRIM , 1 )
+                        WL = ComputePrimitiveVariables(QL)
                      else
                         QL = edge % Q(iXi , 1:NCONS , 1)
                         QR = edge % uB(iXi, 1:NCONS)
+                        WL = edge % W(iXi , 1:NPRIM , 1 )
+                        WR = ComputePrimitiveVariables(QR)
                      end if
 !
 !                    Gather edge orientation matrices
@@ -763,13 +768,13 @@ module DGInviscidMethods
 !        
 !                       Using an edge special Riemann Solver
 !                       ------------------------------------
-                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , T , Tinv)
+                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
                         
                      else
 !
 !                       Using the same Riemann Solver than the interior edges
 !                       -----------------------------------------------------
-                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
    
                      end if
    
@@ -801,9 +806,13 @@ module DGInviscidMethods
                      if ( edge % inverted ) then
                         QR = edge % Q(iXi , 1:NCONS , 1)
                         QL = edge % uB(iXi, 1:NCONS)
+                        WR = edge % W(iXi , 1:NPRIM , 1 )
+                        WL = ComputePrimitiveVariables(QL)
                      else
                         QL = edge % Q(iXi , 1:NCONS , 1)
                         QR = edge % uB(iXi, 1:NCONS)
+                        WL = edge % W(iXi , 1:NPRIM , 1 )
+                        WR = ComputePrimitiveVariables(QR)
                      end if
 !
 !                    Gather edge orientation matrices
@@ -817,13 +826,13 @@ module DGInviscidMethods
 !        
 !                       Using an edge special Riemann Solver
 !                       ------------------------------------
-                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , T , Tinv)
+                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
                         
                      else
 !
 !                       Using the same Riemann Solver than the interior edges
 !                       -----------------------------------------------------
-                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , T , Tinv)
+                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
    
                      end if
      
@@ -845,6 +854,8 @@ module DGInviscidMethods
 !                 ----------------------------
                   QL    = edge % Q(iXi , 1:NCONS , LEFT )
                   QR    = edge % Q(iXi , 1:NCONS , RIGHT)
+                  WL    = edge % W(iXi , 1:NPRIM , LEFT )
+                  WR    = edge % W(iXi , 1:NPRIM , RIGHT)
 !
 !                 Gather edge orientation matrices
 !                 -------------------------------- 
@@ -853,7 +864,7 @@ module DGInviscidMethods
 !
 !                 Compute the Riemann flux
 !                 ------------------------
-                  Fstar(iXi , : ) = self % RiemannSolver(QL , QR , T , Tinv)
+                  Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
   
                end do
 
@@ -874,6 +885,22 @@ module DGInviscidMethods
 !           --------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////////
 !
+      function ComputePrimitiveVariables(Q) result (W)
+         implicit none
+         real(kind=RP)           :: Q(NCONS)
+         real(Kind=RP)           :: W(NPRIM)
+         real(kind=RP)           :: invRho
+
+         W(IRHO) = Q(IRHO)
+         invRho  = 1.0_RP / Q(IRHO)
+         W(IU)   = Q(IRHOU) * invRho
+         W(IV)   = Q(IRHOV) * invRho
+         W(IP)   = Thermodynamics % gm1 * ( Q(IRHOE) - 0.5_RP *( Q(IRHOU) * W(IU) + Q(IRHOV) * W(IV))) 
+         W(IT)   = W(IP) * invRho
+         W(IA)   = sqrt(Thermodynamics % gamma * W(IT))
+
+      end function ComputePrimitiveVariables
+
       subroutine InviscidMethod_describe( self )
          use Headers
          implicit none

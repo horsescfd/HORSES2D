@@ -318,6 +318,7 @@ module DGViscousMethods
          class(BR1Method_t)             :: self
          class(Edge_t)                  :: edge
          real(kind=RP)                  :: ustar(0:edge % spA % N,1:NGRAD)
+         integer, parameter             :: dimensions(3) = [IU,IV,IT]
          
          associate ( N => edge % spA % N ) 
         
@@ -325,9 +326,7 @@ module DGViscousMethods
 
             type is ( Edge_t ) 
 
-               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,LEFT) + edge % W(0:N,IU,RIGHT) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,LEFT) + edge % W(0:N,IV,RIGHT) )
-               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,LEFT) + edge % W(0:N,IT,RIGHT) )
+               uStar = 0.5_RP * sum(edge % W(0:N,dimensions,1:NDIM) , dim = 3)
                
                associate ( dQ => edge % quads(LEFT) % e % dQ )
                   dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
