@@ -22,6 +22,7 @@ module QuadElementClass
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         integer                            :: edgesAssemblyDir(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges referred to the quad local frame
         integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
+        real(kind=RP), allocatable         :: Volume                         ! Volume of the element
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( xi , eta , X/Y )
         real(kind=RP), allocatable         :: Ja(:,:,:,:)                    ! Contravariant system metric matrix ( xi , eta , IROW , ICOL)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
@@ -70,6 +71,7 @@ module QuadElementClass
         integer                             :: ID                         ! Edge ID
         integer                             :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
         integer,                    pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        real(kind=RP)                       :: Area                       ! Area of the edge
         real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
         real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
         real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)

@@ -148,6 +148,7 @@ module QuadMeshClass
              use Setup_class
              use Physics
              use NodesAndWeights_Class
+             use MatrixOperations
              implicit none
              class(QuadMesh_t),                 intent (inout)               :: self
              class(MeshFile_t),                 intent (in )                 :: meshFile
@@ -257,6 +258,21 @@ module QuadMeshClass
                do eID = 1 , self % no_of_elements
                   call self % elements(eID) % SetMappings
                end do
+!
+!              Compute areas and volumes
+!              -------------------------
+               do eID = 1 , self % no_of_elements
+                  associate ( e => self % elements(eID) )
+                  e % Volume = BilinearForm_F ( e % jac , e % spA % w , e % spA % w )
+                  end associate
+               end do
+
+               do edge = 1 , self % no_of_edges
+                  associate ( ed => self % edges(edge) % f )
+                  ed % Area = dot_product( norm2(ed % dS , dim = 1) , ed % spA % w )
+                  end associate
+               end do
+
          end subroutine constructElementsAndEdges
            
          subroutine SetInitialCondition( self , which)
