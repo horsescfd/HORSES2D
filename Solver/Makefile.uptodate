@@ -1,0 +1,153 @@
+$(info High-Order Discontinuous Galerkin 2D Solver Compilation. Madrid TU.)
+$(info )
+$(info )
+
+
+COMPILER ?=gfortran
+INC_DIR=./include
+BUILD_DIR=./build
+BIN_DIR=./bin
+SRC_DIR=./src
+EXECUTABLE = HiODG2D
+MODE ?=DEBUG
+BLAS_LIB = 
+LAPACK_LIB = 
+LIBS=
+GLOB_MACROS :=
+
+# --------------- MACROS ---------------------------------------------------
+
+#GLOB_MACROS +=-D_USE_LAPACK
+
+# --------------- DEPENDENCIES ---------------------------------------------------
+
+$(BUILD_DIR)/Physics.o: $(BUILD_DIR)/PhysicsNS.o $(BUILD_DIR)/Headers.o
+$(BUILD_DIR)/PhysicsNS.o: $(BUILD_DIR)/Setup.o $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Headers.o $(BUILD_DIR)/MatrixOperations.o
+$(BUILD_DIR)/DGSEM_class.o: $(BUILD_DIR)/Physics.o $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/NodesAndWeightsClass.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/QuadMesh.o $(BUILD_DIR)/MeshFile.o $(BUILD_DIR)/DGSpatialDiscretizationMethods.o $(BUILD_DIR)/DGTimeIntegrator.o $(BUILD_DIR)/Storage.o $(BUILD_DIR)/DGBoundaryConditions.o $(BUILD_DIR)/Tecplot.o
+$(BUILD_DIR)/NodesAndWeightsClass.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/InterpolationAndDerivatives.o $(BUILD_DIR)/LegendreAlgorithms.o $(BUILD_DIR)/MatrixOperations.o
+$(BUILD_DIR)/InterpolationAndDerivatives.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Utilities.o
+$(BUILD_DIR)/LegendreAlgorithms.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/QuadMesh.o: $(BUILD_DIR)/NodeClass.o $(BUILD_DIR)/QuadElement.o $(BUILD_DIR)/MeshFile.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/InitialConditions.o $(BUILD_DIR)/Storage.o $(BUILD_DIR)/QuadDefinitions.o $(BUILD_DIR)/DGBoundaryConditions.o $(BUILD_DIR)/Utilities.o
+$(BUILD_DIR)/MeshFile.o: $(BUILD_DIR)/Setup.o $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/NetCDF_Interface.o $(BUILD_DIR)/Headers.o
+$(BUILD_DIR)/QuadElement.o: ./src/Mesh/QuadAuxiliar.incf ./src/Mesh/QuadMappings.incf $(BUILD_DIR)/NodeClass.o $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/NodesAndWeightsClass.o $(BUILD_DIR)/Storage.o $(BUILD_DIR)/QuadDefinitions.o $(BUILD_DIR)/InterpolationAndDerivatives.o $(BUILD_DIR)/MatrixOperations.o $(BUILD_DIR)/MetricMatrix.o
+$(BUILD_DIR)/QuadDefinitions.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/NodeClass.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o
+$(BUILD_DIR)/MetricMatrix.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/Checks.o: $(BUILD_DIR)/DGSEM_class.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/NodesAndWeightsClass.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/QuadMesh.o $(BUILD_DIR)/MeshFile.o $(BUILD_DIR)/DGSpatialDiscretizationMethods.o $(BUILD_DIR)/Storage.o $(BUILD_DIR)/DGBoundaryConditions.o
+$(BUILD_DIR)/Headers.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/NetCDF_Interface.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/ProblemFile.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Setup.o
+$(BUILD_DIR)/InitialConditions.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o
+$(BUILD_DIR)/Setup.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Paramfile.o
+$(BUILD_DIR)/DGSpatialDiscretizationMethods.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/QuadMesh.o $(BUILD_DIR)/DGViscousMethods.o $(BUILD_DIR)/MatrixOperations.o $(BUILD_DIR)/DGInviscidMethods.o
+$(BUILD_DIR)/DGViscousMethods.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/QuadElement.o $(BUILD_DIR)/MatrixOperations.o $(BUILD_DIR)/NodesAndWeightsClass.o $(BUILD_DIR)/QuadMesh.o $(BUILD_DIR)/Headers.o
+$(BUILD_DIR)/DGInviscidMethods.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/QuadElement.o $(BUILD_DIR)/MatrixOperations.o $(BUILD_DIR)/NodesAndWeightsClass.o
+$(BUILD_DIR)/DGBoundaryConditions.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/QuadElement.o $(BUILD_DIR)/Paramfile.o
+$(BUILD_DIR)/FileWriting.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/QuadMesh.o $(BUILD_DIR)/Setup.o
+$(BUILD_DIR)/Paramfile.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/DGTimeIntegrator.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/QuadMesh.o $(BUILD_DIR)/DGSpatialDiscretizationMethods.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/FileWriting.o $(BUILD_DIR)/Tecplot.o $(BUILD_DIR)/Monitors.o
+$(BUILD_DIR)/Monitors.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/Setup.o $(BUILD_DIR)/Paramfile.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/QuadMesh.o
+$(BUILD_DIR)/Storage.o: $(BUILD_DIR)/SMConstants.o
+$(BUILD_DIR)/main.o: $(BUILD_DIR)/SMConstants.o $(BUILD_DIR)/NodesAndWeightsClass.o $(BUILD_DIR)/Physics.o $(BUILD_DIR)/MeshFile.o $(BUILD_DIR)/DGSEM_class.o
+
+# --------------- DO NOT EDIT ----------------------------------------------------
+
+F90_REMOVE=
+F90_INCLUDE=$(SRC_DIR)/Mesh/
+
+OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
+OBJS_F90:= $(filter-out $(F90_REMOVE),$(OBJS_F90))
+$(info )
+$(info ***Files: $(OBJS_F90) )
+$(info )
+OBJS= $(patsubst %.f90,%,$(OBJS_F90))
+OBJS_EXEC = $(foreach obj,$(OBJS),$(BUILD_DIR)/$(obj).o) 
+
+
+include make.inc
+
+# -------------- CHOOSE COMPILER ------------------
+ifeq ($(COMPILER),gfortran)
+   MOD_FLAG :=-J
+   FC=gfortran
+   ifeq ($(MODE),DEBUG)
+      $(info Compiling with gfortran in DEBUG mode.)
+#      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+       FFLAGS = -cpp -O0 -g -fcheck=all -ffree-line-length-0 -fbacktrace -fbounds-check -Wall -fcheck-array-temporaries -fbackslash -ffpe-trap=invalid,zero,overflow -static-libgfortran
+   else 
+  	$(info Compiling with gfortran in RELEASE mode.)
+      FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
+   endif
+   LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
+
+else ifeq ($(COMPILER),ifort)
+   MOD_FLAG := -module 
+   FC=ifort
+   ifeq ($(MODE),DEBUG)
+     $(info Compiling with intel fortran in DEBUG mode.)
+     FFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
+   else ifeq ($(MODE),RELEASE)
+     $(info Compiling with intel fortran in RELEASE mode.)
+     FFLAGS = -cpp -O3 -mkl -assume bscc
+     
+   else ifeq ($(MODE),VTUNE)
+     $(info Compiling with intel fortran in VTUNE mode.)
+     FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
+
+   endif
+   LIBS += -L$(NETCDF_LIB) -lnetcdff
+
+endif
+
+
+$(info )
+$(info )
+# ------------- LIBRARIES ------------------------
+INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
+
+# ------------- Main rules -----------------------
+	
+
+all: 	def_navier_stokes_macro $(EXECUTABLE)
+
+runcyl: 	
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
+
+debugcyl:
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && gdb ./$(EXECUTABLE))		
+
+runvortex: 	
+	(cd ../TestCases/Benchmarktests/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		
+
+runchan: 	
+	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
+
+runfree: 	
+	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
+
+Euler:  def_euler_macro $(EXECUTABLE)
+
+def_euler_macro:
+	$(eval EXECUTABLE:=HiODG2D.Euler)
+
+def_navier_stokes_macro:
+	$(eval NS_COMP:=-DNAVIER_STOKES)
+
+# ---------- Executable rule -------------------
+$(EXECUTABLE): $(OBJS_EXEC) 
+	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
+	$(OBJS_EXEC) $(LIBS)\
+
+# ---------- Default compilation rule -----------
+$(OBJS_EXEC): % : $(or $(wildcard $(SRC_DIR)/**/$(notdir $(basename %)).f90), $(wildcard $(SRC_DIR)/$(notdir $(basename %)).f90))
+	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$(notdir $(basename $@)).f90),$(wildcard $(SRC_DIR)/$(notdir $(basename $@)).f90)) -o $@
+
+
+clean:
+	$(info Removing installation:)
+	rm -f $(BUILD_DIR)/*
+	rm -f $(INC_DIR)/*
+
+allclean: clean
+	@rm -r -f $(BIN_DIR)/*
+

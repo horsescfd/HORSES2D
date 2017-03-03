@@ -55,7 +55,6 @@ module DGViscousMethods
          procedure ::  QDotVolumeLoop => BR1_QDotVolumeLoop
          procedure ::  dQFaceLoop     => BR1_dQFaceLoop
          procedure ::  dQVolumeLoop   => BR1_dQVolumeLoop
-         procedure ::  IntercellFlux  => BR1_IntercellFlux
    end type BR1Method_t
 !  *******************************************************
 !  -------------------------------------------------------
@@ -125,9 +124,7 @@ module DGViscousMethods
               end if
       
             type is (BR1Method_t)
-!           ------------------------------------
-!              No extra parameters are needed
-!           ------------------------------------
+
             class default
 
                 write(STD_OUT , *) "Second order method allocation went wrong."
@@ -263,12 +260,51 @@ module DGViscousMethods
 
       function BaseClass_IntercellFlux ( self , edge ) result ( Fstar )
          implicit none
-         class( ViscousMethod_t ) :: self
-         class( Edge_t )          :: edge
-         real(kind=RP)            :: Fstar(0:edge % spA % N,1:NCONS)
+         class(ViscousMethod_t) :: self
+         class(Edge_t)      :: edge
+         real(kind=RP)      :: Fstar(0:edge % spA % N,1:NCONS)
+!        -------------------------------------------------------
+!
+!        ********************
+         select type ( edge )
+!        ********************
+!
+!           -----------------------------------------------------------------
+            type is (StraightBdryEdge_t)
 
+               associate( N => edge % spA % N )
 
-      end function BaseClass_IntercellFlux
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
+
+               end associate
+!               
+!           -----------------------------------------------------------------
+            type is (CurvedBdryEdge_t)
+
+               associate( N => edge % spA % N )
+
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
+
+               end associate
+!
+!           -----------------------------------------------------------------
+            type is (Edge_t)
+      
+               associate( N => edge % spA % N )
+
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , LEFT ) + edge % F( 0:N , 1:NCONS , RIGHT ) ) 
+
+               end associate
+!
+!           ------------------------------------------------------------------
+            class default
+!
+!        **********
+         end select
+!        **********
+!
+   end function BaseClass_IntercellFlux
+
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -277,33 +313,264 @@ module DGViscousMethods
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
      subroutine IP_dQFaceLoop( self , edge ) 
-         use MatrixOperations
          implicit none
          class(IPMethod_t)             :: self
-         class(Edge_t)                 :: edge
+         class(Edge_t)                  :: edge
+         real(kind=RP)                  :: ustar(0:edge % spA % N,1:NGRAD)
+         integer, parameter             :: dimensions(3) = [IU,IV,IT]
+         
+         associate ( N => edge % spA % N ) 
+        
+         select type ( edge ) 
 
+            type is ( Edge_t ) 
+
+               uStar = 0.5_RP * sum(edge % W(0:N,dimensions,1:NDIM) , dim = 3)
+               
+               associate ( dQ => edge % quads(LEFT) % e % dQ )
+                  dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+               end associate
+               
+               associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                  dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+               end associate
+
+            type is ( StraightBdryEdge_t )
+
+               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
+         
+               associate ( dQ => edge % quads(1) % e % dQ ) 
+
+               if ( .not. edge % inverted ) then
+!
+!                 If the normal points towards the domain exterior
+!                 ------------------------------------------------
+                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+
+               else
+!
+!                 If the normal points towards the domain interior
+!                 ------------------------------------------------
+                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+
+               end if
+               
+               end associate
+!
+   
+            type is ( CurvedBdryEdge_t )
+
+               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
+
+               associate ( dQ => edge % quads(1) % e % dQ )
+
+               if ( .not. edge % inverted ) then
+!
+!                 If the normal points towards the domain exterior
+!                 ------------------------------------------------
+                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+
+               else
+!
+!                 If the normal points towards the domain interior
+!                 ------------------------------------------------
+                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+
+               end if
+ 
+               end associate
+
+            class default
+
+         end select
+
+         end associate
+ 
      end subroutine IP_dQFaceLoop
 
      subroutine IP_dQVolumeLoop( self , element )
+         use MatrixOperations
          implicit none
-         class(IPMethod_t)             :: self
-         class(QuadElement_t)            :: element
+         class(IPMethod_t)   :: self
+         class(QuadElement_t) :: element
+         integer              :: iDim
+         integer              :: iVar
+         integer              :: which(NDIM)
+         integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
+         real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
+
+         associate( N => element % spA % N , W => element % W , dQ => element % dQ , MD => element % spA % MD , &
+                    weights => element % spA % w , M => element % spA % M , gm1 => Thermodynamics % gm1)
+
+
+         do iDim = 1 , NDIM
+   
+            do iVar = 1 , NGRAD
+               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
+               call Mat_x_Mat(A = -MD , &
+                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
+                     C = dQ(0:N,0:N,iDim,iVar) , & 
+                     trA = .true. , reset = .false. )
+
+               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
+               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
+                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
+                     reset = .false. )
+
+            end do
+         end do
+
+         end associate
 
      end subroutine IP_dQVolumeLoop
 
      subroutine IP_QDotFaceLoop( self , edge ) 
+!
+!        **************************************************************
+!              This routine computes the edge loop according to the
+!           "Form I" formulation:
+!                 QDot +-= \int_e F^* l_j l_i ds
+!           in where F^* represents the F·n product, that is, the 
+!           result is added to the LEFT element, and substracted to 
+!           the RIGHT element. 
+!        **************************************************************
+!
          use MatrixOperations
          implicit none
-         class(IPMethod_t)             :: self
-         class(Edge_t)                 :: edge
+         class(IPMethod_t)    :: self
+         class(Edge_t)     :: edge
+!        -------------------------------------------------------
+         real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
+
+         associate ( N => edge % spA % N )
+!
+!        Compute face fluxes
+!        -------------------
+         call self % ComputeFaceFluxes ( edge )
+!
+!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
+!        -------------------------------------------------------------------------------
+         Fstar = self % IntercellFlux( edge )
+!
+!        Perform the loop in both elements
+!        ---------------------------------
+!
+!        ********************
+         select type ( edge )
+!        ********************
+!
+!           --------------------------------------------------------------------------
+            type is (Edge_t)
+!
+!              Compute the penalty term
+!              ------------------------
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % Q(0:N,1:NCONS,LEFT) - edge % Q(0:N,1:NCONS,RIGHT))
+!
+!              The obtained term is added to the LEFT element
+!              ----------------------------------------------
+               associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot + BR1_QDotFaceContribution( edge , LEFT , Fstar )
+               end associate
+!
+!              The obtained term is substracted to the RIGHT element
+!              -----------------------------------------------------
+               associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
+                  QDot = QDot - BR1_QDotFaceContribution( edge , RIGHT , Fstar )
+               end associate
+!
+!           --------------------------------------------------------------------------
+            type is (StraightBdryEdge_t)
+!
+!              Compute the penalty term
+!              ------------------------
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % Q(0:N,1:NCONS,1) - edge % uB(0:N,1:NCONS))
+
+               associate ( QDot => edge % quads(1) % e % QDot )
+
+                  if ( .not. edge % inverted ) then
+!
+!                    If the normal points towards the domain exterior
+!                    ------------------------------------------------
+                     QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar )
+                  else
+!
+!                    If the normal points towards the domain interior
+!                    ------------------------------------------------
+                     QDot = QDot - BR1_QDotFaceContribution( edge , 1 , Fstar )
+                  end if
+               
+               end associate
+!
+!           --------------------------------------------------------------------------
+            type is (CurvedBdryEdge_t)
+!
+!              Compute the penalty term
+!              ------------------------
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % Q(0:N,1:NCONS,1) - edge % uB(0:N,1:NCONS))
+
+               associate ( QDot => edge % quads(1) % e % QDot )
+!
+!                 The normal for curved elements always points towards the domain exterior
+!                 ------------------------------------------------------------------------
+                  QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar ) 
+               end associate
+!
+!           --------------------------------------------------------------------------
+            class default
+               STOP "Stopped."
+!
+!        **********
+         end select
+!        **********
+!
+        end associate
 
      end subroutine IP_QDotFaceLoop
 
      subroutine IP_QDotVolumeLoop( self , element ) 
+!
+!        *******************************************************************************
+!           This routine computes the standard DG volumetric terms according to:
+!                 QDot -= tr(D) M F M + M G M D         
+!           The details about this matricial form is shown in the doc HiODG2DTech.pdf
+!        *******************************************************************************
+!
          use MatrixOperations
          implicit none
-         class(IPMethod_t)             :: self
-         class(QuadElement_t)                 :: element
+         class(IPMethod_t) :: self
+         class(QuadElement_t)    :: element
+         integer                 :: eq
+
+         call self % computeInnerFluxes ( element )
+!
+!        Perform the matrix multiplication
+!        ---------------------------------
+         associate( QDot => element % QDot     , &
+                    MD   => element % spA % MD , &
+                    M    => element % spA % M  , &
+                    w    => element % spA % w  , &
+                    N    => element % spA % N      )
+
+         do eq = 1 , NCONS
+!
+!           F Loop
+!           ------
+            call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+                        trA = .true. , reset = .false. )
+
+!
+!           G Loop
+!           ------
+            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
+                         reset = .false. )
+
+         end do
+
+         end associate
 
      end subroutine IP_QDotVolumeLoop
 !
@@ -471,13 +738,13 @@ module DGViscousMethods
 !              The obtained term is added to the LEFT element
 !              ----------------------------------------------
                associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+                  QDot = QDot + BR1_QDotFaceContribution( edge , LEFT , Fstar )
                end associate
 !
 !              The obtained term is substracted to the RIGHT element
 !              -----------------------------------------------------
                associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+                  QDot = QDot - BR1_QDotFaceContribution( edge , RIGHT , Fstar )
                end associate
 !
 !           --------------------------------------------------------------------------
@@ -489,12 +756,12 @@ module DGViscousMethods
 !
 !                    If the normal points towards the domain exterior
 !                    ------------------------------------------------
-                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
+                     QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar )
                   else
 !
 !                    If the normal points towards the domain interior
 !                    ------------------------------------------------
-                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
+                     QDot = QDot - BR1_QDotFaceContribution( edge , 1 , Fstar )
                   end if
                
                end associate
@@ -506,7 +773,7 @@ module DGViscousMethods
 !
 !                 The normal for curved elements always points towards the domain exterior
 !                 ------------------------------------------------------------------------
-                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
+                  QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar ) 
                end associate
 !
 !           --------------------------------------------------------------------------
@@ -534,9 +801,7 @@ module DGViscousMethods
          class(BR1Method_t) :: self
          class(QuadElement_t)    :: element
          integer                 :: eq
-!
-!        Compute inner Euler fluxes
-!        --------------------------
+
          call self % computeInnerFluxes ( element )
 !
 !        Perform the matrix multiplication
@@ -566,52 +831,6 @@ module DGViscousMethods
 
      end subroutine BR1_QDotVolumeLoop
 
-     function BR1_IntercellFlux ( self , edge ) result ( Fstar )
-         implicit none
-         class(BR1Method_t) :: self
-         class(Edge_t)      :: edge
-         real(kind=RP)      :: Fstar(0:edge % spA % N,1:NCONS)
-!        -------------------------------------------------------
-!
-!        ********************
-         select type ( edge )
-!        ********************
-!
-!           -----------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
-
-               end associate
-!               
-!           -----------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
-
-               end associate
-!
-!           -----------------------------------------------------------------
-            type is (Edge_t)
-      
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , LEFT ) + edge % F( 0:N , 1:NCONS , RIGHT ) ) 
-
-               end associate
-!
-!           ------------------------------------------------------------------
-            class default
-!
-!        **********
-         end select
-!        **********
-!
-   end function BR1_IntercellFlux
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -734,7 +953,7 @@ module DGViscousMethods
 
       end function dQFaceContribution
 
-      function QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
+      function BR1_QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
 !
 !        *************************************************************************************
 !           This subroutine computes the following integral
@@ -922,7 +1141,8 @@ module DGViscousMethods
 
          end associate
 
-      end function QDotFaceContribution
+      end function BR1_QDotFaceContribution
+
 
       subroutine ViscousMethod_describe( self )
          use Headers
