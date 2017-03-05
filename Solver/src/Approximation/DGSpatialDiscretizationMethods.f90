@@ -503,6 +503,19 @@ module DGSpatialDiscretizationMethods
 !
 !        Face loops
 !        ----------
+!
+!        If the method is IP, the gradients must be replaced by the (\nabla u) version
+         select type (ViscousMethod)
+
+            type is (IPMethod_t)
+
+               do eID = 1 , mesh % no_of_elements
+                  call mesh % elements(eID) % ComputeInteriorGradient
+               end do
+               call DGSpatial_interpolateGradientsToBoundaries( mesh )
+
+         end select 
+
          do fID = 1 , mesh % no_of_edges
             call ViscousMethod % QDotFaceLoop( mesh % edges(fID) % f ) 
 

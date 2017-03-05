@@ -22,6 +22,7 @@ module QuadElementClass
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         integer                            :: edgesAssemblyDir(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges referred to the quad local frame
         integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
+        real(kind=RP), allocatable         :: Volume                         ! Volume of the element
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( xi , eta , X/Y )
         real(kind=RP), allocatable         :: Ja(:,:,:,:)                    ! Contravariant system metric matrix ( xi , eta , IROW , ICOL)
         real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
@@ -40,12 +41,15 @@ module QuadElementClass
 !       ========
         contains
 !       ========
-            procedure      :: Construct   => QuadElement_Construct                                 ! Constructs/allocates data and points to the address in Storage
-            procedure      :: SetStorage  => QuadElement_SetStorage                                ! Function to set the storage distribution
-            procedure      :: SetMappings => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
+            procedure      :: Construct                 => QuadElement_Construct                                 ! Constructs/allocates data and points to the address in Storage
+            procedure      :: SetStorage                => QuadElement_SetStorage                                ! Function to set the storage distribution
+            procedure      :: SetMappings               => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
             procedure      :: ComputePrimitiveVariables => QuadElement_ComputePrimitiveVariables
-            procedure      :: Compute_X   => QuadElement_Compute_X
-            procedure      :: FindPointWithCoords => QuadElement_FindPointWithCoords
+#ifdef NAVIER_STOKES
+            procedure      :: ComputeInteriorGradient   => QuadElement_ComputeInteriorGradient
+#endif
+            procedure      :: Compute_X                 => QuadElement_Compute_X
+            procedure      :: FindPointWithCoords       => QuadElement_FindPointWithCoords
     end type QuadElement_t
 
 !
@@ -70,6 +74,7 @@ module QuadElementClass
         integer                             :: ID                         ! Edge ID
         integer                             :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
         integer,                    pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        real(kind=RP)                       :: Area                       ! Area of the edge
         real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
         real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
         real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
@@ -527,5 +532,45 @@ module QuadElementClass
             end associate
 
          end subroutine Edge_ComputePrimitiveVariables
+#ifdef NAVIER_STOKES
+         subroutine QuadElement_ComputeInteriorGradient( self ) 
+            use MatrixOperations
+!   
+!           **********************************************************************
+!                 This subroutine computes the contravariant components of the element
+!              gradients as:
+!                    F <- F * Ja(1,1) + G * Ja(2,1)
+!                    G <- F * Ja(1,2) + G * Ja(2,2)
+!           **********************************************************************
+!   
+            implicit none  
+            class(QuadElement_t)   :: self
+!           -------------------------------------------------------------
+            real(kind=RP)              :: dxiQ(0:self % spA % N,0:self % spA % N)
+            real(kind=RP)              :: detaQ(0:self % spA % N,0:self % spA % N)
+            integer                    :: var
+            integer, parameter         :: gradVars(3) = [IU,IV,IT]
+   
+            associate( N => self % spA % N )
+            
+            do var = 1 , NGRAD
+               call Mat_x_Mat( A = self % spA % D , B = self % W(0:N,0:N,gradVars(var))  , C = dxiQ(0:N,0:N) )
+               call Mat_x_Mat( A = self % W(0:N,0:N,gradVars(var)) , B = self % spA % DT , C = detaQ(0:N,0:N) )
+!              
+!              x-direction gradient
+!              --------------------
+               self % dQ(0:N,0:N,IX,var) = (dxiQ(0:N,0:N) * self % Ja(0:N,0:N,1,1) + detaQ(0:N,0:N) * self % Ja(0:N,0:N,1,2)) / self % jac(0:N,0:N)
+!              
+!              y-direction gradient
+!              --------------------
+               self % dQ(0:N,0:N,IY,var) = (dxiQ(0:N,0:N) * self % Ja(0:N,0:N,2,1) + detaQ(0:N,0:N) * self % Ja(0:N,0:N,2,2)) / self % jac(0:N,0:N)
+            end do
+   
+            end associate
+            
+      end subroutine QuadElement_ComputeInteriorGradient
+#endif
+
+
 
 end module QuadElementClass

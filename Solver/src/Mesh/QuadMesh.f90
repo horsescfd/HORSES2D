@@ -35,6 +35,7 @@ module QuadMeshClass
              procedure  :: TensorVectorSurfaceIntegral => Compute_TensorVectorSurfaceIntegral
              procedure  :: ComputeResiduals            => Mesh_ComputeResiduals
              procedure  :: ComputePrimitiveVariables   => Mesh_ComputePrimitiveVariables
+             procedure  :: ComputeMaxJumps             => Mesh_ComputeMaxJumps
              procedure  :: FindElementWithCoords       => Mesh_FindElementWithCoords
     end type QuadMesh_t
 
@@ -148,6 +149,7 @@ module QuadMeshClass
              use Setup_class
              use Physics
              use NodesAndWeights_Class
+             use MatrixOperations
              implicit none
              class(QuadMesh_t),                 intent (inout)               :: self
              class(MeshFile_t),                 intent (in )                 :: meshFile
@@ -257,6 +259,21 @@ module QuadMeshClass
                do eID = 1 , self % no_of_elements
                   call self % elements(eID) % SetMappings
                end do
+!
+!              Compute areas and volumes
+!              -------------------------
+               do eID = 1 , self % no_of_elements
+                  associate ( e => self % elements(eID) )
+                  e % Volume = BilinearForm_F ( e % jac , e % spA % w , e % spA % w )
+                  end associate
+               end do
+
+               do edge = 1 , self % no_of_edges
+                  associate ( ed => self % edges(edge) % f )
+                  ed % Area = dot_product( norm2(ed % dS , dim = 1) , ed % spA % w )
+                  end associate
+               end do
+
          end subroutine constructElementsAndEdges
            
          subroutine SetInitialCondition( self , which)
@@ -447,5 +464,43 @@ elloop:     do eID = 1 , self % no_of_elements
             end if
 
          end subroutine Mesh_FindElementWithCoords
+
+         function Mesh_ComputeMaxJumps( self ) result ( val ) 
+            use Physics
+            implicit none
+            class(QuadMesh_t)          :: self
+!           --------------------------------------------------------------
+            integer                    :: edID
+            real(kind=RP)              :: val
+            real(kind=RP)              :: localJumps
+
+            val = 0.0_RP 
+
+            do edID = 1 , self % no_of_edges
+
+               associate ( N => self % edges(edID) % f % spA % N )
+               select type ( f => self % edges(edID) % f )
+
+
+                  type is (Edge_t)
+                     localJumps = maxval( abs ( f % Q(0:N,1:NCONS,LEFT) - f % Q(0:N,1:NCONS,RIGHT) ) )
+   
+                  type is (StraightBdryEdge_t)
+                     localJumps = maxval( abs ( f % Q(0:N,1:NCONS,1) - f % uB(0:N,1:NCONS) ) ) 
+
+                  type is (CurvedBdryEdge_t)
+                     localJumps = maxval( abs ( f % Q(0:N,1:NCONS,1) - f % uB(0:N,1:NCONS) ) ) 
+   
+               end select
+               end associate
+
+
+               if ( localJumps .gt. val ) then
+                  val = localJumps
+      
+               end if
+            end do
+
+         end function Mesh_ComputeMaxJumps
 
 end module QuadMeshClass   

@@ -17,27 +17,36 @@
             integer                    :: eID
             
             val = 0.0_RP
-            do eID = 1 , self % no_of_elements
-               associate( e => self % elements(eID) )
-               associate( N => e % spA % N )
-               if ( trim(var) .eq. "One" ) then
-                  if (allocated(variable) ) deallocate(variable)
-                  allocate(variable(0:e % spA % N , 0:e % spA % N))
-                  variable = 1.0_RP
-               elseif ( trim(var) .eq. "dSnorm" ) then
-                  if (allocated(variable) ) deallocate(variable)
-                  allocate(variable(0:e % spA % N , 0:e % spA % N))
+            if ( trim(var) .eq. "One" ) then
+               do eID = 1 , self % no_of_elements
+            
+                  associate ( e => self % elements(eID) ) 
+
+                  val = val + BilinearForm_F( e % jac , e % spA % w , e % spA % w )
+   
+                  end associate
+
+               end do
+
+            elseif ( trim(var) .eq. "dSnorm" ) then
+               do eID = 1 , self % no_of_elements
+                  associate ( e => self % elements(eID) ) 
+                  associate ( N => e % spA % N ) 
+
+                  if ( allocated(variable) ) deallocate (variable)
+                  allocate ( variable(0:e % spA % N , 0 : e % spA % N) )
+
                   variable = self % elements(eID) % W(0:N,0:N,IP) / (self % elements(eID) % W(0:N,0:N,IRHO)) ** ( thermodynamics % gamma ) - 1.0_RP
-                  variable = variable * variable
-               end if
+                  variable = variable * variable * e % jac
+                  val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
 
-               variable = variable * e % jac
-
-               val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
-
-               end associate
-               end associate
-            end do
+                  end associate
+                  end associate
+               end do
+   
+               val = sqrt(val)
+      
+            end if
                
          end function Compute_volumeIntegral
    

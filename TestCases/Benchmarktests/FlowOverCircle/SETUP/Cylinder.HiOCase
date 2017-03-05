@@ -32,9 +32,9 @@
 	            Inviscid Riemann Flux : HLL
 
 !------------------------------------: Viscous discretization
-                     Viscous strategy: BR1
+                     Viscous strategy: IP
               Interior penalty method: SIPG
-              Jumps penalty parameter: 10.0
+              Jumps penalty parameter: 0.0
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
@@ -43,7 +43,7 @@
                Time step            : 1.0e-2
                CFL Number           : 0.1
                Simulation time      : 1.0
-               Number of iterations : 250
+               Number of iterations : 10000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
