@@ -45,7 +45,9 @@ module QuadElementClass
             procedure      :: SetStorage                => QuadElement_SetStorage                                ! Function to set the storage distribution
             procedure      :: SetMappings               => QuadElement_SetMappings                               ! Function to compute the mapping data (x, dx, jac)
             procedure      :: ComputePrimitiveVariables => QuadElement_ComputePrimitiveVariables
+#ifdef NAVIER_STOKES
             procedure      :: ComputeInteriorGradient   => QuadElement_ComputeInteriorGradient
+#endif
             procedure      :: Compute_X                 => QuadElement_Compute_X
             procedure      :: FindPointWithCoords       => QuadElement_FindPointWithCoords
     end type QuadElement_t
@@ -530,7 +532,7 @@ module QuadElementClass
             end associate
 
          end subroutine Edge_ComputePrimitiveVariables
-
+#ifdef NAVIER_STOKES
          subroutine QuadElement_ComputeInteriorGradient( self ) 
             use MatrixOperations
 !   
@@ -567,6 +569,7 @@ module QuadElementClass
             end associate
             
       end subroutine QuadElement_ComputeInteriorGradient
+#endif
 
 
 

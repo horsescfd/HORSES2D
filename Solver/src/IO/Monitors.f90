@@ -15,9 +15,11 @@ module MonitorsClass
    public      Monitor_t , ConstructMonitors
 !
 !                                ***********************
-   integer, parameter         :: BUFFER_SIZE      = 100
-   integer, parameter         :: STR_LEN_MONITORS = 128
-   integer, parameter         :: MONITOR_LENGTH   = 10
+   integer, parameter         :: BUFFER_SIZE       = 100
+   integer, parameter         :: STR_LEN_MONITORS  = 128
+   integer, parameter         :: MONITOR_LENGTH    = 10
+   integer, parameter         :: VOLUME_UNDEFINED  = 0
+   integer, parameter         :: VOLUME_INTEGRAL   = 1
 !                                ***********************
 !
 !  **********************
@@ -89,6 +91,7 @@ module MonitorsClass
 !
    type VolumeMonitor_t
       logical                         :: active
+      integer                         :: volumeType
       integer                         :: ID
       real(kind=RP)                   :: values(BUFFER_SIZE)
       character(len=STR_LEN_MONITORS) :: monitorName
@@ -1216,8 +1219,12 @@ readloop:do
 !           ---------------------------------------------------
             case ("dSnorm")
                self % referenceValue = 1.0_RP
+               self % volumeType = VOLUME_INTEGRAL
 !
 !           ---------------------------------------------------
+            case ("MaxJumps") 
+               self % volumeType = VOLUME_UNDEFINED
+
             case default
 
                if ( len_trim (self % variable) .eq. 0 ) then
@@ -1272,7 +1279,21 @@ readloop:do
 !
 !        Compute the volume integral
 !        ---------------------------
-         self % values(bufferPosition) = mesh % VolumeIntegral(trim(self % variable)) / mesh % Volume
+         if ( self % volumeType .eq. VOLUME_INTEGRAL ) then
+            self % values(bufferPosition) = mesh % VolumeIntegral(trim(self % variable)) / mesh % Volume
+   
+         else
+
+            select case ( trim(self % variable) ) 
+   
+               case ( "MaxJumps" ) 
+
+                  self % values(bufferPosition) = mesh % ComputeMaxJumps()
+
+            end select
+   
+         end if
+
 
 
       end subroutine VolumeMonitor_Update
