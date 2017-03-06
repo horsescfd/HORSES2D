@@ -62,6 +62,11 @@
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
                allocate( edge % wB(0:N,NPRIM) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
 #ifdef NAVIER_STOKES
                allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
 #endif
@@ -69,6 +74,11 @@
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
                allocate( edge % wB(0:N,NPRIM) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
 #ifdef NAVIER_STOKES
                allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
 #endif
@@ -90,8 +100,8 @@
 !              UB(IRHOE) = Q(IRHOE)
 !
 !           The primitive variables are set as follows:
-!              WB(IU) = 0
-!              WB(IV) = 0
+!              WB(IU) = -WB(IU)
+!              WB(IV) = -WB(IU)
 !              WB(IT) = Tint / Text (Adiabatic/Isothermal)
 !
 !           The gradients are set such that the stresses are
@@ -111,8 +121,8 @@
                edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
                edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
 
-               edge % wB(0 : N , IU) = 0.0_RP
-               edge % wB(0 : N , IV) = 0.0_RP
+               edge % wB(0 : N , IU) = - edge % W(0:N,IU,1)
+               edge % wB(0 : N , IV) = - edge % W(0:N,IV,1) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
                   edge % wB( 0:N , IT ) = self % Tw
@@ -129,8 +139,8 @@
                edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
                edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
       
-               edge % wB(0 : N , IU) = 0.0_RP
-               edge % wB(0 : N , IV) = 0.0_RP
+               edge % wB(0 : N , IU) = - edge % W(0:N,IU,1)
+               edge % wB(0 : N , IV) = - edge % W(0:N,IV,1) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
                   edge % wB( 0:N , IT ) = self % Tw

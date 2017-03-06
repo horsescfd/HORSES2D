@@ -5,7 +5,7 @@
 !
 
 !-------------------------------------: Geometry
-			     Mesh file: ./MESH/Cylinder.HiOMesh
+			     Mesh file: ./MESH/BlasiusCoarse.HiOMesh
 			 Boundary file: _this_
 
 
@@ -20,39 +20,39 @@
 	
 !------------------------------------: DG Discretization
 		           Interpolation nodes : Legendre-Gauss
-		           Polynomial order    : 4
+		           Polynomial order    : 6
 
 !------------------------------------: Initialization
 		             Initial condition : Uniform
-		             Restart file      : ./RESULTS/Cylinder.HiORst
+		             Restart file      : ./RESULTS/BlasiusCoarse.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy     : Standard
 	            Inviscid formulation  : Form I
-	            Inviscid Riemann Flux : HLL
+	            Inviscid Riemann Flux : Roe
 
 !------------------------------------: Viscous discretization
-                     Viscous strategy: IP
+                     Viscous strategy: BR1
               Interior penalty method: SIPG
               Jumps penalty parameter: 1.0
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
                Integration mode     : Steady
-               Integration scheme   : Williamson RK3
+               Integration scheme   : Williamson RK5
                Time step            : 1.0e-2
-               CFL Number           : 0.1
+               CFL Number           : 0.2
                Simulation time      : 1.0
                Number of iterations : 250
                Initial time         : 0.0
 
 !----------------------------------: Output variables
-		      Solution file: ./RESULTS/Cylinder.HiORst
-                  Autosave interval: 1000
-                    Output interval: 10
-		Output file type: Interpolated
-	Number of representation points: 10
-                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+		      Solution file                   : ./RESULTS/BlasiusCoarse.HiORst
+		      Autosave interval               : 5000
+		      Output interval                 : 10
+		      Output file type                : Interpolated
+		      Number of representation points : 10
+		      Save variables                  : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach_s
 
 !
 !            **********************************
@@ -63,54 +63,28 @@
 
 
 # define zone 1
-	Name = Symmetry
-	Type = Euler wall
+	Name      = Bottom
+	Type      = Viscous wall
+   Wall type = Adiabatic
    Riemann solver = Exact
 # end 
 
 # define zone 2
-	Name = Symmetry
-	Type = Euler wall
+	Name      = Top
+	Type      = Euler wall
    Riemann solver = Exact
 # end 
 
 # define zone 3
-	Name = Inflow
-   Type = Dirichlet
+	Name      = Left
+   Type      = Dirichlet
    Riemann solver = Exact
-!   Mach = 0.1
 # end
 
 # define zone 4
-	Name = Outflow
-	Type = Pressure outlet
+	Name      = Right
+	Type      = Pressure outlet
    Riemann solver = Exact
 # end
 
-# define zone 5
-	Name = Wall
-   Type = Viscous wall
-   Wall type = Adiabatic
-   Riemann solver = Exact
-# end
 
-# define probe 1
-   Name = Wake_v
-   x position = 0.75
-   y position = 0.0
-   Variable = v
-# end
-
-# define surface monitor 1
-   Name = lift
-   Marker = 5
-   Variable = lift
-   Reference surface = 1.0
-# end
-
-# define surface monitor 2
-   Name = drag
-   Marker = 5
-   Variable = drag
-   Reference surface = 1.0
-# end

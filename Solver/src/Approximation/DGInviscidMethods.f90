@@ -730,57 +730,63 @@ module DGInviscidMethods
 
                associate( N => edge % spA % N )
 
+               select case ( edge % BCWeakType ) 
 
-               if ( associated( edge % FB ) ) then
+                  case ( WEAK_PRESCRIBED )
 !
-!                 Prescribed boundary conditions
-!                 ------------------------------
-                  Fstar = edge % FB
+!                    Prescribed boundary conditions: just pick its value
+!                    ---------------------------------------------------
+                     Fstar = edge % FB
 
-               elseif ( associated ( edge % uB ) ) then
-!
-!                 Weak boundary conditions
-!                 -----------------------
-                  do iXi = 0 , N
-!
-!                    Select LEFT and RIGHT states depending on the edge orientation
-!                    -------------------------------------------------------------- 
-                     if ( edge % inverted ) then
-                        QR = edge % Q(iXi , 1:NCONS , 1)
-                        QL = edge % uB(iXi, 1:NCONS)
-                        WR = edge % W(iXi , 1:NPRIM , 1 )
-                        WL = ComputePrimitiveVariables(QL)
-                     else
-                        QL = edge % Q(iXi , 1:NCONS , 1)
-                        QR = edge % uB(iXi, 1:NCONS)
-                        WL = edge % W(iXi , 1:NPRIM , 1 )
-                        WR = ComputePrimitiveVariables(QR)
-                     end if
-!
-!                    Gather edge orientation matrices
-!                    --------------------------------
-                     T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                     Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!
-!                    Compute the Riemann Flux
-!                    ------------------------
-                     if ( associated ( edge % RiemannSolver ) ) then
-!        
-!                       Using an edge special Riemann Solver
-!                       ------------------------------------
-                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-                        
-                     else
-!
-!                       Using the same Riemann Solver than the interior edges
-!                       -----------------------------------------------------
-                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+                  case ( WEAK_RIEMANN )
+!   
+!                    Weak boundary conditions
+!                    -----------------------
+                     do iXi = 0 , N
+!   
+!                       Select LEFT and RIGHT states depending on the edge orientation
+!                       -------------------------------------------------------------- 
+                        if ( edge % inverted ) then
+                           QR = edge % Q(iXi , 1:NCONS , 1)
+                           QL = edge % uB(iXi, 1:NCONS)
+                           WR = edge % W(iXi , 1:NPRIM , 1 )
+                           WL = ComputePrimitiveVariables(QL)
+                        else
+                           QL = edge % Q(iXi , 1:NCONS , 1)
+                           QR = edge % uB(iXi, 1:NCONS)
+                           WL = edge % W(iXi , 1:NPRIM , 1 )
+                           WR = ComputePrimitiveVariables(QR)
+                        end if
+!   
+!                       Gather edge orientation matrices
+!                       --------------------------------
+                        T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+                        Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!   
+!                       Compute the Riemann Flux
+!                       ------------------------
+                        if ( associated ( edge % RiemannSolver ) ) then
+!           
+!                          Using an edge special Riemann Solver
+!                          ------------------------------------
+                           Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+                           
+                        else
+!   
+!                          Using the same Riemann Solver than the interior edges
+!                          -----------------------------------------------------
+                           Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+      
+                        end if
+      
+                     end do
    
-                     end if
-   
-                  end do
+                  case default
+      
+                     print*, "Boundary condition has undefined Type"
+                     stop "Stopped."
 
-               end if
+               end select
 
                end associate
 !               
@@ -789,57 +795,63 @@ module DGInviscidMethods
 
                associate( N => edge % spA % N )
 
-               if ( associated( edge % FB ) ) then
-!
-!                 Prescribed boundary conditions
-!                 ------------------------------
-                  Fstar = edge % FB
+               select case ( edge % BCWeakType ) 
 
-               elseif ( associated ( edge % uB ) ) then
+                  case ( WEAK_PRESCRIBED )
 !
-!                 Weak boundary conditions
-!                 -----------------------
-                  do iXi = 0 , N
-!
-!                    Select LEFT and RIGHT states depending on the edge orientation
-!                    -------------------------------------------------------------- 
-                     if ( edge % inverted ) then
-                        QR = edge % Q(iXi , 1:NCONS , 1)
-                        QL = edge % uB(iXi, 1:NCONS)
-                        WR = edge % W(iXi , 1:NPRIM , 1 )
-                        WL = ComputePrimitiveVariables(QL)
-                     else
-                        QL = edge % Q(iXi , 1:NCONS , 1)
-                        QR = edge % uB(iXi, 1:NCONS)
-                        WL = edge % W(iXi , 1:NPRIM , 1 )
-                        WR = ComputePrimitiveVariables(QR)
-                     end if
-!
-!                    Gather edge orientation matrices
-!                    --------------------------------
-                     T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                     Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!
-!                    Compute the Riemann Flux
-!                    ------------------------
-                     if ( associated ( edge % RiemannSolver ) ) then
-!        
-!                       Using an edge special Riemann Solver
-!                       ------------------------------------
-                        Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-                        
-                     else
-!
-!                       Using the same Riemann Solver than the interior edges
-!                       -----------------------------------------------------
-                        Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-   
-                     end if
-     
-   
-                  end do
+!                    Prescribed boundary conditions: just pick its value
+!                    ---------------------------------------------------
+                     Fstar = edge % FB
 
-               end if
+                  case ( WEAK_RIEMANN )
+!   
+!                    Weak boundary conditions
+!                    -----------------------
+                     do iXi = 0 , N
+!   
+!                       Select LEFT and RIGHT states depending on the edge orientation
+!                       -------------------------------------------------------------- 
+                        if ( edge % inverted ) then
+                           QR = edge % Q(iXi , 1:NCONS , 1)
+                           QL = edge % uB(iXi, 1:NCONS)
+                           WR = edge % W(iXi , 1:NPRIM , 1 )
+                           WL = ComputePrimitiveVariables(QL)
+                        else
+                           QL = edge % Q(iXi , 1:NCONS , 1)
+                           QR = edge % uB(iXi, 1:NCONS)
+                           WL = edge % W(iXi , 1:NPRIM , 1 )
+                           WR = ComputePrimitiveVariables(QR)
+                        end if
+!   
+!                       Gather edge orientation matrices
+!                       --------------------------------
+                        T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+                        Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!   
+!                       Compute the Riemann Flux
+!                       ------------------------
+                        if ( associated ( edge % RiemannSolver ) ) then
+!           
+!                          Using an edge special Riemann Solver
+!                          ------------------------------------
+                           Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+                           
+                        else
+!   
+!                          Using the same Riemann Solver than the interior edges
+!                          -----------------------------------------------------
+                           Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+      
+                        end if
+      
+                     end do
+   
+                  case default
+      
+                     print*, "Boundary condition has undefined Type"
+                     stop "Stopped."
+
+               end select
 
                end associate
 !

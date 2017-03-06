@@ -15,7 +15,7 @@ module DGBoundaryConditions
    private
    public BoundaryCondition_t , Construct
    public PeriodicBC_t , DirichletBC_t , FarfieldBC_t , EulerWall_t , PressureOutletBC_t , PressureInletBC_t
-   public RiemannBC_t
+!   public RiemannBC_t
 !
 !  **********************************************************
    integer, parameter         :: STR_LEN_BC             = 128
@@ -34,6 +34,7 @@ module DGBoundaryConditions
       character(len=STR_LEN_BC)                         :: Name
       integer                                           :: marker
       integer                                           :: BCType
+      integer                                           :: WeakType
       character(len=STR_LEN_BC)                         :: RiemannSolverName
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
@@ -41,10 +42,10 @@ module DGBoundaryConditions
          procedure :: SetRiemannSolver => BoundaryConditions_SetRiemannSolver
          procedure :: Associate        => BaseClass_Associate
          procedure :: UpdateSolution   => BaseClass_UpdateSolution
+         procedure :: Describe         => BaseClass_Describe
 #ifdef NAVIER_STOKES
          procedure :: UpdateGradient   => BaseClass_UpdateGradient
 #endif
-         procedure :: Describe         => BaseClass_Describe
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -127,21 +128,21 @@ module DGBoundaryConditions
 !  Riemann boundary condition class
 !  ********************************
 !
-   type, extends(BoundaryCondition_t)           :: RiemannBC_t
-      real(kind=RP), dimension(NCONS) :: q
-      real(kind=RP)                   :: AngleOfAttack
-      real(kind=RP)                   :: Tt
-      real(kind=RP)                   :: pt
-      real(kind=RP)                   :: Ht
-      real(kind=RP)                   :: Rminus
-      integer                         :: mode
-      contains
-         procedure ::      Construct => RiemannBC_Construct
-         procedure ::      Associate => RiemannBC_Associate
-         procedure ::      UpdateSolution    => RiemannBC_UpdateSolution
-         procedure ::      Describe  => RiemannBC_Describe
-   end type RiemannBC_t
-
+!   type, extends(BoundaryCondition_t)           :: RiemannBC_t
+!      real(kind=RP), dimension(NCONS) :: q
+!      real(kind=RP)                   :: AngleOfAttack
+!      real(kind=RP)                   :: Tt
+!      real(kind=RP)                   :: pt
+!      real(kind=RP)                   :: Ht
+!      real(kind=RP)                   :: Rminus
+!      integer                         :: mode
+!      contains
+!         procedure ::      Construct => RiemannBC_Construct
+!         procedure ::      Associate => RiemannBC_Associate
+!         procedure ::      UpdateSolution    => RiemannBC_UpdateSolution
+!         procedure ::      Describe  => RiemannBC_Describe
+!   end type RiemannBC_t
+!
 !
 !  ***********************************
 !  Euler wall boundary condition class
@@ -195,7 +196,7 @@ module DGBoundaryConditions
 #include "./BoundaryConditions/PeriodicBC.incf"
 #include "./BoundaryConditions/PressureInletBC.incf"
 #include "./BoundaryConditions/PressureOutletBC.incf"
-#include "./BoundaryConditions/RiemannBC.incf"
+!#include "./BoundaryConditions/RiemannBC.incf"
 #include "./BoundaryConditions/ViscousWall.incf"
 
       subroutine BoundaryConditions_construct( self , marker)
@@ -219,41 +220,49 @@ module DGBoundaryConditions
             case ( "Dirichlet" )
                allocate( DirichletBC_t    :: self )
                self % BCType = DIRICHLET_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Farfield" )
                allocate( FarfieldBC_t     :: self )
                self % BCType = FARFIELD_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Pressure outlet" )
                allocate( PressureOutletBC_t     :: self )
                self % BCType = PRESSUREOUTLET_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Pressure inlet" )
                allocate( PressureInletBC_t     :: self )
                self % BCType = PRESSUREINLET_BC
+               self % WeakType = WEAK_PRESCRIBED
 !
 !           ----------------------------------------   
             case ( "Periodic" )
                allocate( PeriodicBC_t     :: self )
                self % BCType = PERIODIC_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
-            case ( "Riemann" )
-               allocate( RiemannBC_t     :: self )
-               self % BCType = RIEMANN_BC
+!            case ( "Riemann" )
+!               allocate( RiemannBC_t     :: self )
+!               self % BCType = RIEMANN_BC
+!               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Euler wall" )
                allocate( EulerWall_t      :: self )
                self % BCType = EULERWALL_BC
+               self % WeakType = WEAK_PRESCRIBED
 !
 !           ----------------------------------------   
             case ( "Viscous wall" )
                allocate( ViscousWall_t    :: self ) 
                self % BCType = VISCOUSWALL_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case default
@@ -586,28 +595,28 @@ module DGBoundaryConditions
 
       end subroutine PressureInletBC_Describe
 
-      subroutine RiemannBC_Describe( self )
-         use Physics
-         implicit none
-         class(RiemannBC_t)                :: self
-
-         associate ( gm1 => Thermodynamics % gm1 )
-
-         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Pressure inlet."
-         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total temperature: "       , self % Tt * refValues % T
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total enthalpy: "          , self % Ht * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
-
-         end associate
-
-      end subroutine RiemannBC_Describe
-
+!      subroutine RiemannBC_Describe( self )
+!         use Physics
+!         implicit none
+!         class(RiemannBC_t)                :: self
+!
+!         associate ( gm1 => Thermodynamics % gm1 )
+!
+!         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Pressure inlet."
+!         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
+!         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
+!         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
+!         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total temperature: "       , self % Tt * refValues % T
+!         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total enthalpy: "          , self % Ht * refValues % p
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+!         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+!
+!         end associate
+!
+!      end subroutine RiemannBC_Describe
+!
       subroutine PeriodicBC_Describe( self ) 
          implicit none
          class(PeriodicBC_t)          :: self

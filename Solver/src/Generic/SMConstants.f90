@@ -75,6 +75,9 @@
            integer, parameter                 :: PRESSUREOUTLET_BC = 6
            integer, parameter                 :: PRESSUREINLET_BC  = 7
            integer, parameter                 :: RIEMANN_BC        = 8
+           integer, parameter                 :: WEAK_RIEMANN      = 1
+           integer, parameter                 :: WEAK_PRESCRIBED   = 2
+           integer, parameter                 :: BC_UNDEFINED      = 0
 !
 !     *************************************************************************
 !           Time integration mode
