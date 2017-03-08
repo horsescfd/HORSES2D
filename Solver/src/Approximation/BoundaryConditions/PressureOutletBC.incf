@@ -206,17 +206,17 @@
                      edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
       
                   end if
-!
-!                 Get the primitive variables
-!                 ---------------------------               
-                  edge % wB(0:N,IRHO) = edge % uB(0:N,IRHO)
-                  edge % wB(0:N,IU)   = edge % uB(0:N,IRHOU) / edge % uB(0:N,IRHO)
-                  edge % wB(0:N,IV)   = edge % uB(0:N,IRHOV) / edge % uB(0:N,IRHO)
-                  edge % wB(0:N,IP)   = thermodynamics % gm1 * ( edge % uB(0:N,IRHOE) - 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % wB(0:N,IU) + edge % uB(0:N,IRHOV) * edge % wB(0:N,IV) ) )
-                  edge % wB(0:N,IT)   = edge % wB(0:N,IP) / edge % wB(0:N,IRHO)
-                  edge % wB(0:N,IA)   = sqrt( thermodynamics % gamma * edge % wB(0:N,IT) )
-      
+
                end do 
+!
+!              Get the primitive variables
+!              ---------------------------               
+               edge % wB(0:N,IRHO) = edge % uB(0:N,IRHO)
+               edge % wB(0:N,IU)   = edge % uB(0:N,IRHOU) / edge % uB(0:N,IRHO)
+               edge % wB(0:N,IV)   = edge % uB(0:N,IRHOV) / edge % uB(0:N,IRHO)
+               edge % wB(0:N,IP)   = thermodynamics % gm1 * ( edge % uB(0:N,IRHOE) - 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % wB(0:N,IU) + edge % uB(0:N,IRHOV) * edge % wB(0:N,IV) ) )
+               edge % wB(0:N,IT)   = edge % wB(0:N,IP) / edge % wB(0:N,IRHO)
+               edge % wB(0:N,IA)   = sqrt( thermodynamics % gamma * edge % wB(0:N,IT) )
 
             type is (CurvedBdryEdge_t) 
 
@@ -264,17 +264,17 @@
                      edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
       
                   end if
-!
-!                 Get the primitive variables
-!                 ---------------------------               
-                  edge % wB(0:N,IRHO) = edge % uB(0:N,IRHO)
-                  edge % wB(0:N,IU)   = edge % uB(0:N,IRHOU) / edge % uB(0:N,IRHO)
-                  edge % wB(0:N,IV)   = edge % uB(0:N,IRHOV) / edge % uB(0:N,IRHO)
-                  edge % wB(0:N,IP)   = thermodynamics % gm1 * ( edge % uB(0:N,IRHOE) - 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % wB(0:N,IU) + edge % uB(0:N,IRHOV) * edge % wB(0:N,IV) ) )
-                  edge % wB(0:N,IT)   = edge % wB(0:N,IP) / edge % wB(0:N,IRHO)
-                  edge % wB(0:N,IA)   = sqrt( thermodynamics % gamma * edge % wB(0:N,IT) )
-      
+
                end do 
+!
+!              Get the primitive variables
+!              ---------------------------               
+               edge % wB(0:N,IRHO) = edge % uB(0:N,IRHO)
+               edge % wB(0:N,IU)   = edge % uB(0:N,IRHOU) / edge % uB(0:N,IRHO)
+               edge % wB(0:N,IV)   = edge % uB(0:N,IRHOV) / edge % uB(0:N,IRHO)
+               edge % wB(0:N,IP)   = thermodynamics % gm1 * ( edge % uB(0:N,IRHOE) - 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % wB(0:N,IU) + edge % uB(0:N,IRHOV) * edge % wB(0:N,IV) ) )
+               edge % wB(0:N,IT)   = edge % wB(0:N,IP) / edge % wB(0:N,IRHO)
+               edge % wB(0:N,IA)   = sqrt( thermodynamics % gamma * edge % wB(0:N,IT) )
 
             class default
 
