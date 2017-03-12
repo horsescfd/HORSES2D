@@ -722,10 +722,11 @@ readloop:do
          class(QuadMesh_t)       :: mesh
          integer                 :: bufferPosition
 !        ------------------------------------------------------
+         integer                 :: N 
          real(kind=RP)           :: rho  , rhou  , rhov  , rhoe
          real(kind=RP)           :: rhot , rhout , rhovt , rhoet
       
-         associate ( N => mesh % elements( self % ID ) % spA % N )
+         N = mesh % elements( self % eID ) % spA % N 
 !
 !        Select the variable
 !        -------------------
@@ -810,8 +811,6 @@ readloop:do
                end if
 
          end select                        
-
-         end associate 
 
       end subroutine Probe_Update
 

@@ -80,7 +80,7 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     variable => f % w(0:N , IP , 1 )
+                     variable => f % storage(1) % w(0:N , IP )
                      val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
 
                      end associate
@@ -93,7 +93,7 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     variable => f % w(0:N , IP , 1 )
+                     variable => f % storage(1) % w(0:N , IP )
                      val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
 
                      end associate
@@ -126,7 +126,7 @@
                      associate ( N => f % spA % N )
 
                      do j = 0 , N
-                        val(IX:IY) = val(IX:IY) + f % W(j,IP,1) * f % spA % w(j) * f % dS(IX:IY,j)
+                        val(IX:IY) = val(IX:IY) + f % storage(1) % W(j,IP) * f % spA % w(j) * f % dS(IX:IY,j)
                      end do
 
                      end associate
@@ -158,7 +158,7 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     val = val + dot_product ( f % spA % w , ( f % Q(0:N,IRHOU,1) * f % dS(IX,0:N) + f % Q(0:N,IRHOV,1) * f % dS(IY,0:N) ) )
+                     val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % dS(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % dS(IY,0:N) ) )
 
                      end associate
                      end associate
@@ -170,7 +170,7 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     val = val + dot_product ( f % spA % w , ( f % W(0:N,IU,1) * f % dS(IX,0:N) + f % W(0:N,IV,1) * f % dS(IY,0:N) ) )
+                     val = val + dot_product ( f % spA % w , ( f % storage(1) % W(0:N,IU) * f % dS(IX,0:N) + f % storage(1) % W(0:N,IV) * f % dS(IY,0:N) ) )
 
                      end associate
                      end associate
@@ -204,7 +204,7 @@
                      associate ( N => f % spA % N )
                      allocate ( tau(0:N , 1:NDIM , 1:NDIM ) )
 #ifdef NAVIER_STOKES
-                     dQ => f % dQ ( 0:N,1:NDIM,1:NGRAD,1 ) 
+                     dQ => f % storage(1) % dQ ( 0:N,1:NDIM,1:NGRAD ) 
 #endif
                      tau = ComputeViscousTensor( N , dQ )
 

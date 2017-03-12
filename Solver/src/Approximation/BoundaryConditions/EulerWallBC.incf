@@ -25,12 +25,12 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
 !
 !              Gradients are computed from the interior
 !              ----------------------------------------
-               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
          
             type is (CurvedBdryEdge_t)
@@ -41,12 +41,12 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
 !
 !              Gradients are computed from the interior
 !              ----------------------------------------
-               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
 
             class default
@@ -74,14 +74,14 @@
 !
 !                 The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
 !                 -----------------------------------------------------------------------------------------------------------------------------------
-                  rhovn = (edge % Q(iXi,IRHOU,1) * edge % n(IX,iXi) + edge % Q(iXi,IRHOV,1) * edge % n(IY,iXi) )
-                  rhovt = (edge % Q(iXi,IRHOU,1) * edge % n(IY,iXi) - edge % Q(iXi,IRHOV,1) * edge % n(IX,iXi) )
-                  p     = gm1 * (edge % Q(iXi,IRHOE,1) - 0.5_RP * (edge % Q(iXi,IRHOU,1)*edge % Q(iXi,IRHOU,1) + edge % Q(iXi,IRHOV,1) * edge % Q(iXi,IRHOV,1)) / edge % Q(iXi,IRHO,1))
+                  rhovn = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IX,iXi) + edge % storage(1) % Q(iXi,IRHOV) * edge % n(IY,iXi) )
+                  rhovt = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IY,iXi) - edge % storage(1) % Q(iXi,IRHOV) * edge % n(IX,iXi) )
+                  p     = gm1 * (edge % storage(1) % Q(iXi,IRHOE) - 0.5_RP * (edge % storage(1) % Q(iXi,IRHOU)*edge % storage(1) % Q(iXi,IRHOU) + edge % storage(1) % Q(iXi,IRHOV) * edge % storage(1) % Q(iXi,IRHOV)) / edge % storage(1) % Q(iXi,IRHO))
 
-                  q(IRHO)  = edge % Q(iXi,IRHO,1)
-                  q(IRHOU) = edge % Q(iXi,IRHOU,1) - rhovn * edge % n(IX,iXi)
-                  q(IRHOV) = edge % Q(iXi,IRHOV,1) - rhovn * edge % n(IY,iXi)
-                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % Q(iXi,IRHO,1)
+                  q(IRHO)  = edge % storage(1) % Q(iXi,IRHO)
+                  q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - rhovn * edge % n(IX,iXi)
+                  q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - rhovn * edge % n(IY,iXi)
+                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(iXi,IRHO)
 !
 !                 Compute the fluxex from the built state
 !                 ---------------------------------------
@@ -93,10 +93,10 @@
 !
 !                 Compute the variables state
 !                 ---------------------------
-                  edge % uB(iXi,IRHO)  = edge % Q(iXi,IRHO,1)
-                  edge % uB(iXi,IRHOU) = edge % Q(iXi,IRHOU,1) - 2.0_RP * rhovn * edge % n(IX,iXi)
-                  edge % uB(iXi,IRHOV) = edge % Q(iXi,IRHOV,1) - 2.0_RP * rhovn * edge % n(IY,iXi)
-                  edge % uB(iXi,IRHOE) = edge % Q(iXi,IRHOE,1)
+                  edge % uB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
+                  edge % uB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - 2.0_RP * rhovn * edge % n(IX,iXi)
+                  edge % uB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - 2.0_RP * rhovn * edge % n(IY,iXi)
+                  edge % uB(iXi,IRHOE) = edge % storage(1) % Q(iXi,IRHOE)
 
                end do
                   
@@ -107,14 +107,14 @@
 !
 !                 The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
 !                 -----------------------------------------------------------------------------------------------------------------------------------
-                  rhovn = (edge % Q(iXi,IRHOU,1) * edge % n(IX,iXi) + edge % Q(iXi,IRHOV,1) * edge % n(IY,iXi) )
-                  rhovt = (edge % Q(iXi,IRHOU,1) * edge % n(IY,iXi) - edge % Q(iXi,IRHOV,1) * edge % n(IX,iXi) )
-                  p     = gm1 * (edge % Q(iXi,IRHOE,1) - 0.5_RP * (edge % Q(iXi,IRHOU,1)*edge % Q(iXi,IRHOU,1) + edge % Q(iXi,IRHOV,1) * edge % Q(iXi,IRHOV,1)) / edge % Q(iXi,IRHO,1))
+                  rhovn = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IX,iXi) + edge % storage(1) % Q(iXi,IRHOV) * edge % n(IY,iXi) )
+                  rhovt = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IY,iXi) - edge % storage(1) % Q(iXi,IRHOV) * edge % n(IX,iXi) )
+                  p     = gm1 * (edge % storage(1) % Q(iXi,IRHOE) - 0.5_RP * (edge % storage(1) % Q(iXi,IRHOU)*edge % storage(1) % Q(iXi,IRHOU) + edge % storage(1) % Q(iXi,IRHOV) * edge % storage(1) % Q(iXi,IRHOV)) / edge % storage(1) % Q(iXi,IRHO))
 
-                  q(IRHO)  = edge % Q(iXi,IRHO,1)
-                  q(IRHOU) = edge % Q(iXi,IRHOU,1) - rhovn * edge % n(IX,iXi)
-                  q(IRHOV) = edge % Q(iXi,IRHOV,1) - rhovn * edge % n(IY,iXi)
-                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % Q(iXi,IRHO,1)
+                  q(IRHO)  = edge % storage(1) % Q(iXi,IRHO)
+                  q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - rhovn * edge % n(IX,iXi)
+                  q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - rhovn * edge % n(IY,iXi)
+                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(iXi,IRHO)
 !
 !                 Compute the fluxex from the built state
 !                 ---------------------------------------
@@ -126,10 +126,10 @@
 !
 !                 Compute the variables state
 !                 ---------------------------
-                  edge % uB(iXi,IRHO)  = edge % Q(iXi,IRHO,1)
-                  edge % uB(iXi,IRHOU) = edge % Q(iXi,IRHOU,1) - 2.0_RP * rhovn * edge % n(IX,iXi)
-                  edge % uB(iXi,IRHOV) = edge % Q(iXi,IRHOV,1) - 2.0_RP * rhovn * edge % n(IY,iXi)
-                  edge % uB(iXi,IRHOE) = edge % Q(iXi,IRHOE,1)
+                  edge % uB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
+                  edge % uB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - 2.0_RP * rhovn * edge % n(IX,iXi)
+                  edge % uB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - 2.0_RP * rhovn * edge % n(IY,iXi)
+                  edge % uB(iXi,IRHOE) = edge % storage(1) % Q(iXi,IRHOE)
 
                end do
  

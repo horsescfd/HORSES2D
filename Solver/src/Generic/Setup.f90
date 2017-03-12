@@ -159,7 +159,7 @@ module Setup_class
             Setup % nodes = LGL
           end if
 
-          call readValue ( trim ( case_name )  , "Polynomial order" , Setup % N ) 
+          call readValue ( trim ( case_name )  , "Default polynomial order" , Setup % N ) 
           call readValue ( trim ( case_name )  , "Initial condition" , Setup % IC ) 
           call readValue ( trim ( case_name )  , "Inviscid strategy" , Setup % inviscid_discretization ) 
           call readValue ( trim ( case_name )  , "Inviscid formulation" , inviscid_form ) 

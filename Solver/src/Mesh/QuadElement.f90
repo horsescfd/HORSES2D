@@ -18,6 +18,7 @@ module QuadElementClass
 !
     type QuadElement_t
         integer                            :: ID                             ! ID of the element
+        logical                            :: boundaryElement = .false.      ! Whether the element belongs to (at least) a boundary
         integer                            :: address                        ! Memory address of the first position in the mesh
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         integer                            :: edgesAssemblyDir(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges referred to the quad local frame
@@ -63,6 +64,23 @@ module QuadElementClass
 
 !//////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
+!   *******************************************************************************
+!           Derived type to contain both non-conforming information
+!   *******************************************************************************
+!
+   type BoundaryData_t
+        class(NodesAndWeights_t) , pointer :: spA
+        real(kind=RP)            , pointer :: Q   (:,:)        ! Solution interpolation to boundaries ( xi , eq )
+        real(kind=RP)            , pointer :: W   (:,:)        ! Primitive variables interpolation to boundaries ( xi , eq )
+        real(kind=RP)            , pointer :: F   (:,:)        ! Solution NORMAL fluxes interpolation to boundaries ( xi , eq )
+#ifdef NAVIER_STOKES
+        real(kind=RP)            , pointer :: dQ  (:,:,:)      ! Solution gradient interpolation to boundary ( xi , eq , X/Y )
+#endif
+        contains
+            procedure      :: Initialize  => BoundaryData_Initialize
+   end type BoundaryData_t
+
+!
 !   *********************************************************************************
 !           Edge derived type definition:
 !                 Edge_t:  For interior edges
@@ -73,6 +91,8 @@ module QuadElementClass
     type Edge_t
         integer                             :: ID                         ! Edge ID
         integer                             :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
+        logical                             :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree 
+        integer                             :: Nlow                       ! Lower polynomial degree
         integer,                    pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
         real(kind=RP)                       :: Area                       ! Area of the edge
         real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
@@ -81,24 +101,21 @@ module QuadElementClass
         real(kind=RP),              pointer :: dS(:,:)                    ! Surface differential vector (X/Y, xi)
         real(kind=RP),              pointer :: T(:,:,:)                   ! Fluxes invariance rotation matrix (NDIM,NDIM,xi)
         real(kind=RP),              pointer :: Tinv(:,:,:)                ! Fluxes invariance inverse rotation matrix (NDIM,NDIM,xi)
-        real(kind=RP),              pointer :: Q(:,:,:)                   ! Solution interpolation to boundaries ( xi , eq , LEFT/RIGHT )
-        real(kind=RP),              pointer :: W(:,:,:)                   ! Primitive variables interpolation to boundaries ( xi , eq , LEFT/RIGHT)
-#ifdef NAVIER_STOKES
-        real(kind=RP),              pointer :: dQ(:,:,:,:)                ! Solution gradient interpolation to boundary ( xi , eq ,  X/Y , LEFT/RIGHT)
-#endif
-        real(kind=RP),              pointer :: F(:,:,:)                   ! Solution NORMAL fluxes interpolation to boundaries ( xi ,eq , LEFT/RIGHT )
+        real(kind=RP),          allocatable :: T_forward(:,:)             ! Interpolation matrix from the low order to high order
+        real(kind=RP),          allocatable :: T_backward(:,:)            ! Interpolation matrix from the high order to low order
+        type(BoundaryData_t),  allocatable  :: storage(:)                 ! Solution interpolation to boundaries ( LEFT/RIGHT )
         type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
         class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
-        class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage
+        class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
         class(NodesAndWeights_t),   pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
         contains
             procedure      :: SetCurve    => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
             procedure      :: ComputePrimitiveVariables => Edge_ComputePrimitiveVariables
             procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
             procedure      :: evaluateX   => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
-            procedure      :: evaluatedX  => Edge_AnalyticaldX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedX  => Edge_AnalyticaldX                ! Function to compute an edge point in a local coordinate "xi"
             procedure      :: evaluatedS  => Edge_AnalyticaldS
-            procedure      :: getX        => Edge_getX                        ! 
+            procedure      :: getX        => Edge_getX                         
             procedure      :: getdX       => Edge_getdX
             procedure      :: getdS       => Edge_getdS
     end type Edge_t
@@ -261,13 +278,14 @@ module QuadElementClass
 
         end subroutine QuadElement_SetStorage
             
-        subroutine Edge_ConstructEdge( self , ID , curvilinear , nodes , edgeType , spA , spI)
+        subroutine Edge_ConstructEdge( self , ID , curvilinear , N , nodes , edgeType , spA , spI)
             use Setup_Class
             implicit none
             class(Edge_p)                     :: self
             integer                           :: ID
             class(Node_p)                     :: nodes(:)
             logical                           :: curvilinear
+            integer                           :: N 
             integer                           :: edgeType
             integer                           :: node
             class(NodalStorage)               :: spA
@@ -329,8 +347,9 @@ module QuadElementClass
                self % f % nodes(node) % n => nodes(node) % n
             end do
 
-            call spA % add( Setup % N , Setup % nodes , self % f % spA )
+            call spA % add( N , Setup % nodes , self % f % spA )
             self % f % spI    => spI
+            self % f % Nlow = N
 
 !           Geometry
 !           --------
@@ -341,29 +360,11 @@ module QuadElementClass
             allocate ( self % f % Tinv ( NCONS  , NCONS , 0 : self % f % spA % N )  ) 
             allocate ( self % f % n    ( NDIM , 0 : self % f % spA % N       )  ) 
 
-            if (edgeType .eq. FACE_INTERIOR) then
-         
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE         )  ) 
-               allocate ( self % f % W  ( 0 : self % f % spA % N , NPRIM , QUADS_PER_EDGE         )  ) 
-#ifdef NAVIER_STOKES
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NDIM  , NGRAD , QUADS_PER_EDGE )  ) 
-#endif
-               allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , QUADS_PER_EDGE )  ) 
-
-            else
-   
-               allocate ( self % f % Q  ( 0 : self % f % spA % N , NCONS , 1        )  ) 
-               allocate ( self % f % W  ( 0 : self % f % spA % N , NPRIM , 1        )  ) 
-#ifdef NAVIER_STOKES
-               allocate ( self % f % dQ ( 0 : self % f % spA % N , NDIM , NGRAD , 1 )  ) 
-#endif
-               allocate ( self % f % F  ( 0 : self % f % spA % N , NCONS , 1 )  ) 
-
-            end if 
-
         end subroutine Edge_ConstructEdge 
 
         subroutine Edge_LinkWithElements( self , el1 , el2 , elb)
+            use InterpolationAndDerivatives
+            use MatrixOperations
             implicit none
             class(Edge_p)                          :: self
             class(QuadElement_t), target, optional :: el1
@@ -385,6 +386,8 @@ module QuadElementClass
             end do
 
             if (present(el1) .and. present(el2) .and. (.not. present(elb)) ) then             ! Interior edge            
+
+               allocate ( self % f % storage ( QUADS_PER_EDGE ) ) 
 
 !              Gather all four nodes in both elements
 !              --------------------------------------
@@ -409,6 +412,26 @@ module QuadElementClass
                elseif ( (edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
                   el1 % edgesAssemblyDir( edgePosition ) = -edgeDirection
                end if
+
+               call self % f % storage (quadPosition) % Initialize ( el1 % spA )
+!
+!              State whether a transformation is needed or not.
+!              -----------------------------------------------
+               if ( el1 % spA % N .eq. self % f % spA % N ) then
+                  self % f % transform (quadPosition) = .false.
+            
+               else
+                  self % f % transform (quadPosition) = .true.
+                  self % f % Nlow  = el1 % spA % N
+!
+!                 Computing the forward matrix: From the element degree to the edge
+!                 -----------------------------------------------------------------
+                  allocate ( self % f % T_forward   ( 0:self % f % spA % N , 0:el1 % spA % N )  ) 
+                  call PolynomialInterpolationMatrix( el1 % spA % N , self % f % spA % N , el1 % spA % xi , el1 % spA % wb , self % f % spA % xi , self % f % T_forward)
+
+                  allocate ( self % f % T_backward ( 0:el1 % spA % N , 0:self % f % spA % N )  ) 
+                  call TripleMatrixProduct( A = el1 % spA % Minv , B = self % f % T_forward , C = self % f % spA % M , val = self % f % T_backward , trB = .true. )
+               end if
 !
 !              Search for the edge in element2
 !              -------------------------------
@@ -421,14 +444,37 @@ module QuadElementClass
                el2  % quadPosition     ( edgePosition ) = quadPosition
                el2  % edgesDirection   ( edgePosition ) =  edgeDirection
                self % f % edgeLocation ( quadPosition ) = edgePosition
+
                if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
                   el2 % edgesAssemblyDir( edgePosition ) = edgeDirection
                elseif ( (edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
                   el2 % edgesAssemblyDir( edgePosition ) = -edgeDirection
                end if
                
+               call self % f % storage (quadPosition) % Initialize ( el2 % spA )
+!
+!              State whether a transformation is needed or not.
+!              -----------------------------------------------
+               if ( el2 % spA % N .eq. self % f % spA % N ) then
+                  self % f % transform (quadPosition) = .false.
+            
+               else
+                  self % f % transform (quadPosition) = .true.
+                  self % f % Nlow  = el2 % spA % N
+!
+!                 Computing the forward matrix: From the element degree to the edge
+!                 -----------------------------------------------------------------
+                  allocate ( self % f % T_forward   ( 0:self % f % spA % N , 0:el2 % spA % N )  ) 
+                  call PolynomialInterpolationMatrix( el2 % spA % N , self % f % spA % N , el2 % spA % xi , el2 % spA % wb , self % f % spA % xi , self % f % T_forward)
+
+                  allocate ( self % f % T_backward ( 0:el2 % spA % N , 0:self % f % spA % N )  ) 
+                  call TripleMatrixProduct( A = el2 % spA % Minv , B = self % f % T_forward , C = self % f % spA % M , val = self % f % T_backward , trB = .true. )
+
+               end if
 
             elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
+
+               allocate ( self % f % storage ( 1 ) ) 
 
                do node = 1 , POINTS_PER_QUAD 
                   nodesElb(node)  = elb % nodes(node) % n % ID 
@@ -438,8 +484,9 @@ module QuadElementClass
 !              -------------------------------
                call searchEdge( nodesEl = nodesElb , nodesEdge = nodesID , edgePosition = edgePosition , quadPosition = quadPosition , edgeDirection = edgeDirection)
 !
-!              Link the items: Now always the direction is FORWARD
-!              --------------
+!              Link the items: Now always the direction is FORWARD. This may be later reverted ONLY in the case Periodic BCs are enforced
+!              --------------------------------------------------------------------------------------------------------------------------
+               elb  % boundaryElement = .true.
                elb  % edges            ( edgePosition ) % f  => self % f
                self % f % quads        ( 1            ) % e  => elb
                elb % quadPosition      ( edgePosition ) = 1
@@ -456,6 +503,11 @@ module QuadElementClass
                   elb % edgesAssemblyDir( edgePosition ) = BACKWARD
                end if
 
+               call self % f % storage (1) % Initialize ( elb % spA )
+!
+!              Boundary edges never need a transformation
+!              ------------------------------------------
+               self % f % transform = .false.
 
             end if
 
@@ -520,18 +572,22 @@ module QuadElementClass
          subroutine Edge_ComputePrimitiveVariables( self )
             implicit none
             class(Edge_t)          :: self
+            integer                :: el
 
-            associate ( N => self % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma )
 
-               self % W(0:N,IRHO,:) = self % Q(0:N,IRHO,:)
-               self % W(0:N,IU,:  ) = self % Q(0:N,IRHOU,:) / self % Q(0:N,IRHO,:)
-               self % W(0:N,IV,:  ) = self % Q(0:N,IRHOV,:) / self % Q(0:N,IRHO,:)
-               self % W(0:N,IP,:  ) = gm1 * (self % Q(0:N,IRHOE,:) - 0.5_RP * (self % Q(0:N,IRHOU,:) * self % W(0:N,IU,:) &
-                                                + self % Q(0:N,IRHOV,:) * self % W(0:N,IV,:)) )
-               self % W(0:N,IT,:  ) = self % W(0:N,IP,:) / self % W(0:N,IRHO,:)
-               self % W(0:N,IA,:  ) = sqrt( gamma * self % W(0:N,IT,:) )
+            do el = 1 , size( self % storage )
+               associate ( N => self % storage(el) % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma )
+ 
+               self % storage(el) % W(0:N,IRHO)                = self % storage(el) % Q(0:N,IRHO)
+               self % storage(el) % W(0:N,IU)                  = self % storage(el) % Q(0:N,IRHOU) / self % storage(el) % Q(0:N,IRHO)
+               self % storage(el) % W(0:N,IV)                  = self % storage(el) % Q(0:N,IRHOV) / self % storage(el) % Q(0:N,IRHO)
+               self % storage(el) % W(0:N,IP)                  = gm1 * (self % storage(el) % Q(0:N,IRHOE) - 0.5_RP * (self % storage(el) % Q(0:N,IRHOU) * self % storage(el) % W(0:N,IU) &
+                                                                        + self % storage(el) % Q(0:N,IRHOV) * self % storage(el) % W(0:N,IV)) )
+               self % storage(el) % W(0:N,IT)                  = self % storage(el) % W(0:N,IP) / self % storage(el) % W(0:N,IRHO)
+               self % storage(el) % W(0:N,IA)                  = sqrt( gamma * self % storage(el) % W(0:N,IT) )
 
-            end associate
+               end associate
+            end do
 
          end subroutine Edge_ComputePrimitiveVariables
 #ifdef NAVIER_STOKES
@@ -573,6 +629,27 @@ module QuadElementClass
       end subroutine QuadElement_ComputeInteriorGradient
 #endif
 
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              Boundary data procedures
+!              ------------------------
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine BoundaryData_Initialize( self , spA  ) 
+         implicit none
+         class(BoundaryData_t)             :: self
+         class(NodesAndWeights_t), pointer :: spA
 
+         self % spA => spA
+
+         allocate ( self % Q  ( 0 : self % spA % N , NCONS )  ) 
+         allocate ( self % W  ( 0 : self % spA % N , NPRIM )  ) 
+         allocate ( self % F  ( 0 : self % spA % N , NCONS )  ) 
+#ifdef NAVIER_STOKES
+         allocate ( self % dQ ( 0 : self % spA % N , NDIM  , NGRAD ) ) 
+#endif
+
+      end subroutine BoundaryData_Initialize
 
 end module QuadElementClass

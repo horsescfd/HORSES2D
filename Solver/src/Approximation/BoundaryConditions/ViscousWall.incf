@@ -116,37 +116,37 @@
          select type ( edge ) 
             type is (StraightBdryEdge_t)
    
-               edge % uB(0 : N , IRHO)  =  edge % Q(0 : N , IRHO  , 1)
-               edge % uB(0 : N , IRHOU) = -edge % Q(0 : N , IRHOU , 1)
-               edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
-               edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
+               edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
+               edge % uB(0 : N , IRHOU) = -edge % storage(1) % Q(0 : N , IRHOU)
+               edge % uB(0 : N , IRHOV) = -edge % storage(1) % Q(0 : N , IRHOV)
+               edge % uB(0 : N , IRHOE) =  edge % storage(1) % Q(0 : N , IRHOE)
 
-               edge % wB(0 : N , IU) = - edge % W(0:N,IU,1)
-               edge % wB(0 : N , IV) = - edge % W(0:N,IV,1) 
+               edge % wB(0 : N , IU) = - edge % storage(1) % W(0:N,IU)
+               edge % wB(0 : N , IV) = - edge % storage(1) % W(0:N,IV) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % W(0:N , IT , 1)
+                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % storage(1) % W(0:N , IT)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % wB( 0 : N , IT ) = edge % W( 0 : N , IT , 1 )
+                  edge % wB( 0 : N , IT ) = edge % storage(1) % W( 0 : N , IT)
 
                end if
 
             type is (CurvedBdryEdge_t)
 
-               edge % uB(0 : N , IRHO)  =  edge % Q(0 : N , IRHO  , 1)
-               edge % uB(0 : N , IRHOU) = -edge % Q(0 : N , IRHOU , 1)
-               edge % uB(0 : N , IRHOV) = -edge % Q(0 : N , IRHOV , 1)
-               edge % uB(0 : N , IRHOE) =  edge % Q(0 : N , IRHOE , 1)
-      
-               edge % wB(0 : N , IU) = - edge % W(0:N,IU,1)
-               edge % wB(0 : N , IV) = - edge % W(0:N,IV,1) 
+               edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
+               edge % uB(0 : N , IRHOU) = -edge % storage(1) % Q(0 : N , IRHOU)
+               edge % uB(0 : N , IRHOV) = -edge % storage(1) % Q(0 : N , IRHOV)
+               edge % uB(0 : N , IRHOE) =  edge % storage(1) % Q(0 : N , IRHOE)
+
+               edge % wB(0 : N , IU) = - edge % storage(1) % W(0:N,IU)
+               edge % wB(0 : N , IV) = - edge % storage(1) % W(0:N,IV) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % W(0:N , IT , 1)
+                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % storage(1) % W(0:N , IT)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % wB( 0 : N , IT ) = edge % W( 0 : N , IT , 1 )
+                  edge % wB( 0 : N , IT ) = edge % storage(1) % W( 0 : N , IT)
 
                end if
 
@@ -186,27 +186,28 @@
          select type ( edge ) 
             type is (StraightBdryEdge_t)
    
-               edge % gB(0:N , 1:NDIM , IGU) = edge % dQ(0 : N , 1:NDIM , IGU , 1)
-               edge % gB(0:N , 1:NDIM , IGV) = edge % dQ(0 : N , 1:NDIM , IGV , 1)
+               edge % gB(0:N , 1:NDIM , IGU) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGU)
+               edge % gB(0:N , 1:NDIM , IGV) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGV)
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
 
                end if
 
             type is (CurvedBdryEdge_t)
 
-               edge % gB(0:N , 1:NDIM , IGU) = edge % dQ(0 : N , 1:NDIM , IGU , 1)
-               edge % gB(0:N , 1:NDIM , IGV) = edge % dQ(0 : N , 1:NDIM , IGV , 1)
+
+               edge % gB(0:N , 1:NDIM , IGU) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGU)
+               edge % gB(0:N , 1:NDIM , IGV) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGV)
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % dQ( 0:N , 1:NDIM , IGT , 1 )
+                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
 
                end if
 

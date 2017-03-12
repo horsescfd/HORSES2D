@@ -160,13 +160,13 @@ module ChecksModule
                   dSe = - e % edges(EBOTTOM) % f % dS(iX:iY , e % spA % N : 0 : -1 )
                end if
                
-               if ( maxval(abs(dSx - dSe(iX,:) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,:) ) )
+               if ( maxval(abs(dSx - dSe(iX,0:e % spA % N) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(iX,0:e % spA % N) ) )
                   current = eID
                   location = EBOTTOM
                end if
-               if (  maxval(abs(dSy - dSe(iY,:) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,:) ) )
+               if (  maxval(abs(dSy - dSe(iY,0:e % spA % N) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(iY,0:e % spA % N) ) )
                   current = eID 
                   location = EBOTTOM
                end if
@@ -182,13 +182,13 @@ module ChecksModule
                   dSe = - e % edges(ERIGHT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
                end if
                
-               if ( maxval(abs(dSx - dSe(iX,:) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,:) ) )
+               if ( maxval(abs(dSx - dSe(iX,0:e % spA % N) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(iX,0:e % spA % N) ) )
                   current = eID
                   location = ERIGHT
                end if
-               if (  maxval(abs(dSy - dSe(iY,:) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,:) ) )
+               if (  maxval(abs(dSy - dSe(iY,0:e % spA % N) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(iY,e % spA % N: 0 : -1) ) )
                   current = eID 
                   location = ERIGHT
                end if              
@@ -199,9 +199,9 @@ module ChecksModule
                dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
 
                if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
-                  dSe = e % edges(ETOP) % f % dS 
+                  dSe(IX:IY,0:e % spA % N) = e % edges(ETOP) % f % dS(IX:IY,0 : e % spA % N) 
                else
-                  dSe = - e % edges(ETOP) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+                  dSe(IX:IY,0:e % spA % N) = - e % edges(ETOP) % f % dS(iX:iY , e % spA % N : 0 : -1 )
                end if
                
                if ( maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) .gt. error ) then
@@ -221,13 +221,13 @@ module ChecksModule
                dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
 
                if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
-                  dSe = e % edges(ELEFT) % f % dS 
+                  dSe(IX:IY,0:e % spA % N) = e % edges(ELEFT) % f % dS(IX:IY , 0 : e % spA % N )
                else
-                  dSe = - e % edges(ELEFT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+                  dSe(IX:IY,0:e % spA % N) = - e % edges(ELEFT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
                end if
                
-               if ( maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) 
+               if ( maxval(abs(dSx - dSe(IX,e % spA % N : 0 : -1) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,e % spA % N : 0 : -1) )) 
                   current = eID
                   location = ELEFT
                end if
@@ -291,7 +291,12 @@ module ChecksModule
           do edID = 1 , mesh % no_of_edges
             do quad = 1 , size(mesh % edges(edID) % f % quads)
                do iXi = 0 , mesh % edges(edID) % f % spA % N
-                  currentError = norm2( mesh % edges(edID) % f % Q(iXi,:,quad) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+                  if ( mesh % edges(edID) % f % transform(quad) ) then 
+                     currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+                  else
+                     currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+
+                  end if
 
                   if (currentError .gt. error) then
                      error = currentError

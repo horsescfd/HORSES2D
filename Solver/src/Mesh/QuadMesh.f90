@@ -162,6 +162,7 @@ module QuadMeshClass
              integer                                  :: edge
              integer                                  :: eID
              integer                                  :: el1 , el2 , elb
+             integer                                  :: polynomialOrder
              integer                                  :: curve
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              class(QuadElement_t), pointer            :: leftE , rightE , bdryE
@@ -183,7 +184,6 @@ module QuadMeshClass
                  call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
 
              end do
-
 !
 !            ================
 !            Construct edges
@@ -200,11 +200,28 @@ module QuadMeshClass
                else
                   curvilinear = .false.
                end if
+!
+!              Get its generic polynomial order: The largest within the neighbouring elements
+!              ------------------------------------------------------------------------------
+               if ( meshFile % elements_of_edges(1,edge) .eq. -1 ) then
+                  polynomialOrder = self % elements( meshFile % elements_of_edges(2,edge) ) % spA % N
+            
+               elseif ( meshFile % elements_of_edges(2,edge) .eq. -1 ) then
+                  polynomialOrder = self % elements( meshFile % elements_of_edges(1,edge) ) % spA % N
 
-               call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , &
+               else
+                  polynomialOrder = self % elements( meshFile % elements_of_edges(1,edge) ) % spA % N
+                  polynomialOrder = max ( polynomialOrder , self % elements( meshFile % elements_of_edges(2,edge) ) % spA % N )
+
+               end if
+
+               call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , N = polynomialOrder , &
                                                 nodes = nodes , edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
-
+!
+!              *********************
                if (curvilinear) then
+!              *********************
+!
 !
             
 !              Add the curve to the edge
@@ -483,13 +500,13 @@ elloop:     do eID = 1 , self % no_of_elements
 
 
                   type is (Edge_t)
-                     localJumps = maxval( abs ( f % Q(0:N,1:NCONS,LEFT) - f % Q(0:N,1:NCONS,RIGHT) ) )
+                     localJumps = maxval( abs ( f % storage(LEFT) % Q(0:N,1:NCONS) - f % storage(RIGHT) % Q(0:N,1:NCONS) ) )
    
                   type is (StraightBdryEdge_t)
-                     localJumps = maxval( abs ( f % Q(0:N,1:NCONS,1) - f % uB(0:N,1:NCONS) ) ) 
+                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
 
                   type is (CurvedBdryEdge_t)
-                     localJumps = maxval( abs ( f % Q(0:N,1:NCONS,1) - f % uB(0:N,1:NCONS) ) ) 
+                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
    
                end select
                end associate

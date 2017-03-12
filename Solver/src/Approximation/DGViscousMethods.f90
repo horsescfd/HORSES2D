@@ -228,6 +228,7 @@ module DGViscousMethods
 !           sides of the face
 !        **********************************************************************
 !
+         use QuadMeshDefinitions
          implicit none
          class(ViscousMethod_t)        :: self
          class(Edge_t)          :: edge
@@ -240,25 +241,26 @@ module DGViscousMethods
 
             type is (Edge_t)
 
-               do side = 1 , 2
-                  edge % F ( 0:N , 1:NCONS , side ) = ViscousNormalFlux( N , edge % w(0:N , 1:NPRIM , side) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , side) , edge % dS )
-
+               do side = 1 , QUADS_PER_EDGE
+                  associate ( Ni => edge % storage(side) % spA % N )
+                  edge % storage(side) % F ( 0:Ni , 1:NCONS ) = ViscousNormalFlux( Ni , edge % storage(side) % w(0:Ni , 1:NPRIM) , edge % storage(side) % dQ(0:Ni , 1:NDIM , 1:NGRAD ) , edge % dS(IX:IY,0:Ni) )
+                  end associate
                end do
 
             type is (StraightBdryEdge_t)
-               edge % F ( 0:N , 1:NCONS , 1 ) = ViscousNormalFlux( N , edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS )
+               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS )
 
             type is (CurvedBdryEdge_t)
-               edge % F ( 0:N , 1:NCONS , 1 ) = ViscousNormalFlux( N , edge % w(0:N , 1:NPRIM , 1) , edge % dQ(0:N , 1:NDIM , 1:NGRAD , 1) , edge % dS)
+               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS)
 
          end select
 
          end associate
 
-
       end subroutine BaseClass_ComputeFaceFluxes
 
       function BaseClass_IntercellFlux ( self , edge ) result ( Fstar )
+         use MatrixOperations
          implicit none
          class(ViscousMethod_t) :: self
          class(Edge_t)      :: edge
@@ -274,7 +276,7 @@ module DGViscousMethods
 
                associate( N => edge % spA % N )
 
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
 
                end associate
 !               
@@ -283,7 +285,7 @@ module DGViscousMethods
 
                associate( N => edge % spA % N )
 
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , 1 ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
+               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
 
                end associate
 !
@@ -292,7 +294,16 @@ module DGViscousMethods
       
                associate( N => edge % spA % N )
 
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % F(0:N , 1:NCONS , LEFT ) + edge % F( 0:N , 1:NCONS , RIGHT ) ) 
+               if ( edge % transform(LEFT) ) then
+                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS ) ) 
+
+               elseif ( edge % transform(RIGHT) ) then
+                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(LEFT) % F( 0:N , 1:NCONS ) ) 
+
+               else
+                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(LEFT) % F(0:N , 1:NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS) ) 
+
+               end if
 
                end associate
 !
@@ -313,33 +324,67 @@ module DGViscousMethods
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
      subroutine IP_dQFaceLoop( self , edge ) 
+         use MatrixOperations
          implicit none
-         class(IPMethod_t)             :: self
-         class(Edge_t)                  :: edge
-         real(kind=RP)                  :: ustar(0:edge % spA % N,1:NGRAD)
-         integer, parameter             :: dimensions(3) = [IU,IV,IT]
+         class(IPMethod_t)  :: self
+         class(Edge_t)      :: edge
+         real(kind=RP)      :: ustar(0:edge % spA % N,1:NGRAD)
+         real(kind=RP)      :: uStarLow(0:edge % Nlow , 1:NGRAD)
          
          associate ( N => edge % spA % N ) 
         
          select type ( edge ) 
 
             type is ( Edge_t ) 
+      
+               if ( edge % transform(LEFT) ) then
+                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
+                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
+                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
 
-               uStar = 0.5_RP * sum(edge % W(0:N,dimensions,1:NDIM) , dim = 3)
+                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
+                  end associate
                
-               associate ( dQ => edge % quads(LEFT) % e % dQ )
-                  dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-               end associate
+                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+                  end associate
+
+               elseif ( edge % transform(RIGHT) ) then
+                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
+                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
+                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
+
+                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+                  end associate
                
-               associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                  dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-               end associate
+                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
+                  end associate
+
+               else
+                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
+                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
+                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
+
+                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+                  end associate
+
+                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+                  end associate
+
+               end if
+               
 
             type is ( StraightBdryEdge_t )
-
-               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
+               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
          
                associate ( dQ => edge % quads(1) % e % dQ ) 
 
@@ -362,9 +407,9 @@ module DGViscousMethods
    
             type is ( CurvedBdryEdge_t )
 
-               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
+               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
 
                associate ( dQ => edge % quads(1) % e % dQ )
 
@@ -445,6 +490,7 @@ module DGViscousMethods
          class(Edge_t)     :: edge
 !        -------------------------------------------------------
          real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
+         real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
 
          associate ( N => edge % spA % N )
 !
@@ -468,26 +514,49 @@ module DGViscousMethods
 !
 !              Compute the penalty term
 !              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % Q(0:N,1:NCONS,LEFT) - edge % Q(0:N,1:NCONS,RIGHT))
-!
-!              The obtained term is added to the LEFT element
-!              ----------------------------------------------
-               associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + BR1_QDotFaceContribution( edge , LEFT , Fstar )
-               end associate
-!
-!              The obtained term is substracted to the RIGHT element
-!              -----------------------------------------------------
-               associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
-                  QDot = QDot - BR1_QDotFaceContribution( edge , RIGHT , Fstar )
-               end associate
+               if ( edge % transform(LEFT) ) then
+                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) - edge % storage(RIGHT) % Q(0:N,1:NCONS))
+
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
+                  end associate
+
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+                  end associate
+
+               elseif ( edge % transform(RIGHT) ) then
+                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) )
+
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+                  end associate
+
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
+                  end associate
+
+               else
+                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - edge % storage(RIGHT) % Q(0:N,1:NCONS) )
+
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+                  end associate
+
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+                  end associate
+
+               end if
 !
 !           --------------------------------------------------------------------------
             type is (StraightBdryEdge_t)
 !
 !              Compute the penalty term
 !              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % Q(0:N,1:NCONS,1) - edge % uB(0:N,1:NCONS))
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
 
                associate ( QDot => edge % quads(1) % e % QDot )
 
@@ -495,12 +564,12 @@ module DGViscousMethods
 !
 !                    If the normal points towards the domain exterior
 !                    ------------------------------------------------
-                     QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar )
+                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
                   else
 !
 !                    If the normal points towards the domain interior
 !                    ------------------------------------------------
-                     QDot = QDot - BR1_QDotFaceContribution( edge , 1 , Fstar )
+                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
                   end if
                
                end associate
@@ -510,13 +579,13 @@ module DGViscousMethods
 !
 !              Compute the penalty term
 !              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % Q(0:N,1:NCONS,1) - edge % uB(0:N,1:NCONS))
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
 
                associate ( QDot => edge % quads(1) % e % QDot )
 !
 !                 The normal for curved elements always points towards the domain exterior
 !                 ------------------------------------------------------------------------
-                  QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar ) 
+                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
                end associate
 !
 !           --------------------------------------------------------------------------
@@ -581,33 +650,68 @@ module DGViscousMethods
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
      subroutine BR1_dQFaceLoop( self , edge ) 
+         use MatrixOperations
          implicit none
          class(BR1Method_t)             :: self
          class(Edge_t)                  :: edge
          real(kind=RP)                  :: ustar(0:edge % spA % N,1:NGRAD)
+         real(kind=RP)                  :: uStarLow(0:edge % NLow,1:NGRAD)
          integer, parameter             :: dimensions(3) = [IU,IV,IT]
-         
+
          associate ( N => edge % spA % N ) 
         
          select type ( edge ) 
 
             type is ( Edge_t ) 
+      
+               if ( edge % transform(LEFT) ) then
+                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
+                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
+                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
 
-               uStar = 0.5_RP * sum(edge % W(0:N,dimensions,1:NDIM) , dim = 3)
+                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
+                  end associate
                
-               associate ( dQ => edge % quads(LEFT) % e % dQ )
-                  dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-               end associate
+                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+                  end associate
+
+               elseif ( edge % transform(RIGHT) ) then
+                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
+                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
+                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
+
+                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+                  end associate
                
-               associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                  dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-               end associate
+                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
+                  end associate
+
+               else
+                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
+                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
+                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
+
+                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+                  end associate
+
+                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+                  end associate
+
+               end if
+               
 
             type is ( StraightBdryEdge_t )
-
-               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
+               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
          
                associate ( dQ => edge % quads(1) % e % dQ ) 
 
@@ -630,9 +734,9 @@ module DGViscousMethods
    
             type is ( CurvedBdryEdge_t )
 
-               uStar(0:N,IGU) = 0.5_RP * ( edge % W(0:N,IU,1) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % W(0:N,IV,1) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % W(0:N,IT,1) + edge % wB(0:N,IT) )
+               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
 
                associate ( dQ => edge % quads(1) % e % dQ )
 
@@ -714,6 +818,7 @@ module DGViscousMethods
          class(Edge_t)     :: edge
 !        -------------------------------------------------------
          real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
+         real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
 
          associate ( N => edge % spA % N )
 !
@@ -734,18 +839,40 @@ module DGViscousMethods
 !
 !           --------------------------------------------------------------------------
             type is (Edge_t)
-!
-!              The obtained term is added to the LEFT element
-!              ----------------------------------------------
-               associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + BR1_QDotFaceContribution( edge , LEFT , Fstar )
-               end associate
-!
-!              The obtained term is substracted to the RIGHT element
-!              -----------------------------------------------------
-               associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
-                  QDot = QDot - BR1_QDotFaceContribution( edge , RIGHT , Fstar )
-               end associate
+
+               if ( edge % transform(LEFT) ) then
+
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
+                  end associate
+
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+                  end associate
+
+               elseif ( edge % transform(RIGHT) ) then
+
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+                  end associate
+
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
+                  end associate
+
+               else
+
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+                  end associate
+
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+                  end associate
+
+               end if
 !
 !           --------------------------------------------------------------------------
             type is (StraightBdryEdge_t)
@@ -756,12 +883,12 @@ module DGViscousMethods
 !
 !                    If the normal points towards the domain exterior
 !                    ------------------------------------------------
-                     QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar )
+                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
                   else
 !
 !                    If the normal points towards the domain interior
 !                    ------------------------------------------------
-                     QDot = QDot - BR1_QDotFaceContribution( edge , 1 , Fstar )
+                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
                   end if
                
                end associate
@@ -773,7 +900,7 @@ module DGViscousMethods
 !
 !                 The normal for curved elements always points towards the domain exterior
 !                 ------------------------------------------------------------------------
-                  QDot = QDot + BR1_QDotFaceContribution( edge , 1 , Fstar ) 
+                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
                end associate
 !
 !           --------------------------------------------------------------------------
@@ -843,11 +970,11 @@ module DGViscousMethods
          implicit none
          class(Edge_t)              :: edge
          integer                    :: loc
-         real(kind=RP)              :: ustar(0:,:)
-         real(kind=RP)              :: duF(0:edge % spA % N,0:edge % spA % N,1:NDIM,1:NGRAD)
+         real(kind=RP)              :: ustar(0:edge % storage(loc) % spA % N,1:NGRAD)
+         real(kind=RP)              :: duF(0:edge % storage(loc) % spA % N,0:edge % storage(loc) % spA % N,1:NDIM,1:NGRAD)
 !        ---------------------------------------------------------------------
-         real(kind=RP)          :: uTimesW(0:edge % spA % N,1:NGRAD)
-         real(kind=RP)          :: auxdS(1:NDIM,0:edge % spA % N)
+         real(kind=RP)          :: uTimesW(0:edge % storage(loc) % spA % N,1:NGRAD)
+         real(kind=RP)          :: auxdS(1:NDIM,0:edge % storage(loc) % spA % N)
          real(kind=RP), pointer :: lj(:)
          integer                :: direction
          integer                :: pos
@@ -866,10 +993,10 @@ module DGViscousMethods
                index = iX                     ! The coordinate (xi/eta) in which the boundary is located
                
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 )
+                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 )
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
 
                else
@@ -884,10 +1011,10 @@ module DGViscousMethods
                index = iY
    
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1) 
+                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1) 
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 ) 
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
                else
                   print*, "Direction not forward nor backward"
@@ -901,10 +1028,10 @@ module DGViscousMethods
                index = iX
    
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1 ) 
+                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1)  
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
                else
                   print*, "Direction not forward nor backward"
@@ -918,10 +1045,10 @@ module DGViscousMethods
                index = iY
    
                if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1)  
+                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
                   auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
                elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , edge % spA % w , N+1 , NGRAD , 1)  
+                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
                   auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
                else
                   print*, "Direction not forward nor backward"
@@ -953,7 +1080,7 @@ module DGViscousMethods
 
       end function dQFaceContribution
 
-      function BR1_QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
+      function QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
 !
 !        *************************************************************************************
 !           This subroutine computes the following integral
@@ -991,8 +1118,8 @@ module DGViscousMethods
          implicit none
          class(Edge_t)              :: edge
          integer                    :: loc
-         real(kind=RP)              :: Fstar(0:,:)
-         real(kind=RP)              :: dFJ(0:edge % spA % N,0:edge % spA % N,1:NCONS)
+         real(kind=RP)              :: Fstar(0:edge % storage(loc) % spA % N,1:NCONS)
+         real(kind=RP)              :: dFJ(0:edge % storage(loc) % spA % N,0:edge % storage(loc) % spA % N,1:NCONS)
 !        ---------------------------------------------------------------------
          real(kind=RP), allocatable         :: Fstar2D(:,:,:)
          real(kind=RP), pointer             :: lj2D(:,:)
@@ -1141,7 +1268,7 @@ module DGViscousMethods
 
          end associate
 
-      end function BR1_QDotFaceContribution
+      end function QDotFaceContribution
 
 
       subroutine ViscousMethod_describe( self )

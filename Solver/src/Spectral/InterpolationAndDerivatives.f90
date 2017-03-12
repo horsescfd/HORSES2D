@@ -1,4 +1,4 @@
-!
+
 !////////////////////////////////////////////////////////////////////////
 !
 !      Interpolation.F95
@@ -320,6 +320,9 @@
 !!    Compute the matrix T that transforms between the old set of nodes
 !!    to the new set.
 !!          Fi = Tij Fj -> T = Tij
+!
+!           -> N: old nodes size
+!           -> M: new nodes size
 !     ------------------------------------------------------------------
 !
       SUBROUTINE PolynomialInterpolationMatrix( N, M, oldNodes, weights, newNodes, T)
