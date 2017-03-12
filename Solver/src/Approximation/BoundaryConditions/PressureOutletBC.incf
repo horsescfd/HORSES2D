@@ -8,19 +8,21 @@
       subroutine PressureOutletBC_Construct( self , marker , in_label)
          use Setup_class
          implicit none
-         class(PressureOutletBC_t)      :: self
-         integer                   :: marker
-         character(len=*)          :: in_label
-         real(kind=RP), allocatable             :: pressure
-         real(kind=RP), allocatable         :: Temperature
-         real(kind=RP), allocatable         :: Mach
-         real(kind=RP), allocatable         :: AngleOfAttack
-         real(kind=RP)                          :: rho
+         class(PressureOutletBC_t)  :: self
+         integer                    :: marker
+         character(len=*)           :: in_label
+         character(len=STR_LEN_BC)  :: outflowType
+         real(kind=RP), allocatable :: pressure
+         real(kind=RP), allocatable :: Temperature
+         real(kind=RP), allocatable :: Mach
+         real(kind=RP), allocatable :: AngleOfAttack
+         real(kind=RP)              :: rho
 
          call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Outflow type" , outflowType , in_label , "# end")
          
          if ( allocated(pressure) ) then
             pressure = pressure / refValues % p
@@ -46,6 +48,17 @@
          else
             allocate(AngleOfAttack)
             AngleOfAttack = 0.0_RP
+         end if
+   
+         if ( trim(outflowType) .eq. "Reflective" ) then
+            self % outflowType = REFLECTIVE_OUTFLOW
+
+         elseif ( trim(outflowType) .eq. "Partially non reflective" ) then
+            self % outflowType = PARTIALLY_NON_REFLECTIVE_OUTFLOW
+
+         else        ! Default: Partially non reflective
+            self % outflowType = PARTIALLY_NON_REFLECTIVE_OUTFLOW
+
          end if
 !
 !        Construct the state vector
@@ -79,12 +92,12 @@
       
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) )
                
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
-
+         
+               edge % wB(0:,1:)    => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
 #endif
@@ -92,12 +105,12 @@
    
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) )
 
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
+               edge % wB(0:,1:)    => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
 #endif
@@ -118,7 +131,7 @@
          real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty , ptInfty , TtInfty
          real(kind=RP)              :: acoef , bcoef , ccoef , Ht
          real(kind=RP)              :: nInfty(NDIM)
-         real(kind=RP)              :: Rminus , Rplus
+         real(kind=RP)              :: Rminus , Rplus , R0
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a Outflow boundary
@@ -165,10 +178,23 @@
                      edge % uB(iXi , 1:NCONS)  = self % q
                
                   elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
-                     pR = pInfty
-                     uR = abs(vnL) * nInfty(IX)
-                     vR = abs(vnL) * nInfty(IY)
-                     rhoR = pR / TL 
+                     if ( self % outflowType .eq. REFLECTIVE_OUTFLOW ) then
+                        R0 = pL - aL * aL * rhoL
+                        Rplus = vnL + 2.0_RP * dimensionless % cv * aL
+                        rhoR = -(R0 - pInfty) / (aL*aL)
+                        aR  = sqrt(gamma * pInfty / rhoR )
+                        vnR = Rplus - 2.0_RP * aR * dimensionless % cv
+                        uR = uL + (vnR - vnL) * edge % n(IX,iXi)
+                        vR = vL + (vnR - vnL) * edge % n(IY,iXi)
+                        pR = pInfty
+                     
+                     elseif ( self % outflowType .eq. PARTIALLY_NON_REFLECTIVE_OUTFLOW ) then
+                        pR = pInfty
+                        uR = abs(vnL) * nInfty(IX)
+                        vR = abs(vnL) * nInfty(IY)
+                        rhoR = pR / TL 
+
+                     end if
 
                      edge % uB(iXi , IRHO) = rhoR
                      edge % uB(iXi , IRHOU) = rhoR * uR
@@ -176,25 +202,24 @@
                      edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
-!                      Rplus = vnL + 2.0_RP * aL * Dimensionless % cv
-!                      pR = pInfty
-!                      rhoR = rhoL + (pR-pL) / (aL*aL)
-!                      aR = sqrt(gamma*pR/rhoR)
-!                      vnR = Rplus - 2.0_RP * aR * Dimensionless % cv
-!                      uR = uL + (vnR - vnL) * edge % n(IX,iXi)
-!                      vR = vL + (vnR - vnL) * edge % n(IY,iXi)
-!
-!                     V1.0
-!                     pR = pInfty
-!                     uR = uL + edge % n(IX,iXi) * (pL - pR) / (rhoL * aL)
-!                     vR = vL + edge % n(IY,iXi) * (pL - pR) / (rhoL * aL)
-!                     rhoR = rhoL + (pR - pL)/(aL*aL)
-!        
-!                     V2.0
-                      pR = 2.0_RP * pInfty - pL
-                      uR = uL
-                      vR = vL
-                      rhoR = rhoL
+
+                      if ( self % outflowType .eq. REFLECTIVE_OUTFLOW ) then
+                        R0 = pL - aL * aL * rhoL
+                        Rplus = vnL + 2.0_RP * dimensionless % cv * aL
+                        rhoR = -(R0 - pInfty) / (aL*aL)
+                        aR  = sqrt(gamma * pInfty / rhoR )
+                        vnR = Rplus - 2.0_RP * aR * dimensionless % cv
+                        uR = uL + (vnR - vnL) * edge % n(IX,iXi)
+                        vR = vL + (vnR - vnL) * edge % n(IY,iXi)
+                        pR = pInfty
+
+                      elseif ( self % outflowType .eq. PARTIALLY_NON_REFLECTIVE_OUTFLOW ) then
+                        pR = 2.0_RP * pInfty - pL
+                        uR = uL
+                        vR = vL
+                        rhoR = rhoL
+
+                      end if
 
 
                      edge % uB(iXi , IRHO) = rhoR
@@ -208,15 +233,6 @@
                   end if
 
                end do 
-!
-!              Get the primitive variables
-!              ---------------------------               
-               edge % wB(0:N,IRHO) = edge % uB(0:N,IRHO)
-               edge % wB(0:N,IU)   = edge % uB(0:N,IRHOU) / edge % uB(0:N,IRHO)
-               edge % wB(0:N,IV)   = edge % uB(0:N,IRHOV) / edge % uB(0:N,IRHO)
-               edge % wB(0:N,IP)   = thermodynamics % gm1 * ( edge % uB(0:N,IRHOE) - 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % wB(0:N,IU) + edge % uB(0:N,IRHOV) * edge % wB(0:N,IV) ) )
-               edge % wB(0:N,IT)   = edge % wB(0:N,IP) / edge % wB(0:N,IRHO)
-               edge % wB(0:N,IA)   = sqrt( thermodynamics % gamma * edge % wB(0:N,IT) )
 
             type is (CurvedBdryEdge_t) 
 
@@ -239,26 +255,54 @@
                      edge % uB(iXi , 1:NCONS)  = self % q
                
                   elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
-                     pR = pInfty
-                     uR = abs(vnL) * nInfty(IX)
-                     vR = abs(vnL) * nInfty(IY)
-                     rhoR = pR / TL 
+                     if ( self % outflowType .eq. REFLECTIVE_OUTFLOW ) then
+                        R0 = pL - aL * aL * rhoL
+                        Rplus = vnL + 2.0_RP * dimensionless % cv * aL
+                        rhoR = -(R0 - pInfty) / (aL*aL)
+                        aR  = sqrt(gamma * pInfty / rhoR )
+                        vnR = Rplus - 2.0_RP * aR * dimensionless % cv
+                        uR = uL + (vnR - vnL) * edge % n(IX,iXi)
+                        vR = vL + (vnR - vnL) * edge % n(IY,iXi)
+                        pR = pInfty
+                     
+                     elseif ( self % outflowType .eq. PARTIALLY_NON_REFLECTIVE_OUTFLOW ) then
+                        pR = pInfty
+                        uR = abs(vnL) * nInfty(IX)
+                        vR = abs(vnL) * nInfty(IY)
+                        rhoR = pR / TL 
 
-                     edge % uB(iXi , IRHO)  = rhoR
+                     end if
+
+                     edge % uB(iXi , IRHO) = rhoR
                      edge % uB(iXi , IRHOU) = rhoR * uR
                      edge % uB(iXi , IRHOV) = rhoR * vR
-                     edge % uB(iXi , IRHOE) = cv   * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
                      
                   elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
-                     pR = pInfty
-                     uR = uL + edge % n(IX,iXi) * (pL - pR) / (rhoL * aL)
-                     vR = vL + edge % n(IY,iXi) * (pL - pR) / (rhoL * aL)
-                     rhoR = rhoL + (pR - pL)/(aL*aL)
 
-                     edge % uB(iXi , IRHO)  = rhoR
+                      if ( self % outflowType .eq. REFLECTIVE_OUTFLOW ) then
+                        R0 = pL - aL * aL * rhoL
+                        Rplus = vnL + 2.0_RP * dimensionless % cv * aL
+                        rhoR = -(R0 - pInfty) / (aL*aL)
+                        aR  = sqrt(gamma * pInfty / rhoR )
+                        vnR = Rplus - 2.0_RP * aR * dimensionless % cv
+                        uR = uL + (vnR - vnL) * edge % n(IX,iXi)
+                        vR = vL + (vnR - vnL) * edge % n(IY,iXi)
+                        pR = pInfty
+
+                      elseif ( self % outflowType .eq. PARTIALLY_NON_REFLECTIVE_OUTFLOW ) then
+                        pR = 2.0_RP * pInfty - pL
+                        uR = uL
+                        vR = vL
+                        rhoR = rhoL
+
+                      end if
+
+
+                     edge % uB(iXi , IRHO) = rhoR
                      edge % uB(iXi , IRHOU) = rhoR * uR
                      edge % uB(iXi , IRHOV) = rhoR * vR
-                     edge % uB(iXi , IRHOE) = cv   * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
                      edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
@@ -266,15 +310,6 @@
                   end if
 
                end do 
-!
-!              Get the primitive variables
-!              ---------------------------               
-               edge % wB(0:N,IRHO) = edge % uB(0:N,IRHO)
-               edge % wB(0:N,IU)   = edge % uB(0:N,IRHOU) / edge % uB(0:N,IRHO)
-               edge % wB(0:N,IV)   = edge % uB(0:N,IRHOV) / edge % uB(0:N,IRHO)
-               edge % wB(0:N,IP)   = thermodynamics % gm1 * ( edge % uB(0:N,IRHOE) - 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % wB(0:N,IU) + edge % uB(0:N,IRHOV) * edge % wB(0:N,IV) ) )
-               edge % wB(0:N,IT)   = edge % wB(0:N,IP) / edge % wB(0:N,IRHO)
-               edge % wB(0:N,IA)   = sqrt( thermodynamics % gamma * edge % wB(0:N,IT) )
 
             class default
 

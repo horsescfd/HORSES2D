@@ -125,7 +125,7 @@
                edge % wB(0 : N , IV) = - edge % W(0:N,IV,1) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % wB( 0:N , IT ) = self % Tw
+                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % W(0:N , IT , 1)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
                   edge % wB( 0 : N , IT ) = edge % W( 0 : N , IT , 1 )
@@ -143,7 +143,7 @@
                edge % wB(0 : N , IV) = - edge % W(0:N,IV,1) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % wB( 0:N , IT ) = self % Tw
+                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % W(0:N , IT , 1)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
                   edge % wB( 0 : N , IT ) = edge % W( 0 : N , IT , 1 )

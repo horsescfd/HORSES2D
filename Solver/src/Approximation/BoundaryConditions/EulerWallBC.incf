@@ -20,12 +20,12 @@
             type is (StraightBdryEdge_t)
                allocate( edge % FB(0:N,NCONS) )
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) )
 
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
 !
 !              Gradients are computed from the interior
@@ -36,13 +36,12 @@
             type is (CurvedBdryEdge_t)
                allocate( edge % FB(0:N,NCONS) )
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) )
 
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
-               
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
 !
 !              Gradients are computed from the interior
@@ -99,13 +98,6 @@
                   edge % uB(iXi,IRHOV) = edge % Q(iXi,IRHOV,1) - 2.0_RP * rhovn * edge % n(IY,iXi)
                   edge % uB(iXi,IRHOE) = edge % Q(iXi,IRHOE,1)
 
-                  edge % wB(iXi,IRHO) = edge % Q(iXi,IRHO,1)
-                  edge % wB(iXi,IU  ) = edge % uB(iXi,IRHOU) / edge % Q(iXi,IRHO,1)
-                  edge % wB(iXi,IV  ) = edge % uB(iXi,IRHOV) / edge % Q(iXi,IRHO,1)
-                  edge % wB(iXi,IP  ) = p
-                  edge % wB(iXi,IT  ) = p / edge % wB(iXi,IRHO)
-                  edge % wB(iXi,IA  ) = sqrt(gamma * edge % wB(iXi,IT) )
-
                end do
                   
          
@@ -138,13 +130,6 @@
                   edge % uB(iXi,IRHOU) = edge % Q(iXi,IRHOU,1) - 2.0_RP * rhovn * edge % n(IX,iXi)
                   edge % uB(iXi,IRHOV) = edge % Q(iXi,IRHOV,1) - 2.0_RP * rhovn * edge % n(IY,iXi)
                   edge % uB(iXi,IRHOE) = edge % Q(iXi,IRHOE,1)
-
-                  edge % wB(iXi,IRHO) = edge % Q(iXi,IRHO,1)
-                  edge % wB(iXi,IU  ) = edge % uB(iXi,IRHOU) / edge % Q(iXi,IRHO,1)
-                  edge % wB(iXi,IV  ) = edge % uB(iXi,IRHOV) / edge % Q(iXi,IRHO,1)
-                  edge % wB(iXi,IP  ) = p
-                  edge % wB(iXi,IT  ) = p / edge % wB(iXi,IRHO)
-                  edge % wB(iXi,IA  ) = sqrt(gamma * edge % wB(iXi,IT) )
 
                end do
  

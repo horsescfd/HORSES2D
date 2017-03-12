@@ -75,11 +75,25 @@
             self % q(IRHOV) = rho * sqrt(gamma) * Mach * sin(AngleOfAttack)
             self % q(IRHOE) = cv * pressure + 0.5_RP * rho * gamma * Mach * Mach
 
+            self % w(IRHO)  = rho
+            self % w(IU) = dimensionless % sqrtGammaMach * cos(AngleOfAttack)
+            self % w(IV) = dimensionless % sqrtGammaMach * sin(AngleOfAttack)
+            self % w(IP) = pressure
+            self % w(IT) = pressure / rho
+            self % w(IA) = sqrt(gamma * self % w(IT))
+
          elseif ( self % mode .eq. SPECIFY_TOTAL_PRESSURE ) then
             self % q(IRHO)  = self % pt / self % Tt
             self % q(IRHOU) = 0.0_RP
             self % q(IRHOV) = 0.0_RP
             self % q(IRHOE) = cv * self % pt
+
+            self % w(IRHO)  = rho
+            self % w(IU) = 0.0_RP
+            self % w(IV) = 0.0_RP
+            self % w(IP) = pressure
+            self % w(IT) = pressure / rho
+            self % w(IA) = sqrt(gamma * self % w(IT))
          else
             print*, "Unknown mode"
             stop "Stopped."
@@ -111,18 +125,29 @@
       
             type is (StraightBdryEdge_t)
                allocate ( edge % FB(0:N,NCONS) ) 
-               
-               do i = 0 , N
-                  edge % FB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
-               end do
+               allocate ( edge % uB(0:N,NCONS) ) 
 
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+               edge % wB(0:,1:)    => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
    
             type is (CurvedBdryEdge_t)
                allocate ( edge % FB(0:N,NCONS) ) 
-               
-               do i = 0 , N
-                  edge % FB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
-               end do
+               allocate ( edge % uB(0:N,NCONS) ) 
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+               edge % wB(0:,1:)    => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
 
          end select
          end associate
@@ -141,15 +166,16 @@
          real(kind=RP)              :: nInfty(NDIM)
          real(kind=RP)              :: F(NCONS , NDIM)
          real(kind=RP)              :: q(NCONS)
+         real(kind=RP)              :: Rminus
 !
 
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp , cv => Dimensionless % cv)
 
          rhoInfty = self % q(IRHO)
-         uInfty   = self % q(IRHOU) / rhoInfty
-         vInfty   = self % q(IRHOV) / rhoInfty
-         pInfty   = gm1 * ( self % q(IRHOE) - 0.5_RP * self % q(IRHOU) * uInfty - 0.5_RP * self % q(IRHOV) * vInfty )
-         aInfty   = sqrt(gamma * pInfty / rhoInfty)
+         uInfty   = self % w(IU)
+         vInfty   = self % w(IV)
+         pInfty   = self % w(IP)
+         aInfty   = self % w(IA)
          nInfty   = [cos(self % AngleOfAttack) , sin(self % AngleOfAttack)]
          
 
@@ -161,13 +187,13 @@
 !
 !                 First stage: Determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % Q(iXi , IRHO , 1)
-                  uL  = edge % Q(iXi , IRHOU , 1) / rhoL
-                  vL  = edge % Q(iXi , IRHOV , 1) / rhoL
+                  rhoL = edge % W(iXi , IRHO , 1)
+                  uL  = edge % W(iXi , IU , 1) 
+                  vL  = edge % W(iXi , IV , 1) 
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = gm1 * ( edge % Q(iXi , IRHOE , 1) - 0.5_RP * edge % Q(iXi,IRHOU , 1) * uL - 0.5_RP * edge % Q(iXi,IRHOV , 1) * vL )
-                  aL  = sqrt( gamma * pL / rhoL ) 
-                  TL  = pL / rhoL
+                  pL  = edge % W(iXi , IP , 1)
+                  aL  = edge % W(iXi , IA , 1)
+                  TL  = edge % W(iXi , IT , 1)
                   ML  = vnL / aL
 
                   vnInfty = uInfty * edge % n (IX , iXi) + vInfty * edge % n(IY, iXi)
@@ -175,21 +201,25 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-
-                     F = inviscidFlux(self % q)
+                     q = self % q
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
-               
-                  elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
 
-                     self % Rminus = vnInfty - 2.0_RP * cv * aInfty
+                     edge % uB(iXi,1:NCONS) = q
+                     
+                  elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
+
+                     Rminus = vnInfty - 2.0_RP * cv * aInfty
                      Rplus = vnL + 2.0_RP * cv * aL
 
-                     vnR = 0.5_RP * (Rplus + self % Rminus)
-                     aR  = 0.25_RP * gm1 * (Rplus - self % Rminus)
-                     uR  = vnR * nInfty(IX)
-                     vR  = vnR * nInfty(IY)
-                     sR   = (aInfty*aInfty) / (gamma * (rhoInfty ** gm1) ) 
-                     rhoR = aR * aR / ( gamma * sR )
+                     vnR = 0.5_RP * (Rplus + Rminus)
+                     aR  = 0.25_RP * gm1 * (Rplus - Rminus)
+
+                     uR  = uInfty + (vnR - vninfty) * edge % n(IX , iXi)
+                     vR  = vInfty + (vnR - vninfty) * edge % n(IY , iXi)
+
+                     sR   = (aInfty*aInfty) * (rhoInfty ** (-gm1) )  / gamma
+                     rhoR = (aR * aR / ( gamma * sR ) ) ** (cv)
                      pR   = rhoR * aR * aR / gamma
                       
                      q(IRHO) = rhoR
@@ -199,52 +229,59 @@
 
                      F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
-                     
-                  elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
 
-                     self % Rminus = vnInfty - 2.0_RP * cv * aInfty
+                     edge % uB(iXi,1:NCONS) = q
+                     
+                  elseif ( ML .le. 1.0_RP ) then   ! Subsonic outflow
+
+                     Rminus = vnInfty - 2.0_RP * cv * aInfty
                      Rplus = vnL + 2.0_RP * cv * aL
 
-                     vnR = 0.5_RP * (Rplus + self % Rminus)
-                     aR  = 0.25_RP * gm1 * (Rplus - self % Rminus)
+                     vnR = 0.5_RP * (Rplus + Rminus)
+                     aR  = 0.25_RP * gm1 * (Rplus - Rminus)
    
                      uR = uL + (vnR - vnL) * edge % n(IX,iXi)
                      vR = vL + (vnR - vnL) * edge % n(IY,iXi)
 
-                     sR   = (aL*aL) / (gamma * (rhoL ** gm1) ) 
-                     rhoR = aR * aR / ( gamma * sR )
+                     sR   = (aL*aL) * (rhoL ** (-gm1) )  / gamma
+                     rhoR = (aR * aR / ( gamma * sR )) ** (cv)
                      pR   = rhoR * aR * aR / gamma
 
                      q(IRHO) = rhoR
-                     q(IRHOU) = rhoR * uR * uR
-                     q(IRHOV) = rhoR * vR * vR
-                     q(IRHOE) = cv * pR + 0.5_RP * (rhoR * uR * uR + rhoR * vR * vR )
+                     q(IRHOU) = rhoR * uR 
+                     q(IRHOV) = rhoR * vR 
+                     q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
+                     edge % uB(iXi,1:NCONS) = q
+                     
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-
-                     F = inviscidFlux(edge % Q(iXi,1:NCONS,1))
+                     q = edge % Q(iXi,1:NCONS,1)
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
-      
+
+                     edge % uB(iXi,1:NCONS) = q
+                     
                   end if
                
       
                end do 
 
             type is (CurvedBdryEdge_t) 
+
                do iXi = 0 , N
 !
 !                 First stage: Determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % Q(iXi , IRHO , 1)
-                  uL  = edge % Q(iXi , IRHOU , 1) / rhoL
-                  vL  = edge % Q(iXi , IRHOV , 1) / rhoL
+                  rhoL = edge % W(iXi , IRHO , 1)
+                  uL  = edge % W(iXi , IU , 1) 
+                  vL  = edge % W(iXi , IV , 1) 
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = gm1 * ( edge % Q(iXi , IRHOE , 1) - 0.5_RP * edge % Q(iXi,IRHOU , 1) * uL - 0.5_RP * edge % Q(iXi,IRHOV , 1) * vL )
-                  aL  = sqrt( gamma * pL / rhoL ) 
-                  TL  = pL / rhoL
+                  pL  = edge % W(iXi , IP , 1)
+                  aL  = edge % W(iXi , IA , 1)
+                  TL  = edge % W(iXi , IT , 1)
                   ML  = vnL / aL
 
                   vnInfty = uInfty * edge % n (IX , iXi) + vInfty * edge % n(IY, iXi)
@@ -252,21 +289,25 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-
-                     F = inviscidFlux(self % q)
+                     q = self % q
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
-               
-                  elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
 
-                     self % Rminus = vnInfty - 2.0_RP * cv * aInfty
+                     edge % uB(iXi,1:NCONS) = q
+                     
+                  elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
+
+                     Rminus = vnInfty - 2.0_RP * cv * aInfty
                      Rplus = vnL + 2.0_RP * cv * aL
 
-                     vnR = 0.5_RP * (Rplus + self % Rminus)
-                     aR  = 0.25_RP * gm1 * (Rplus - self % Rminus)
-                     uR  = vnR * nInfty(IX)
-                     vR  = vnR * nInfty(IY)
-                     sR   = (aInfty*aInfty) / (gamma * (rhoInfty ** gm1) ) 
-                     rhoR = aR * aR / ( gamma * sR )
+                     vnR = 0.5_RP * (Rplus + Rminus)
+                     aR  = 0.25_RP * gm1 * (Rplus - Rminus)
+
+                     uR  = uInfty + (vnR - vninfty) * edge % n(IX , iXi)
+                     vR  = vInfty + (vnR - vninfty) * edge % n(IY , iXi)
+
+                     sR   = (aInfty*aInfty) * (rhoInfty ** (-gm1) )  / gamma
+                     rhoR = (aR * aR / ( gamma * sR ) ) ** (cv)
                      pR   = rhoR * aR * aR / gamma
                       
                      q(IRHO) = rhoR
@@ -276,47 +317,48 @@
 
                      F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
-                     
-                  elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
 
-                     self % Rminus = vnInfty - 2.0_RP * cv * aInfty
+                     edge % uB(iXi,1:NCONS) = q
+                     
+                  elseif ( ML .le. 1.0_RP ) then   ! Subsonic outflow
+
+                     Rminus = vnInfty - 2.0_RP * cv * aInfty
                      Rplus = vnL + 2.0_RP * cv * aL
 
-                     vnR = 0.5_RP * (Rplus + self % Rminus)
-                     aR  = 0.25_RP * gm1 * (Rplus - self % Rminus)
+                     vnR = 0.5_RP * (Rplus + Rminus)
+                     aR  = 0.25_RP * gm1 * (Rplus - Rminus)
    
                      uR = uL + (vnR - vnL) * edge % n(IX,iXi)
                      vR = vL + (vnR - vnL) * edge % n(IY,iXi)
 
-                     sR   = (aL*aL) / (gamma * (rhoL ** gm1) ) 
-                     rhoR = aR * aR / ( gamma * sR )
+                     sR   = (aL*aL) * (rhoL ** (-gm1) )  / gamma
+                     rhoR = (aR * aR / ( gamma * sR )) ** (cv)
                      pR   = rhoR * aR * aR / gamma
 
                      q(IRHO) = rhoR
-                     q(IRHOU) = rhoR * uR
-                     q(IRHOV) = rhoR * vR
-                     q(IRHOE) = cv * pR + 0.5_RP * (q(IRHOU) * uR + q(IRHOV) * vR )
+                     q(IRHOU) = rhoR * uR 
+                     q(IRHOV) = rhoR * vR 
+                     q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
+                     edge % uB(iXi,1:NCONS) = q
+                     
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-
-                     F = inviscidFlux(edge % Q(iXi,1:NCONS,1))
+                     q = edge % Q(iXi,1:NCONS,1)
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
-      
+
+                     edge % uB(iXi,1:NCONS) = q
+                     
                   end if
-               
       
                end do 
 
             class default
          end select
 
-
-
          end associate
 
       end subroutine RiemannBC_UpdateSolution
-
-

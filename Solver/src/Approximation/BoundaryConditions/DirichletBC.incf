@@ -76,8 +76,6 @@
       
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) ) 
-               allocate( edge % gB(0:N,NDIM,NGRAD) ) 
                
                edge % BCWeakType = self % WeakType
 
@@ -85,42 +83,28 @@
 
                do i = 0 , N
                   edge % uB(i , 1:NCONS) = self % q
-   
-                  edge % wB(i , IRHO) = self % q(IRHO)
-                  edge % wB(i , IU  ) = self % q(IRHOU) / self % q(IRHO)
-                  edge % wB(i , IV  ) = self % q(IRHOV) / self % q(IRHO)
-                  edge % wB(i , IP  ) = thermodynamics % gm1 * ( self % q(IRHOE) - 0.5_RP * ( edge % wB(i,IU) * edge % uB(i,IRHOU) + edge % wB(i,IV) * edge % uB(i,IRHOV) ) ) 
-                  edge % wB(i , IT  ) = edge % wB(i , IP) / edge % wB(i , IRHO)
-                  edge % wB(i , IA  ) = sqrt( thermodynamics % gamma * edge % wB(i,IT) )
-
-#ifdef NAVIER_STOKES
-                  edge % gB(i , 1:NDIM , 1:NGRAD) = 0.0_RP
-#endif
                end do
+
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
 
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) ) 
-               allocate( edge % gB(0:N,NDIM,NGRAD) ) 
-               
+
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
                do i = 0 , N
                   edge % uB(i , 1:NCONS) = self % q
-   
-                  edge % wB(i , IRHO) = self % q(IRHO)
-                  edge % wB(i , IU  ) = self % q(IRHOU) / self % q(IRHO)
-                  edge % wB(i , IV  ) = self % q(IRHOV) / self % q(IRHO)
-                  edge % wB(i , IP  ) = thermodynamics % gm1 * ( self % q(IRHOE) - 0.5_RP * ( edge % wB(i,IU) * edge % uB(i,IRHOU) + edge % wB(i,IV) * edge % uB(i,IRHOV) ) ) 
-                  edge % wB(i , IT  ) = edge % wB(i , IP) / edge % wB(i , IRHO)
-                  edge % wB(i , IA  ) = sqrt( thermodynamics % gamma * edge % wB(i,IT) )
-
-#ifdef NAVIER_STOKES
-                  edge % gB(i , 1:NDIM , 1:NGRAD) = 0.0_RP
-#endif
                end do
+
+               edge % wB(0:,1:) => edge % W(0:,1:,1)
+#ifdef NAVIER_STOKES
+               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+#endif
 
          end select
          end associate
