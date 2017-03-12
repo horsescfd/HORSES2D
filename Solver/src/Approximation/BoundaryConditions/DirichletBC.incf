@@ -77,6 +77,10 @@
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
                
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
                do i = 0 , N
                   edge % uB(i , 1:NCONS) = self % q
                end do
@@ -85,11 +89,14 @@
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
 #endif
-               
-   
+
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
 
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
                do i = 0 , N
                   edge % uB(i , 1:NCONS) = self % q
                end do
@@ -99,8 +106,8 @@
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
 #endif
 
-
          end select
          end associate
+
       end subroutine DirichletBC_Associate
 

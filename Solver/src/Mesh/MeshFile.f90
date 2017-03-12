@@ -39,6 +39,7 @@ module MeshFileClass
          procedure      :: Read => ReadMesh
          procedure      :: Compute => ComputeMesh
          procedure      :: Describe => DescribeMesh
+         procedure      :: Destruct => MeshFile_Destruct
     end type MeshFile_t
 
     private
@@ -385,5 +386,35 @@ module MeshFileClass
 
 
          end subroutine
+
+         subroutine MeshFile_Destruct ( self ) 
+            implicit none
+            class(MeshFile_t)          :: self
+   
+            self % no_of_nodes = 0
+            self % no_of_elements = 0
+            self % no_of_edges = 0
+            self % no_of_bdryedges = 0
+            self % no_of_markers = 0
+            self % no_of_curvedBdryEdges = 0
+            self % curves_polynomialorder = 0
+            deallocate ( self % points_of_elements        ) 
+            deallocate ( self % points_of_bdryedges       ) 
+            deallocate ( self % elements_of_edges         ) 
+            deallocate ( self % polynomialOrder           ) 
+            deallocate ( self % cumulativePolynomialOrder ) 
+            deallocate ( self % edgeMarker                ) 
+            deallocate ( self % points_coords             ) 
+            deallocate ( self % bdryzones_names           ) 
+            deallocate ( self % points_of_edges           ) 
+            deallocate ( self % bdrymarker_of_edges       ) 
+            if ( self % curvilinear ) then
+               deallocate ( self % old_curved_bdryedges ) 
+               deallocate ( self % curved_bdryedges     ) 
+               deallocate ( self % curvilinear_coords   ) 
+            end if
+
+
+         end subroutine MeshFile_Destruct
 
 end module MeshFileClass

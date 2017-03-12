@@ -80,9 +80,9 @@
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
                
-               do i = 0 , N
-                  edge % uB(i , 1:NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
-               end do
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
 
                edge % wB(0:,1:) => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
@@ -93,9 +93,9 @@
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
 
-               do i = 0 , N
-                  edge % uB(i , 1:NCONS) = 0.0_RP    ! Its value is not given until the update routine is invoked
-               end do
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
 
                edge % wB(0:,1:) => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES

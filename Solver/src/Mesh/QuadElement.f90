@@ -105,26 +105,28 @@ module QuadElementClass
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
         logical                           :: inverted = .false.
+        integer                           :: BCWeakType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
         real(kind=RP), pointer            :: wB(:,:)   => NULL()         ! Primitive variables at the boundary (used for gradients computation)
+        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
 #ifdef NAVIER_STOKES
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
 #endif
-        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
         logical                           :: inverted = .false.
+        integer                           :: BCWeakType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
         real(kind=RP), pointer            :: wB(:,:)   => NULL()         ! Primitive variables at the boundary (used for gradients computation)
+        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
 #ifdef NAVIER_STOKES
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
 #endif
-        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
         contains
             procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
             procedure      :: evaluateX  => Curvilinear_InterpolantX

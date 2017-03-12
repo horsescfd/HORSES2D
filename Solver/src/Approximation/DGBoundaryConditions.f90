@@ -18,11 +18,13 @@ module DGBoundaryConditions
    public RiemannBC_t
 !
 !  **********************************************************
-   integer, parameter         :: STR_LEN_BC             = 128
-   integer, parameter         :: SPECIFY_SPEED          = 1
-   integer, parameter         :: SPECIFY_TOTAL_PRESSURE = 2
-   integer, parameter         :: ISOTHERMAL_WALL        = 1
-   integer, parameter         :: ADIABATIC_WALL         = 2
+   integer, parameter         :: STR_LEN_BC                      = 128
+   integer, parameter         :: SPECIFY_SPEED                   = 1
+   integer, parameter         :: SPECIFY_TOTAL_PRESSURE          = 2
+   integer, parameter         :: ISOTHERMAL_WALL                 = 1
+   integer, parameter         :: ADIABATIC_WALL                  = 2
+   integer, parameter         :: REFLECTIVE_OUTFLOW              = 1
+   integer, parameter         :: PARTIALLY_NON_REFLECTIVE_OUTFLOW = 2
 !  **********************************************************
 !
 !
@@ -34,6 +36,7 @@ module DGBoundaryConditions
       character(len=STR_LEN_BC)                         :: Name
       integer                                           :: marker
       integer                                           :: BCType
+      integer                                           :: WeakType
       character(len=STR_LEN_BC)                         :: RiemannSolverName
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
@@ -41,10 +44,10 @@ module DGBoundaryConditions
          procedure :: SetRiemannSolver => BoundaryConditions_SetRiemannSolver
          procedure :: Associate        => BaseClass_Associate
          procedure :: UpdateSolution   => BaseClass_UpdateSolution
+         procedure :: Describe         => BaseClass_Describe
 #ifdef NAVIER_STOKES
          procedure :: UpdateGradient   => BaseClass_UpdateGradient
 #endif
-         procedure :: Describe         => BaseClass_Describe
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -93,6 +96,7 @@ module DGBoundaryConditions
 !  ********************************
 !
    type, extends(BoundaryCondition_t)           :: PressureOutletBC_t
+      integer                                :: outflowType
       real(kind=RP), dimension(NCONS)       :: q
       real(kind=RP)                       :: AngleOfAttack
       real(kind=RP)                       :: Tt
@@ -129,6 +133,7 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: RiemannBC_t
       real(kind=RP), dimension(NCONS) :: q
+      real(kind=RP), dimension(NPRIM) :: w
       real(kind=RP)                   :: AngleOfAttack
       real(kind=RP)                   :: Tt
       real(kind=RP)                   :: pt
@@ -219,41 +224,49 @@ module DGBoundaryConditions
             case ( "Dirichlet" )
                allocate( DirichletBC_t    :: self )
                self % BCType = DIRICHLET_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Farfield" )
                allocate( FarfieldBC_t     :: self )
                self % BCType = FARFIELD_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Pressure outlet" )
                allocate( PressureOutletBC_t     :: self )
                self % BCType = PRESSUREOUTLET_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Pressure inlet" )
                allocate( PressureInletBC_t     :: self )
                self % BCType = PRESSUREINLET_BC
+               self % WeakType = WEAK_PRESCRIBED
 !
 !           ----------------------------------------   
             case ( "Periodic" )
                allocate( PeriodicBC_t     :: self )
                self % BCType = PERIODIC_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case ( "Riemann" )
                allocate( RiemannBC_t     :: self )
                self % BCType = RIEMANN_BC
-!
+               self % WeakType = WEAK_PRESCRIBED
+
 !           ----------------------------------------   
             case ( "Euler wall" )
                allocate( EulerWall_t      :: self )
                self % BCType = EULERWALL_BC
+               self % WeakType = WEAK_PRESCRIBED
 !
 !           ----------------------------------------   
             case ( "Viscous wall" )
                allocate( ViscousWall_t    :: self ) 
                self % BCType = VISCOUSWALL_BC
+               self % WeakType = WEAK_RIEMANN
 !
 !           ----------------------------------------   
             case default

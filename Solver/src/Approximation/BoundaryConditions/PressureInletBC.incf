@@ -71,27 +71,37 @@
          class(PressureInletBC_t)          :: self
          class(Edge_t)                 :: edge
 
-         call Initialize_WeakPrescribed(self , edge)
-
          associate ( N=> edge % spA % N )
          select type ( edge )
             type is (StraightBdryEdge_t)
+               allocate ( edge % FB ( 0:N , 1:NCONS ) )
+               allocate ( edge % uB ( 0:N , 1:NCONS ) )
 
-               edge % uB(0:,1:) => edge % Q(0:,1:,1)
-               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+               edge % wB(0:,1:)    => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
 #endif
 
             type is (CurvedBdryEdge_t)
-               edge % uB(0:,1:) => edge % Q(0:,1:,1)
-               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               allocate ( edge % FB ( 0:N , 1:NCONS ) )
+               allocate ( edge % uB ( 0:N , 1:NCONS ) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+               edge % wB(0:,1:)    => edge % W(0:,1:,1)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
 #endif
 
         end select
         end associate
+
       end subroutine PressureInletBC_Associate
 
       subroutine PressureInletBC_UpdateSolution( self , edge )
@@ -142,7 +152,8 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     F = inviscidFlux( self % q )
+                     q = self % q
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                
                   elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
@@ -190,7 +201,8 @@
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
       
                   end if
-               
+
+                  edge % uB(iXi,1:NCONS) = q
       
                end do 
 
@@ -212,7 +224,8 @@
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     F = inviscidFlux( self % q )
+                     q = self % q
+                     F = inviscidFlux( q )
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
                
                   elseif ( ML .le. 0.0_RP ) then   ! Subsonic inflow
@@ -260,6 +273,9 @@
                      edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
       
                   end if
+
+                  edge % uB(iXi,1:NCONS) = q
+   
                end do 
 
             class default
