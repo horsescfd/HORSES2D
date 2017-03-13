@@ -1081,22 +1081,22 @@ readloop:do
                self % values(bufferPosition) = vector(self % direction)
    
             case ("viscous-force") 
-               vector(IX:IY) = mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
+               vector(IX:IY) = -mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
                self % values(bufferPosition) = vector(self % direction)
       
             case ("force") 
                vector(IX:IY) = mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
-               vector(IX:IY) = vector(IX:IY) + mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
+               vector(IX:IY) = vector(IX:IY) - mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
                self % values(bufferPosition) = vector(self % direction)
 
             case ("lift")
                vector(IX:IY) = mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
-               vector(IX:IY) = vector(IX:IY) + mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
+               vector(IX:IY) = vector(IX:IY) - mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
                self % values(bufferPosition) = vector(IY) / self % dynamicPressure
 
             case ("drag")
                vector(IX:IY) = mesh % ScalarVectorSurfaceIntegral("pressure" , self % marker) * refValues % p * refValues % L
-               vector(IX:IY) = vector(IX:IY) + mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
+               vector(IX:IY) = vector(IX:IY) - mesh % TensorVectorSurfaceIntegral("viscous" , self % marker) * refValues % p * refValues % L * dimensionless % sqrtGammaMach
                self % values(bufferPosition) = vector(IX) / self % dynamicPressure
 
             case ("pressure-average")
