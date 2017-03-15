@@ -215,6 +215,7 @@ module DGViscousMethods
 !           G flux (contravariant)
 !           ----------------------
             element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
+
          end do
 
          end associate
@@ -448,18 +449,24 @@ module DGViscousMethods
          integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
          real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
 
-         associate( N => element % spA % N , W => element % W , dQ => element % dQ , MD => element % spA % MD , &
-                    weights => element % spA % w , M => element % spA % M , gm1 => Thermodynamics % gm1)
+         associate( N => element % spA % N , &
+                    W => element % W , &
+                   dQ => element % dQ , &
+                   MD => element % spA % MD , &
+                 trMD => element % spA % trMD , &
+              weights => element % spA % w , &
+                    M => element % spA % M , &
+                  gm1 => Thermodynamics % gm1)
 
 
          do iDim = 1 , NDIM
    
             do iVar = 1 , NGRAD
                JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = -MD , &
+               call Mat_x_Mat(A = -trMD , &
                      B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
                      C = dQ(0:N,0:N,iDim,iVar) , & 
-                     trA = .true. , reset = .false. )
+                     reset = .false. )
 
                JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
                call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
@@ -492,7 +499,7 @@ module DGViscousMethods
          real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
          real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
 
-         associate ( N => edge % spA % N )
+         associate ( N => edge % spA % N , NLow => edge % NLow)
 !
 !        Compute face fluxes
 !        -------------------
@@ -515,7 +522,7 @@ module DGViscousMethods
 !              Compute the penalty term
 !              ------------------------
                if ( edge % transform(LEFT) ) then
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) - edge % storage(RIGHT) % Q(0:N,1:NCONS))
+                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) - edge % storage(RIGHT) % Q(0:N,1:NCONS))
 
                   associate ( QDot => edge % quads(LEFT) % e % QDot )
                   call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
@@ -527,7 +534,7 @@ module DGViscousMethods
                   end associate
 
                elseif ( edge % transform(RIGHT) ) then
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) )
+                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) )
 
                   associate ( QDot => edge % quads(LEFT) % e % QDot )
                   QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
@@ -539,7 +546,7 @@ module DGViscousMethods
                   end associate
 
                else
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - edge % storage(RIGHT) % Q(0:N,1:NCONS) )
+                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - edge % storage(RIGHT) % Q(0:N,1:NCONS) )
 
                   associate ( QDot => edge % quads(LEFT) % e % QDot )
                   QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
@@ -556,7 +563,7 @@ module DGViscousMethods
 !
 !              Compute the penalty term
 !              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
 
                associate ( QDot => edge % quads(1) % e % QDot )
 
@@ -579,7 +586,7 @@ module DGViscousMethods
 !
 !              Compute the penalty term
 !              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (N * N) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
+               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
 
                associate ( QDot => edge % quads(1) % e % QDot )
 !
@@ -620,6 +627,7 @@ module DGViscousMethods
 !        ---------------------------------
          associate( QDot => element % QDot     , &
                     MD   => element % spA % MD , &
+                  trMD   => element % spA % trMD , &
                     M    => element % spA % M  , &
                     w    => element % spA % w  , &
                     N    => element % spA % N      )
@@ -628,8 +636,8 @@ module DGViscousMethods
 !
 !           F Loop
 !           ------
-            call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                        trA = .true. , reset = .false. )
+            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+                      reset = .false. )
 
 !
 !           G Loop
@@ -775,18 +783,24 @@ module DGViscousMethods
          integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
          real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
 
-         associate( N => element % spA % N , W => element % W , dQ => element % dQ , MD => element % spA % MD , &
-                    weights => element % spA % w , M => element % spA % M , gm1 => Thermodynamics % gm1)
+         associate( N => element % spA % N , &
+                    W => element % W , &
+                   dQ => element % dQ , &
+                   MD => element % spA % MD , &
+                 trMD => element % spA % trMD , &
+              weights => element % spA % w , &
+                    M => element % spA % M , &
+                  gm1 => Thermodynamics % gm1)
 
 
          do iDim = 1 , NDIM
    
             do iVar = 1 , NGRAD
                JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = -MD , &
+               call Mat_x_Mat(A = -trMD , &
                      B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
                      C = dQ(0:N,0:N,iDim,iVar) , & 
-                     trA = .true. , reset = .false. )
+                                 reset = .false. )
 
                JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
                call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
@@ -935,6 +949,7 @@ module DGViscousMethods
 !        ---------------------------------
          associate( QDot => element % QDot     , &
                     MD   => element % spA % MD , &
+                  trMD   => element % spA % trMD , &
                     M    => element % spA % M  , &
                     w    => element % spA % w  , &
                     N    => element % spA % N      )
@@ -943,8 +958,8 @@ module DGViscousMethods
 !
 !           F Loop
 !           ------
-            call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                        trA = .true. , reset = .false. )
+            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+                         reset = .false. )
 
 !
 !           G Loop
@@ -1121,7 +1136,9 @@ module DGViscousMethods
          real(kind=RP)              :: Fstar(0:edge % storage(loc) % spA % N,1:NCONS)
          real(kind=RP)              :: dFJ(0:edge % storage(loc) % spA % N,0:edge % storage(loc) % spA % N,1:NCONS)
 !        ---------------------------------------------------------------------
-         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: Fstar2D(:,:,:)
+         real(kind=RP), target              :: Fstar2D_x(1,0:edge % storage(loc) % spA % N , 1:NCONS)
+         real(kind=RP), target              :: Fstar2D_y(0:edge % storage(loc) % spA % N , 1 , 1:NCONS)
          real(kind=RP), pointer             :: lj2D(:,:)
          integer                            :: direction
          integer                            :: pos
@@ -1144,25 +1161,25 @@ module DGViscousMethods
                pos       = RIGHT                  
                index     = IX                     
 
-               allocate(Fstar2D(1,0:N,NCONS))
-               
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS )
+                  Fstar2D_x(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS )
 
                elseif ( direction .eq. BACKWARD ) then
 !
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ), rowC = N+1 , colC = NCONS )
+                  Fstar2D_x(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ), rowC = N+1 , colC = NCONS )
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(1:,0:,1:) => Fstar2D_x
 !
 !           ------------------------------------------------------------------------------------------------
             case (ETOP)
@@ -1173,25 +1190,25 @@ module DGViscousMethods
                pos       = RIGHT
                index     = IY
 
-               allocate(Fstar2D(0:N,1,NCONS))
-   
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(0:,1:,1:) => Fstar2D_y
 !
 !           ------------------------------------------------------------------------------------------------
             case (ELEFT)
@@ -1202,25 +1219,25 @@ module DGViscousMethods
                pos       = LEFT
                index     = IX
 
-               allocate(Fstar2D(1,0:N,NCONS))
-   
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_x(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_x(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(1:,0:,1:) => Fstar2D_x
 !
 !           ------------------------------------------------------------------------------------------------
             case (EBOTTOM)
@@ -1229,25 +1246,25 @@ module DGViscousMethods
                pos       = LEFT
                index     = iY
 
-               allocate(Fstar2D(0:N,1,NCONS))
-   
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(0:,1:,1:) => Fstar2D_y
 !
 !        **********
          end select
@@ -1264,7 +1281,7 @@ module DGViscousMethods
 !        Free the variables
 !        ------------------
          lj2D=>NULL()
-         deallocate(Fstar2D)
+         Fstar2D => NULL()
 
          end associate
 

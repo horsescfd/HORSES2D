@@ -261,7 +261,17 @@ module DGTimeIntegrator
          integer, parameter         :: N_STAGES = 5
          real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
          real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
-         
+!         real(kind=RP), parameter   :: am(N_STAGES) = [0.0_RP , &
+!                                                      -1.0_RP , &
+!                                                      -1.0_RP / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP , &
+!                                                      -2.0_RP ** (1.0_RP / 3.0_RP) - 2.0_RP ** (2.0_RP / 3.0_RP) - 2.0_RP , &
+!                                                      -1.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) ]
+!         real(kind=RP), parameter   :: gm(N_STAGES) = [2.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP , &
+ !                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
+ !                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
+ !                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
+ !                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
+ !        
          do m = 1 , N_STAGES
 !
 !           Compute time derivative
