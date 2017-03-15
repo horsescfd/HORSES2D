@@ -157,6 +157,9 @@ module DGBoundaryConditions
          procedure   ::    Associate => EulerWall_Associate
          procedure   ::    UpdateSolution    => EulerWall_UpdateSolution
          procedure   ::    Describe  => EulerWall_Describe
+#ifdef NAVIER_STOKES
+         procedure   ::    UpdateGradient    => EulerWall_UpdateGradient
+#endif
    end type EulerWall_t
 !
 !  *************************************
