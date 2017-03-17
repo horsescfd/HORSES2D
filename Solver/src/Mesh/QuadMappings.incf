@@ -26,22 +26,104 @@
                   n3 => self % nodes(3) % n % X , &
                   n4 => self % nodes(4) % n % X ) 
 
+         self % X = 0.0_RP
+         self % jac = 0.0_RP
+         self % invM2Djac = 0.0_RP
+         self % Ja = 0.0_RP
          do ixi = 0 , N
             do ieta = 0 , N 
-               
-               self % X(iXi , iEta, IX:IY) =  (1.0_RP - eta(iEta)) * edBOT % getX(iXi,dBOT) + xi(iXi)*edRIGHT % getX(iEta,dRIGHT) + &
-                                              (1.0_RP - xi(iXi) )  * edLEFT % getX(iEta,-dLEFT) + eta(iEta)*edTOP % getX(iXi,-dTOP)  &
-                                              -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
+!
+!              The contribution of the edges is added
+!
+!              ---------- Bottom edge --------------------
+               select type (edBOT)
+      
+                  type is (Edge_t)
+                     self % X(iXi,iEta,IX:IY) = (1.0_RP - eta(iEta)) * edBOT % evaluateX(xi(iXi),dBOT) 
+                     dX(IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % evaluatedX(xi(iXi),dBOT)
+                     dX(IX:IY,IY) = -1.0_RP * edBOT % evaluateX(xi(iXi),dBOT)
+
+                  type is (StraightBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = (1.0_RP - eta(iEta)) * edBOT % evaluateX(xi(iXi),dBOT) 
+                     dX(IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % evaluatedX(xi(iXi),dBOT)
+                     dX(IX:IY,IY) = -1.0_RP * edBOT % evaluateX(xi(iXi),dBOT)
+
+                  type is (CurvedBdryEdge_t) 
+                     self % X(iXi,iEta,IX:IY) = (1.0_RP - eta(iEta)) * edBOT % getX(iXi,dBOT) 
+                     dX(IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % getdX(iXi,dBOT)
+                     dX(IX:IY,IY) = -1.0_RP * edBOT % getX(iXi,dBOT)
+
+               end select
+!
+!              ----------- Top edge ---------------------------
+               select type (edTOP)
+
+                  type is (Edge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + eta(iEta) * edTOP % evaluateX(xi(iXi) , -dTOP )
+                     dX(IX:IY,IX) = dX(IX:IY,IX) + eta(iEta) * edTOP % evaluatedX(xi(iXi) , -dTOP)
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + 1.0_RP * edTOP % evaluateX(xi(iXi) , -dTOP)
+
+                  type is (StraightBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + eta(iEta) * edTOP % evaluateX(xi(iXi) , -dTOP )
+                     dX(IX:IY,IX) = dX(IX:IY,IX) + eta(iEta) * edTOP % evaluatedX(xi(iXi) , -dTOP)
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + 1.0_RP * edTOP % evaluateX(xi(iXi) , -dTOP)
+
+                  type is (CurvedBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + eta(iEta) * edTOP % getX(iXi , -dTOP )
+                     dX(IX:IY,IX) = dX(IX:IY,IX) + eta(iEta) * edTOP % getdX(iXi , -dTOP)
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + 1.0_RP * edTOP % getX(iXi , -dTOP)
+
+               end select
+!
+!              ---------- Left edge -------------------------------               
+               select type (edLEFT)
+   
+                  type is (Edge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + (1.0_RP - xi(iXi)) * edLEFT % evaluateX(eta(iEta) , -dLEFT )
+                     dX(IX:IY,IX) = dX(IX:IY,IX) - edLEFT % evaluateX( eta(iEta) , -dLEFT )
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + (1.0_RP - xi(iXi)) * edLEFT % evaluatedX( eta(iEta) , -dLEFT )
+
+                  type is (StraightBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + (1.0_RP - xi(iXi)) * edLEFT % evaluateX(eta(iEta) , -dLEFT )
+                     dX(IX:IY,IX) = dX(IX:IY,IX) - edLEFT % evaluateX( eta(iEta) , -dLEFT )
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + (1.0_RP - xi(iXi)) * edLEFT % evaluatedX( eta(iEta) , -dLEFT )
+
+                  type is (CurvedBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + (1.0_RP - xi(iXi)) * edLEFT % getX(iEta , -dLEFT )
+                     dX(IX:IY,IX) = dX(IX:IY,IX) - edLEFT % getX( iEta , -dLEFT )
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + (1.0_RP - xi(iXi)) * edLEFT % getdX( iEta , -dLEFT )
+
+               end select
+!
+!              ---------- Right edge -------------------------------
+               select type (edRIGHT)
+
+                  type is (Edge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + xi(iXi) * edRIGHT % evaluateX(eta(iEta) , dRIGHT ) 
+                     dX(IX:IY,IX) = dX(IX:IY,IX) + edRIGHT % evaluateX(eta(iEta) , dRIGHT)
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + xi(iXi) * edRIGHT % evaluatedX(eta(iEta) , dRIGHT)
+         
+                  type is (StraightBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + xi(iXi) * edRIGHT % evaluateX(eta(iEta) , dRIGHT ) 
+                     dX(IX:IY,IX) = dX(IX:IY,IX) + edRIGHT % evaluateX(eta(iEta) , dRIGHT)
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + xi(iXi) * edRIGHT % evaluatedX(eta(iEta) , dRIGHT)
+
+                  type is (CurvedBdryEdge_t)
+                     self % X(iXi,iEta,IX:IY) = self % X(iXi,iEta,IX:IY) + xi(iXi) * edRIGHT % getX(iEta , dRIGHT ) 
+                     dX(IX:IY,IX) = dX(IX:IY,IX) + edRIGHT % getX(iEta , dRIGHT)
+                     dX(IX:IY,IY) = dX(IX:IY,IY) + xi(iXi) * edRIGHT % getdX(iEta , dRIGHT)
+
+               end select
+!
+!              Adding a correction to consider the straight contribution
+!              ---------------------------------------------------------
+               self % X(iXi , iEta , IX:IY) = self % X(iXi , iEta , IX:IY) -n1*(1.0_RP - xi(iXi))*(1.0_RP - eta(iEta)) - n2 * xi(iXi) * (1.0_RP - eta(iEta)) & 
                                               -n3* xi(iXi) * eta(iEta) - n4 * (1.0_RP - xi(iXi)) * eta(iEta)
 
-               dX(IX:IY,IX) = (1.0_RP - eta(iEta)) * edBOT % getdX(iXi,dBOT) + edRIGHT % getX(iEta,dRIGHT) + &
-                                                   eta(iEta) * edTOP % getdX(iXi,-dTOP) + (-1.0_RP) * edLEFT % getX(iEta,-dLEFT) + &
-                                              -n1 *(1.0_RP - eta(iEta))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
+               dX(IX:IY,IX) = dX(IX:IY,IX)    -n1 *(1.0_RP - eta(iEta))*(-1.0_RP) - n2 * (1.0_RP - eta(iEta)) & 
                                               -n3 * eta(iEta) - n4 * (-1.0_RP) * eta(iEta)
 
-               dX(IX:IY,IY) =  (-1.0_RP) * edBOT % getX(iXi,dBOT) + xi(iXi)*edRIGHT % getdX(iEta,dRIGHT) + &
-                                              (1.0_RP - xi(iXi) )  * edLEFT % getdX(iEta,-dLEFT) + edTOP % getX(iXi,-dTOP)  &
-                                              -n1*(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * xi(iXi) * (-1.0_RP) & 
+               dX(IX:IY,IY) =  dX(IX:IY,IY)   -n1*(1.0_RP - xi(iXi))*(-1.0_RP) - n2 * xi(iXi) * (-1.0_RP) & 
                                               -n3* xi(iXi) - n4 * (1.0_RP - xi(iXi))
 
 

@@ -24,6 +24,7 @@ module nodesAndWeights_class
         real(kind=RP), pointer    :: D(:,:)
         real(kind=RP), pointer    :: DT(:,:)
         real(kind=RP), pointer    :: MD(:,:)
+        real(kind=RP), pointer    :: trMD(:,:)
         real(kind=RP), pointer    :: tildeMTD(:,:)
         real(kind=RP), pointer    :: lb(:,:)
         real(kind=RP), pointer    :: T(:,:)     ! Interpolation matrix to the TAIL of the linked list 
@@ -151,16 +152,19 @@ module nodesAndWeights_class
 
             self % N = N
             self % nodes = nodes
-            allocate(self % xi(0:N))
-            allocate(self % w(0:N))
-            allocate(self % wb(0:N))
-            allocate(self % M(0:N,0:N))
-            allocate(self % Minv(0:N,0:N))
-            allocate(self % invM2D(0:N,0:N))
-            allocate(self % D(0:N,0:N))
-            allocate(self % DT(0:N,0:N))
-            allocate(self % MD(0:N,0:N))
-            allocate(self % lb(0:N,2))
+
+            allocate ( self % xi     ( 0:N     )  ) 
+            allocate ( self % w      ( 0:N     )  ) 
+            allocate ( self % wb     ( 0:N     )  ) 
+            allocate ( self % M      ( 0:N,0:N )  ) 
+            allocate ( self % Minv   ( 0:N,0:N )  ) 
+            allocate ( self % invM2D ( 0:N,0:N )  ) 
+            allocate ( self % D      ( 0:N,0:N )  ) 
+            allocate ( self % DT     ( 0:N,0:N )  ) 
+            allocate ( self % MD     ( 0:N,0:N )  ) 
+            allocate ( self % trMD   ( 0:N,0:N )  ) 
+            allocate ( self % lb     ( 0:N,2   )  ) 
+
             self % T => NULL()
             self % tildeMTD => NULL()
 
@@ -271,6 +275,7 @@ module nodesAndWeights_class
             call PolynomialDerivativeMatrix( N , self % xi , self % D )
             self % DT   = transpose( self % D )
             self % MD   = matmul( self % M , self % D )
+            self % trMD = transpose( self % MD )
 
 !       
 !           --------------------------------------------

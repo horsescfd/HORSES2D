@@ -84,9 +84,9 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
                
    
@@ -97,11 +97,10 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % W(0:,1:,1)
+               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % dQ(0:,1:,1:,1)
+               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
-
          end select
          end associate
       end subroutine FarfieldBC_Associate
@@ -147,11 +146,11 @@
 !
 !                 First stage: Determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % Q(iXi , IRHO , 1)
-                  uL  = edge % Q(iXi , IRHOU , 1) / rhoL
-                  vL  = edge % Q(iXi , IRHOV , 1) / rhoL
+                  rhoL = edge % storage(1) % Q(iXi , IRHO)
+                  uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
+                  vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = gm1 * ( edge % Q(iXi , IRHOE , 1) - 0.5_RP * edge % Q(iXi,IRHOU , 1) * uL - 0.5_RP * edge % Q(iXi,IRHOV , 1) * vL )
+                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * edge % storage(1) % Q(iXi,IRHOU) * uL - 0.5_RP * edge % storage(1) % Q(iXi,IRHOV) * vL )
                   aL  = sqrt( gamma * pL / rhoL ) 
                   ML  = vnL / aL
 !
@@ -189,7 +188,7 @@
 
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
+                     edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
       
                   end if
                
@@ -201,11 +200,11 @@
 !
 !                 First stage: Determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % Q(iXi , IRHO , 1)
-                  uL  = edge % Q(iXi , IRHOU , 1) / rhoL
-                  vL  = edge % Q(iXi , IRHOV , 1) / rhoL
+                  rhoL = edge % storage(1) % Q(iXi , IRHO)
+                  uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
+                  vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = gm1 * ( edge % Q(iXi , IRHOE , 1) - 0.5_RP * edge % Q(iXi,IRHOU , 1) * uL - 0.5_RP * edge % Q(iXi,IRHOV , 1) * vL )
+                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * edge % storage(1) % Q(iXi,IRHOU) * uL - 0.5_RP * edge % storage(1) % Q(iXi,IRHOV) * vL )
                   aL  = sqrt( gamma * pL / rhoL ) 
                   ML  = vnL / aL
 !
@@ -243,7 +242,7 @@
 
 
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NCONS) = edge % Q(iXi, 1:NCONS , 1)
+                     edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
       
                   end if
                
@@ -252,8 +251,6 @@
 
             class default
          end select
-
-
 
          end associate
          

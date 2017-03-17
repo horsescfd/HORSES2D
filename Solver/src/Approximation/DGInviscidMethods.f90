@@ -186,6 +186,7 @@ module DGInviscidMethods
          class(Edge_t), pointer     :: edge
 !        -------------------------------------------------------
          real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
+         real(kind=RP)              :: FstarLowered(0:edge % Nlow, 1:NCONS)
 
          associate ( N => edge % spA % N )
 !
@@ -205,15 +206,33 @@ module DGInviscidMethods
 !
 !              The obtained term is substracted to the LEFT element
 !              ----------------------------------------------------
-               associate ( QDot => edge % quads(LEFT) % e % QDot )
+               if ( .not. edge % transform(LEFT) ) then
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
                   QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar )
-               end associate
+                  end associate
+            
+               else
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , FstarLowered )
+                  end associate
+
+               end if
 !
 !              The obtained term is added to the RIGHT element
 !              -----------------------------------------------
-               associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
+               if ( .not. edge % transform(RIGHT) ) then
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
                   QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar )
-               end associate
+                  end associate
+            
+               else
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , FstarLowered )
+                  end associate
+
+               end if                 
 !
 !           --------------------------------------------------------------------------
             type is (StraightBdryEdge_t)
@@ -273,6 +292,7 @@ module DGInviscidMethods
          class(Edge_t), pointer     :: edge
 !        -------------------------------------------------
          real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
+         real(kind=RP)              :: FstarLowered(0:edge % Nlow, 1:NCONS)
 !
          associate ( N => edge % spA % N )
 !
@@ -292,15 +312,34 @@ module DGInviscidMethods
 !
 !              The obtained term is substracted to the LEFT element
 !              ----------------------------------------------------
-               associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % F(0:N , 1:NCONS , LEFT) )
-               end associate
+               if ( .not. edge % transform(LEFT) ) then
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % storage(LEFT) % F(0:N , 1:NCONS))
+                  end associate
+            
+               else
+                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , FstarLowered - edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS) )
+                  end associate
+
+               end if
 !
 !              The obtained term is added to the RIGHT element
 !              -----------------------------------------------
-               associate ( QDot => edge % quads(RIGHT) % e % QDot ) 
-                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % F(0:N , 1:NCONS , RIGHT ) )
-               end associate
+               if ( .not. edge % transform(RIGHT) ) then
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % storage(RIGHT) % F(0:N , 1:NCONS))
+                  end associate
+            
+               else
+                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , FstarLowered - edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS) )
+                  end associate
+
+               end if
+
 !
 !           --------------------------------------------------------------------------
             type is (StraightBdryEdge_t)
@@ -311,13 +350,13 @@ module DGInviscidMethods
 !
 !                    If the normal points towards the domain exterior
 !                    ------------------------------------------------
-                     QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F (0:N , 1:NCONS , 1 ) )
+                     QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) )
 
                   else
 !
 !                    If the normal points towards the domain interior
 !                    ------------------------------------------------
-                     QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F (0:N , 1:NCONS , 1 ) )
+                     QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) )
 
                   end if
                
@@ -330,7 +369,7 @@ module DGInviscidMethods
 !
 !                 The normal for curved elements always points towards the domain exterior
 !                 ------------------------------------------------------------------------
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % F (0:N , 1:NCONS , 1 ) ) 
+                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) ) 
                end associate
 !
 !           --------------------------------------------------------------------------
@@ -384,10 +423,12 @@ module DGInviscidMethods
          implicit none
          class(Edge_t)              :: edge
          integer                    :: loc
-         real(kind=RP)              :: Fstar(0:edge % spA % N,1:NCONS)
-         real(kind=RP)              :: dFJ(0:edge % spA % N,0:edge % spA % N,1:NCONS)
+         real(kind=RP)              :: Fstar(0:edge % storage(loc) % spA % N,1:NCONS)
+         real(kind=RP)              :: dFJ(0:edge % storage(loc) % spA % N,0:edge % storage(loc) % spA % N,1:NCONS)
 !        ---------------------------------------------------------------------
-         real(kind=RP), allocatable         :: Fstar2D(:,:,:)
+         real(kind=RP), pointer             :: Fstar2D(:,:,:)
+         real(kind=RP), target              :: Fstar2D_x(1,0:edge % storage(loc) % spA % N,1:NCONS)
+         real(kind=RP), target              :: Fstar2D_y(0:edge % storage(loc) % spA % N,1,1:NCONS)
          real(kind=RP), pointer             :: lj2D(:,:)
          integer                            :: direction
          integer                            :: pos
@@ -410,25 +451,26 @@ module DGInviscidMethods
                pos       = RIGHT                  
                index     = IX                     
 
-               allocate(Fstar2D(1,0:N,NCONS))
                
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS )
+                  Fstar2D_x(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS )
 
                elseif ( direction .eq. BACKWARD ) then
 !
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) , rowC = N+1 , colC = NCONS)
+                  Fstar2D_x(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ) , rowC = N+1 , colC = NCONS)
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(1:,0:,1:) => Fstar2D_x
 !
 !           ------------------------------------------------------------------------------------------------
             case (ETOP)
@@ -439,25 +481,25 @@ module DGInviscidMethods
                pos       = RIGHT
                index     = IY
 
-               allocate(Fstar2D(0:N,1,NCONS))
-   
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS) 
+                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS) 
+                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS) , rowC = N+1 , colC = NCONS) 
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(0:,1:,1:) => Fstar2D_y
 !
 !           ------------------------------------------------------------------------------------------------
             case (ELEFT)
@@ -468,25 +510,25 @@ module DGInviscidMethods
                pos       = LEFT
                index     = IX
 
-               allocate(Fstar2D(1,0:N,NCONS))
-   
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_x(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_x(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(1:,0:,1:) => Fstar2D_x
 !
 !           ------------------------------------------------------------------------------------------------
             case (EBOTTOM)
@@ -495,25 +537,25 @@ module DGInviscidMethods
                pos       = LEFT
                index     = iY
 
-               allocate(Fstar2D(0:N,1,NCONS))
-   
                if ( direction .eq. FORWARD ) then
 !        
 !                 Introduce the result in the same order
 !                 --------------------------------------
-                  Fstar2D(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                elseif ( direction .eq. BACKWARD ) then
 !        
 !                 Introduce the result in the opposite order
 !                 ------------------------------------------
-                  Fstar2D(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 
                else
                   print*, "Direction not forward nor backward"
                   stop "Stopped."
 
                end if
+
+               Fstar2D(0:,1:,1:) => Fstar2D_y
 !
 !        **********
          end select
@@ -530,7 +572,7 @@ module DGInviscidMethods
 !        Free the variables
 !        ------------------
          lj2D=>NULL()
-         deallocate(Fstar2D)
+         Fstar2D => NULL()
 
          end associate
 
@@ -580,6 +622,7 @@ module DGInviscidMethods
          if ( cmpt ) then
             associate( QDot => element % QDot     , &
                        MD   => element % spA % MD , &
+                       trMD => element % spA % trMD, &
                        M    => element % spA % M  , &
                        w    => element % spA % w  , &
                        N    => element % spA % N      )
@@ -592,8 +635,8 @@ module DGInviscidMethods
 !   
 !                 F Loop
 !                 ------
-                  call Mat_x_Mat(A = MD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                              trA = .true. , reset = .false. )
+                  call Mat_x_Mat(A = trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+                                reset = .false. )
    
 !   
 !                 G Loop
@@ -613,8 +656,8 @@ module DGInviscidMethods
 !   
 !                 G Loop
 !                 ------
-                  call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
-                               trB = .true. , reset = .false. )
+                  call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = trMD , C=QDot(0:N,0:N,eq) , &
+                               reset = .false. )
    
                end if
    
@@ -711,6 +754,8 @@ module DGInviscidMethods
 !
 !        *************************************************************************
 !
+         use MatrixOperations
+         use Physics
          implicit none
          class(InviscidMethod_t)    :: self
          class(Edge_t), pointer     :: edge
@@ -719,7 +764,9 @@ module DGInviscidMethods
          real(kind=RP)              :: QL(1:NCONS) , QR(1:NCONS)
          real(kind=RP)              :: WL(1:NPRIM) , WR(1:NPRIM)
          real(kind=RP), pointer     :: T(:,:) , Tinv(:,:)
+         real(kind=RP)              :: lj_forward(0 : edge % Nlow)
          integer                    :: iXi
+         procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 !
 !        ********************
          select type ( edge )
@@ -742,44 +789,62 @@ module DGInviscidMethods
 !   
 !                    Weak boundary conditions
 !                    -----------------------
-                     do iXi = 0 , N
-!   
-!                       Select LEFT and RIGHT states depending on the edge orientation
-!                       -------------------------------------------------------------- 
-                        if ( edge % inverted ) then
-                           QR = edge % Q(iXi , 1:NCONS , 1)
+                     if ( associated ( edge % RiemannSolver ) ) then
+                        RiemannSolver => edge % RiemannSolver
+
+                     else
+                        RiemannSolver => self % RiemannSolver
+
+                     end if
+
+                     if ( edge % inverted ) then
+
+                        do iXi = 0 , N
+
+!     
+!                          Select LEFT and RIGHT states depending on the edge orientation
+!                          -------------------------------------------------------------- 
+                           QR = edge % storage(1) % Q(iXi , 1:NCONS)
                            QL = edge % uB(iXi, 1:NCONS)
-                           WR = edge % W(iXi , 1:NPRIM , 1 )
+                           WR = edge % storage(1) % W(iXi , 1:NPRIM)
                            WL = ComputePrimitiveVariables(QL)
-                        else
-                           QL = edge % Q(iXi , 1:NCONS , 1)
+
+
+!                          Gather edge orientation matrices
+!                          --------------------------------
+                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!   
+!                          Compute the Riemann Flux
+!                          ------------------------
+                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+ 
+                        end do
+
+                     else
+
+                        do iXi = 0 , N
+
+!     
+!                          Select LEFT and RIGHT states depending on the edge orientation
+!                          -------------------------------------------------------------- 
+                           QL = edge % storage(1) % Q(iXi , 1:NCONS)
                            QR = edge % uB(iXi, 1:NCONS)
-                           WL = edge % W(iXi , 1:NPRIM , 1 )
+                           WL = edge % storage(1) % W(iXi , 1:NPRIM)
                            WR = ComputePrimitiveVariables(QR)
-                        end if
+
+!                          Gather edge orientation matrices
+!                          --------------------------------
+                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
 !   
-!                       Gather edge orientation matrices
-!                       --------------------------------
-                        T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                        Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!   
-!                       Compute the Riemann Flux
-!                       ------------------------
-                        if ( associated ( edge % RiemannSolver ) ) then
-!           
-!                          Using an edge special Riemann Solver
-!                          ------------------------------------
-                           Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-                           
-                        else
-!   
-!                          Using the same Riemann Solver than the interior edges
-!                          -----------------------------------------------------
-                           Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-      
-                        end if
-      
-                     end do
+!                          Compute the Riemann Flux
+!                          ------------------------
+                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+ 
+                        end do
+
+                     end if
    
                   case default
       
@@ -804,48 +869,63 @@ module DGInviscidMethods
                      Fstar = edge % FB
 
                   case ( WEAK_RIEMANN )
-!   
+!
 !                    Weak boundary conditions
 !                    -----------------------
-                     do iXi = 0 , N
-!   
-!                       Select LEFT and RIGHT states depending on the edge orientation
-!                       -------------------------------------------------------------- 
-                        if ( edge % inverted ) then
-                           QR = edge % Q(iXi , 1:NCONS , 1)
+                     if ( associated ( edge % RiemannSolver ) ) then
+                        RiemannSolver => edge % RiemannSolver
+
+                     else
+                        RiemannSolver => self % RiemannSolver
+
+                     end if
+
+                     if ( edge % inverted ) then
+
+                        do iXi = 0 , N
+!     
+!                          Select LEFT and RIGHT states depending on the edge orientation
+!                          -------------------------------------------------------------- 
+                           QR = edge % storage(1) % Q(iXi , 1:NCONS)
                            QL = edge % uB(iXi, 1:NCONS)
-                           WR = edge % W(iXi , 1:NPRIM , 1 )
+                           WR = edge % storage(1) % W(iXi , 1:NPRIM)
                            WL = ComputePrimitiveVariables(QL)
-                        else
-                           QL = edge % Q(iXi , 1:NCONS , 1)
+!
+!                          Gather edge orientation matrices
+!                          --------------------------------
+                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!   
+!                          Compute the Riemann Flux
+!                          ------------------------
+                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+ 
+                        end do
+
+                     else
+
+                        do iXi = 0 , N
+!     
+!                          Select LEFT and RIGHT states depending on the edge orientation
+!                          -------------------------------------------------------------- 
+                           QL = edge % storage(1) % Q(iXi , 1:NCONS)
                            QR = edge % uB(iXi, 1:NCONS)
-                           WL = edge % W(iXi , 1:NPRIM , 1 )
+                           WL = edge % storage(1) % W(iXi , 1:NPRIM)
                            WR = ComputePrimitiveVariables(QR)
-                        end if
+!
+!                          Gather edge orientation matrices
+!                          --------------------------------
+                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
 !   
-!                       Gather edge orientation matrices
-!                       --------------------------------
-                        T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                        Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!   
-!                       Compute the Riemann Flux
-!                       ------------------------
-                        if ( associated ( edge % RiemannSolver ) ) then
-!           
-!                          Using an edge special Riemann Solver
-!                          ------------------------------------
-                           Fstar(iXi , :) = edge % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-                           
-                        else
-!   
-!                          Using the same Riemann Solver than the interior edges
-!                          -----------------------------------------------------
-                           Fstar(iXi , :) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-      
-                        end if
-      
-                     end do
-   
+!                          Compute the Riemann Flux
+!                          ------------------------
+                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+ 
+                        end do
+
+                     end if
+ 
                   case default
       
                      print*, "Boundary condition has undefined Type"
@@ -860,25 +940,84 @@ module DGInviscidMethods
       
                associate( N => edge % spA % N )
 
-               do iXi = 0 , N
+               if ( edge % transform(LEFT) ) then
+
+                  do iXi = 0 , N
 !
-!                 Select LEFT and RIGHT states
-!                 ----------------------------
-                  QL    = edge % Q(iXi , 1:NCONS , LEFT )
-                  QR    = edge % Q(iXi , 1:NCONS , RIGHT)
-                  WL    = edge % W(iXi , 1:NPRIM , LEFT )
-                  WR    = edge % W(iXi , 1:NPRIM , RIGHT)
+!                    Transform left boundary values
+!                    ------------------------------
+                     associate ( Nlow => edge % storage(LEFT) % spA % N )
+                     lj_forward = edge % T_forward(iXi,0 : NLow)
+                     call MatrixTimesVector( A = edge % storage(LEFT) % Q(0 : Nlow , 1:NCONS)  , X = lj_forward , Y = QL , trA = .true. , reset = .true. )
+                     call MatrixTimesVector( A = edge % storage(LEFT) % W(0 : Nlow , 1:NPRIM)  , X = lj_forward , Y = WL , trA = .true. , reset = .true. )
+                     end associate
 !
-!                 Gather edge orientation matrices
-!                 -------------------------------- 
-                  T     => edge % T(1:NCONS , 1:NCONS , iXi)
-                  Tinv  => edge % Tinv(1:NCONS , 1:NCONS , iXi)
+!                    Get right boundary values
+!                    -------------------------
+                     QR    = edge % storage(RIGHT) % Q(iXi , 1:NCONS)
+                     WR    = edge % storage(RIGHT) % W(iXi , 1:NPRIM)
+
 !
-!                 Compute the Riemann flux
-!                 ------------------------
-                  Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+!                    Gather edge orientation matrices
+!                    -------------------------------- 
+                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
+                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!
+!                    Compute the Riemann flux
+!                    ------------------------
+                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+
+                  end do
+
+               elseif ( edge % transform(RIGHT) ) then
+
+                  do iXi = 0 , N
+!
+!                    Get left boundary values
+!                    ------------------------
+                     QL    = edge % storage(LEFT) % Q(iXi , 1:NCONS)
+                     WL    = edge % storage(LEFT) % W(iXi , 1:NPRIM)
+!
+!                    Transform right boundary values
+!                    -------------------------------
+                     associate ( Nlow => edge % storage(RIGHT) % spA % N )
+                     lj_forward = edge % T_forward(iXi,0 : NLow)
+                     call MatrixTimesVector( A = edge % storage(RIGHT) % Q(0 : Nlow , 1:NCONS)  , X = lj_forward , Y = QR , trA = .true. , reset = .true. )
+                     call MatrixTimesVector( A = edge % storage(RIGHT) % W(0 : Nlow , 1:NPRIM)  , X = lj_forward , Y = WR , trA = .true. , reset = .true. )
+                     end associate
+!
+!                    Gather edge orientation matrices
+!                    -------------------------------- 
+                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
+                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!
+!                    Compute the Riemann flux
+!                    ------------------------
+                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+
+                  end do
+            
+               else
+
+                  do iXi = 0 , N
   
-               end do
+                     QL    = edge % storage(LEFT) % Q(iXi , 1:NCONS)
+                     WL    = edge % storage(LEFT) % W(iXi , 1:NPRIM)
+                     QR    = edge % storage(RIGHT) % Q(iXi , 1:NCONS)
+                     WR    = edge % storage(RIGHT) % W(iXi , 1:NPRIM)
+!
+!                   Gather edge orientation matrices
+!                    -------------------------------- 
+                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
+                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!  
+!                    Compute the Riemann flux
+!                    ------------------------
+                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+
+                  end do
+         
+               end if
 
                end associate
 !

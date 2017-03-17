@@ -256,10 +256,10 @@ module DGSpatialDiscretizationMethods
                   case (IQ)
             
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % Q(0:N , 1:NCONS , e % quadPosition(edID)) = variable_b
+                        ed % storage(e % quadPosition(edID)) % Q(0:N , 1:NCONS) = variable_b
 
                      else
-                        ed % Q(0:N , 1:NCONS , e % quadPosition(edID)) = variable_b(N:0:-1,1:NCONS)
+                        ed % storage(e % quadPosition(edID)) % Q(0:N , 1:NCONS ) = variable_b(N:0:-1,1:NCONS)
 
                      end if
 !
@@ -267,10 +267,10 @@ module DGSpatialDiscretizationMethods
                   case (IFLUXES)
    
                      if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                        ed % F (0:N , 1:NCONS , e % quadPosition(edID)) = edgeSign * variable_b
+                        ed % storage(e % quadPosition(edID)) % F (0:N , 1:NCONS) = edgeSign * variable_b
 
                      elseif ( e % edgesAssemblyDir(edID) .eq. BACKWARD ) then
-                        ed % F (0:N , 1:NCONS , e % quadPosition(edID)) = -edgeSign * variable_b(N:0:-1,1:NCONS)     ! To ensure that is consistent with the edge normal
+                        ed % storage(e % quadPosition(edID)) % F (0:N , 1:NCONS) = -edgeSign * variable_b(N:0:-1,1:NCONS)     ! To ensure that is consistent with the edge normal
 
                      end if
 !
@@ -356,10 +356,10 @@ module DGSpatialDiscretizationMethods
 !              Return its value
 !              ----------------
                if ( e % edgesAssemblyDir(edID) .eq. FORWARD ) then
-                  ed % dQ ( 0:N , 1:NDIM , 1:NGRAD , e % quadPosition(edID) ) = variable_b
+                  ed % storage(e % quadPosition(edID)) % dQ ( 0:N , 1:NDIM , 1:NGRAD ) = variable_b
 
                else
-                  ed % dQ ( 0:N , 1:NDIM , 1:NGRAD , e % quadPosition(edID) ) = variable_b( N:0:-1 , 1:NDIM , 1:NGRAD )
+                  ed % storage(e % quadPosition(edID)) % dQ ( 0:N , 1:NDIM , 1:NGRAD ) = variable_b( N:0:-1 , 1:NDIM , 1:NGRAD )
 
                end if
 

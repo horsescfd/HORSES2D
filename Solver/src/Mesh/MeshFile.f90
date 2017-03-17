@@ -1,5 +1,6 @@
 module MeshFileClass
     use SMConstants
+    use ParamfileIO
 
 
     integer, parameter           :: POINTS_PER_EDGE = 2
@@ -9,11 +10,13 @@ module MeshFileClass
 
     type MeshFile_t
        logical                                  :: curvilinear = .false.              ! Flag for curvilinear/not curvilinear meshes
+       logical                                  :: has_pRefinement = .false.          ! Flag for p-Refinement
        integer                                  :: no_of_nodes                        ! Number of nodes in the mesh
        integer                                  :: no_of_elements                     ! Number of elements in the mesh
        integer                                  :: no_of_edges                        ! Number of edges in the mesh
        integer                                  :: no_of_bdryedges                    ! Number of edges which are boundaries
        integer                                  :: no_of_markers                      ! Number of markers
+       integer                                  :: no_of_pRefinementZones             ! Number of zones in which pRefinement is performed
        integer, allocatable                     :: no_of_curvedbdryedges              ! Number of boundary edges which are curved
        integer, allocatable                     :: curves_polynomialorder             ! Curved edges polynomial order
        integer, allocatable                     :: points_of_elements(:,:)            ! Array with the points for each element ( # , element )
@@ -24,6 +27,8 @@ module MeshFileClass
 !                                                                                                           (-1 for the second point if boundary)
        integer, allocatable                     :: old_curved_bdryedges(:)                ! Which edges are curved in the mesh storage order
        integer, allocatable                     :: curved_bdryedges(:)                ! Which edges are curved
+       integer, allocatable                     :: pRefinementZones(:)               ! The elements for the different pRefinement zones 
+       integer, allocatable                     :: pRefinementOrder(:)               ! The elements for the different pRefinement zones 
        integer, allocatable                     :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
        real(kind=RP), allocatable               :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
        real(kind=RP), allocatable               :: curvilinear_coords(:,:,:)          ! Array with the coordinates of curvilinear edges (x/y , 0:N , edge)
@@ -57,8 +62,12 @@ module MeshFileClass
             integer                     :: curved_bdryedges
             integer                     :: marker
             integer                     :: el
+            integer                     :: eID
             real(kind=RP), allocatable  :: aux(:,:)
             character(len=STR_LEN_MESH) :: name
+            integer                     :: pRefZone
+            integer, allocatable        :: zoneOrder
+            character(len=STR_LEN_MESH) :: zoneID
 !
 !           ----------------------------------------------------------------------------------------------------
 !                 Read nodes, elements, and boundary edges
@@ -83,14 +92,55 @@ module MeshFileClass
             call NetCDF_getVariable ( Setup % mesh_file , "points"              , mesh % points_coords       ) 
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges ) 
             call NetCDF_getVariable ( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
+!
+!           Assign the default polynomial order until replaced by the pRefinement polynomial order if proceeds
+!           --------------------------------------------------------------------------------------------------
             mesh % polynomialOrder  = Setup % N
 
-            mesh % points_coords = mesh % points_coords / RefValues % L 
+            mesh % points_coords = mesh % points_coords / RefValues % L       ! Scale with the reference length
 
             do marker = 1 , mesh % no_of_markers
                write(name , '(A,I0)') "marker" , marker
                call NetCDF_getVariable ( Setup % mesh_file , trim(name) , mesh % bdryzones_names(marker) )
             end do
+!
+!           Gather pRefinement zones
+!           ------------------------
+            mesh % no_of_pRefinementZones = NetCDF_getDimension( Setup % mesh_file , "no_of_pRefinementzones" )
+!
+!           *************************************************
+!                 ----> The mesh has p-Refinement <----
+            if ( mesh % no_of_pRefinementZones .ne. -1 ) then
+!           *************************************************
+!
+!              ===============================
+               mesh % has_pRefinement = .true.
+!              ===============================
+!
+               allocate ( mesh % pRefinementZones ( mesh % no_of_elements ))
+               allocate ( mesh % pRefinementOrder ( mesh % no_of_pRefinementZones ) )
+               call NetCDF_getVariable ( Setup % mesh_file , "pRefinement_zones" , mesh % pRefinementZones )
+!
+!              Read from case file the polynomial order
+!              ----------------------------------------
+               do pRefZone = 1 , mesh % no_of_pRefinementZones 
+                  write( zoneID , '(I0)') pRefZone
+                  call ReadValueInRegion( trim(Setup % case_file) , trim(zoneID) , zoneOrder , "# define p-Refinement" , "# end" )
+                  
+                  if ( allocated ( zoneOrder ) ) then
+                     mesh % pRefinementOrder(pRefZone) = zoneOrder
+                     deallocate( zoneOrder )
+                  end if
+               end do
+!
+!              Assign the polynomial order to the elements
+!              -------------------------------------------
+               do eID = 1 , mesh % no_of_elements
+                  mesh % polynomialOrder(eID) = mesh % pRefinementOrder ( mesh % pRefinementZones ( eID ) )  
+               end do
+
+            end if
+            
 
 !           Gather curved boundaries
             curved_bdryedges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )

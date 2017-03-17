@@ -137,13 +137,13 @@
                         edge1 % BCWeakType = WEAK_RIEMANN
                         edge2 % BCWeakType = WEAK_RIEMANN
 
-                        edge1 % uB(0:,1:)    => edge2 % Q(0:,1:,1)
-                        edge2 % uB(0:,1:)    => edge1 % Q(0:,1:,1)
-                        edge1 % wB(0:,1:)    => edge2 % W(0:,1:,1)
-                        edge2 % wB(0:,1:)    => edge1 % W(0:,1:,1)
+                        edge1 % uB(0:,1:)    => edge2 % storage(1) % Q(0:,1:)
+                        edge2 % uB(0:,1:)    => edge1 % storage(1) % Q(0:,1:)
+                        edge1 % wB(0:,1:)    => edge2 % storage(1) % W(0:,1:)
+                        edge2 % wB(0:,1:)    => edge1 % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
-                        edge1 % gB(0:,1:,1:) => edge2 % dQ(0:,1:,1:,1)
-                        edge2 % gB(0:,1:,1:) => edge1 % dQ(0:,1:,1:,1)
+                        edge1 % gB(0:,1:,1:) => edge2 % storage(1) % dQ(0:,1:,1:)
+                        edge2 % gB(0:,1:,1:) => edge1 % storage(1) % dQ(0:,1:,1:)
 #endif
 
                      end if

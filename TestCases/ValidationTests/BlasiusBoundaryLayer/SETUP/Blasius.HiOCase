@@ -16,15 +16,15 @@
 			       Reynolds length       : 1.0
 			       Reynolds number       : 1000.0
 			       Prandtl number        : 0.72
-			       Mach number           : 0.3
+			       Mach number           : 0.1
 	
 !------------------------------------: DG Discretization
-		           Interpolation nodes : Legendre-Gauss
-		           Polynomial order    : 5
+		           Interpolation nodes      : Legendre-Gauss
+		           Default polynomial order : 6
 
 !------------------------------------: Initialization
-		             Initial condition : Uniform
-		             Restart file      : ./RESULTS/Blasius.HiORst
+		             Initial condition : Restart
+		             Restart file      : ./RESULTS/Blasius_10000.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy     : Standard
@@ -34,16 +34,16 @@
 !------------------------------------: Viscous discretization
                      Viscous strategy: BR1
               Interior penalty method: SIPG
-              Jumps penalty parameter: 1.0
+              Jumps penalty parameter: 0.1
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
                Integration mode     : Steady
-               Integration scheme   : Williamson RK3
+               Integration scheme   : Williamson RK5
                Time step            : 1.0e-2
-               CFL Number           : 0.05
+               CFL Number           : 0.1
                Simulation time      : 1.0
-               Number of iterations : 1000000
+               Number of iterations : 100000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
@@ -61,6 +61,12 @@
 !
 
 
+# define p-Refinement
+   1: 2
+   2: 8
+   3: 6
+   4: 4
+# end
 
 # define zone 1
 	Name      = Bottom
@@ -71,22 +77,20 @@
 
 # define zone 2
 	Name      = Top
-   Type      = Pressure outlet
-   Outflow type = Partially non reflective
-!   Type      = Dirichlet
+   Type      = Dirichlet
+   Riemann solver = Exact
 # end 
 
 # define zone 3
 	Name      = Right
    Type      = Pressure outlet
-   Outflow type = Partially non reflective
+   Outflow type = Reflective
    Riemann solver = Exact
 # end
 
 # define zone 4
 	Name      = Left
 	Type      = Dirichlet
-!   Type      = Riemann
    Riemann solver = Exact
 # end
 
@@ -94,4 +98,11 @@
    Name     = Entry
    Type     = Euler wall
    Riemann solver = Exact
+# end
+
+# define surface monitor 1
+   Name = cf_wall
+   Marker = 1
+   Variable = drag
+   Reference surface = 1.0
 # end
