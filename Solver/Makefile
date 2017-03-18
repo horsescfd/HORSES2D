@@ -24,6 +24,10 @@ GLOB_MACROS :=
 
 Physics: PhysicsNS Headers
 PhysicsNS: Setup SMConstants Headers MatrixOperations
+VariableConversion: PhysicsNS
+RiemannSolvers: PhysicsNS SMConstants InviscidFluxes
+InviscidFluxes: PhysicsNS SMConstants
+ViscousFluxes: PhysicsNS SMConstants
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
 InterpolationAndDerivatives: SMConstants Utilities

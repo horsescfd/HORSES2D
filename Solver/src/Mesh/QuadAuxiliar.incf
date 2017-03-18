@@ -5,6 +5,10 @@
 !        **********************************************************************************
 !
          subroutine searchEdge( nodesEl , nodesEdge , edgePosition , quadPosition , edgeDirection )
+!
+!           **********************************************************************
+!                 Given two nodes, get the edge ID that belongs and its direction
+!           **********************************************************************
             implicit none
             integer, intent(in)        :: nodesEl(:)
             integer, intent(in)        :: nodesEdge(:)

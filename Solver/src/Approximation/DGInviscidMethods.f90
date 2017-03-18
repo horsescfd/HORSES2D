@@ -687,7 +687,7 @@ module DGInviscidMethods
 
          associate( N => element % spA % N )
          
-         F = InviscidFlux( element % spA % N , element % Q , element % W)
+         F = InviscidFlux( element % spA % N , element % Q )
 
          if ( reset ) then
             do eq = 1 , NCONS
