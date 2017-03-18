@@ -192,85 +192,85 @@ module DGInviscidMethods
 !
 !        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
 !        -------------------------------------------------------------------------------
-         Fstar = self % RiemannFlux( edge )
+!         Fstar = self % RiemannFlux( edge )
+!!
+!!        Perform the loop in both elements
+!!        ---------------------------------
+!!
+!!        ********************
+!         select type ( edge )
+!!        ********************
+!!
+!!           --------------------------------------------------------------------------
+!            type is (Edge_t)
+!!
+!!              The obtained term is substracted to the LEFT element
+!!              ----------------------------------------------------
+!               if ( .not. edge % transform(LEFT) ) then
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar )
+!                  end associate
+!            
+!               else
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+!                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , FstarLowered )
+!                  end associate
 !
-!        Perform the loop in both elements
-!        ---------------------------------
+!               end if
+!!
+!!              The obtained term is added to the RIGHT element
+!!              -----------------------------------------------
+!               if ( .not. edge % transform(RIGHT) ) then
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar )
+!                  end associate
+!            
+!               else
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+!                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , FstarLowered )
+!                  end associate
 !
-!        ********************
-         select type ( edge )
-!        ********************
+!               end if                 
+!!
+!!           --------------------------------------------------------------------------
+!            type is (StraightBdryEdge_t)
 !
-!           --------------------------------------------------------------------------
-            type is (Edge_t)
+!               associate ( QDot => edge % quads(1) % e % QDot )
 !
-!              The obtained term is substracted to the LEFT element
-!              ----------------------------------------------------
-               if ( .not. edge % transform(LEFT) ) then
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-            
-               else
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , FstarLowered )
-                  end associate
-
-               end if
+!                  if ( .not. edge % inverted ) then
+!!
+!!                    If the normal points towards the domain exterior
+!!                    ------------------------------------------------
+!                     QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar )
+!                  else
+!!
+!!                    If the normal points towards the domain interior
+!!                    ------------------------------------------------
+!                     QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar )
+!                  end if
+!               
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            type is (CurvedBdryEdge_t)
 !
-!              The obtained term is added to the RIGHT element
-!              -----------------------------------------------
-               if ( .not. edge % transform(RIGHT) ) then
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-            
-               else
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
-                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , FstarLowered )
-                  end associate
-
-               end if                 
-!
-!           --------------------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-
-                  if ( .not. edge % inverted ) then
-!
-!                    If the normal points towards the domain exterior
-!                    ------------------------------------------------
-                     QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar )
-                  else
-!
-!                    If the normal points towards the domain interior
-!                    ------------------------------------------------
-                     QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar )
-                  end if
-               
-               end associate
-!
-!           --------------------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-!
-!                 The normal for curved elements always points towards the domain exterior
-!                 ------------------------------------------------------------------------
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar ) 
-               end associate
-!
-!           --------------------------------------------------------------------------
-            class default
-               STOP "Stopped."
-!
-!        **********
-         end select
-!        **********
-!
+!               associate ( QDot => edge % quads(1) % e % QDot )
+!!
+!!                 The normal for curved elements always points towards the domain exterior
+!!                 ------------------------------------------------------------------------
+!                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar ) 
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            class default
+!               STOP "Stopped."
+!!
+!!        **********
+!         end select
+!!        **********
+!!
         end associate
  
       end subroutine StdDG_QDotFaceLoopFormI
@@ -301,84 +301,84 @@ module DGInviscidMethods
          Fstar = self % RiemannFlux( edge )
 !
 !        Perform the loop in both elements
-!        ---------------------------------
+!!        ---------------------------------
+!!
+!!        ********************
+!         select type ( edge )
+!!        ********************
+!!
+!!           --------------------------------------------------------------------------
+!            type is (Edge_t)
+!!
+!!              The obtained term is substracted to the LEFT element
+!!              ----------------------------------------------------
+!               if ( .not. edge % transform(LEFT) ) then
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % storage(LEFT) % F(0:N , 1:NCONS))
+!                  end associate
+!            
+!               else
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+!                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , FstarLowered - edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS) )
+!                  end associate
 !
-!        ********************
-         select type ( edge )
-!        ********************
+!               end if
+!!
+!!              The obtained term is added to the RIGHT element
+!!              -----------------------------------------------
+!               if ( .not. edge % transform(RIGHT) ) then
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % storage(RIGHT) % F(0:N , 1:NCONS))
+!                  end associate
+!            
+!               else
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
+!                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , FstarLowered - edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS) )
+!                  end associate
 !
-!           --------------------------------------------------------------------------
-            type is (Edge_t)
+!               end if
 !
-!              The obtained term is substracted to the LEFT element
-!              ----------------------------------------------------
-               if ( .not. edge % transform(LEFT) ) then
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , Fstar - edge % storage(LEFT) % F(0:N , 1:NCONS))
-                  end associate
-            
-               else
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , LEFT , FstarLowered - edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS) )
-                  end associate
-
-               end if
+!!
+!!           --------------------------------------------------------------------------
+!            type is (StraightBdryEdge_t)
 !
-!              The obtained term is added to the RIGHT element
-!              -----------------------------------------------
-               if ( .not. edge % transform(RIGHT) ) then
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , Fstar - edge % storage(RIGHT) % F(0:N , 1:NCONS))
-                  end associate
-            
-               else
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLowered )
-                  QDot = QDot + StdDG_QDotFaceContribution( edge , RIGHT , FstarLowered - edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS) )
-                  end associate
-
-               end if
-
+!               associate ( QDot => edge % quads(1) % e % QDot )
 !
-!           --------------------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-
-                  if ( .not. edge % inverted ) then
+!                  if ( .not. edge % inverted ) then
+!!
+!!                    If the normal points towards the domain exterior
+!!                    ------------------------------------------------
+!                     QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) )
 !
-!                    If the normal points towards the domain exterior
-!                    ------------------------------------------------
-                     QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) )
-
-                  else
+!                  else
+!!
+!!                    If the normal points towards the domain interior
+!!                    ------------------------------------------------
+!                     QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) )
 !
-!                    If the normal points towards the domain interior
-!                    ------------------------------------------------
-                     QDot = QDot + StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) )
-
-                  end if
-               
-               end associate
+!                  end if
+!               
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            type is (CurvedBdryEdge_t)
 !
-!           --------------------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-!
-!                 The normal for curved elements always points towards the domain exterior
-!                 ------------------------------------------------------------------------
-                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) ) 
-               end associate
-!
-!           --------------------------------------------------------------------------
-            class default
-               STOP "Stopped."
-!
-!        **********
-         end select
-!        **********
+!               associate ( QDot => edge % quads(1) % e % QDot )
+!!
+!!                 The normal for curved elements always points towards the domain exterior
+!!                 ------------------------------------------------------------------------
+!                  QDot = QDot - StdDG_QDotFaceContribution( edge , 1 , Fstar - edge % storage(1) % F (0:N , 1:NCONS ) ) 
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            class default
+!               STOP "Stopped."
+!!
+!!        **********
+!         end select
+!!        **********
 !
          end associate
  
@@ -596,76 +596,76 @@ module DGInviscidMethods
          integer                 :: eq
          logical                 :: rst
          logical                 :: cmpt
-
-         if ( present(reset) ) then
-            rst = reset
-
-         else
-            rst = .true.
-
-         end if
-
-         if ( present(compute) ) then
-            cmpt = compute
-
-         else
-            cmpt = .true.
-
-         end if
 !
-!        Compute inner Euler fluxes
-!        --------------------------
-         call self % computeInnerFluxes ( element , rst)
+!         if ( present(reset) ) then
+!            rst = reset
 !
-!        Perform the matrix multiplication
-!        ---------------------------------
-         if ( cmpt ) then
-            associate( QDot => element % QDot     , &
-                       MD   => element % spA % MD , &
-                       trMD => element % spA % trMD, &
-                       M    => element % spA % M  , &
-                       w    => element % spA % w  , &
-                       N    => element % spA % N      )
-   
-            do eq = 1 , NCONS
+!         else
+!            rst = .true.
+!
+!         end if
+!
+!         if ( present(compute) ) then
+!            cmpt = compute
+!
+!         else
+!            cmpt = .true.
+!
+!         end if
+!!
+!!        Compute inner Euler fluxes
+!!        --------------------------
+!         call self % computeInnerFluxes ( element , rst)
+!!
+!!        Perform the matrix multiplication
+!!        ---------------------------------
+!         if ( cmpt ) then
+!            associate( QDot => element % QDot     , &
+!                       MD   => element % spA % MD , &
+!                       trMD => element % spA % trMD, &
+!                       M    => element % spA % M  , &
+!                       w    => element % spA % w  , &
+!                       N    => element % spA % N      )
 !   
-!              FORM I
-!              ------
-               if ( self % formulation .eq. FORMI ) then
+!            do eq = 1 , NCONS
+!!   
+!!              FORM I
+!!              ------
+!               if ( self % formulation .eq. FORMI ) then
+!!   
+!!                 F Loop
+!!                 ------
+!                  call Mat_x_Mat(A = trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+!                                reset = .false. )
 !   
-!                 F Loop
-!                 ------
-                  call Mat_x_Mat(A = trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                                reset = .false. )
-   
+!!   
+!!                 G Loop
+!!                 ------
+!                  call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
+!                               reset = .false. )
+!!   
+!!              FORM II
+!!              -------
+!               elseif ( self % formulation .eq. FORMII ) then
+!!   
+!!                 F Loop
+!!                 ------
+!                  call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F(element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 ,  2 ) , C=QDot(0:N,0:N,eq) , &
+!                               reset = .false. )
 !   
-!                 G Loop
-!                 ------
-                  call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = MD , C=QDot(0:N,0:N,eq) , &
-                               reset = .false. )
+!!   
+!!                 G Loop
+!!                 ------
+!                  call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = trMD , C=QDot(0:N,0:N,eq) , &
+!                               reset = .false. )
 !   
-!              FORM II
-!              -------
-               elseif ( self % formulation .eq. FORMII ) then
+!               end if
 !   
-!                 F Loop
-!                 ------
-                  call Mat_x_Mat(A = -MD ,B = MatrixByVectorInIndex_F(element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 ,  2 ) , C=QDot(0:N,0:N,eq) , &
-                               reset = .false. )
-   
+!            end do
 !   
-!                 G Loop
-!                 ------
-                  call Mat_x_Mat(A = -MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = trMD , C=QDot(0:N,0:N,eq) , &
-                               reset = .false. )
-   
-               end if
-   
-            end do
-   
-            end associate
-         end if
-
+!            end associate
+!         end if
+!
       end subroutine StdDG_QDotVolumeLoop
 
       subroutine StdDG_ComputeInnerFluxes( self , element , reset) 
@@ -687,33 +687,33 @@ module DGInviscidMethods
 
          associate( N => element % spA % N )
          
-         F = InviscidFlux( element % spA % N , element % Q )
-
-         if ( reset ) then
-            do eq = 1 , NCONS
-!           
-!              F flux (contravariant)
-!              ----------------------
-               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
-!           
-!              G flux (contravariant)
-!              ----------------------
-               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
-            end do
-   
-         else
-            do eq = 1 , NCONS
-!           
-!              F flux (contravariant)
-!              ----------------------
-               element % F(0:N,0:N,eq,IX) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
-!           
-!              G flux (contravariant)
-!              ----------------------
-               element % F(0:N,0:N,eq,IY) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
-            end do
-         end if
-
+!         F = InviscidFlux( element % spA % N , element % Q )
+!
+!         if ( reset ) then
+!            do eq = 1 , NCONS
+!!           
+!!              F flux (contravariant)
+!!              ----------------------
+!               element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
+!!           
+!!              G flux (contravariant)
+!!              ----------------------
+!               element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
+!            end do
+!   
+!         else
+!            do eq = 1 , NCONS
+!!           
+!!              F flux (contravariant)
+!!              ----------------------
+!               element % F(0:N,0:N,eq,IX) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
+!!           
+!!              G flux (contravariant)
+!!              ----------------------
+!               element % F(0:N,0:N,eq,IY) = element % F(0:N,0:N,eq,IX) + F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
+!            end do
+!         end if
+!
          end associate
          
       end subroutine StdDG_ComputeInnerFluxes
@@ -769,265 +769,265 @@ module DGInviscidMethods
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 !
 !        ********************
-         select type ( edge )
-!        ********************
+!         select type ( edge )
+!!        ********************
+!!
+!!           -----------------------------------------------------------------
+!            type is (StraightBdryEdge_t)
 !
-!           -----------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               select case ( edge % BCWeakType ) 
-
-                  case ( WEAK_PRESCRIBED )
+!               associate( N => edge % spA % N )
 !
-!                    Prescribed boundary conditions: just pick its value
-!                    ---------------------------------------------------
-                     Fstar = edge % FB
-
-                  case ( WEAK_RIEMANN )
+!               select case ( edge % BCWeakType ) 
+!
+!                  case ( WEAK_PRESCRIBED )
+!!
+!!                    Prescribed boundary conditions: just pick its value
+!!                    ---------------------------------------------------
+!                     Fstar = edge % FB
+!
+!                  case ( WEAK_RIEMANN )
+!!   
+!!                    Weak boundary conditions
+!!                    -----------------------
+!                     if ( associated ( edge % RiemannSolver ) ) then
+!                        RiemannSolver => edge % RiemannSolver
+!
+!                     else
+!                        RiemannSolver => self % RiemannSolver
+!
+!                     end if
+!
+!                     if ( edge % inverted ) then
+!
+!                        do iXi = 0 , N
+!
+!!     
+!!                          Select LEFT and RIGHT states depending on the edge orientation
+!!                          -------------------------------------------------------------- 
+!                           QR = edge % storage(1) % Q(iXi , 1:NCONS)
+!                           QL = edge % uB(iXi, 1:NCONS)
+!                           WR = edge % storage(1) % W(iXi , 1:NPRIM)
+!                           WL = ComputePrimitiveVariables(QL)
+!
+!
+!!                          Gather edge orientation matrices
+!!                          --------------------------------
+!                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+!                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!!   
+!!                          Compute the Riemann Flux
+!!                          ------------------------
+!                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+! 
+!                        end do
+!
+!                     else
+!
+!                        do iXi = 0 , N
+!
+!!     
+!!                          Select LEFT and RIGHT states depending on the edge orientation
+!!                          -------------------------------------------------------------- 
+!                           QL = edge % storage(1) % Q(iXi , 1:NCONS)
+!                           QR = edge % uB(iXi, 1:NCONS)
+!                           WL = edge % storage(1) % W(iXi , 1:NPRIM)
+!                           WR = ComputePrimitiveVariables(QR)
+!
+!!                          Gather edge orientation matrices
+!!                          --------------------------------
+!                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+!                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!!   
+!!                          Compute the Riemann Flux
+!!                          ------------------------
+!                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+! 
+!                        end do
+!
+!                     end if
 !   
-!                    Weak boundary conditions
-!                    -----------------------
-                     if ( associated ( edge % RiemannSolver ) ) then
-                        RiemannSolver => edge % RiemannSolver
-
-                     else
-                        RiemannSolver => self % RiemannSolver
-
-                     end if
-
-                     if ( edge % inverted ) then
-
-                        do iXi = 0 , N
-
-!     
-!                          Select LEFT and RIGHT states depending on the edge orientation
-!                          -------------------------------------------------------------- 
-                           QR = edge % storage(1) % Q(iXi , 1:NCONS)
-                           QL = edge % uB(iXi, 1:NCONS)
-                           WR = edge % storage(1) % W(iXi , 1:NPRIM)
-                           WL = ComputePrimitiveVariables(QL)
-
-
-!                          Gather edge orientation matrices
-!                          --------------------------------
-                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!   
-!                          Compute the Riemann Flux
-!                          ------------------------
-                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
- 
-                        end do
-
-                     else
-
-                        do iXi = 0 , N
-
-!     
-!                          Select LEFT and RIGHT states depending on the edge orientation
-!                          -------------------------------------------------------------- 
-                           QL = edge % storage(1) % Q(iXi , 1:NCONS)
-                           QR = edge % uB(iXi, 1:NCONS)
-                           WL = edge % storage(1) % W(iXi , 1:NPRIM)
-                           WR = ComputePrimitiveVariables(QR)
-
-!                          Gather edge orientation matrices
-!                          --------------------------------
-                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!   
-!                          Compute the Riemann Flux
-!                          ------------------------
-                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
- 
-                        end do
-
-                     end if
-   
-                  case default
-      
-                     print*, "Boundary condition has undefined Type"
-                     stop "Stopped."
-
-               end select
-
-               end associate
-!               
-!           -----------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               select case ( edge % BCWeakType ) 
-
-                  case ( WEAK_PRESCRIBED )
+!                  case default
+!      
+!                     print*, "Boundary condition has undefined Type"
+!                     stop "Stopped."
 !
-!                    Prescribed boundary conditions: just pick its value
-!                    ---------------------------------------------------
-                     Fstar = edge % FB
-
-                  case ( WEAK_RIEMANN )
+!               end select
 !
-!                    Weak boundary conditions
-!                    -----------------------
-                     if ( associated ( edge % RiemannSolver ) ) then
-                        RiemannSolver => edge % RiemannSolver
-
-                     else
-                        RiemannSolver => self % RiemannSolver
-
-                     end if
-
-                     if ( edge % inverted ) then
-
-                        do iXi = 0 , N
-!     
-!                          Select LEFT and RIGHT states depending on the edge orientation
-!                          -------------------------------------------------------------- 
-                           QR = edge % storage(1) % Q(iXi , 1:NCONS)
-                           QL = edge % uB(iXi, 1:NCONS)
-                           WR = edge % storage(1) % W(iXi , 1:NPRIM)
-                           WL = ComputePrimitiveVariables(QL)
+!               end associate
+!!               
+!!           -----------------------------------------------------------------
+!            type is (CurvedBdryEdge_t)
 !
-!                          Gather edge orientation matrices
-!                          --------------------------------
-                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!   
-!                          Compute the Riemann Flux
-!                          ------------------------
-                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
- 
-                        end do
-
-                     else
-
-                        do iXi = 0 , N
-!     
-!                          Select LEFT and RIGHT states depending on the edge orientation
-!                          -------------------------------------------------------------- 
-                           QL = edge % storage(1) % Q(iXi , 1:NCONS)
-                           QR = edge % uB(iXi, 1:NCONS)
-                           WL = edge % storage(1) % W(iXi , 1:NPRIM)
-                           WR = ComputePrimitiveVariables(QR)
+!               associate( N => edge % spA % N )
 !
-!                          Gather edge orientation matrices
-!                          --------------------------------
-                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
-                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
-!   
-!                          Compute the Riemann Flux
-!                          ------------------------
-                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
- 
-                        end do
-
-                     end if
- 
-                  case default
-      
-                     print*, "Boundary condition has undefined Type"
-                     stop "Stopped."
-
-               end select
-
-               end associate
+!               select case ( edge % BCWeakType ) 
 !
-!           -----------------------------------------------------------------
-            type is (Edge_t)
-      
-               associate( N => edge % spA % N )
-
-               if ( edge % transform(LEFT) ) then
-
-                  do iXi = 0 , N
+!                  case ( WEAK_PRESCRIBED )
+!!
+!!                    Prescribed boundary conditions: just pick its value
+!!                    ---------------------------------------------------
+!                     Fstar = edge % FB
 !
-!                    Transform left boundary values
-!                    ------------------------------
-                     associate ( Nlow => edge % storage(LEFT) % spA % N )
-                     lj_forward = edge % T_forward(iXi,0 : NLow)
-                     call MatrixTimesVector( A = edge % storage(LEFT) % Q(0 : Nlow , 1:NCONS)  , X = lj_forward , Y = QL , trA = .true. , reset = .true. )
-                     call MatrixTimesVector( A = edge % storage(LEFT) % W(0 : Nlow , 1:NPRIM)  , X = lj_forward , Y = WL , trA = .true. , reset = .true. )
-                     end associate
+!                  case ( WEAK_RIEMANN )
+!!
+!!                    Weak boundary conditions
+!!                    -----------------------
+!                     if ( associated ( edge % RiemannSolver ) ) then
+!                        RiemannSolver => edge % RiemannSolver
 !
-!                    Get right boundary values
-!                    -------------------------
-                     QR    = edge % storage(RIGHT) % Q(iXi , 1:NCONS)
-                     WR    = edge % storage(RIGHT) % W(iXi , 1:NPRIM)
-
+!                     else
+!                        RiemannSolver => self % RiemannSolver
 !
-!                    Gather edge orientation matrices
-!                    -------------------------------- 
-                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
-                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!                     end if
 !
-!                    Compute the Riemann flux
-!                    ------------------------
-                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-
-                  end do
-
-               elseif ( edge % transform(RIGHT) ) then
-
-                  do iXi = 0 , N
+!                     if ( edge % inverted ) then
 !
-!                    Get left boundary values
-!                    ------------------------
-                     QL    = edge % storage(LEFT) % Q(iXi , 1:NCONS)
-                     WL    = edge % storage(LEFT) % W(iXi , 1:NPRIM)
+!                        do iXi = 0 , N
+!!     
+!!                          Select LEFT and RIGHT states depending on the edge orientation
+!!                          -------------------------------------------------------------- 
+!                           QR = edge % storage(1) % Q(iXi , 1:NCONS)
+!                           QL = edge % uB(iXi, 1:NCONS)
+!                           WR = edge % storage(1) % W(iXi , 1:NPRIM)
+!                           WL = ComputePrimitiveVariables(QL)
+!!
+!!                          Gather edge orientation matrices
+!!                          --------------------------------
+!                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+!                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!!   
+!!                          Compute the Riemann Flux
+!!                          ------------------------
+!                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+! 
+!                        end do
 !
-!                    Transform right boundary values
-!                    -------------------------------
-                     associate ( Nlow => edge % storage(RIGHT) % spA % N )
-                     lj_forward = edge % T_forward(iXi,0 : NLow)
-                     call MatrixTimesVector( A = edge % storage(RIGHT) % Q(0 : Nlow , 1:NCONS)  , X = lj_forward , Y = QR , trA = .true. , reset = .true. )
-                     call MatrixTimesVector( A = edge % storage(RIGHT) % W(0 : Nlow , 1:NPRIM)  , X = lj_forward , Y = WR , trA = .true. , reset = .true. )
-                     end associate
+!                     else
 !
-!                    Gather edge orientation matrices
-!                    -------------------------------- 
-                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
-                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!                        do iXi = 0 , N
+!!     
+!!                          Select LEFT and RIGHT states depending on the edge orientation
+!!                          -------------------------------------------------------------- 
+!                           QL = edge % storage(1) % Q(iXi , 1:NCONS)
+!                           QR = edge % uB(iXi, 1:NCONS)
+!                           WL = edge % storage(1) % W(iXi , 1:NPRIM)
+!                           WR = ComputePrimitiveVariables(QR)
+!!
+!!                          Gather edge orientation matrices
+!!                          --------------------------------
+!                           T    => edge % T    ( 1:NCONS , 1:NCONS , iXi )
+!                           Tinv => edge % Tinv ( 1:NCONS , 1:NCONS , iXi )
+!!   
+!!                          Compute the Riemann Flux
+!!                          ------------------------
+!                           Fstar(iXi , :) = RiemannSolver(QL , QR , WL , WR , T , Tinv)
+! 
+!                        end do
 !
-!                    Compute the Riemann flux
-!                    ------------------------
-                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-
-                  end do
-            
-               else
-
-                  do iXi = 0 , N
-  
-                     QL    = edge % storage(LEFT) % Q(iXi , 1:NCONS)
-                     WL    = edge % storage(LEFT) % W(iXi , 1:NPRIM)
-                     QR    = edge % storage(RIGHT) % Q(iXi , 1:NCONS)
-                     WR    = edge % storage(RIGHT) % W(iXi , 1:NPRIM)
+!                     end if
+! 
+!                  case default
+!      
+!                     print*, "Boundary condition has undefined Type"
+!                     stop "Stopped."
 !
-!                   Gather edge orientation matrices
-!                    -------------------------------- 
-                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
-                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!               end select
+!
+!               end associate
+!!
+!!           -----------------------------------------------------------------
+!            type is (Edge_t)
+!      
+!               associate( N => edge % spA % N )
+!
+!               if ( edge % transform(LEFT) ) then
+!
+!                  do iXi = 0 , N
+!!
+!!                    Transform left boundary values
+!!                    ------------------------------
+!                     associate ( Nlow => edge % storage(LEFT) % spA % N )
+!                     lj_forward = edge % T_forward(iXi,0 : NLow)
+!                     call MatrixTimesVector( A = edge % storage(LEFT) % Q(0 : Nlow , 1:NCONS)  , X = lj_forward , Y = QL , trA = .true. , reset = .true. )
+!                     call MatrixTimesVector( A = edge % storage(LEFT) % W(0 : Nlow , 1:NPRIM)  , X = lj_forward , Y = WL , trA = .true. , reset = .true. )
+!                     end associate
+!!
+!!                    Get right boundary values
+!!                    -------------------------
+!                     QR    = edge % storage(RIGHT) % Q(iXi , 1:NCONS)
+!                     WR    = edge % storage(RIGHT) % W(iXi , 1:NPRIM)
+!
+!!
+!!                    Gather edge orientation matrices
+!!                    -------------------------------- 
+!                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
+!                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!!
+!!                    Compute the Riemann flux
+!!                    ------------------------
+!                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+!
+!                  end do
+!
+!               elseif ( edge % transform(RIGHT) ) then
+!
+!                  do iXi = 0 , N
+!!
+!!                    Get left boundary values
+!!                    ------------------------
+!                     QL    = edge % storage(LEFT) % Q(iXi , 1:NCONS)
+!                     WL    = edge % storage(LEFT) % W(iXi , 1:NPRIM)
+!!
+!!                    Transform right boundary values
+!!                    -------------------------------
+!                     associate ( Nlow => edge % storage(RIGHT) % spA % N )
+!                     lj_forward = edge % T_forward(iXi,0 : NLow)
+!                     call MatrixTimesVector( A = edge % storage(RIGHT) % Q(0 : Nlow , 1:NCONS)  , X = lj_forward , Y = QR , trA = .true. , reset = .true. )
+!                     call MatrixTimesVector( A = edge % storage(RIGHT) % W(0 : Nlow , 1:NPRIM)  , X = lj_forward , Y = WR , trA = .true. , reset = .true. )
+!                     end associate
+!!
+!!                    Gather edge orientation matrices
+!!                    -------------------------------- 
+!                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
+!                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!!
+!!                    Compute the Riemann flux
+!!                    ------------------------
+!                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
+!
+!                  end do
+!            
+!               else
+!
+!                  do iXi = 0 , N
 !  
-!                    Compute the Riemann flux
-!                    ------------------------
-                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
-
-                  end do
-         
-               end if
-
-               end associate
+!                     QL    = edge % storage(LEFT) % Q(iXi , 1:NCONS)
+!                     WL    = edge % storage(LEFT) % W(iXi , 1:NPRIM)
+!                     QR    = edge % storage(RIGHT) % Q(iXi , 1:NCONS)
+!                     WR    = edge % storage(RIGHT) % W(iXi , 1:NPRIM)
+!!
+!!                   Gather edge orientation matrices
+!!                    -------------------------------- 
+!                     T     => edge % T    ( 1 : NCONS , 1 : NCONS , iXi ) 
+!                     Tinv  => edge % Tinv ( 1 : NCONS , 1 : NCONS , iXi ) 
+!!  
+!!                    Compute the Riemann flux
+!!                    ------------------------
+!                     Fstar(iXi , : ) = self % RiemannSolver(QL , QR , WL , WR , T , Tinv)
 !
-!           ------------------------------------------------------------------
-            class default
+!                  end do
+!         
+!               end if
 !
-!        **********
-         end select
-!        **********
-!
+!               end associate
+!!
+!!           ------------------------------------------------------------------
+!            class default
+!!
+!!        **********
+!         end select
+!!        **********
+!!
       end function InviscidMethod_RiemannFlux
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1036,11 +1036,11 @@ module DGInviscidMethods
 !           --------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      function ComputePrimitiveVariables(Q) result (W)
+      pure function ComputePrimitiveVariables(Q) result (W)
          implicit none
-         real(kind=RP)           :: Q(NCONS)
-         real(Kind=RP)           :: W(NPRIM)
-         real(kind=RP)           :: invRho
+         real(kind=RP), intent(in) :: Q(NCONS)
+         real(Kind=RP)             :: W(NPRIM)
+         real(kind=RP)             :: invRho
 
          W(IRHO) = Q(IRHO)
          invRho  = 1.0_RP / Q(IRHO)

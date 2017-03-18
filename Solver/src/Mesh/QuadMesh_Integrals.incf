@@ -1,10 +1,3 @@
-!
-!////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
-!           VOLUME AND SURFACE INTEGRALS
-!           ----------------------------
-!////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
          function Compute_volumeIntegral( self , var ) result ( val )
             use MatrixOperations
             use Physics
@@ -36,15 +29,15 @@
                   if ( allocated(variable) ) deallocate (variable)
                   allocate ( variable(0:e % spA % N , 0 : e % spA % N) )
 
-                  variable = self % elements(eID) % W(0:N,0:N,IP) / (self % elements(eID) % W(0:N,0:N,IRHO)) ** ( thermodynamics % gamma ) - 1.0_RP
-                  variable = variable * variable * e % jac
-                  val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
+!                  variable = self % elements(eID) % W(0:N,0:N,IP) / (self % elements(eID) % W(0:N,0:N,IRHO)) ** ( thermodynamics % gamma ) - 1.0_RP
+!                  variable = variable * variable * e % jac
+!                  val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
 
                   end associate
                   end associate
                end do
    
-               val = sqrt(val)
+!               val = sqrt(val)
       
             end if
                
@@ -70,7 +63,17 @@
                   
                   do edID = 1 , self % zones(zone) % no_of_edges
                      associate ( f => self % zones(zone) % edges(edID) % f )
-                     val = val + dot_product(f % spA % w , norm2( f % dS , dim = 1 ))
+                     select type (f)
+                        type is (Edge_t)
+                           val = val + sum(f % spA % w * f % dS(0) )
+   
+                        type is (StraightBdryEdge_t)
+                           val = val + sum(f % spA % w * f % dS(0) )
+      
+                        type is (CurvedBdryEdge_t)
+                           val = val + sum(f % spA % w * f % dS )
+
+                     end select
                      end associate
                   end do
 
@@ -80,8 +83,8 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     variable => f % storage(1) % w(0:N , IP )
-                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+!                     variable => f % storage(1) % w(0:N , IP )
+!                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
 
                      end associate
                      end associate
@@ -93,8 +96,8 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     variable => f % storage(1) % w(0:N , IP )
-                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+!                     variable => f % storage(1) % w(0:N , IP )
+!                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
 
                      end associate
                      end associate
@@ -125,9 +128,9 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     do j = 0 , N
-                        val(IX:IY) = val(IX:IY) + f % storage(1) % W(j,IP) * f % spA % w(j) * f % dS(IX:IY,j)
-                     end do
+!                     do j = 0 , N
+!                        val(IX:IY) = val(IX:IY) + f % storage(1) % W(j,IP) * f % spA % w(j) * f % dS(IX:IY,j)
+!                     end do
 
                      end associate
                      end associate
@@ -158,7 +161,7 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % dS(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % dS(IY,0:N) ) )
+!                     val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % dS(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % dS(IY,0:N) ) )
 
                      end associate
                      end associate
@@ -170,7 +173,7 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-                     val = val + dot_product ( f % spA % w , ( f % storage(1) % W(0:N,IU) * f % dS(IX,0:N) + f % storage(1) % W(0:N,IV) * f % dS(IY,0:N) ) )
+!                     val = val + dot_product ( f % spA % w , ( f % storage(1) % W(0:N,IU) * f % dS(IX,0:N) + f % storage(1) % W(0:N,IV) * f % dS(IY,0:N) ) )
 
                      end associate
                      end associate
@@ -204,13 +207,13 @@
                      associate ( N => f % spA % N )
                      allocate ( tau(0:N , 1:NDIM , 1:NDIM ) )
 #ifdef NAVIER_STOKES
-                     dQ => f % storage(1) % dQ ( 0:N,1:NDIM,1:NGRAD ) 
+!                     dQ => f % storage(1) % dQ ( 0:N,1:NDIM,1:NGRAD ) 
 #endif
-                     tau = ComputeViscousTensor( N , dQ )
+!                     tau = ComputeViscousTensor( N , dQ )
 
                      do j = 0 , N
-                        val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % dS(IX,j) + tau(j,IX,IY) * f % dS(IY,j) )
-                        val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % dS(IX,j) + tau(j,IY,IY) * f % dS(IY,j) )
+!                        val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % dS(IX,j) + tau(j,IX,IY) * f % dS(IY,j) )
+!                        val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % dS(IX,j) + tau(j,IY,IY) * f % dS(IY,j) )
                      end do
 
                      deallocate( tau )

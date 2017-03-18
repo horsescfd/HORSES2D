@@ -34,7 +34,6 @@ module QuadMeshClass
              procedure  :: VectorVectorSurfaceIntegral => Compute_VectorVectorSurfaceIntegral
              procedure  :: TensorVectorSurfaceIntegral => Compute_TensorVectorSurfaceIntegral
              procedure  :: ComputeResiduals            => Mesh_ComputeResiduals
-             procedure  :: ComputePrimitiveVariables   => Mesh_ComputePrimitiveVariables
              procedure  :: ComputeMaxJumps             => Mesh_ComputeMaxJumps
              procedure  :: FindElementWithCoords       => Mesh_FindElementWithCoords
     end type QuadMesh_t
@@ -58,11 +57,17 @@ module QuadMeshClass
     interface InitializeMesh
           module procedure newMesh
     end interface InitializeMesh
-
+!
+!   ========
     contains
-
-#include "ZoneProcedures.incf"
-#include "QuadMeshIntegrals.incf"
+!   ========
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+#include "./QuadMesh_Auxiliars.incf"
+#include "./QuadMesh_Construct.incf"
+#include "./QuadMesh_Integrals.incf"
+#include "./QuadMesh_Zones.incf"
 
          function newMesh()
              implicit none
@@ -85,23 +90,18 @@ module QuadMeshClass
              newMesh % elements => NULL() 
 
          end function newMesh
-!
-!        *********************************************************************
-!           Subroutine to build the mesh structure from the MeshFile_t
-!              Class already loaded.
-!        *********************************************************************
-!
+
          subroutine constructFromFile( self , meshFile , spA , Storage , spI)
              use MeshFileClass
              use Setup_class
              use Physics
              use NodesAndWeights_Class
              implicit none
-             class(QuadMesh_t),                 intent (out)                 :: self
-             class(MeshFile_t),                 intent (in )                 :: meshFile
-             class(NodalStorage),               intent (in )                 :: spA
-             class(Storage_t),                  intent (in )                 :: storage
-             class(NodesAndWeights_t), pointer, intent (in )                 :: spI
+             class(QuadMesh_t),                 intent (inout)                 :: self
+             class(MeshFile_t),                 intent (in   )                 :: meshFile
+             class(NodalStorage),               intent (in   )                 :: spA
+             class(Storage_t),                  intent (in   )                 :: storage
+             class(NodesAndWeights_t), pointer, intent (in   )                 :: spI
 !            ----------------------------------------------------------------------
              integer                                                         :: node
 
@@ -144,155 +144,6 @@ module QuadMeshClass
 
          end subroutine constructFromFile
 
-         subroutine constructElementsAndEdges( self  , meshFile , spA , Storage , spI)
-             use MeshFileClass
-             use Setup_class
-             use Physics
-             use NodesAndWeights_Class
-             use MatrixOperations
-             implicit none
-             class(QuadMesh_t),                 intent (inout)               :: self
-             class(MeshFile_t),                 intent (in )                 :: meshFile
-             class(NodalStorage),               intent (in )                 :: spA
-             class(Storage_t),                  intent (in )                 :: storage
-             class(NodesAndWeights_t), pointer, intent (in )                 :: spI
-!            ----------------------------------------------------------------------
-             integer                                  :: address
-             integer                                  :: node
-             integer                                  :: edge
-             integer                                  :: eID
-             integer                                  :: el1 , el2 , elb
-             integer                                  :: polynomialOrder
-             integer                                  :: curve
-             type(Node_p)                             :: nodes(POINTS_PER_QUAD)
-             class(QuadElement_t), pointer            :: leftE , rightE , bdryE
-             logical                                  :: curvilinear
-!            ----------------------------------------------------------------------
-!
-!            ===================
-!            Construct elements
-!            ===================
-!
-             do eID = 1 , self % no_of_elements
-                 
-                 do node = 1 , POINTS_PER_QUAD
-                    nodes(node) % n => self % nodes ( meshFile % points_of_elements(node , eID) ) 
-                 end do
-
-
-                 address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NCONS + 1 
-                 call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
-
-             end do
-!
-!            ================
-!            Construct edges
-!            ================
-!
-             do edge = 1 , self % no_of_edges
-
-               do node = 1 , POINTS_PER_EDGE
-                  nodes(node) % n => self % nodes ( meshFile % points_of_edges(node , edge) )
-               end do
-
-               if (meshFile % curvilinear) then
-                  curvilinear = any(meshFile % curved_bdryedges == edge)
-               else
-                  curvilinear = .false.
-               end if
-!
-!              Get its generic polynomial order: The largest within the neighbouring elements
-!              ------------------------------------------------------------------------------
-               if ( meshFile % elements_of_edges(1,edge) .eq. -1 ) then
-                  polynomialOrder = self % elements( meshFile % elements_of_edges(2,edge) ) % spA % N
-            
-               elseif ( meshFile % elements_of_edges(2,edge) .eq. -1 ) then
-                  polynomialOrder = self % elements( meshFile % elements_of_edges(1,edge) ) % spA % N
-
-               else
-                  polynomialOrder = self % elements( meshFile % elements_of_edges(1,edge) ) % spA % N
-                  polynomialOrder = max ( polynomialOrder , self % elements( meshFile % elements_of_edges(2,edge) ) % spA % N )
-
-               end if
-
-               call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , N = polynomialOrder , &
-                                                nodes = nodes , edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
-!
-!              *********************
-               if (curvilinear) then
-!              *********************
-!
-!
-            
-!              Add the curve to the edge
-!              -------------------------
-                  select type ( f => self % edges(edge) % f )
-
-                     type is (Edge_t)
-                        call self % edges(edge) % f % SetCurve()
-
-                     type is (StraightBdryEdge_t) 
-                        call self % edges(edge) % f % SetCurve()
-
-                     type is (CurvedBdryEdge_t) 
-                        curve = minloc(abs(meshFile % curved_bdryedges -  edge) , 1)
-                        call self % edges(edge) % f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
-
-                     class default
-
-                  end select
-
-               else
-                  call self % edges(edge) % f % SetCurve()
-
-               end if
-             end do
-!
-!             ========================
-!             Link elements with edges
-!             ========================
-!
-              do edge = 1 , self % no_of_edges
-
-                  if (self % edges(edge) % f % edgeType .eq. FACE_INTERIOR) then
-                     el1 = meshFile % elements_of_edges( 1 , edge )
-                     el2 = meshFile % elements_of_edges( 2 , edge )
-
-                     call self % edges(edge) % linkWithElements( el1 = self % elements(el1) , el2 = self % elements(el2) )
-
-                  else
-                     
-                     elb = meshFile % elements_of_edges( 1 , edge )
-                     call self % edges(edge)  % linkWithElements( elb = self % elements(elb) )
-
-                  end if
-               end do
-
-!
-!              =================================
-!              Compute the geometry of the quads
-!              =================================
-!
-               do eID = 1 , self % no_of_elements
-                  call self % elements(eID) % SetMappings
-               end do
-!
-!              Compute areas and volumes
-!              -------------------------
-               do eID = 1 , self % no_of_elements
-                  associate ( e => self % elements(eID) )
-                  e % Volume = BilinearForm_F ( e % jac , e % spA % w , e % spA % w )
-                  end associate
-               end do
-
-               do edge = 1 , self % no_of_edges
-                  associate ( ed => self % edges(edge) % f )
-                  ed % Area = dot_product( norm2(ed % dS , dim = 1) , ed % spA % w )
-                  end associate
-               end do
-
-         end subroutine constructElementsAndEdges
-           
          subroutine SetInitialCondition( self , which)
              use InitialConditions
              implicit none
@@ -354,20 +205,7 @@ module QuadMeshClass
 
           end subroutine ApplyInitialCondition
 
-          subroutine QuadMesh_SetStorage( self , storage )
-            use Storage_module
-            implicit none
-            class(QuadMesh_t)             :: self
-            class(Storage_t)            :: storage
-            integer                     :: eID
-
-            do eID = 1 , self % no_of_elements
-                call self % elements(eID) % SetStorage( storage )
-            end do
-
-         end subroutine QuadMesh_SetStorage
-
-        subroutine Mesh_ConstructZones( self , meshFile  )
+          subroutine Mesh_ConstructZones( self , meshFile  )
             use MeshFileClass
             use Headers
             implicit none
@@ -404,120 +242,60 @@ module QuadMeshClass
 !
          end subroutine Mesh_ConstructZones
 
-         subroutine Mesh_ComputePrimitiveVariables( self )
+         subroutine Zone_construct( self , mesh , marker , name)
             implicit none
-            class(QuadMesh_t)          :: self
-            integer                    :: eID , edID
-
-            do eID = 1 , self % no_of_elements
-
-               call self % elements(eID) % ComputePrimitiveVariables
-
-            end do
-
-            do edID = 1 , self % no_of_edges
-
-               call self % edges(edID) % f % ComputePrimitiveVariables
-
-            end do
-
-         end subroutine Mesh_ComputePrimitiveVariables
-!
-!//////////////////////////////////////////////////////////////////////////////////////////////////////
-!
-!              EXTRA SUBROUTINES
-!              ----------------- 
-!//////////////////////////////////////////////////////////////////////////////////////////////////////
-!
-         function Mesh_ComputeResiduals( self ) result ( residuals )
-            use Physics
-            implicit none
-            class(QuadMesh_t )               :: self
-            real(kind=RP)                    :: residuals(NCONS)
-            integer                          :: eID
-
-            residuals = 0.0_RP
-         
-            do eID = 1 , self % no_of_elements
-               residuals(IRHO)  = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
-               residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOU))) )
-               residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOV))) )
-               residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOE))) )
-            end do   
-
-         end function Mesh_ComputeResiduals
-
-         subroutine Mesh_FindElementWithCoords( self , x , elemID , xi , eta )
-            use Physics
-            implicit none
-            class(QuadMesh_t) ,  intent (in)  :: self
-            real(kind=RP)     ,  intent (in)  :: x(NDIM)
-            integer           ,  intent (out) :: elemID
-            real(kind=RP)     ,  intent (out)  :: xi
-            real(kind=RP)     ,  intent (out)  :: eta
-!           ------------------------------------------------------------------
-            integer                           :: eID , edID
-            logical                           :: isInside
-            real(kind=RP)                     :: distance , minimumDistance
-
-elloop:     do eID = 1 , self % no_of_elements
-
-               isInside = self % elements(eID) % FindPointWithCoords( x , xi , eta )
-
-               if ( isInside ) then
-                  elemID = eID
-                  exit elloop
-      
+            class(Zone_t)           :: self
+            class(QuadMesh_t)       :: mesh
+            integer                 :: marker
+            character(len=*)        :: name
+            integer                 :: edID
+            integer                 :: current
+   
+            self % marker = marker
+            self % Name = trim(Name)
+   
+            self % no_of_edges = 0
+!   
+!           ***************************************
+!           Gather the number of edges for a marker
+!           ***************************************
+!   
+            do edID = 1 , mesh % no_of_edges
+               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
+                  self % no_of_edges = self % no_of_edges + 1
                end if
+            end do
+!   
+!           Allocate the structure
+            allocate( self % edges( self % no_of_edges ) )
+   
+!   
+!           Point to all edges in the zone
+            current = 0
+            do edID = 1 , mesh % no_of_edges
+               if ( mesh % edges(edID) % f % edgeType .eq. marker) then
+                  current = current + 1
+                  self % edges( current ) % f => mesh % edges(edID) % f
+               end if
+            end do
+!
+!           ***************************************
+!           Create the boundary condition structure
+!           ***************************************
+!
+            if (marker .eq. FACE_INTERIOR) then
+               self % BC => NULL()
 
-            end do elloop
-
-            if ( .not. isInside ) then
-               print*, "Warning, the point probe was not found in the mesh."
-               elemID = -1
-               xi = huge(0.0_RP)
-               eta = huge(0.0_RP)
+            else
+               call Construct( self % BC , marker )
+   
+               do edID = 1 , self % no_of_edges
+                  call self % BC % Associate( self % edges(edID) % f )
+               end do
 
             end if
 
-         end subroutine Mesh_FindElementWithCoords
-
-         function Mesh_ComputeMaxJumps( self ) result ( val ) 
-            use Physics
-            implicit none
-            class(QuadMesh_t)          :: self
-!           --------------------------------------------------------------
-            integer                    :: edID
-            real(kind=RP)              :: val
-            real(kind=RP)              :: localJumps
-
-            val = 0.0_RP 
-
-            do edID = 1 , self % no_of_edges
-
-               associate ( N => self % edges(edID) % f % spA % N )
-               select type ( f => self % edges(edID) % f )
-
-
-                  type is (Edge_t)
-                     localJumps = maxval( abs ( f % storage(LEFT) % Q(0:N,1:NCONS) - f % storage(RIGHT) % Q(0:N,1:NCONS) ) )
-   
-                  type is (StraightBdryEdge_t)
-                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
-
-                  type is (CurvedBdryEdge_t)
-                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
-   
-               end select
-               end associate
-
-
-               if ( localJumps .gt. val ) then
-                  val = localJumps
-      
-               end if
-            end do
-
-         end function Mesh_ComputeMaxJumps
+            call self % Describe
+         end subroutine Zone_construct
 
 end module QuadMeshClass   

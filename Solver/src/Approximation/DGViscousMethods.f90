@@ -203,21 +203,21 @@ module DGViscousMethods
          integer                    :: eq
 
          associate( N => element % spA % N )
-
-         F = ViscousFlux( N , element % W , element % dQ )
-
-         do eq = 1 , NCONS
-!        
-!           F flux (contravariant)
-!           ----------------------
-            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
-!        
-!           G flux (contravariant)
-!           ----------------------
-            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
-
-         end do
-
+!
+!         F = ViscousFlux( N , element % W , element % dQ )
+!
+!         do eq = 1 , NCONS
+!!        
+!!           F flux (contravariant)
+!!           ----------------------
+!            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
+!!        
+!!           G flux (contravariant)
+!!           ----------------------
+!            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
+!
+!         end do
+!
          end associate
          
       end subroutine BaseClass_ComputeInnerFluxes
@@ -238,24 +238,24 @@ module DGViscousMethods
 
          associate ( N => edge % spA % N )
 
-         select type ( edge )
-
-            type is (Edge_t)
-
-               do side = 1 , QUADS_PER_EDGE
-                  associate ( Ni => edge % storage(side) % spA % N )
-                  edge % storage(side) % F ( 0:Ni , 1:NCONS ) = ViscousNormalFlux( Ni , edge % storage(side) % w(0:Ni , 1:NPRIM) , edge % storage(side) % dQ(0:Ni , 1:NDIM , 1:NGRAD ) , edge % dS(IX:IY,0:Ni) )
-                  end associate
-               end do
-
-            type is (StraightBdryEdge_t)
-               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS )
-
-            type is (CurvedBdryEdge_t)
-               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS)
-
-         end select
-
+!         select type ( edge )
+!
+!            type is (Edge_t)
+!
+!               do side = 1 , QUADS_PER_EDGE
+!                  associate ( Ni => edge % storage(side) % spA % N )
+!                  edge % storage(side) % F ( 0:Ni , 1:NCONS ) = ViscousNormalFlux( Ni , edge % storage(side) % w(0:Ni , 1:NPRIM) , edge % storage(side) % dQ(0:Ni , 1:NDIM , 1:NGRAD ) , edge % dS(IX:IY,0:Ni) )
+!                  end associate
+!               end do
+!
+!            type is (StraightBdryEdge_t)
+!               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS )
+!
+!            type is (CurvedBdryEdge_t)
+!               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS)
+!
+!         end select
+!
          end associate
 
       end subroutine BaseClass_ComputeFaceFluxes
@@ -267,54 +267,54 @@ module DGViscousMethods
          class(Edge_t)      :: edge
          real(kind=RP)      :: Fstar(0:edge % spA % N,1:NCONS)
 !        -------------------------------------------------------
+!!
+!!        ********************
+!         select type ( edge )
+!!        ********************
+!!
+!!           -----------------------------------------------------------------
+!            type is (StraightBdryEdge_t)
 !
-!        ********************
-         select type ( edge )
-!        ********************
+!               associate( N => edge % spA % N )
 !
-!           -----------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
-
-               end associate
-!               
-!           -----------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
-
-               end associate
+!               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
 !
-!           -----------------------------------------------------------------
-            type is (Edge_t)
-      
-               associate( N => edge % spA % N )
-
-               if ( edge % transform(LEFT) ) then
-                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS ) ) 
-
-               elseif ( edge % transform(RIGHT) ) then
-                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(LEFT) % F( 0:N , 1:NCONS ) ) 
-
-               else
-                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(LEFT) % F(0:N , 1:NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS) ) 
-
-               end if
-
-               end associate
+!               end associate
+!!               
+!!           -----------------------------------------------------------------
+!            type is (CurvedBdryEdge_t)
 !
-!           ------------------------------------------------------------------
-            class default
+!               associate( N => edge % spA % N )
 !
-!        **********
-         end select
-!        **********
+!               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
 !
+!               end associate
+!!
+!!           -----------------------------------------------------------------
+!            type is (Edge_t)
+!      
+!               associate( N => edge % spA % N )
+!
+!               if ( edge % transform(LEFT) ) then
+!                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS ) ) 
+!
+!               elseif ( edge % transform(RIGHT) ) then
+!                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(LEFT) % F( 0:N , 1:NCONS ) ) 
+!
+!               else
+!                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(LEFT) % F(0:N , 1:NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS) ) 
+!
+!               end if
+!
+!               end associate
+!!
+!!           ------------------------------------------------------------------
+!            class default
+!!
+!!        **********
+!         end select
+!!        **********
+!!
    end function BaseClass_IntercellFlux
 
 !
@@ -333,107 +333,107 @@ module DGViscousMethods
          real(kind=RP)      :: uStarLow(0:edge % Nlow , 1:NGRAD)
          
          associate ( N => edge % spA % N ) 
-        
-         select type ( edge ) 
-
-            type is ( Edge_t ) 
-      
-               if ( edge % transform(LEFT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
-                  end associate
-
-               else
-                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
-                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               end if
-               
-
-            type is ( StraightBdryEdge_t )
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-         
-               associate ( dQ => edge % quads(1) % e % dQ ) 
-
-               if ( .not. edge % inverted ) then
+!        
+!         select type ( edge ) 
 !
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
+!            type is ( Edge_t ) 
+!      
+!               if ( edge % transform(LEFT) ) then
+!                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
+!                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
+!                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
 !
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
-               
-               end associate
+!                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+!                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+!                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
+!                  end associate
+!               
+!                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+!                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+!                  end associate
 !
-   
-            type is ( CurvedBdryEdge_t )
-
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-
-               associate ( dQ => edge % quads(1) % e % dQ )
-
-               if ( .not. edge % inverted ) then
+!               elseif ( edge % transform(RIGHT) ) then
+!                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
+!                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
+!                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
 !
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
+!                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+!                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+!                  end associate
+!               
+!                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+!                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+!                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
+!                  end associate
 !
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
- 
-               end associate
-
-            class default
-
-         end select
-
+!               else
+!                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
+!                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
+!                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
+!
+!                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+!                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+!                  end associate
+!
+!                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+!                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+!                  end associate
+!
+!               end if
+!               
+!
+!            type is ( StraightBdryEdge_t )
+!               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+!               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+!               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
+!         
+!               associate ( dQ => edge % quads(1) % e % dQ ) 
+!
+!               if ( .not. edge % inverted ) then
+!!
+!!                 If the normal points towards the domain exterior
+!!                 ------------------------------------------------
+!                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+!
+!               else
+!!
+!!                 If the normal points towards the domain interior
+!!                 ------------------------------------------------
+!                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+!
+!               end if
+!               
+!               end associate
+!!
+!   
+!            type is ( CurvedBdryEdge_t )
+!
+!               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+!               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+!               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
+!
+!               associate ( dQ => edge % quads(1) % e % dQ )
+!
+!               if ( .not. edge % inverted ) then
+!!
+!!                 If the normal points towards the domain exterior
+!!                 ------------------------------------------------
+!                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+!
+!               else
+!!
+!!                 If the normal points towards the domain interior
+!!                 ------------------------------------------------
+!                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+!
+!               end if
+! 
+!               end associate
+!
+!            class default
+!
+!         end select
+!
          end associate
  
      end subroutine IP_dQFaceLoop
@@ -449,34 +449,34 @@ module DGViscousMethods
          integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
          real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
 
-         associate( N => element % spA % N , &
-                    W => element % W , &
-                   dQ => element % dQ , &
-                   MD => element % spA % MD , &
-                 trMD => element % spA % trMD , &
-              weights => element % spA % w , &
-                    M => element % spA % M , &
-                  gm1 => Thermodynamics % gm1)
+!         associate( N => element % spA % N , &
+!                    W => element % W , &
+!                   dQ => element % dQ , &
+!                   MD => element % spA % MD , &
+!                 trMD => element % spA % trMD , &
+!              weights => element % spA % w , &
+!                   M => element % spA % M , &
+!                  gm1 => Thermodynamics % gm1)
 
-
-         do iDim = 1 , NDIM
-   
-            do iVar = 1 , NGRAD
-               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = -trMD , &
-                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
-                     C = dQ(0:N,0:N,iDim,iVar) , & 
-                     reset = .false. )
-
-               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
-                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
-                     reset = .false. )
-
-            end do
-         end do
-
-         end associate
+!
+!         do iDim = 1 , NDIM
+!   
+!            do iVar = 1 , NGRAD
+!               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
+!               call Mat_x_Mat(A = -trMD , &
+!                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
+!                     C = dQ(0:N,0:N,iDim,iVar) , & 
+!                     reset = .false. )
+!
+!               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
+!               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
+!                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
+!                     reset = .false. )
+!
+!            end do
+!         end do
+!
+!         end associate
 
      end subroutine IP_dQVolumeLoop
 
@@ -500,109 +500,109 @@ module DGViscousMethods
          real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
 
          associate ( N => edge % spA % N , NLow => edge % NLow)
+!!
+!!        Compute face fluxes
+!!        -------------------
+!         call self % ComputeFaceFluxes ( edge )
+!!
+!!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
+!!        -------------------------------------------------------------------------------
+!         Fstar = self % IntercellFlux( edge )
+!!
+!!        Perform the loop in both elements
+!!        ---------------------------------
+!!
+!!        ********************
+!         select type ( edge )
+!!        ********************
+!!
+!!           --------------------------------------------------------------------------
+!            type is (Edge_t)
+!!
+!!              Compute the penalty term
+!!              ------------------------
+!               if ( edge % transform(LEFT) ) then
+!                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) - edge % storage(RIGHT) % Q(0:N,1:NCONS))
 !
-!        Compute face fluxes
-!        -------------------
-         call self % ComputeFaceFluxes ( edge )
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+!                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
+!                  end associate
 !
-!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
-!        -------------------------------------------------------------------------------
-         Fstar = self % IntercellFlux( edge )
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+!                  end associate
 !
-!        Perform the loop in both elements
-!        ---------------------------------
+!               elseif ( edge % transform(RIGHT) ) then
+!                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) )
 !
-!        ********************
-         select type ( edge )
-!        ********************
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+!                  end associate
 !
-!           --------------------------------------------------------------------------
-            type is (Edge_t)
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+!                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
+!                  end associate
 !
-!              Compute the penalty term
-!              ------------------------
-               if ( edge % transform(LEFT) ) then
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) - edge % storage(RIGHT) % Q(0:N,1:NCONS))
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) )
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
-                  end associate
-
-               else
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - edge % storage(RIGHT) % Q(0:N,1:NCONS) )
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               end if
+!               else
+!                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - edge % storage(RIGHT) % Q(0:N,1:NCONS) )
 !
-!           --------------------------------------------------------------------------
-            type is (StraightBdryEdge_t)
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+!                  end associate
 !
-!              Compute the penalty term
-!              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-
-                  if ( .not. edge % inverted ) then
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+!                  end associate
 !
-!                    If the normal points towards the domain exterior
-!                    ------------------------------------------------
-                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
-                  else
+!               end if
+!!
+!!           --------------------------------------------------------------------------
+!            type is (StraightBdryEdge_t)
+!!
+!!              Compute the penalty term
+!!              ------------------------
+!               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
 !
-!                    If the normal points towards the domain interior
-!                    ------------------------------------------------
-                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
-                  end if
-               
-               end associate
+!               associate ( QDot => edge % quads(1) % e % QDot )
 !
-!           --------------------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
+!                  if ( .not. edge % inverted ) then
+!!
+!!                    If the normal points towards the domain exterior
+!!                    ------------------------------------------------
+!                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
+!                  else
+!!
+!!                    If the normal points towards the domain interior
+!!                    ------------------------------------------------
+!                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
+!                  end if
+!               
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            type is (CurvedBdryEdge_t)
+!!
+!!              Compute the penalty term
+!!              ------------------------
+!               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
 !
-!              Compute the penalty term
-!              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-!
-!                 The normal for curved elements always points towards the domain exterior
-!                 ------------------------------------------------------------------------
-                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
-               end associate
-!
-!           --------------------------------------------------------------------------
-            class default
-               STOP "Stopped."
-!
-!        **********
-         end select
-!        **********
-!
+!               associate ( QDot => edge % quads(1) % e % QDot )
+!!
+!!                 The normal for curved elements always points towards the domain exterior
+!!                 ------------------------------------------------------------------------
+!                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            class default
+!               STOP "Stopped."
+!!
+!!        **********
+!         end select
+!!        **********
+!!
         end associate
 
      end subroutine IP_QDotFaceLoop
@@ -621,34 +621,34 @@ module DGViscousMethods
          class(QuadElement_t)    :: element
          integer                 :: eq
 
-         call self % computeInnerFluxes ( element )
+!         call self % computeInnerFluxes ( element )
+!!
+!!        Perform the matrix multiplication
+!!        ---------------------------------
+!         associate( QDot => element % QDot     , &
+!                    MD   => element % spA % MD , &
+!                  trMD   => element % spA % trMD , &
+!                    M    => element % spA % M  , &
+!                    w    => element % spA % w  , &
+!                    N    => element % spA % N      )
 !
-!        Perform the matrix multiplication
-!        ---------------------------------
-         associate( QDot => element % QDot     , &
-                    MD   => element % spA % MD , &
-                  trMD   => element % spA % trMD , &
-                    M    => element % spA % M  , &
-                    w    => element % spA % w  , &
-                    N    => element % spA % N      )
-
-         do eq = 1 , NCONS
+!         do eq = 1 , NCONS
+!!
+!!           F Loop
+!!           ------
+!            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+!                      reset = .false. )
 !
-!           F Loop
-!           ------
-            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                      reset = .false. )
-
+!!
+!!           G Loop
+!!           ------
+!            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
+!                         reset = .false. )
 !
-!           G Loop
-!           ------
-            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
-                         reset = .false. )
-
-         end do
-
-         end associate
-
+!         end do
+!
+!         end associate
+!
      end subroutine IP_QDotVolumeLoop
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -666,110 +666,110 @@ module DGViscousMethods
          real(kind=RP)                  :: uStarLow(0:edge % NLow,1:NGRAD)
          integer, parameter             :: dimensions(3) = [IU,IV,IT]
 
-         associate ( N => edge % spA % N ) 
-        
-         select type ( edge ) 
-
-            type is ( Edge_t ) 
-      
-               if ( edge % transform(LEFT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
-                  end associate
-
-               else
-                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
-                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               end if
-               
-
-            type is ( StraightBdryEdge_t )
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-         
-               associate ( dQ => edge % quads(1) % e % dQ ) 
-
-               if ( .not. edge % inverted ) then
+!         associate ( N => edge % spA % N ) 
+!        
+!         select type ( edge ) 
 !
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
+!            type is ( Edge_t ) 
+!      
+!               if ( edge % transform(LEFT) ) then
+!                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
+!                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
+!                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
 !
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
-               
-               end associate
+!                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+!                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+!                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
+!                  end associate
+!               
+!                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+!                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+!                  end associate
 !
-   
-            type is ( CurvedBdryEdge_t )
-
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-
-               associate ( dQ => edge % quads(1) % e % dQ )
-
-               if ( .not. edge % inverted ) then
+!               elseif ( edge % transform(RIGHT) ) then
+!                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
+!                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
+!                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
 !
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
+!                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+!                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+!                  end associate
+!               
+!                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+!                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
+!                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
+!                  end associate
 !
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
- 
-               end associate
-
-            class default
-
-         end select
-
-         end associate
-         
+!               else
+!                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
+!                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
+!                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
+!
+!                  associate ( dQ => edge % quads(LEFT) % e % dQ )
+!                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
+!                  end associate
+!
+!                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
+!                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
+!                  end associate
+!
+!               end if
+!               
+!
+!            type is ( StraightBdryEdge_t )
+!               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+!               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+!               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
+!         
+!               associate ( dQ => edge % quads(1) % e % dQ ) 
+!
+!               if ( .not. edge % inverted ) then
+!!
+!!                 If the normal points towards the domain exterior
+!!                 ------------------------------------------------
+!                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+!
+!               else
+!!
+!!                 If the normal points towards the domain interior
+!!                 ------------------------------------------------
+!                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+!
+!               end if
+!               
+!               end associate
+!!
+!   
+!            type is ( CurvedBdryEdge_t )
+!
+!               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
+!               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
+!               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
+!
+!               associate ( dQ => edge % quads(1) % e % dQ )
+!
+!               if ( .not. edge % inverted ) then
+!!
+!!                 If the normal points towards the domain exterior
+!!                 ------------------------------------------------
+!                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
+!
+!               else
+!!
+!!                 If the normal points towards the domain interior
+!!                 ------------------------------------------------
+!                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+!
+!               end if
+! 
+!               end associate
+!
+!            class default
+!
+!         end select
+!
+!         end associate
+!         
      end subroutine BR1_dQFaceLoop
 
      subroutine BR1_dQVolumeLoop( self , element ) 
@@ -783,35 +783,35 @@ module DGViscousMethods
          integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
          real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
 
-         associate( N => element % spA % N , &
-                    W => element % W , &
-                   dQ => element % dQ , &
-                   MD => element % spA % MD , &
-                 trMD => element % spA % trMD , &
-              weights => element % spA % w , &
-                    M => element % spA % M , &
-                  gm1 => Thermodynamics % gm1)
+!         associate( N => element % spA % N , &
+!                    W => element % W , &
+!                   dQ => element % dQ , &
+!                   MD => element % spA % MD , &
+!                 trMD => element % spA % trMD , &
+!              weights => element % spA % w , &
+!                    M => element % spA % M , &
+!                  gm1 => Thermodynamics % gm1)
+!
 
-
-         do iDim = 1 , NDIM
-   
-            do iVar = 1 , NGRAD
-               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = -trMD , &
-                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
-                     C = dQ(0:N,0:N,iDim,iVar) , & 
-                                 reset = .false. )
-
-               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
-                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
-                     reset = .false. )
-
-            end do
-         end do
-
-         end associate
-
+!         do iDim = 1 , NDIM
+!   
+!            do iVar = 1 , NGRAD
+!               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
+!               call Mat_x_Mat(A = -trMD , &
+!                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
+!                     C = dQ(0:N,0:N,iDim,iVar) , & 
+!                                 reset = .false. )
+!
+!               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
+!               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
+!                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
+!                     reset = .false. )
+!
+!            end do
+!         end do
+!
+!         end associate
+!
 
      end subroutine BR1_dQVolumeLoop
 
@@ -834,98 +834,98 @@ module DGViscousMethods
          real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
          real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
 
-         associate ( N => edge % spA % N )
+!         associate ( N => edge % spA % N )
+!!
+!!        Compute face fluxes
+!!        -------------------
+!         call self % ComputeFaceFluxes ( edge )
+!!
+!!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
+!!        -------------------------------------------------------------------------------
+!         Fstar = self % IntercellFlux( edge )
+!!
+!!        Perform the loop in both elements
+!!        ---------------------------------
+!!
+!!        ********************
+!         select type ( edge )
+!!        ********************
+!!
+!!           --------------------------------------------------------------------------
+!            type is (Edge_t)
 !
-!        Compute face fluxes
-!        -------------------
-         call self % ComputeFaceFluxes ( edge )
+!               if ( edge % transform(LEFT) ) then
 !
-!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
-!        -------------------------------------------------------------------------------
-         Fstar = self % IntercellFlux( edge )
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+!                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
+!                  end associate
 !
-!        Perform the loop in both elements
-!        ---------------------------------
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+!                  end associate
 !
-!        ********************
-         select type ( edge )
-!        ********************
+!               elseif ( edge % transform(RIGHT) ) then
 !
-!           --------------------------------------------------------------------------
-            type is (Edge_t)
-
-               if ( edge % transform(LEFT) ) then
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
-                  end associate
-
-               else
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               end if
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+!                  end associate
 !
-!           --------------------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-
-                  if ( .not. edge % inverted ) then
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
+!                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
+!                  end associate
 !
-!                    If the normal points towards the domain exterior
-!                    ------------------------------------------------
-                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
-                  else
+!               else
 !
-!                    If the normal points towards the domain interior
-!                    ------------------------------------------------
-                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
-                  end if
-               
-               end associate
+!                  associate ( QDot => edge % quads(LEFT) % e % QDot )
+!                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
+!                  end associate
 !
-!           --------------------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
+!                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
+!                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
+!                  end associate
 !
-!                 The normal for curved elements always points towards the domain exterior
-!                 ------------------------------------------------------------------------
-                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
-               end associate
+!               end if
+!!
+!!           --------------------------------------------------------------------------
+!            type is (StraightBdryEdge_t)
 !
-!           --------------------------------------------------------------------------
-            class default
-               STOP "Stopped."
+!               associate ( QDot => edge % quads(1) % e % QDot )
 !
-!        **********
-         end select
-!        **********
+!                  if ( .not. edge % inverted ) then
+!!
+!!                    If the normal points towards the domain exterior
+!!                    ------------------------------------------------
+!                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
+!                  else
+!!
+!!                    If the normal points towards the domain interior
+!!                    ------------------------------------------------
+!                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
+!                  end if
+!               
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            type is (CurvedBdryEdge_t)
 !
-        end associate
+!               associate ( QDot => edge % quads(1) % e % QDot )
+!!
+!!                 The normal for curved elements always points towards the domain exterior
+!!                 ------------------------------------------------------------------------
+!                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
+!               end associate
+!!
+!!           --------------------------------------------------------------------------
+!            class default
+!               STOP "Stopped."
+!!
+!!        **********
+!         end select
+!!        **********
+!!
+!        end associate
  
      end subroutine BR1_QDotFaceLoop
 
@@ -943,34 +943,34 @@ module DGViscousMethods
          class(QuadElement_t)    :: element
          integer                 :: eq
 
-         call self % computeInnerFluxes ( element )
+!         call self % computeInnerFluxes ( element )
+!!
+!!        Perform the matrix multiplication
+!!        ---------------------------------
+!         associate( QDot => element % QDot     , &
+!                    MD   => element % spA % MD , &
+!                  trMD   => element % spA % trMD , &
+!                    M    => element % spA % M  , &
+!                    w    => element % spA % w  , &
+!                    N    => element % spA % N      )
 !
-!        Perform the matrix multiplication
-!        ---------------------------------
-         associate( QDot => element % QDot     , &
-                    MD   => element % spA % MD , &
-                  trMD   => element % spA % trMD , &
-                    M    => element % spA % M  , &
-                    w    => element % spA % w  , &
-                    N    => element % spA % N      )
-
-         do eq = 1 , NCONS
+!         do eq = 1 , NCONS
+!!
+!!           F Loop
+!!           ------
+!            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
+!                         reset = .false. )
 !
-!           F Loop
-!           ------
-            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                         reset = .false. )
-
+!!
+!!           G Loop
+!!           ------
+!            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
+!                         reset = .false. )
 !
-!           G Loop
-!           ------
-            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
-                         reset = .false. )
-
-         end do
-
-         end associate
-
+!         end do
+!
+!         end associate
+!
      end subroutine BR1_QDotVolumeLoop
 
 !
@@ -996,103 +996,103 @@ module DGViscousMethods
          integer                :: index
          integer                :: i , j , var , iDim
 !
-         associate( N=> edge % quads(loc) % e % spA % N, &
-             e=> edge % quads(loc) % e)
- 
-         select case (edge % edgeLocation(loc))
-
-            case (ERIGHT)
-   
-               direction = e % edgesDirection( edge % edgeLocation(loc) )
-               pos = RIGHT                    ! Where to interpolate the test function
-               index = iX                     ! The coordinate (xi/eta) in which the boundary is located
-               
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
-
-            case (ETOP)
-      
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) ) 
-               pos = RIGHT
-               index = iY
-   
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1) 
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
-
-            case (ELEFT)
-   
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
-               pos = LEFT
-               index = iX
-   
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
-
-            case (EBOTTOM)
-
-               direction = e % edgesDirection ( edge % edgeLocation(loc) ) 
-               pos = LEFT
-               index = iY
-   
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
-
-            end select
-
-             lj(0:N) => e % spA % lb(0:N,pos)
-
-            select case (index)
-            
-               case (IY)
-   
-                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
-                     duF(i,j,iDim,var) = uTimesW(i,var) * lj(j) * auxdS(iDim , i)
-                  end forall
-
-               case (IX)
-   
-                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
-                     duF(i,j,iDim,var) = uTimesW(j,var) * lj(i) * auxdS(iDim , j)
-                  end forall
-            end select
-
-            lj=>NULL()
-   
-         end associate
-
+!         associate( N=> edge % quads(loc) % e % spA % N, &
+!             e=> edge % quads(loc) % e)
+! 
+!         select case (edge % edgeLocation(loc))
+!
+!            case (ERIGHT)
+!   
+!               direction = e % edgesDirection( edge % edgeLocation(loc) )
+!               pos = RIGHT                    ! Where to interpolate the test function
+!               index = iX                     ! The coordinate (xi/eta) in which the boundary is located
+!               
+!               if ( direction .eq. FORWARD ) then
+!                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
+!                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
+!               elseif ( direction .eq. BACKWARD ) then
+!                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
+!                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
+!
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
+!               end if
+!
+!            case (ETOP)
+!      
+!               direction = - e % edgesDirection ( edge % edgeLocation(loc) ) 
+!               pos = RIGHT
+!               index = iY
+!   
+!               if ( direction .eq. FORWARD ) then
+!                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1) 
+!                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
+!               elseif ( direction .eq. BACKWARD ) then
+!                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
+!                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
+!               end if
+!
+!            case (ELEFT)
+!   
+!               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
+!               pos = LEFT
+!               index = iX
+!   
+!               if ( direction .eq. FORWARD ) then
+!                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
+!                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
+!               elseif ( direction .eq. BACKWARD ) then
+!                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
+!                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
+!               end if
+!
+!            case (EBOTTOM)
+!
+!               direction = e % edgesDirection ( edge % edgeLocation(loc) ) 
+!               pos = LEFT
+!               index = iY
+!   
+!               if ( direction .eq. FORWARD ) then
+!                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
+!                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
+!               elseif ( direction .eq. BACKWARD ) then
+!                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
+!                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
+!               end if
+!
+!            end select
+!
+!             lj(0:N) => e % spA % lb(0:N,pos)
+!
+!            select case (index)
+!            
+!               case (IY)
+!   
+!                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
+!                     duF(i,j,iDim,var) = uTimesW(i,var) * lj(j) * auxdS(iDim , i)
+!                  end forall
+!
+!               case (IX)
+!   
+!                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
+!                     duF(i,j,iDim,var) = uTimesW(j,var) * lj(i) * auxdS(iDim , j)
+!                  end forall
+!            end select
+!
+!            lj=>NULL()
+!   
+!         end associate
+!
       end function dQFaceContribution
 
       function QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
@@ -1145,146 +1145,146 @@ module DGViscousMethods
          integer                            :: index
 !
 
-         associate( N => edge % quads(loc) % e % spA % N, &
-                    e => edge % quads(loc) % e)
+!         associate( N => edge % quads(loc) % e % spA % N, &
+!                    e => edge % quads(loc) % e)
+!!
+!!        **************************************
+!         select case (edge % edgeLocation(loc))
+!!        **************************************
+!!
+!!           ------------------------------------------------------------------------------------------------
+!            case (ERIGHT)
+!!
+!!              Set the three parameters
+!!              ------------------------ 
+!               direction = e % edgesDirection( edge % edgeLocation(loc) )
+!               pos       = RIGHT                  
+!               index     = IX                     
 !
-!        **************************************
-         select case (edge % edgeLocation(loc))
-!        **************************************
+!               if ( direction .eq. FORWARD ) then
+!!        
+!!                 Introduce the result in the same order
+!!                 --------------------------------------
+!                  Fstar2D_x(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS )
 !
-!           ------------------------------------------------------------------------------------------------
-            case (ERIGHT)
+!               elseif ( direction .eq. BACKWARD ) then
+!!
+!!                 Introduce the result in the opposite order
+!!                 ------------------------------------------
+!                  Fstar2D_x(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ), rowC = N+1 , colC = NCONS )
 !
-!              Set the three parameters
-!              ------------------------ 
-               direction = e % edgesDirection( edge % edgeLocation(loc) )
-               pos       = RIGHT                  
-               index     = IX                     
-
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_x(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS )
-
-               elseif ( direction .eq. BACKWARD ) then
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
 !
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_x(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ), rowC = N+1 , colC = NCONS )
-
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-
-               end if
-
-               Fstar2D(1:,0:,1:) => Fstar2D_x
+!               end if
 !
-!           ------------------------------------------------------------------------------------------------
-            case (ETOP)
+!               Fstar2D(1:,0:,1:) => Fstar2D_x
+!!
+!!           ------------------------------------------------------------------------------------------------
+!            case (ETOP)
+!!
+!!              Set the three parameters
+!!              ------------------------      
+!               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
+!               pos       = RIGHT
+!               index     = IY
 !
-!              Set the three parameters
-!              ------------------------      
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
-               pos       = RIGHT
-               index     = IY
-
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
-
-               elseif ( direction .eq. BACKWARD ) then
-!        
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
-
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-
-               end if
-
-               Fstar2D(0:,1:,1:) => Fstar2D_y
+!               if ( direction .eq. FORWARD ) then
+!!        
+!!                 Introduce the result in the same order
+!!                 --------------------------------------
+!                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 !
-!           ------------------------------------------------------------------------------------------------
-            case (ELEFT)
+!               elseif ( direction .eq. BACKWARD ) then
+!!        
+!!                 Introduce the result in the opposite order
+!!                 ------------------------------------------
+!                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 !
-!              Set the three parameters
-!              ------------------------   
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
-               pos       = LEFT
-               index     = IX
-
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_x(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
-
-               elseif ( direction .eq. BACKWARD ) then
-!        
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_x(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
-
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-
-               end if
-
-               Fstar2D(1:,0:,1:) => Fstar2D_x
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
 !
-!           ------------------------------------------------------------------------------------------------
-            case (EBOTTOM)
-
-               direction = e % edgesDirection ( edge % edgeLocation(loc) )
-               pos       = LEFT
-               index     = iY
-
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
-
-               elseif ( direction .eq. BACKWARD ) then
-!        
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
-
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-
-               end if
-
-               Fstar2D(0:,1:,1:) => Fstar2D_y
+!               end if
 !
-!        **********
-         end select
-!        **********
+!               Fstar2D(0:,1:,1:) => Fstar2D_y
+!!
+!!           ------------------------------------------------------------------------------------------------
+!            case (ELEFT)
+!!
+!!              Set the three parameters
+!!              ------------------------   
+!               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
+!               pos       = LEFT
+!               index     = IX
 !
-!        Get the interpolated lagrange polynomials
-!        ----------------------------------------- 
-         lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+!               if ( direction .eq. FORWARD ) then
+!!        
+!!                 Introduce the result in the same order
+!!                 --------------------------------------
+!                  Fstar2D_x(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 !
-!        Obtain the result             
-!        -----------------
-         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , N+1 , N+1 , NCONS , index ) 
+!               elseif ( direction .eq. BACKWARD ) then
+!!        
+!!                 Introduce the result in the opposite order
+!!                 ------------------------------------------
+!                  Fstar2D_x(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
 !
-!        Free the variables
-!        ------------------
-         lj2D=>NULL()
-         Fstar2D => NULL()
-
-         end associate
-
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
+!
+!               end if
+!
+!               Fstar2D(1:,0:,1:) => Fstar2D_x
+!!
+!!           ------------------------------------------------------------------------------------------------
+!            case (EBOTTOM)
+!
+!               direction = e % edgesDirection ( edge % edgeLocation(loc) )
+!               pos       = LEFT
+!               index     = iY
+!
+!               if ( direction .eq. FORWARD ) then
+!!        
+!!                 Introduce the result in the same order
+!!                 --------------------------------------
+!                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+!
+!               elseif ( direction .eq. BACKWARD ) then
+!!        
+!!                 Introduce the result in the opposite order
+!!                 ------------------------------------------
+!                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+!
+!               else
+!                  print*, "Direction not forward nor backward"
+!                  stop "Stopped."
+!
+!               end if
+!
+!               Fstar2D(0:,1:,1:) => Fstar2D_y
+!!
+!!        **********
+!         end select
+!!        **********
+!!
+!!        Get the interpolated lagrange polynomials
+!!        ----------------------------------------- 
+!         lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+!!
+!!        Obtain the result             
+!!        -----------------
+!         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , N+1 , N+1 , NCONS , index ) 
+!!
+!!        Free the variables
+!!        ------------------
+!         lj2D=>NULL()
+!         Fstar2D => NULL()
+!
+!         end associate
+!
       end function QDotFaceContribution
 
 

@@ -56,6 +56,7 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: PeriodicBC_t
       logical                          :: associated
+      logical                          :: invert
       integer                          :: direction
       integer                          :: connected_marker
       contains
@@ -197,14 +198,14 @@ module DGBoundaryConditions
 !
 !//////////////////////////////////////////////////////////////////////////////////
 !
-#include "./BoundaryConditions/DirichletBC.incf"
-#include "./BoundaryConditions/EulerWallBC.incf"
-#include "./BoundaryConditions/FarfieldBC.incf"
-#include "./BoundaryConditions/PeriodicBC.incf"
-#include "./BoundaryConditions/PressureInletBC.incf"
-#include "./BoundaryConditions/PressureOutletBC.incf"
-#include "./BoundaryConditions/RiemannBC.incf"
-#include "./BoundaryConditions/ViscousWall.incf"
+#include "./Dirichlet.incf"
+#include "./EulerWall.incf"
+#include "./Farfield.incf"
+#include "./Periodic.incf"
+#include "./PressureInlet.incf"
+#include "./PressureOutlet.incf"
+#include "./Riemann.incf"
+#include "./ViscousWall.incf"
 
       subroutine BoundaryConditions_construct( self , marker)
          use Setup_class

@@ -1,19 +1,22 @@
-
 !
 !        **********************************************************************************
 !                 Auxiliar subroutines
 !        **********************************************************************************
 !
-         subroutine searchEdge( nodesEl , nodesEdge , edgePosition , quadPosition , edgeDirection )
+         subroutine searchEdge( nodesEl , nodesEdge , needsInversion , edgePosition , edgeDirection )
 !
-!           **********************************************************************
+!           ******************************************************************************************
 !                 Given two nodes, get the edge ID that belongs and its direction
-!           **********************************************************************
+!                    -> nodesEL: two nodes ID of the element
+!                    -> nodesEdge: two nodes ID of an edge
+!                    -> edgePosition: position of the edge in the element: TOP, LEFT, RIGHT, BOTTOM
+!                    -> edgeDirection: linking edge/element: FORWARD, BACKWARD
+!           ******************************************************************************************
             implicit none
             integer, intent(in)        :: nodesEl(:)
             integer, intent(in)        :: nodesEdge(:)
+            logical, intent(out)       :: needsInversion
             integer, intent(out)       :: edgePosition
-            integer, intent(out)       :: quadPosition
             integer, intent(out)       :: edgeDirection
 !           -----------------------------------------------------------
             integer                    :: currentEdge(POINTS_PER_EDGE)
@@ -33,14 +36,14 @@
 !
 !              Compare the element edge with the original edge
 !              -----------------------------------------------
-               call compareEdges( edge1 = currentEdge , edge2 = nodesEdge , edges_are_equal = edges_are_equal , edgeDirection = edgeDirection )
+               call compareEdges( edge1 = currentEdge , edge2 = nodesEdge , edge_position = edge , edges_are_equal = edges_are_equal , edgeDirection = edgeDirection )
 
                if (edges_are_equal) then
                   edgePosition = edge
                   if ( edgeDirection .eq. FORWARD ) then
-                     quadPosition = LEFT
+                     needsInversion = .false.
                   else
-                     quadPosition = RIGHT
+                     needsInversion = .true.
                   end if
 
                   return
@@ -51,26 +54,37 @@
 
          end subroutine searchEdge
 
-         subroutine compareEdges ( edge1 , edge2 , edges_are_equal , edgeDirection )
+         subroutine compareEdges ( edge1 , edge2 , edge_position , edges_are_equal , edgeDirection )
             implicit none
             integer, intent(in)        :: edge1(:)
             integer, intent(in)        :: edge2(:)
+            integer, intent(in)        :: edge_position
             logical, intent(out)       :: edges_are_equal
             integer, intent(out)       :: edgeDirection
 
             if ((edge1(1) .eq. edge2(1)) .and. (edge1(2) .eq. edge2(2))) then
                edges_are_equal = .true.
-               edgeDirection = FORWARD
+               if ( (edge_position .eq. EBOTTOM) .or. (edge_position .eq. ERIGHT) ) then
+                  edgeDirection = FORWARD
+                  
+               else
+                  edgeDirection = BACKWARD
+
+               end if
             
             elseif ((edge1(1) .eq. edge2(2)) .and. (edge1(2) .eq. edge2(1))) then
                edges_are_equal = .true.
-               edgeDirection = BACKWARD
+               if ( (edge_position .eq. EBOTTOM) .or. (edge_position .eq. ERIGHT) ) then
+                  edgeDirection = BACKWARD
+                  
+               else
+                  edgeDirection = FORWARD
 
+               end if
+ 
             else
                edges_are_equal = .false.
                edgeDirection = 0
             end if
 
          end subroutine compareEdges
-
-

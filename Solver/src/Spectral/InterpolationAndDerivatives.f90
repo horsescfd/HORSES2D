@@ -82,7 +82,7 @@
 !
 !    /////////////////////////////////////////////////////////////////
 !
-      SUBROUTINE LagrangeInterpolatingPolynomialBarycentric( x, N, nodes, weights, p )
+      pure SUBROUTINE LagrangeInterpolatingPolynomialBarycentric( x, N, nodes, weights, p )
       use Utilities
 !
 !---------------------------------------------------------------------
@@ -143,7 +143,7 @@
 !!    degree N whose zeros are given by the nodes(i)
 !---------------------------------------------------------------------
 !
-      REAL(KIND=RP) FUNCTION EvaluateLagrangePolyDerivative( j, x, N, nodes)
+      pure REAL(KIND=RP) FUNCTION EvaluateLagrangePolyDerivative( j, x, N, nodes)
 !
 !     ---------
 !     Arguments

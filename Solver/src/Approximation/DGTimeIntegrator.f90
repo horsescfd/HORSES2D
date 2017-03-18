@@ -3,7 +3,7 @@ module DGTimeIntegrator
    use DGSpatialDiscretizationMethods
    use QuadMeshClass
    use MonitorsClass
-
+!
    private
    public TimeIntegrator_t , NewTimeIntegrator
 !
@@ -169,7 +169,7 @@ module DGTimeIntegrator
             call Monitors % WriteToFile()
 
          end do
-!
+
 !        Save solution file
 !        ------------------
          call sleep(2)
@@ -199,7 +199,7 @@ module DGTimeIntegrator
 !        Compute the time derivative
 !  
          call DGSpatial_computeTimeDerivative( mesh )
-!
+
 !        Perform a step in the explicit Euler method
 !
          Storage % Q = Storage % Q + dt * Storage % QDot
@@ -222,7 +222,7 @@ module DGTimeIntegrator
          real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
          
          do m = 1 , N_STAGES
-!
+
 !           Compute time derivative
 !           -----------------------
             call DGSpatial_ComputeTimeDerivative( mesh )
@@ -267,11 +267,11 @@ module DGTimeIntegrator
 !                                                      -2.0_RP ** (1.0_RP / 3.0_RP) - 2.0_RP ** (2.0_RP / 3.0_RP) - 2.0_RP , &
 !                                                      -1.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) ]
 !         real(kind=RP), parameter   :: gm(N_STAGES) = [2.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP , &
- !                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
- !                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
- !                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
- !                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
- !        
+!                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
+!                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
+!                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
+!                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
+        
          do m = 1 , N_STAGES
 !
 !           Compute time derivative

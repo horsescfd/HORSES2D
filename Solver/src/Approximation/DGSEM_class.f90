@@ -90,25 +90,14 @@
 !           Allocate memory for Q , W , QDot , dQ , and F
 !              The sizes are the following:
 !                 Q    -> NCONS * (N+1) * (N+1) * no_of_elements
-!                 W    -> NPRIM * (N+1) * (N+1) * no_of_elements
 !                 QDot -> NCONS * (N+1) * (N+1) * no_of_elements
 !                 dQ   -> NGRAD * NDIM * (N+1) * (N+1) * no_of_elements
-!                 F    -> NCONS * NDIM * (N+1) * (N*1) * no_of_elements (N = integration_points for over integration)
 !           ---------------------------------------------------------------------------------------------------------
             allocate ( self % Storage % Q    ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-            allocate ( self % Storage % W    ( NPRIM *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             allocate ( self % Storage % QDot ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
 #ifdef NAVIER_STOKES
             allocate ( self % Storage % dQ   ( NDIM  * NGRAD * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
 #endif
-                
-            if (Setup % inviscid_discretization .eq. "Over-Integration") then
-               allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % no_of_elements * ( setup % integration_points + 1)**2    ) )
-
-            else
-               allocate ( self % Storage % F   ( NDIM * NCONS * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-!
-            end if
 !
 !           Construct the spectral Integration class if Over-Integration is selected
 !           ------------------------------------------------------------------------
@@ -139,6 +128,8 @@
 !           Initialize Inviscid and Viscous discretization methods
 !           ------------------------------------------------------
             call DGSpatial_Initialization() 
+
+            
             
         end subroutine DGSEM_construct
             
@@ -174,7 +165,7 @@
 
             end if
 
-            call DGSpatial_ComputeTimeDerivative( self % mesh )
+!            call DGSpatial_ComputeTimeDerivative( self % mesh )
 
         end subroutine DGSEM_SetInitialCondition
       

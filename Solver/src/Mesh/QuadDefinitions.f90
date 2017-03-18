@@ -13,5 +13,21 @@ module QuadMeshDefinitions
    integer, parameter         :: ETOP = 3
    integer, parameter         :: ELEFT = 4
 
+   contains
+
+      integer function normalDirection( edgePosition ) 
+         implicit none
+         integer, intent(in)        :: edgePosition
+
+
+         if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
+            normalDirection = FORWARD
+      
+         else
+            normalDirection = BACKWARD
+
+         end if
+
+      end function normalDirection
 
 end module QuadMeshDefinitions

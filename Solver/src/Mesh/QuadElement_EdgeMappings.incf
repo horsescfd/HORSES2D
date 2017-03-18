@@ -1,0 +1,415 @@
+      subroutine Edge_SetCurve( self , points , order )
+         implicit none
+         class(Edge_t)                       :: self
+         real(kind=RP), intent(in), optional :: points(:,:)
+         integer      , intent(in), optional :: order
+         integer                             :: p
+         real(kind=RP)                       :: dS(NDIM)
+         integer                             :: iXi
+   
+         self % x = reshape((/( self % nodes(1) % n % X * (1.0_RP - self % spA % xi(p)) + self % nodes(2) % n % X * self % spA % xi(p) , &
+                                             p = 0 , self % spA % N)/),(/ NDIM , self % spA % N + 1 /) )
+   
+         associate( n1 => self % nodes(1) % n % X , n2 => self % nodes(2) % n % X )
+            dS(IX) = n2(IY) - n1(IY)
+            dS(IY) = n1(IX) - n2(IX)
+
+            self % dS(0) = norm2(dS)
+            self % n(IX:IY,0) = dS / self % dS(0)
+   
+            self % dX(IX,0) = n2(iX) - n1(iX)
+            self % dX(IY,0) = n2(iY) - n1(iY)
+   
+         end associate
+      
+      end subroutine Edge_SetCurve
+   
+      pure function Edge_AnalyticalX( self , xi , direction ) result( p )
+         implicit none
+         class(Edge_t), intent(in)           :: self
+         real(kind=RP), intent(in)           :: xi
+         integer      , intent(in), optional :: direction
+         real(kind=RP)                       :: p(2)
+!        ------------------------------------------------------------
+         real(kind=RP), allocatable          :: correctedXi
+         
+         if (present(direction)) then
+   
+            allocate(correctedXi)
+   
+            if (direction .eq. BACKWARD) then
+              correctedXi = 1.0_RP - xi
+            elseif (direction .eq. FORWARD) then
+              correctedXi = xi
+            end if 
+      
+            p = self % nodes(1) % n % X * (1.0_RP - correctedXi) + self % nodes(2) % n % X * correctedXi
+      
+         else 
+            p = self % nodes(1) % n % X * (1.0_RP - xi) + self % nodes(2) % n % X * xi
+   
+         end if
+   
+      end function Edge_AnalyticalX
+   
+      pure function Edge_AnalyticaldX( self , xi , direction ) result( p )
+         implicit none
+         class(Edge_t), intent(in)           :: self
+         real(kind=RP), intent(in)           :: xi
+         integer      , intent(in), optional :: direction
+         real(kind=RP)                       :: p(2)
+!        ------------------------------------------------------------
+   
+         if (present(direction)) then
+            p = real(direction,kind=RP) * ( self % nodes(2) % n % X - self % nodes(1) % n % X )
+         else
+            p = ( self % nodes(2) % n % X - self % nodes(1) % n % X )
+         end if
+   
+      end function Edge_AnalyticaldX
+   
+      pure function Edge_AnalyticaldS( self , xi , direction ) result( dS )
+         implicit none
+         class(Edge_t), intent(in)           :: self
+         real(kind=RP), intent(in)           :: xi
+         integer,       intent(in), optional :: direction
+         real(kind=RP)                       :: dS(2)
+!        --------------------------------------------------------------
+   
+         associate( n1 => self % nodes(1) % n % X , &
+                    n2 => self % nodes(2) % n % X )
+   
+            dS(1) = n2(2) - n1(2)
+            dS(2) = -(n2(1) - n1(1))
+   
+         end associate
+   
+      end function Edge_AnalyticaldS
+   
+      pure function Edge_getX( self , iXi , direction ) result ( X ) 
+         implicit none
+         class(Edge_t), intent(in)                 :: self
+         integer      , intent(in)                 :: iXi
+         integer      , intent(in), optional       :: direction
+         real(kind=RP)                             :: X (NDIM)
+!        -------------------------------------------------------------
+         integer, allocatable                      :: correctediXi
+   
+         if (present(direction)) then
+   
+            allocate(correctediXi) 
+   
+            if (direction .eq. FORWARD) then
+               correctediXi = iXi
+            
+            elseif (direction .eq. BACKWARD) then
+               correctediXi = self % spA % N - iXi
+      
+            end if
+      
+            X = self % X(iX:iY,correctediXi)
+      
+         else 
+   
+            X = self % X(iX:iY,iXi)
+   
+         end if
+   
+      end function Edge_getX
+   
+      pure function Edge_getdX( self , iXi , direction ) result ( dX ) 
+         implicit none
+         class(Edge_t), intent(in)                 :: self
+         integer      , intent(in)                 :: iXi
+         integer      , intent(in), optional       :: direction
+         real(kind=RP)                             :: dX (NDIM)
+!        -------------------------------------------------------------
+         integer, allocatable                      :: correctediXi
+   
+         if (present(direction)) then
+      
+            dX = real(direction,kind=RP) * self % dX(IX:IY,0)
+      
+         else
+     
+            dX = self % dX(IX:IY,0)
+    
+         end if
+   
+      end function Edge_getdX
+   
+      pure function Edge_getdS( self , iXi , direction ) result ( dS ) 
+         implicit none
+         class(Edge_t), intent(in)                 :: self
+         integer      , intent(in)                 :: iXi
+         integer      , intent(in), optional       :: direction
+         real(kind=RP)                             :: dS (NDIM)
+!        -------------------------------------------------------------
+         integer, allocatable                      :: correctediXi
+   
+         if (present(direction)) then
+      
+            dS = self % n(IX:IY,0) * self % dS(0)
+      
+         else
+     
+            dS = self % n(IX:IY,0) * self % dS(0)
+    
+         end if
+   
+      end function Edge_getdS
+!   
+!   ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+!   
+!           CURVILINEAR EDGE PROCEDURES
+!           ---------------------------
+!   ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+!   
+     subroutine CurvilinearEdge_SetCurve( self , points , order )
+        use InterpolationAndDerivatives
+        use MatrixOperations
+        implicit none
+        class(CurvedBdryEdge_t)                            :: self
+        real(kind=RP)               , intent(in), optional :: points(:,:)
+        integer                     , intent(in), optional :: order
+!       -----------------------------------------------------------------------------
+        real(kind=RP), allocatable                         :: CGLnodes(:)
+        real(kind=RP), allocatable                         :: CGLintermediate(:)             ! These nodes are needed since curve order .ne. interpolation order
+        real(kind=RP), allocatable                         :: Xintermediate(:,:)
+        real(kind=RP), allocatable                         :: T(:,:)
+        real(kind=RP), allocatable                         :: wb(:) 
+        integer                                            :: node
+        integer                                            :: iXi
+   
+        if ( present(points) .and. present(order) ) then
+   
+           associate ( N => self % spA % N ) 
+   
+           allocate( CGLnodes(0 : order ) )
+           allocate( CGLintermediate(0 : N ) )
+   
+           CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
+           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(N - node)/(1.0_RP*N)),node = 0,N)/),(/N+1/) )
+   
+           allocate( Xintermediate(NDIM , 0:N) )
+     
+           allocate( wb ( 0 : order ) )
+           allocate( T ( 0 : N , 0 : order ) )
+     
+           call BarycentricWeights( N = order , x = CGLnodes , w = wb )
+           call PolynomialInterpolationMatrix( N = order , M = N , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
+!   
+!          Compute intermediate points
+!          ---------------------------
+           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = N+1, trB = .true. ) 
+   
+           deallocate( wb , T )
+      
+           allocate ( wb ( 0 : N         )  ) 
+           allocate ( T  ( 0 : N , 0 : N )  ) 
+   
+           call BarycentricWeights( N = N , x = CGLintermediate , w = wb )
+           call PolynomialInterpolationMatrix( N = N , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
+     
+!          Compute points
+!          --------------
+           self % X  = Mat_x_Mat_F ( A = Xintermediate  , B = T , rowC = NDIM , colC = N+1 , trB = .true. ) 
+   
+!          Compute tangent vector
+!          ----------------------
+           self % dX = Mat_x_Mat_F ( A = self % X , B = self % spA % D , rowC = NDIM , colC = N+1 , trB = .true. ) 
+!   
+!          Compute normal vector
+!          ---------------------
+           do iXi = 0 , self % spA % N
+              self % dS(iXi) = norm2( self % dX(IX:IY,iXi) )
+              self % n(IX,iXi) = self % dX (IY,iXi) / self % dS(iXi)
+              self % n(IY,iXi) = -self % dX(IX,iXi) / self % dS(iXi)
+           end do
+      
+           end associate
+   
+        else
+   
+            print*, "Missing curve interpolation data"
+            stop "Stopped."
+   
+        end if
+   
+     end subroutine CurvilinearEdge_SetCurve
+
+     pure function Curvilinear_getX( self , iXi , direction ) result ( X ) 
+         implicit none
+         class(CurvedBdryEdge_t), intent(in)                 :: self
+         integer      , intent(in)                 :: iXi
+         integer      , intent(in), optional       :: direction
+         real(kind=RP)                             :: X (NDIM)
+!        -------------------------------------------------------------
+         integer, allocatable                      :: correctediXi
+   
+         if (present(direction)) then
+   
+            allocate(correctediXi) 
+   
+            if (direction .eq. FORWARD) then
+               correctediXi = iXi
+            
+            elseif (direction .eq. BACKWARD) then
+               correctediXi = self % spA % N - iXi
+      
+            end if
+      
+            X = self % X(iX:iY,correctediXi)
+      
+         else 
+   
+            X = self % X(iX:iY,iXi)
+   
+         end if
+   
+      end function Curvilinear_getX
+   
+      pure function Curvilinear_getdX( self , iXi , direction ) result ( dX ) 
+         implicit none
+         class(CurvedBdryEdge_t), intent(in)                 :: self
+         integer      , intent(in)                 :: iXi
+         integer      , intent(in), optional       :: direction
+         real(kind=RP)                             :: dX (NDIM)
+!        -------------------------------------------------------------
+         integer, allocatable                      :: correctediXi
+   
+         if (present(direction)) then
+ 
+            allocate(correctediXi) 
+   
+            if (direction .eq. FORWARD) then
+               correctediXi = iXi
+            
+            elseif (direction .eq. BACKWARD) then
+               correctediXi = self % spA % N - iXi
+      
+            end if
+
+            dX = real(direction,kind=RP) * self % dX(IX:IY,correctediXi)
+      
+         else
+     
+            dX = self % dX(IX:IY,iXi)
+    
+         end if
+   
+      end function Curvilinear_getdX
+   
+      pure function Curvilinear_getdS( self , iXi , direction ) result ( dS ) 
+         implicit none
+         class(CurvedBdryEdge_t), intent(in)                 :: self
+         integer      , intent(in)                 :: iXi
+         integer      , intent(in), optional       :: direction
+         real(kind=RP)                             :: dS (NDIM)
+!        -------------------------------------------------------------
+         integer, allocatable                      :: correctediXi
+   
+         if (present(direction)) then
+      
+            allocate(correctediXi) 
+   
+            if (direction .eq. FORWARD) then
+               correctediXi = iXi
+            
+            elseif (direction .eq. BACKWARD) then
+               correctediXi = self % spA % N - iXi
+      
+            end if
+
+            dS = self % n(IX:IY,0) * self % dS(correctediXi)
+      
+         else
+     
+            dS = self % n(IX:IY,0) * self % dS(iXi)
+    
+         end if
+   
+      end function Curvilinear_getdS
+   
+     pure function Curvilinear_InterpolantX( self , xi , direction ) result( p )
+         use MatrixOperations
+         implicit none
+         class(CurvedBdryEdge_t), intent (in)           :: self
+         real(kind=RP),           intent (in)           :: xi
+         integer      ,           intent (in), optional :: direction
+         real(kind=RP)                                  :: p(NDIM)
+!        ------------------------------------------------------------
+         real(kind=RP)                                  :: correctedXi
+         integer                                        :: dir
+         
+         if (present(direction)) then
+            dir = direction
+         else 
+            dir = FORWARD
+         end if
+   
+         if (dir .eq. BACKWARD) then
+           correctedXi = 1.0_RP - xi
+         elseif (dir .eq. FORWARD) then
+           correctedXi = xi
+         end if 
+          
+         p = MatrixTimesVector_F( self % X , self % spA % lj(correctedXi) , size(self % X ,1 ))
+         
+     end function Curvilinear_InterpolantX
+   
+     pure function Curvilinear_InterpolantdS( self , xi , direction ) result( dS )
+         use MatrixOperations
+         implicit none
+         class(CurvedBdryEdge_t), intent (in)           :: self
+         real(kind=RP),           intent (in)           :: xi
+         integer,                 intent (in), optional :: direction
+         real(kind=RP)                                  :: dS(NDIM)
+         real(kind=RP)                                  :: auxdS(NDIM,0:self % spA % N+1)
+!        --------------------------------------------------------------
+         real(kind=RP)                        :: correctedXi
+         integer                                      :: dir
+   
+         if (present(direction)) then
+            dir = direction
+         else 
+            dir = FORWARD
+         end if
+   
+         if (dir .eq. BACKWARD) then
+           correctedXi = 1.0_RP - xi
+         elseif (dir .eq. FORWARD) then
+           correctedXi = xi
+         end if 
+           
+         auxdS = spread( self % dS , 2 , self % spA % N + 1) * self % n
+         dS = MatrixTimesVector_F( auxdS , self % spA % lj(correctedXi) , NDIM )
+   
+      end function Curvilinear_InterpolantdS
+   
+     pure function Curvilinear_InterpolantdX( self , xi , direction ) result( dX )
+         use MatrixOperations
+         implicit none
+         class(CurvedBdryEdge_t), intent (in)           :: self
+         real(kind=RP),           intent (in)           :: xi
+         integer      ,           intent (in), optional :: direction
+         real(kind=RP)                                  :: dX(NDIM)
+!        ------------------------------------------------------------
+         integer                                        :: dir
+         real(kind=RP)                                  :: correctedXi
+         
+         if (present(direction)) then
+            dir = direction
+         else 
+            dir = FORWARD
+         end if
+   
+         if (dir .eq. BACKWARD) then
+           correctedXi = 1.0_RP - xi
+         elseif (dir .eq. FORWARD) then
+           correctedXi = xi
+         end if 
+
+         dX = real(dir , kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) , NDIM)
+   
+     end function Curvilinear_InterpolantdX

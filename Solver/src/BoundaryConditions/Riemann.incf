@@ -75,25 +75,12 @@
             self % q(IRHOV) = rho * sqrt(gamma) * Mach * sin(AngleOfAttack)
             self % q(IRHOE) = cv * pressure + 0.5_RP * rho * gamma * Mach * Mach
 
-            self % w(IRHO)  = rho
-            self % w(IU) = dimensionless % sqrtGammaMach * cos(AngleOfAttack)
-            self % w(IV) = dimensionless % sqrtGammaMach * sin(AngleOfAttack)
-            self % w(IP) = pressure
-            self % w(IT) = pressure / rho
-            self % w(IA) = sqrt(gamma * self % w(IT))
-
          elseif ( self % mode .eq. SPECIFY_TOTAL_PRESSURE ) then
             self % q(IRHO)  = self % pt / self % Tt
             self % q(IRHOU) = 0.0_RP
             self % q(IRHOV) = 0.0_RP
             self % q(IRHOE) = cv * self % pt
 
-            self % w(IRHO)  = rho
-            self % w(IU) = 0.0_RP
-            self % w(IV) = 0.0_RP
-            self % w(IP) = pressure
-            self % w(IT) = pressure / rho
-            self % w(IA) = sqrt(gamma * self % w(IT))
          else
             print*, "Unknown mode"
             stop "Stopped."
@@ -131,7 +118,6 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:)    => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
@@ -144,7 +130,6 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:)    => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
@@ -187,14 +172,14 @@
 !
 !                 First stage: Determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % storage(1) % W(iXi , IRHO)
-                  uL  = edge % storage(1) % W(iXi , IU) 
-                  vL  = edge % storage(1) % W(iXi , IV) 
-                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = edge % storage(1) % W(iXi , IP)
-                  aL  = edge % storage(1) % W(iXi , IA)
-                  TL  = edge % storage(1) % W(iXi , IT)
-                  ML  = vnL / aL
+!                  rhoL = edge % storage(1) % W(iXi , IRHO)
+!                  uL  = edge % storage(1) % W(iXi , IU) 
+!                  vL  = edge % storage(1) % W(iXi , IV) 
+!                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
+!                  pL  = edge % storage(1) % W(iXi , IP)
+!                  aL  = edge % storage(1) % W(iXi , IA)
+!                  TL  = edge % storage(1) % W(iXi , IT)
+!                  ML  = vnL / aL
 
                   vnInfty = uInfty * edge % n (IX , iXi) + vInfty * edge % n(IY, iXi)
 !
@@ -203,7 +188,7 @@
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
                      q = self % q
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+!                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
@@ -228,7 +213,7 @@
                      q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+ !                    edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
@@ -253,14 +238,14 @@
                      q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+                     !edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
                      q = edge % storage(1) % Q(iXi,1:NCONS)
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+!                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
@@ -274,14 +259,14 @@
 !
 !                 First stage: Determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % storage(1) % W(iXi , IRHO)
-                  uL  = edge % storage(1) % W(iXi , IU) 
-                  vL  = edge % storage(1) % W(iXi , IV) 
-                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = edge % storage(1) % W(iXi , IP)
-                  aL  = edge % storage(1) % W(iXi , IA)
-                  TL  = edge % storage(1) % W(iXi , IT)
-                  ML  = vnL / aL
+!                  rhoL = edge % storage(1) % W(iXi , IRHO)
+!                  uL  = edge % storage(1) % W(iXi , IU) 
+!                  vL  = edge % storage(1) % W(iXi , IV) 
+!                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
+!                  pL  = edge % storage(1) % W(iXi , IP)
+!                  aL  = edge % storage(1) % W(iXi , IA)
+!                  TL  = edge % storage(1) % W(iXi , IT)
+!                  ML  = vnL / aL
 
                   vnInfty = uInfty * edge % n (IX , iXi) + vInfty * edge % n(IY, iXi)
 !
@@ -290,7 +275,7 @@
                   if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
                      q = self % q
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+ !                    edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
@@ -315,7 +300,7 @@
                      q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+  !                   edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
@@ -340,14 +325,14 @@
                      q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
 
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+   !                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      
                   elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
                      q = edge % storage(1) % Q(iXi,1:NCONS)
                      F = inviscidFlux( q )
-                     edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
+    !                 edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS , IY) * edge % dS(IY,iXi)
 
                      edge % uB(iXi,1:NCONS) = q
                      

@@ -61,7 +61,6 @@
       
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) )
 
                edge % BCWeakType = self % WeakType
 
@@ -73,7 +72,6 @@
    
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
-               allocate( edge % wB(0:N,NPRIM) )
 
                edge % BCWeakType = self % WeakType
 
@@ -121,14 +119,12 @@
                edge % uB(0 : N , IRHOV) = -edge % storage(1) % Q(0 : N , IRHOV)
                edge % uB(0 : N , IRHOE) =  edge % storage(1) % Q(0 : N , IRHOE)
 
-               edge % wB(0 : N , IU) = - edge % storage(1) % W(0:N,IU)
-               edge % wB(0 : N , IV) = - edge % storage(1) % W(0:N,IV) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % storage(1) % W(0:N , IT)
+!                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % storage(1) % W(0:N , IT)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % wB( 0 : N , IT ) = edge % storage(1) % W( 0 : N , IT)
+ !                 edge % wB( 0 : N , IT ) = edge % storage(1) % W( 0 : N , IT)
 
                end if
 
@@ -139,14 +135,14 @@
                edge % uB(0 : N , IRHOV) = -edge % storage(1) % Q(0 : N , IRHOV)
                edge % uB(0 : N , IRHOE) =  edge % storage(1) % Q(0 : N , IRHOE)
 
-               edge % wB(0 : N , IU) = - edge % storage(1) % W(0:N,IU)
-               edge % wB(0 : N , IV) = - edge % storage(1) % W(0:N,IV) 
+   !            edge % wB(0 : N , IU) = - edge % storage(1) % W(0:N,IU)
+  !             edge % wB(0 : N , IV) = - edge % storage(1) % W(0:N,IV) 
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % storage(1) % W(0:N , IT)
+    !              edge % wB( 0:N , IT ) = 2.0_RP * self % Tw - edge % storage(1) % W(0:N , IT)
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % wB( 0 : N , IT ) = edge % storage(1) % W( 0 : N , IT)
+     !             edge % wB( 0 : N , IT ) = edge % storage(1) % W( 0 : N , IT)
 
                end if
 

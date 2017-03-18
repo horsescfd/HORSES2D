@@ -288,21 +288,21 @@ module nodesAndWeights_class
 
         end subroutine computeNodesAndWeights
             
-        function polyevaluation(self,x)   result(val)
+        pure function polyevaluation(self,x)   result(val)
             implicit none
-            class(NodesAndWeights_t)   :: self
-            real(kind=RP)              :: x
-            real(kind=RP)              :: val( 0 : self % N )
+            class(NodesAndWeights_t), intent(in)   :: self
+            real(kind=RP)           , intent(in)   :: x
+            real(kind=RP)                          :: val( 0 : self % N )
     
             call LagrangeInterpolatingPolynomialBarycentric(x , self % N , self % xi , self % wb , val)
 
         end function polyevaluation
 
-        function polyDerivativeEvaluation( self , x ) result(val)
+        pure function polyDerivativeEvaluation( self , x ) result(val)
             implicit none
-            class(NodesAndWeights_t)         :: self
-            real(kind=RP), intent(in)        :: x
-            real(kind=RP)                    :: val( 0 : self % N )
+            class(NodesAndWeights_t), intent(in) :: self
+            real(kind=RP), intent(in)            :: x
+            real(kind=RP)                        :: val( 0 : self % N )
 !           -------------------------------------------------------------
             integer                          :: i
 

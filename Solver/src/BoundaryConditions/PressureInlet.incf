@@ -81,7 +81,6 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:)    => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
@@ -94,7 +93,6 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:)    => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
                edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
 #endif
@@ -154,7 +152,7 @@
                   if ( ml .lt. -1.0_rp ) then      ! supersonic inflow
                      q = self % q
                      f = inviscidflux( q )
-                     edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                  !   edge % fb(ixi,1:NCONS) = (f(1:NCONS,ix) * edge % n(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)) 
                
                   elseif ( ml .le. 0.0_rp ) then   ! subsonic inflow
                      a = self % st * (gamma+1.0_rp) / gm1
@@ -175,7 +173,7 @@
                      q(irhoe) = cv * pr + 0.5_rp * (q(irhou) * ur + q(irhov) * vr )
 
                      f = inviscidflux( q )
-                     edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                   !  edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
  
                      
                   elseif ( ml .lt. 1.0_rp ) then   ! subsonic outflow
@@ -191,18 +189,18 @@
                       q(irhoe) = cv * pr + 0.5_rp * (q(irhou) * ur + q(irhov) * vr )
 
                       f = inviscidflux( q )
-                      edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                      !edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
 
 
                   elseif ( ml .ge. 1.0_rp ) then   ! supersonic outflow
                   
-                     q = edge % storage(1) % q(ixi,1:ncons)
+                     q = edge % storage(1) % q(ixi,1:NCONS)
                      f = inviscidflux( q )
-                     edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                    ! edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
       
                   end if
 
-                  edge % ub(ixi,1:ncons) = q
+                  edge % ub(ixi,1:NCONS) = q
       
                end do 
 
@@ -227,7 +225,7 @@
                   if ( ml .lt. -1.0_rp ) then      ! supersonic inflow
                      q = self % q
                      f = inviscidflux( q )
-                     edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                     !edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
                
                   elseif ( ml .le. 0.0_rp ) then   ! subsonic inflow
                      a = self % st * (gamma+1.0_rp) / gm1
@@ -248,7 +246,7 @@
                      q(irhoe) = cv * pr + 0.5_rp * (q(irhou) * ur + q(irhov) * vr )
 
                      f = inviscidflux( q )
-                     edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                     !edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
  
                      
                   elseif ( ml .lt. 1.0_rp ) then   ! subsonic outflow
@@ -264,18 +262,18 @@
                       q(irhoe) = cv * pr + 0.5_rp * (q(irhou) * ur + q(irhov) * vr )
 
                       f = inviscidflux( q )
-                      edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                      !edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
 
 
                   elseif ( ml .ge. 1.0_rp ) then   ! supersonic outflow
                   
-                     q = edge % storage(1) % q(ixi,1:ncons)
+                     q = edge % storage(1) % q(ixi,1:NCONS)
                      f = inviscidflux( q )
-                     edge % fb(ixi,1:ncons) = f(1:ncons,ix) * edge % ds(ix,ixi) + f(1:ncons , iy) * edge % ds(iy,ixi)
+                     !edge % fb(ixi,1:NCONS) = f(1:NCONS,ix) * edge % ds(ix,ixi) + f(1:NCONS , iy) * edge % ds(iy,ixi)
       
                   end if
 
-                  edge % ub(ixi,1:ncons) = q
+                  edge % ub(ixi,1:NCONS) = q
       
                end do 
 

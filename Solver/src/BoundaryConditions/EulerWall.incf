@@ -25,8 +25,6 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
-
 #ifdef NAVIER_STOKES
                allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
 #endif
@@ -38,8 +36,6 @@
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
-
-               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 
 #ifdef NAVIER_STOKES
                allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
@@ -85,7 +81,7 @@
 !
 !                 Compute the normal flux
 !                 -----------------------
-                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS,IY) * edge % dS(IY,iXi)
+                  edge % FB(iXi,1:NCONS) = (F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi)) * edge % dS(iXi)
 !
 !                 Compute the variables state
 !                 ---------------------------
@@ -118,7 +114,7 @@
 !
 !                 Compute the normal flux
 !                 -----------------------
-                  edge % FB(iXi,1:NCONS) = F(1:NCONS,IX) * edge % dS(IX,iXi) + F(1:NCONS,IY) * edge % dS(IY,iXi)
+                  edge % FB(iXi,1:NCONS) = (F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi)) * edge % dS(iXi)
 !
 !                 Compute the variables state
 !                 ---------------------------
@@ -128,6 +124,7 @@
                   edge % uB(iXi,IRHOE) = edge % storage(1) % Q(iXi,IRHOE)
 
                end do
+                  
  
             class default
          end select

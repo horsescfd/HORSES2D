@@ -8,7 +8,7 @@ module Utilities
 !
 !////////////////////////////////////////////////////////////////////////////
 !
-      LOGICAL FUNCTION AlmostEqual( a, b ) 
+      pure LOGICAL FUNCTION AlmostEqual( a, b ) 
 !
 !        *************************************+
 !           Function by David A. Kopriva
@@ -20,7 +20,7 @@ module Utilities
 !        Arguments
 !        ---------
 !
-         REAL(KIND=RP) :: a, b
+         REAL(KIND=RP), intent(in) :: a, b
          IF ( a == 0.0_RP .OR. b == 0.0_RP )     THEN
             IF ( ABS(a-b) <= 2*EPSILON(b) )     THEN
                AlmostEqual = .TRUE.
@@ -37,7 +37,7 @@ module Utilities
    
       END FUNCTION AlmostEqual
 
-      function ThirdDegreeRoots(a,b,c) result (val)
+      pure function ThirdDegreeRoots(a,b,c) result (val)
 !
 !           ----------------------------------------------------------
 !              Solves the equation x^3 + a x^2 + b x + c = 0
@@ -45,10 +45,10 @@ module Utilities
 !           ----------------------------------------------------------
 !
             implicit none  
-            real(kind=RP)              :: a
-            real(kind=RP)              :: b
-            real(kind=RP)              :: c
-            real(kind=RP)              :: val
+            real(kind=RP), intent(in) :: a
+            real(kind=RP), intent(in) :: b
+            real(kind=RP), intent(in) :: c
+            real(kind=RP)             :: val
 !           ------------------------------------------------------
             real(kind=RP)              :: p , q
             complex(kind=CP)           :: z1
@@ -63,7 +63,7 @@ module Utilities
 
          end function ThirdDegreeRoots
 
-         function solveTwoEquationLinearSystem( A , b ) result ( x )
+         pure function solveTwoEquationLinearSystem( A , b ) result ( x )
             implicit none
             real(kind = RP),  intent(in)     :: A(2,2)
             real(kind = RP),  intent(in)     :: b(2)
@@ -77,11 +77,11 @@ module Utilities
 
          end function solveTwoEquationLinearSystem
       
-         function solveSecondDegreeEquation(a,b,c,flag) result ( x )
+         pure subroutine solveSecondDegreeEquation(a,b,c,flag , x )
             implicit none
             real(kind=RP), intent(in)            :: a, b, c
             integer,       intent(out), optional :: flag
-            real(kind=RP)                        :: x(2)
+            real(kind=RP), intent(out)           :: x(2)
 !           ---------------------------------------------------
             real(kind=RP)                    :: disc
 
@@ -115,24 +115,24 @@ module Utilities
                end if
             end if
             
-         end function solveSecondDegreeEquation
+         end subroutine solveSecondDegreeEquation
    
-         function cross ( x , y ) result ( val )
+         pure function cross ( x , y ) result ( val )
             use Physics
             implicit none
-            real(kind=RP)     :: x(NDIM)
-            real(kind=RP)     :: y(NDIM)
-            real(kind=RP)     :: val
+            real(kind=RP), intent(in) :: x(NDIM)
+            real(kind=RP), intent(in) :: y(NDIM)
+            real(kind=RP)             :: val
 !           -----------------------------------
             
             val = x(IX) * y(IY) - x(IY) * y(IX)
 
          end function cross
 
-         function newSign ( x ) result ( val ) 
+         pure function newSign ( x ) result ( val ) 
             implicit none
-            real(kind=RP)     :: x
-            integer           :: val
+            real(kind=RP), intent(in) :: x
+            integer                   :: val
 !           ------------------------------------
             integer           :: gt0 , lt0
 
