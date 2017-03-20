@@ -233,6 +233,7 @@ module Tecplot
 #endif
          integer                 :: iXi , iEta
          integer                 :: var
+         real(kind=RP)              :: Q(1:NCONS)
 
          associate ( N => mesh % elements(eID) % spA % N )
 !         
@@ -302,10 +303,12 @@ module Tecplot
                         write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
    
                      case ("p")
-                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - 0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) * refValues % p
+                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
+                        write(self % fID,'(1X,E16.10)',advance="no") getPressure( Q ) * refValues % p
       
                      case ("Mach")
-                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
+                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
+                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
 
                      case ("s")
                         write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
@@ -362,6 +365,7 @@ module Tecplot
          integer                    :: iXi , iEta
          integer                    :: Nout
          integer                    :: var
+         real(kind=RP)              :: Q(1:NCONS)
 
          associate ( N => mesh % elements(eID) % spA % N , spA => mesh % elements(eID) % spA)
 !
@@ -464,10 +468,12 @@ module Tecplot
                         write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
    
                      case ("p")
-                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - 0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) * refValues % p
+                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
+                        write(self % fID,'(1X,E16.10)',advance="no") getPressure( Q ) * refValues % p
       
                      case ("Mach")
-                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/sqrt(Thermodynamics % Gamma)
+                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
+                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
 
                      case ("s")
                         write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
@@ -477,6 +483,7 @@ module Tecplot
                      case ("Vorticity")
                         write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
 #endif
+
                   end select                        
 
                end do

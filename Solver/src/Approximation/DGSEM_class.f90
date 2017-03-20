@@ -165,7 +165,7 @@
 
             end if
 
-!            call DGSpatial_ComputeTimeDerivative( self % mesh )
+            call DGSpatial_ComputeTimeDerivative( self % mesh )
 
         end subroutine DGSEM_SetInitialCondition
       

@@ -13,7 +13,7 @@ MODE ?=DEBUG
 BLAS_LIB = 
 LAPACK_LIB = 
 LIBS=
-GLOB_MACROS :=
+GLOB_MACROS := -D_DIMENSIONLESS_TAU
 
 # --------------- MACROS ---------------------------------------------------
 
@@ -29,7 +29,7 @@ RiemannSolvers: PhysicsNS SMConstants InviscidFluxes
 InviscidFluxes: PhysicsNS SMConstants
 ViscousFluxes: PhysicsNS SMConstants
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
-NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
+NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
 InterpolationAndDerivatives: SMConstants Utilities
 LegendreAlgorithms: SMConstants
 QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions Utilities
@@ -44,7 +44,8 @@ NetCDF_Interface: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
-DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods
+DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
+DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals
 DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile

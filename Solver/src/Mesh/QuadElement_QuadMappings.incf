@@ -70,7 +70,6 @@
 
          self % X = 0.0_RP
          self % jac = 0.0_RP
-         self % invM2Djac = 0.0_RP
          self % Ja = 0.0_RP
 
          n1 => self % nodes(1) % n % X
@@ -111,8 +110,6 @@
                                              -n4 * (1.0_RP - xi(iXi)) 
 
             self % jac(iXi,iEta)         = dX(IX,IX,iXi,iEta) * dX(IY,IY,iXi,iEta) - dX(IX,IY,iXi,iEta) * dX(IY,IX,iXi,iEta)
-   
-            self % invM2Djac(iXi,iEta)   = self % spA % invM2D(iXi,iEta) / self % jac(iXi,iEta)
 !   
 !           Compute the metric matrix
 !           -------------------------

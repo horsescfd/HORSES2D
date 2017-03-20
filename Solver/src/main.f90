@@ -51,7 +51,7 @@ program main
 
 
 call cpu_time(tstart)
-!    call sem % Integrate()
+    call sem % Integrate()
 call cpu_time(tend)
    print*, "Time: ",tend-tstart
 

@@ -10,6 +10,7 @@ module PhysicsNS
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux , ViscousFlux , ViscousNormalFlux , ComputeViscousTensor
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver
+    public :: getPressure , getSoundSpeed
 !
 !   *****************************************
 !        Definitions
@@ -95,16 +96,13 @@ module PhysicsNS
     end type Dimensionless_t
 
     abstract interface
-      function RiemannSolverFunction( QL , QR , wL , wR , T , Tinv ) result ( val )
+      pure function RiemannSolverFunction( QL , QR , n ) result ( val )
          use SMConstants
          import NCONS , NDIM , NPRIM
-         real(kind=RP), dimension(NCONS)     :: QL
-         real(kind=RP), dimension(NCONS)     :: QR
-         real(kind=RP), dimension(NPRIM)     :: wL
-         real(kind=RP), dimension(NPRIM)     :: wR
-         real(kind=RP), dimension(NCONS,NCONS) :: T
-         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
-         real(kind=RP), dimension(NCONS)     :: val
+         real(kind=RP), dimension(NCONS), intent(in) :: QL
+         real(kind=RP), dimension(NCONS), intent(in) :: QR
+         real(kind=RP), dimension(NDIM) , intent(in) :: n
+         real(kind=RP), dimension(NCONS)             :: val
       end function RiemannSolverFunction
     end interface
 
@@ -136,6 +134,10 @@ module PhysicsNS
     interface getTemperature
       module procedure getTemperature0D , getTemperature1D , getTemperature2D
     end interface getTemperature
+
+    interface getSoundSpeed
+      module procedure getSoundSpeed0D , getSoundSpeed1D , getSoundSpeed2D 
+    end interface getSoundSpeed
 !
 !   //////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -184,87 +186,86 @@ module PhysicsNS
          real(kind=RP), intent (in)  :: Q(0:N,0:N,1:NCONS)
          real(kind=RP)               :: T(0:N,0:N)
       end function getTemperature2D
+
+      module function getSoundSpeed0D(Q) result (a)
+         implicit none
+         real(kind=RP), intent(in)        :: Q(1:NCONS)
+         real(kind=RP)                    :: a
+      end function getSoundSpeed0D
+
+      module function getSoundSpeed1D(N,Q) result (a)
+         implicit none
+         integer,       intent(in)        :: N
+         real(kind=RP), intent(in)        :: Q(0:N,1:NCONS)
+         real(kind=RP)                    :: a(0:N)
+      end function getSoundSpeed1D
+
+      module function getSoundSpeed2D(N,Q) result(a)
+         implicit none
+         integer,       intent(in)        :: N
+         real(kind=RP), intent(in)        :: Q(0:N,0:N,1:NCONS)
+         real(kind=RP)                    :: a(0:N,0:N)
+      end function getSoundSpeed2D
     end interface
 
     interface
-       module function ExactRiemannSolver(QL3D , QR3D , wL3D , wR3D , T , Tinv ) result ( val )
-         use SMConstants
+      module pure function ExactRiemannSolver(qL , qR , n) result (Fstar)
+         use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS)     :: QL3D
-         real(kind=RP), dimension(NCONS)     :: QR3D
-         real(kind=RP), dimension(NPRIM)     :: wL3D
-         real(kind=RP), dimension(NPRIM)     :: wR3D
-         real(kind=RP), dimension(NCONS,NCONS) :: T
-         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
-         real(kind=RP), dimension(NCONS)     :: val
-       end function ExactRiemannSolver
+         real(kind=RP), dimension(NCONS), intent(in) :: qL
+         real(kind=RP), dimension(NCONS), intent(in) :: qR
+         real(kind=RP), dimension(NDIM) , intent(in) :: n
+         real(kind=RP), dimension(NCONS) :: Fstar
+      end function ExactRiemannSolver
+         
+      module pure function RoeFlux(qL, qR , n) result(Fstar)
+         use MatrixOperations
+         implicit none
+         real(kind=RP), dimension(NCONS), intent(in)     :: qL
+         real(kind=RP), dimension(NCONS), intent(in)     :: qR
+         real(kind=RP), dimension(NDIM) , intent(in)     :: n
+         real(kind=RP), dimension(NCONS)     :: Fstar
+      end function RoeFlux
 
-       module function HLLFlux(QL3D , QR3D , wL3D , wR3D , T , Tinv ) result ( val )
-         use SMConstants
+      module pure function HLLFlux(qL , qR , n) result(Fstar)
+         use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS)     :: QL3D
-         real(kind=RP), dimension(NCONS)     :: QR3D
-         real(kind=RP), dimension(NPRIM)     :: wL3D
-         real(kind=RP), dimension(NPRIM)     :: wR3D
-         real(kind=RP), dimension(NCONS,NCONS) :: T
-         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
-         real(kind=RP), dimension(NCONS)     :: val
-       end function HLLFlux
-
-       module function RoeFlux(QL3D , QR3D , wL3D , wR3D , T , Tinv ) result ( val )
-         use SMConstants
-         implicit none
-         real(kind=RP), dimension(NCONS)     :: QL3D
-         real(kind=RP), dimension(NCONS)     :: QR3D
-         real(kind=RP), dimension(NPRIM)     :: wL3D
-         real(kind=RP), dimension(NPRIM)     :: wR3D
-         real(kind=RP), dimension(NCONS,NCONS) :: T
-         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
-         real(kind=RP), dimension(NCONS)     :: val
-       end function RoeFlux
-
-       module function AUSMFlux(QL3D , QR3D , wL3D , wR3D , T , Tinv ) result ( val )
-         use SMConstants
-         implicit none
-         real(kind=RP), dimension(NCONS)     :: QL3D
-         real(kind=RP), dimension(NCONS)     :: QR3D
-         real(kind=RP), dimension(NPRIM)     :: wL3D
-         real(kind=RP), dimension(NPRIM)     :: wR3D
-         real(kind=RP), dimension(NCONS,NCONS) :: T
-         real(kind=RP), dimension(NCONS,NCONS) :: Tinv
-         real(kind=RP), dimension(NCONS)     :: val
-       end function AUSMFlux
+         real(kind=RP), dimension(NCONS), intent(in)     :: qL
+         real(kind=RP), dimension(NCONS), intent(in)     :: qR
+         real(kind=RP), dimension(NDIM) , intent(in)     :: n
+         real(kind=RP), dimension(NCONS)     :: Fstar
+      end function HLLFlux
     end interface
 
     interface
-      module function inviscidFlux0D(u) result(val)
+      module pure function inviscidFlux0D(u) result(val)
          implicit none
-         real(kind=RP)          :: u(NCONS)
-         real(kind=RP), target  :: val(NCONS,NDIM)
+         real(kind=RP), intent(in) :: u(NCONS)
+         real(kind=RP)             :: val(NCONS,NDIM)
       end function inviscidFlux0D
 
-      module function inviscidFlux1D(N,u) result(val)
+      module pure function inviscidFlux1D(N,u) result(val)
          implicit none
-         integer, intent(in)                :: N 
-         real(kind=RP)                      :: u(0:N,1:NCONS)
-         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
+         integer, intent(in)       :: N
+         real(kind=RP), intent(in) :: u(0:N,1:NCONS)
+         real(kind=RP)             :: val(0:N,1:NCONS,1:NDIM)
       end function inviscidFlux1D
 
-      module function InviscidFlux2D(N,u) result(val)
+      module pure function InviscidFlux2D(N,u) result(val)
          implicit none
-         integer, intent(in)                :: N 
-         real(kind=RP)                      :: u(0:N,0:N,1:NCONS)
-         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
+         integer, intent(in)      :: N
+         real(kind=RP),intent(in) :: u(0:N,0:N,1:NCONS)
+         real(kind=RP)            :: val(0:N,0:N,1:NCONS,1:NDIM)
       end function inviscidFlux2D
      
-      module function F_inviscidFlux(rho,u,v,p,H) result(F)
+      module pure function F_inviscidFlux(rho,u,v,p,H) result(F)
          implicit none
-         real(kind=RP)        :: rho
-         real(kind=RP)        :: u 
-         real(kind=RP)        :: v
-         real(kind=RP)        :: p
-         real(kind=RP)        :: H
-         real(kind=RP)        :: F(NCONS)
+         real(kind=RP), intent(in) :: rho
+         real(kind=RP), intent(in) :: u
+         real(kind=RP), intent(in) :: v
+         real(kind=RP), intent(in) :: p
+         real(kind=RP), intent(in) :: H
+         real(kind=RP)             :: F(NCONS)
       end function F_inviscidFlux
     end interface
 
@@ -350,16 +351,29 @@ module PhysicsNS
 !        Initialize the reference values
 !        *******************************
 !
+#ifdef _DIMENSIONLESS_TAU
+         refValues % L     = Setup % reynolds_length
+         refValues % T     = Setup % temperature_ref
+         refValues % p     = Setup % pressure_ref
+         refValues % rho   = refValues % p / ( thermodynamics % R * refValues % T )
+         refValues % a     = sqrt( refValues % p / refValues % rho )
+         refValues % Mach  = Setup % Mach_number
+         refValues % V     = sqrt( thermodynamics % gamma ) * refValues % Mach * refValues % a
+         refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
+         refValues % tc    = refValues % L / (refValues % V )
+#else
          refValues % L     = Setup % reynolds_length
          refValues % T     = Setup % temperature_ref
          refValues % rho   = Setup % pressure_ref / (thermodynamics % R * refValues % T)
-         refValues % a     = sqrt( thermodynamics % gamma * Setup % pressure_ref / refValues % rho )
          refValues % Mach  = Setup % Mach_number
-         refValues % V     = refValues % Mach * refValues % a
+         refValues % V     = refValues % Mach * sqrt( thermodynamics % gamma * Setup % pressure_ref / refValues % rho )
+         refValues % a     = refValues % V
          refValues % p     = refValues % Mach * refValues % Mach * thermodynamics % gamma * Setup % pressure_ref
          refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
          refValues % tc    = refValues % L / (refValues % V )
+#endif
 !
 !        ***********************************
 !        Initialize the dimensionless values

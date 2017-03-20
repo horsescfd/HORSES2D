@@ -20,6 +20,8 @@ MODULE Headers
                 CHARACTER(LEN = *)      :: title
                 INTEGER, PARAMETER   :: siz = 100
                 CHARACTER(LEN = siz)    :: ast1,ast2,astTitle,astGroup
+                CHARACTER(LEN = siz)    :: compilationDate
+                CHARACTER(LEN = siz)    :: astCompilation
                 INTEGER                 :: i
 
                 ast1 = ''
@@ -40,6 +42,13 @@ MODULE Headers
                 astGroup(siz-LEN_TRIM("Madrid TU")-3 : siz-4) = 'Madrid TU'
                 astGroup(siz:siz) = '#'
                 
+                write(compilationDate,'(A,A,A,A)') "Compiled at ",__DATE__ , ", ",  __TIME__
+                do i = 2 , siz-2
+                  astCompilation(i:i) = ","
+                end do
+                astCompilation(1:1) = '#'
+                astCompilation(siz-2-len_trim(compilationDate) : siz-2) = TRIM(compilationDate)
+                astCompilation(siz-1:siz) = " #"
                 WRITE(*,'(A)') ast1
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') ast2
@@ -47,6 +56,7 @@ MODULE Headers
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') astGroup
                 include './header.incf'
+                WRITE(*,'(A)') astCompilation
                 WRITE(*,'(A)') ast1
 
         END SUBROUTINE Main_header

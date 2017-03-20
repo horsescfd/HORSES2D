@@ -75,6 +75,7 @@
            integer, parameter                 :: PRESSUREOUTLET_BC = 6
            integer, parameter                 :: PRESSUREINLET_BC  = 7
            integer, parameter                 :: RIEMANN_BC        = 8
+           integer, parameter                 :: NEWDIRICHLET_BC   = 9
            integer, parameter                 :: WEAK_RIEMANN      = 1
            integer, parameter                 :: WEAK_PRESCRIBED   = 2
            integer, parameter                 :: BC_UNDEFINED      = 0
@@ -85,5 +86,11 @@
 !             
            integer, parameter                 :: STEADY          =  0
            integer, parameter                 :: TRANSIENT       =  1
+!
+!     *************************************************************************
+!           Useful macros
+!     *************************************************************************
+!
+#define errorMessage(UNIT) write(UNIT,'(A,A,A,I0)') "Error in file " , __FILE__ , ", line ",__LINE__
      
       end module SMConstants

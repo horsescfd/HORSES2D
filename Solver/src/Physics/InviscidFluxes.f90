@@ -3,11 +3,11 @@ submodule (PhysicsNS)  InviscidFluxes
 
    contains
 
-      module function inviscidFlux0D(u) result(val)
+      module pure function inviscidFlux0D(u) result(val)
          implicit none
-         real(kind=RP)          :: u(NCONS)
-         real(kind=RP), target  :: val(NCONS,NDIM)
-         real(kind=RP)          :: vx , vy  , p
+         real(kind=RP), intent(in) :: u(NCONS)
+         real(kind=RP)             :: val(NCONS,NDIM)
+         real(kind=RP)             :: vx , vy  , p
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
 
@@ -25,16 +25,20 @@ submodule (PhysicsNS)  InviscidFluxes
          val(IRHOV,IY) = u(IRHOV) * vy + p
          val(IRHOE,IY) = (u(IRHOE) + p) * vy
 
+#ifdef _DIMENSIONLESS_TAU
+         val = val * dimensionless % invSqrtGammaMach
+#endif
+
          end associate
 
       end function inviscidFlux0D
 
-      module function inviscidFlux1D(N,u) result(val)
+      module pure function inviscidFlux1D(N,u) result(val)
          implicit none
-         integer, intent(in)                :: N 
-         real(kind=RP)                      :: u(0:N,1:NCONS)
-         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
-         real(kind=RP)                      :: vx(0:N) , vy(0:N)  , p(0:N)
+         integer, intent(in)       :: N
+         real(kind=RP), intent(in) :: u(0:N,1:NCONS)
+         real(kind=RP)             :: val(0:N,1:NCONS,1:NDIM)
+         real(kind=RP)             :: vx(0:N) , vy(0:N)  , p(0:N)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
@@ -52,16 +56,20 @@ submodule (PhysicsNS)  InviscidFluxes
          val(:,IRHOV,IY) = u(:,IRHOV) * vy + p
          val(:,IRHOE,IY) = (u(:,IRHOE) + p) * vy
 
+#ifdef _DIMENSIONLESS_TAU
+         val = val * dimensionless % invSqrtGammaMach
+#endif
+
          end associate
 
       end function inviscidFlux1D
 
-      module function InviscidFlux2D(N,u) result(val)
+      module pure function InviscidFlux2D(N,u) result(val)
          implicit none
-         integer, intent(in)                :: N 
-         real(kind=RP)                      :: u(0:N,0:N,1:NCONS)
-         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
-         real(kind=RP)                      :: vx(0:N,0:N) , vy(0:N,0:N)  , p(0:N,0:N)
+         integer, intent(in)       :: N
+         real(kind=RP), intent(in) :: u(0:N,0:N,1:NCONS)
+         real(kind=RP)             :: val(0:N,0:N,1:NCONS,1:NDIM)
+         real(kind=RP)             :: vx(0:N,0:N) , vy(0:N,0:N)  , p(0:N,0:N)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
@@ -79,18 +87,22 @@ submodule (PhysicsNS)  InviscidFluxes
          val(:,:,IRHOV,IY) = u(:,:,IRHOV) * vy + p
          val(:,:,IRHOE,IY) = (u(:,:,IRHOE) + p) * vy
 
+#ifdef _DIMENSIONLESS_TAU
+         val = val * dimensionless % invSqrtGammaMach
+#endif
+
          end associate
 
       end function inviscidFlux2D
 
-      module function F_inviscidFlux(rho,u,v,p,H) result(F)
+      module pure function F_inviscidFlux(rho,u,v,p,H) result(F)
          implicit none
-         real(kind=RP)        :: rho
-         real(kind=RP)        :: u 
-         real(kind=RP)        :: v
-         real(kind=RP)        :: p
-         real(kind=RP)        :: H
-         real(kind=RP)        :: F(NCONS)
+         real(kind=RP), intent(in) :: rho
+         real(kind=RP), intent(in) :: u
+         real(kind=RP), intent(in) :: v
+         real(kind=RP), intent(in) :: p
+         real(kind=RP), intent(in) :: H
+         real(kind=RP)             :: F(NCONS)
    
          F(IRHO)  = rho * u
          F(IRHOU) = F(IRHO) * u + p

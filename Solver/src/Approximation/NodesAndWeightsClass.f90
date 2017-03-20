@@ -1,4 +1,5 @@
 module nodesAndWeights_class
+    use Physics
     use SMConstants
     use InterpolationAndDerivatives
     use LegendreAlgorithms
@@ -24,9 +25,11 @@ module nodesAndWeights_class
         real(kind=RP), pointer    :: D(:,:)
         real(kind=RP), pointer    :: DT(:,:)
         real(kind=RP), pointer    :: MD(:,:)
+        real(kind=RP), pointer    :: hatD(:,:)
         real(kind=RP), pointer    :: trMD(:,:)
         real(kind=RP), pointer    :: tildeMTD(:,:)
         real(kind=RP), pointer    :: lb(:,:)
+        real(kind=RP), pointer    :: lbw(:,:)
         real(kind=RP), pointer    :: T(:,:)     ! Interpolation matrix to the TAIL of the linked list 
 !                                                  (integration points are placed there)
         class(NodesAndWeights_t), pointer :: next => NULL()
@@ -161,9 +164,11 @@ module nodesAndWeights_class
             allocate ( self % invM2D ( 0:N,0:N )  ) 
             allocate ( self % D      ( 0:N,0:N )  ) 
             allocate ( self % DT     ( 0:N,0:N )  ) 
+            allocate ( self % hatD   ( 0:N,0:N )  ) 
             allocate ( self % MD     ( 0:N,0:N )  ) 
             allocate ( self % trMD   ( 0:N,0:N )  ) 
             allocate ( self % lb     ( 0:N,2   )  ) 
+            allocate ( self % lbw    ( 0:N,2   )  ) 
 
             self % T => NULL()
             self % tildeMTD => NULL()
@@ -276,6 +281,7 @@ module nodesAndWeights_class
             self % DT   = transpose( self % D )
             self % MD   = matmul( self % M , self % D )
             self % trMD = transpose( self % MD )
+            self % hatD = matmul( self % MD , self % Minv )
 
 !       
 !           --------------------------------------------
@@ -284,6 +290,9 @@ module nodesAndWeights_class
 !
             call LagrangeInterpolatingPolynomialBarycentric(  0.0_RP, N, self % xi, self % wb, self % lb(: ,LEFT) )
             call LagrangeInterpolatingPolynomialBarycentric(  1.0_RP, N, self % xi, self % wb, self % lb(:,RIGHT) )
+   
+            self % lbw ( :,LEFT  ) = self % lb ( :,LEFT  ) / self % w
+            self % lbw ( :,RIGHT ) = self % lb ( :,RIGHT ) / self % w
             
 
         end subroutine computeNodesAndWeights

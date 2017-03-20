@@ -514,45 +514,6 @@ module ChecksModule
                write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % ScalarScalarSurfaceIntegral("Surface",zone) * RefValues % L ,"." 
             end do
             
-            associate ( e => mesh % elements(621) )
-            dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
-            dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
-               if (( e % quadPosition(ETOP) .eq. LEFT )) then
-                  select type (ed => e % edges(ETOP) % f)
-                     type is (Edge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
-                  end select
-
-               elseif (( e % quadPosition(ETOP) .eq. RIGHT) .and. (e % edgesDirection(ETOP) .eq. FORWARD) ) then
-                  select type (ed => e % edges(ETOP) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = -ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = -ed % dS * ed % n(IY,0 : e % spA % N)
-                  end select
-
-               else
-                  select type (ed => e % edges(ETOP) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = -ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                        dSe(IY,0 : e % spA % N) = -ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                  end select
-
-               end if
- 
-            end associate
         end subroutine CheckMappings
 
         subroutine CheckInterpolationToBoundaries( mesh ) 
@@ -779,7 +740,7 @@ module ChecksModule
          call sem % mesh % SetInitialCondition("ChecksPolynomic")
          call sem % mesh % ApplyInitialCondition( L )    
 
-!         call DGSpatial_ComputeTimeDerivative( sem % mesh )
+         call DGSpatial_ComputeTimeDerivative( sem % mesh )
 
          error = 0.0_RP
          do eID = 1 , sem % mesh % no_of_elements
@@ -821,7 +782,7 @@ module ChecksModule
          call sem % mesh % ApplyInitialCondition( L )
 
 
-!         call DGSpatial_ComputeTimeDerivative( sem % mesh )
+         call DGSpatial_ComputeTimeDerivative( sem % mesh )
 
          error = 0.0_RP
          do eID = 1 , sem % mesh % no_of_elements
@@ -842,6 +803,7 @@ module ChecksModule
                   if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
 
                   if ( (localerror .gt. error) .and. elementIsInterior ) then
+
                      error = localerror
                      elem = eID
                   end if
@@ -1003,20 +965,37 @@ module ChecksModule
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
+#ifdef _DIMENSIONLESS_TAU
          u = sqrt(gamma) * Mach * sin(PI * x(IX) / L ) * cos(PI * x(IY) / L)
-         v = -sqrt(gamma)* Mach * cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
-         p = 1.0_RP + (gamma * Mach**2.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
+         v = -sqrt(gamma) * Mach * cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
+         p = 1.0_RP + gamma * Mach * Mach * (1.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
          H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
 
 
          ux = sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-         uy = -sqrt(gamma)* Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
+         uy = -sqrt(gamma) * Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
 
          vx = sqrt(gamma) * Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L 
          vy = -sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L 
 
-         px = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
-         py = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
+         px = -0.25_RP * gamma * Mach * Mach * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
+         py = -0.25_RP * gamma * Mach * Mach * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
+#else
+         u = sin(PI * x(IX) / L ) * cos(PI * x(IY) / L)
+         v = -cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
+         p = 1.0_RP + (1.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
+         H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
+
+
+         ux = PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+         uy = -PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
+
+         vx = PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L 
+         vy = -PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L 
+
+         px = -0.25_RP * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
+         py = -0.25_RP * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
+#endif
 
          Hx = cp * px + u * ux + v * vx
          Hy = cp * py + u * uy + v * vy
@@ -1027,8 +1006,12 @@ module ChecksModule
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE) = H * (ux + vy) + Hx * u + Hy * v
-!
-         val = -val / (sqrt(gamma) * Mach)
+
+#ifdef _DIMENSIONLESS_TAU
+         val = -val * dimensionless % invSqrtGammaMach
+#else
+         val = -val
+#endif
          
 #ifdef NAVIER_STOKES
          associate ( mu => dimensionless % mu , kappa => dimensionless % kappa )
@@ -1065,19 +1048,35 @@ module ChecksModule
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
+#ifdef _DIMENSIONLESS_TAU
          u = sqrt(gamma) * Mach * x(IX) / L
          v = sqrt(gamma) * Mach * x(IY) / L
          p = 1.0_RP + gamma * Mach * Mach * ( x(IX) * x(IX) + x(IY) * x(IY)) / (L **2.0_RP)
          H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
 
-         ux = sqrt(gamma) * Mach / L
+         ux = sqrt(gamma) * Mach * 1.0_RP/ L
          uy = 0.0_RP
 
          vx = 0.0_RP
-         vy = sqrt(gamma) * Mach / L 
+         vy = sqrt(gamma) * Mach * 1.0_RP / L 
 
-         px = gamma * Mach * Mach * 2 * x(IX) / L**2.0_RP
-         py = gamma * Mach * Mach * 2 * x(IY) / L**2.0_RP
+         px = 2.0_RP * gamma * Mach * Mach * x(IX) / L**2.0_RP
+         py = 2.0_RP * gamma * Mach * Mach * x(IY) / L**2.0_RP
+#else
+         u = x(IX) / L
+         v = x(IY) / L
+         p = 1.0_RP + ( x(IX) * x(IX) + x(IY) * x(IY)) / (L **2.0_RP)
+         H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
+
+         ux = 1.0_RP/ L
+         uy = 0.0_RP
+
+         vx = 0.0_RP
+         vy = 1.0_RP / L 
+
+         px = 2.0_RP * x(IX) / L**2.0_RP
+         py = 2.0_RP * x(IY) / L**2.0_RP
+#endif
 
          Hx = cp * px + u * ux + v * vx
          Hy = cp * py + u * uy + v * vy
@@ -1086,8 +1085,6 @@ module ChecksModule
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE)     = H * (ux + vy) + Hx * u + Hy * v
-!
-         val = -val / (sqrt(gamma) * Mach)
 
          end associate
 #ifdef NAVIER_STOKES
@@ -1098,6 +1095,13 @@ module ChecksModule
 
          end associate
 #endif
+
+#ifdef _DIMENSIONLESS_TAU
+         val = -val * dimensionless % invSqrtGammaMach
+#else
+         val = -val
+#endif
+
         end function QDotPolynomicFCN        
       
 end module

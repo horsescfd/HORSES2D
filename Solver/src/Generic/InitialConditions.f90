@@ -176,18 +176,29 @@ module InitialConditions
 !           Loads an uniform initial condition from reference values
 !        ***************************************************************
          use SMConstants
+         use Setup_Class
          implicit none
          real(kind=RP)            :: x(NDIM)
          real(kind=RP), optional  :: argin
          real(kind=RP)            :: val(NCONS)
          real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+         real(kind=RP)            :: pressure
 
-         associate ( gamma => Thermodynamics % gamma ) 
+         pressure = Setup % pressure_ref / RefValues % p
 
+         associate ( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach ) 
+
+#ifdef _DIMENSIONLESS_TAU
          val(IRHO)  = 1.0_RP
-         val(IRHOU) = sqrt( gamma ) * Dimensionless % Mach * cos ( AngleOfAttack )
-         val(IRHOV) = sqrt( gamma ) * Dimensionless % Mach * sin ( AngleOfAttack )
-         val(IRHOE) = Dimensionless % cv + 0.5_RP * gamma * Dimensionless % Mach * Dimensionless % Mach
+         val(IRHOU) = sqrt(gamma) * Mach * cos ( AngleOfAttack )
+         val(IRHOV) = sqrt(gamma) * Mach * sin ( AngleOfAttack )
+         val(IRHOE) = Dimensionless % cv * pressure + 0.5_RP * gamma * Mach * Mach
+#else
+         val(IRHO)  = 1.0_RP
+         val(IRHOU) = cos ( AngleOfAttack )
+         val(IRHOV) = sin ( AngleOfAttack )
+         val(IRHOE) = Dimensionless % cv * pressure + 0.5_RP 
+#endif
 
          end associate
 
@@ -229,15 +240,19 @@ module InitialConditions
 !           Loads a steady flow from the reference values
 !        ***************************************************************
          use SMConstants
+         use Setup_Class
          implicit none
          real(kind=RP)           :: x(NDIM)
          real(kind=RP), optional :: argin
          real(kind=RP)           :: val(NCONS)
+         real(kind=RP)           :: pressure
+
+         pressure = Setup % pressure_ref / RefValues % p
 
          val(IRHO) = 1.0_RP
          val(IRHOU) = 0.0_RP
          val(IRHOV) = 0.0_RP
-         val(IRHOE) = Dimensionless % cv
+         val(IRHOE) = Dimensionless % cv * pressure
 
       end function SteadyInitialCondition
          
@@ -352,10 +367,17 @@ module InitialConditions
 
          end if
 
+#ifdef _DIMENSIONLESS_TAU
          rho = 1.0_RP
          u = sqrt(gamma) * Mach * x(IX) / L
          v = sqrt(gamma) * Mach * x(IY) / L 
          p = 1.0_RP + gamma * Mach * Mach * ( x(IX) * x(IX)  + x(IY) * x(IY) ) / (L **2.0_RP)
+#else
+         rho = 1.0_RP
+         u = x(IX) / L
+         v = x(IY) / L 
+         p = 1.0_RP + ( x(IX) * x(IX)  + x(IY) * x(IY) ) / (L **2.0_RP)
+#endif
 
          val(IRHO)  = rho
          val(IRHOU) = rho * u
@@ -387,10 +409,17 @@ module InitialConditions
             L = 1.0_RP
          end if
 
+#ifdef _DIMENSIONLESS_TAU
          rho = 1.0_RP
          u = sqrt(gamma) * Mach * sin(PI*x(IX) / L ) * cos(PI*x(IY) / L)
-         v = -sqrt(gamma) * Mach *  cos(PI*x(IX) / L ) * sin(PI*x(IY) / L)
+         v = -sqrt(gamma) * Mach * cos(PI*x(IX) / L ) * sin(PI*x(IY) / L)
          p = 1.0_RP + 0.125_RP * gamma * Mach * Mach * (cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L ) )
+#else
+         rho = 1.0_RP
+         u = sin(PI*x(IX) / L ) * cos(PI*x(IY) / L)
+         v = -cos(PI*x(IX) / L ) * sin(PI*x(IY) / L)
+         p = 1.0_RP + 0.125_RP * (cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L ) )
+#endif
 
          val(IRHO)  = rho
          val(IRHOU) = rho * u

@@ -25,8 +25,7 @@ module QuadElementClass
         real(kind=RP), allocatable         :: Volume                         ! Volume of the element
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( xi , eta , X/Y )
         real(kind=RP), allocatable         :: Ja(:,:,:,:)                    ! Contravariant system metric matrix ( xi , eta , IROW , ICOL)
-        real(kind=RP), allocatable         :: jac(:,:)                       ! Mapping jacobian ( xi , eta )
-        real(kind=RP), allocatable         :: invM2Djac(:,:)                 ! Inverse of the jacobian times the mass matrix ( xi , eta )
+        real(kind=RP), allocatable         :: Jac(:,:)                       ! Mapping jacobian ( xi , eta )
         real(kind=RP), pointer             :: Q(:,:,:)                       ! Pointers to the main storage:
         real(kind=RP), pointer             :: QDot(:,:,:)                    ! *   Q, QDot ( xi , eta , eq ): solution and time derivative
 #ifdef NAVIER_STOKES
@@ -223,7 +222,6 @@ module QuadElementClass
              allocate ( self % x         ( 0:N   , 0:N , NDIM        )  ) 
              allocate ( self % Ja        ( 0:N   , 0:N , NDIM , NDIM )  ) 
              allocate ( self % jac       ( 0:N   , 0:N               )  ) 
-             allocate ( self % invM2Djac ( 0:N   , 0:N               )  ) 
              allocate ( self % edges     ( EDGES_PER_QUAD            )  ) 
       
              do edge = 1 , EDGES_PER_QUAD

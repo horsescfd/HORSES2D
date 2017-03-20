@@ -47,84 +47,75 @@
                 
       end subroutine EulerWall_Associate
 
-
       subroutine EulerWall_UpdateSolution( self , edge )
          implicit none  
          class(EulerWall_t)                  :: self
          class(Edge_t)                       :: edge
-         real(kind=RP)                       :: q(NCONS) , F(NCONS,NDIM)
-         real(kind=RP)                       :: rhovn , rhovt
-         real(kind=RP)                       :: p
+         real(kind=RP)                       :: q(0 : edge % spA % N , NCONS) , F(0:edge % spA % N , NCONS,NDIM)
+         real(kind=RP)                       :: rhovn(0 : edge % spA % N) , rhovt(0 : edge % spA % N)
+         real(kind=RP)                       :: p(0 : edge % spA % N)
          integer                             :: iXi
          
          associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
    
          select type ( edge ) 
             type is (StraightBdryEdge_t)
+!
+!              The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
+!              -----------------------------------------------------------------------------------------------------------------------------------
+               rhovn = (edge % storage(1) % Q(0:N,IRHOU) * edge % n(IX,0) + edge % storage(1) % Q(0:N,IRHOV) * edge % n(IY,0) )
+               rhovt = (-edge % storage(1) % Q(0:N,IRHOU) * edge % n(IY,0) + edge % storage(1) % Q(0:N,IRHOV) * edge % n(IX,0) )
+               p     = getPressure( N , edge % storage(1) % Q )
 
-               do iXi = 0 , N
+               q(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
+               q(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - rhovn * edge % n(IX,0)
+               q(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - rhovn * edge % n(IY,0)
+               q(0:N,IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(0:N,IRHO)
 !
-!                 The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
-!                 -----------------------------------------------------------------------------------------------------------------------------------
-                  rhovn = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IX,iXi) + edge % storage(1) % Q(iXi,IRHOV) * edge % n(IY,iXi) )
-                  rhovt = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IY,iXi) - edge % storage(1) % Q(iXi,IRHOV) * edge % n(IX,iXi) )
-                  p     = gm1 * (edge % storage(1) % Q(iXi,IRHOE) - 0.5_RP * (edge % storage(1) % Q(iXi,IRHOU)*edge % storage(1) % Q(iXi,IRHOU) + edge % storage(1) % Q(iXi,IRHOV) * edge % storage(1) % Q(iXi,IRHOV)) / edge % storage(1) % Q(iXi,IRHO))
-
-                  q(IRHO)  = edge % storage(1) % Q(iXi,IRHO)
-                  q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - rhovn * edge % n(IX,iXi)
-                  q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - rhovn * edge % n(IY,iXi)
-                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(iXi,IRHO)
+!              Compute the fluxex from the built state
+!              ---------------------------------------
+               F = inviscidFlux( N , q )
 !
-!                 Compute the fluxex from the built state
-!                 ---------------------------------------
-                  F = inviscidFlux( q )
+!              Compute the normal flux
+!              -----------------------
+               edge % FB(0:N,1:NCONS) = (F(0:N,1:NCONS,IX) * edge % n(IX,0) + F(0:N,1:NCONS,IY) * edge % n(IY,0)) * edge % dS(0)
 !
-!                 Compute the normal flux
-!                 -----------------------
-                  edge % FB(iXi,1:NCONS) = (F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi)) * edge % dS(iXi)
-!
-!                 Compute the variables state
-!                 ---------------------------
-                  edge % uB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
-                  edge % uB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - 2.0_RP * rhovn * edge % n(IX,iXi)
-                  edge % uB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - 2.0_RP * rhovn * edge % n(IY,iXi)
-                  edge % uB(iXi,IRHOE) = edge % storage(1) % Q(iXi,IRHOE)
-
-               end do
-                  
-         
+!              Compute the variables state
+!              ---------------------------
+               edge % uB(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
+               edge % uB(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - 2.0_RP * rhovn * edge % n(IX,0)
+               edge % uB(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - 2.0_RP * rhovn * edge % n(IY,0)
+               edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+      
             type is (CurvedBdryEdge_t)
+!
+!              The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
+!              -----------------------------------------------------------------------------------------------------------------------------------
+               rhovn = (edge % storage(1) % Q(0:N,IRHOU) * edge % n(IX,0:N) + edge % storage(1) % Q(0:N,IRHOV) * edge % n(IY,0:N) )
+               rhovt = (edge % storage(1) % Q(0:N,IRHOU) * edge % n(IY,0:N) - edge % storage(1) % Q(0:N,IRHOV) * edge % n(IX,0:N) )
+               p     = getPressure( N , edge % storage(1) % Q )
 
+               q(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
+               q(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - rhovn * edge % n(IX,0:N)
+               q(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - rhovn * edge % n(IY,0:N)
+               q(0:N,IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(0:N,IRHO)
+!
+!              Compute the fluxex from the built state
+!              ---------------------------------------
+               F = inviscidFlux( N , q )
+!
+!              Compute the normal flux
+!              -----------------------
                do iXi = 0 , N
-!
-!                 The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
-!                 -----------------------------------------------------------------------------------------------------------------------------------
-                  rhovn = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IX,iXi) + edge % storage(1) % Q(iXi,IRHOV) * edge % n(IY,iXi) )
-                  rhovt = (edge % storage(1) % Q(iXi,IRHOU) * edge % n(IY,iXi) - edge % storage(1) % Q(iXi,IRHOV) * edge % n(IX,iXi) )
-                  p     = gm1 * (edge % storage(1) % Q(iXi,IRHOE) - 0.5_RP * (edge % storage(1) % Q(iXi,IRHOU)*edge % storage(1) % Q(iXi,IRHOU) + edge % storage(1) % Q(iXi,IRHOV) * edge % storage(1) % Q(iXi,IRHOV)) / edge % storage(1) % Q(iXi,IRHO))
-
-                  q(IRHO)  = edge % storage(1) % Q(iXi,IRHO)
-                  q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - rhovn * edge % n(IX,iXi)
-                  q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - rhovn * edge % n(IY,iXi)
-                  q(IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(iXi,IRHO)
-!
-!                 Compute the fluxex from the built state
-!                 ---------------------------------------
-                  F = inviscidFlux( q )
-!
-!                 Compute the normal flux
-!                 -----------------------
-                  edge % FB(iXi,1:NCONS) = (F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi)) * edge % dS(iXi)
-!
-!                 Compute the variables state
-!                 ---------------------------
-                  edge % uB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
-                  edge % uB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU) - 2.0_RP * rhovn * edge % n(IX,iXi)
-                  edge % uB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV) - 2.0_RP * rhovn * edge % n(IY,iXi)
-                  edge % uB(iXi,IRHOE) = edge % storage(1) % Q(iXi,IRHOE)
-
+                  edge % FB(iXi,1:NCONS) = (F(iXi,1:NCONS,IX) * edge % n(IX,iXi) + F(iXi,1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
                end do
-                  
+!
+!              Compute the variables state
+!              ---------------------------
+               edge % uB(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
+               edge % uB(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - 2.0_RP * rhovn * edge % n(IX,0:N)
+               edge % uB(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - 2.0_RP * rhovn * edge % n(IY,0:N)
+               edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
  
             class default
          end select

@@ -15,17 +15,19 @@ module DGBoundaryConditions
    private
    public BoundaryCondition_t , Construct
    public PeriodicBC_t , DirichletBC_t , FarfieldBC_t , EulerWall_t , PressureOutletBC_t , PressureInletBC_t
-   public RiemannBC_t
+   public RiemannBC_t , newDirichletBC_t
 !
-!  **********************************************************
-   integer, parameter         :: STR_LEN_BC                      = 128
-   integer, parameter         :: SPECIFY_SPEED                   = 1
-   integer, parameter         :: SPECIFY_TOTAL_PRESSURE          = 2
-   integer, parameter         :: ISOTHERMAL_WALL                 = 1
-   integer, parameter         :: ADIABATIC_WALL                  = 2
-   integer, parameter         :: REFLECTIVE_OUTFLOW              = 1
+!  ********************************************************************
+   integer, parameter         :: STR_LEN_BC                       = 128
+   integer, parameter         :: SPECIFY_SPEED                    = 1
+   integer, parameter         :: SPECIFY_TOTAL_PRESSURE           = 2
+   integer, parameter         :: ISOTHERMAL_WALL                  = 1
+   integer, parameter         :: ADIABATIC_WALL                   = 2
+   integer, parameter         :: REFLECTIVE_OUTFLOW               = 1
    integer, parameter         :: PARTIALLY_NON_REFLECTIVE_OUTFLOW = 2
-!  **********************************************************
+   integer, parameter         :: STATIC_PRESSURE                  = 1
+   integer, parameter         :: TOTAL_PRESSURE                   = 2
+!  ********************************************************************
 !
 !
 !  **********************************
@@ -116,8 +118,10 @@ module DGBoundaryConditions
    type, extends(BoundaryCondition_t)           :: PressureInletBC_t
       real(kind=RP), dimension(NCONS) :: q
       real(kind=RP)                   :: AngleOfAttack
+      real(kind=RP)                   :: p
       real(kind=RP)                   :: Tt
       real(kind=RP)                   :: pt
+      real(kind=RP)                   :: at
       real(kind=RP)                   :: rhot
       real(kind=RP)                   :: st
       real(kind=RP)                   :: Ht
@@ -136,9 +140,6 @@ module DGBoundaryConditions
       real(kind=RP), dimension(NCONS) :: q
       real(kind=RP), dimension(NPRIM) :: w
       real(kind=RP)                   :: AngleOfAttack
-      real(kind=RP)                   :: Tt
-      real(kind=RP)                   :: pt
-      real(kind=RP)                   :: Ht
       real(kind=RP)                   :: Rminus
       integer                         :: mode
       contains
@@ -147,7 +148,26 @@ module DGBoundaryConditions
          procedure ::      UpdateSolution    => RiemannBC_UpdateSolution
          procedure ::      Describe  => RiemannBC_Describe
    end type RiemannBC_t
-
+!
+!  **************************************
+!  New Dirichlet boundary condition class
+!  **************************************
+!
+   type, extends(BoundaryCondition_t)           :: newDirichletBC_t
+      integer                         :: outflowPressure
+      integer                         :: mode
+      real(kind=RP), dimension(NCONS) :: q
+      real(kind=RP)                   :: AngleOfAttack
+      real(kind=RP)                   :: Mach
+      real(kind=RP)                   :: p
+      real(kind=RP)                   :: pt
+      real(kind=RP)                   :: rhot
+      contains
+         procedure ::      Construct      => newDirichletBC_Construct
+         procedure ::      Associate      => newDirichletBC_Associate
+         procedure ::      UpdateSolution => newDirichletBC_UpdateSolution
+         procedure ::      Describe       => newDirichletBC_Describe
+   end type newDirichletBC_t
 !
 !  ***********************************
 !  Euler wall boundary condition class
@@ -179,8 +199,6 @@ module DGBoundaryConditions
 #endif
          procedure   ::    Describe  => ViscousWall_Describe
    end type ViscousWall_t
-
-
 !
 !  *******************
 !  Construct procedure
@@ -204,6 +222,7 @@ module DGBoundaryConditions
 #include "./Periodic.incf"
 #include "./PressureInlet.incf"
 #include "./PressureOutlet.incf"
+#include "./newDirichlet.incf"
 #include "./Riemann.incf"
 #include "./ViscousWall.incf"
 
@@ -261,6 +280,12 @@ module DGBoundaryConditions
                self % WeakType = WEAK_PRESCRIBED
 
 !           ----------------------------------------   
+            case ("newDirichlet" )
+               allocate( newDirichletBC_t    :: self )
+               self % BCType = NEWDIRICHLET_BC
+               self % WeakType = WEAK_RIEMANN
+
+!           ----------------------------------------   
             case ( "Euler wall" )
                allocate( EulerWall_t      :: self )
                self % BCType = EULERWALL_BC
@@ -286,6 +311,7 @@ module DGBoundaryConditions
                   print*, "   * Pressure inlet"
                   print*, "   * Riemann"
                   print*, "   * Periodic"
+                  print*, "   * newDirichlet"
                   print*, "   * Euler wall"
                   print*, "   * Viscous wall"
                   stop "Stopped."
@@ -414,101 +440,6 @@ module DGBoundaryConditions
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-!              Initialization subroutines
-!              --------------------------
-!/////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
-      subroutine Initialize_WeakRiemann(self , edge)
-!
-!        ***********************************************************
-!              Initialization for Weak-Riemann boundary conditions.
-!           In these boundary conditions, the edge has an external
-!           state (which may be updated in each iteration with
-!           an Update subroutine) with which the numeric flux is 
-!           computed.
-!        ***********************************************************
-!
-         implicit none
-         class(BoundaryCondition_t)       :: self
-         class(Edge_t)                    :: edge
-
-         associate ( N => edge % spA % N )
-!
-!        ********************
-         select type ( edge )
-!        ********************
-!
-!           -----------------------------------------------------------        
-            type is (Edge_t)
-               print*, "Only boundary edges are expected."
-               stop "Stopped"
-!
-!           -----------------------------------------------------------        
-            type is (StraightBdryEdge_t)
-               allocate ( edge % uB ( 0 : N , NCONS )  ) 
-               
-               edge % uB ( 0 : N , 1 : NCONS )  = 0.0_RP      ! Its value is not given until the update routine is invoked
-!
-!           -----------------------------------------------------------        
-            type is (CurvedBdryEdge_t)
-               allocate ( edge % uB ( 0 : N , NCONS )  ) 
-
-               edge % uB ( 0 : N , 1 : NCONS )  = 0.0_RP    ! Its value is not given until the update routine is invoked
-!
-!        **********
-         end select
-!        **********
-!
-         end associate
-
-      end subroutine Initialize_WeakRiemann
-
-      subroutine Initialize_WeakPrescribed(self , edge)
-!
-!        ********************************************************
-!              Initialization for Weak-Prescribed boundary 
-!           conditions.
-!           In these boundary conditions, the edge has an imposed
-!           numerical flux, which is computed from the interior
-!           and the boundary physics.
-!        ********************************************************
-!
-         implicit none
-         class(BoundaryCondition_t)       :: self
-         class(Edge_t)                    :: edge
-
-         associate ( N => edge % spA % N )
-!
-!        ********************
-         select type ( edge )
-!        ********************
-!
-!           -------------------------------------------------------------        
-            type is (Edge_t)
-               print*, "Only boundary edges are expected."
-               stop "Stopped"
-!
-!           -------------------------------------------------------------        
-            type is (StraightBdryEdge_t)
-               allocate( edge % FB(0:N,NCONS) )
-               edge % FB( 0 : N , 1 : NCONS) = 0.0_RP      ! Its value is not given until the update routine is invoked
-!
-!           -------------------------------------------------------------        
-            type is (CurvedBdryEdge_t)
-               allocate( edge % FB(0 : N , NCONS) )
-               edge % FB( 0 : N , 1 : NCONS) = 0.0_RP    ! Its value is not given until the update routine is invoked
-!
-!        **********
-         end select
-!        **********
-!
-         end associate
-
-      end subroutine Initialize_WeakPrescribed
-
-!
-!/////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
 !              Describe subroutines
 !              --------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -603,6 +534,44 @@ module DGBoundaryConditions
 
       end subroutine PressureInletBC_Describe
 
+      subroutine newDirichletBC_Describe( self )
+         use Physics
+         implicit none
+         class(newDirichletBC_t)                :: self
+
+         associate ( gm1 => Thermodynamics % gm1 )
+
+         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "new Dirichlet."
+         if ( self % outflowPressure .eq. STATIC_PRESSURE ) then
+            write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Outflow pressure: " , "Static."
+
+         elseif ( self % outflowPressure .eq. TOTAL_PRESSURE ) then
+            write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Outflow pressure: " , "Total."
+
+         end if
+   
+         if ( self % mode .eq. SPECIFY_SPEED ) then
+            write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Speed: " , "Specified."
+
+         elseif ( self % mode .eq. SPECIFY_TOTAL_PRESSURE ) then
+            write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Speed: " , "Computed from total pressure."
+
+         end if
+
+
+         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
+         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
+         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
+         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , self % Mach
+         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+
+         end associate
+
+      end subroutine newDirichletBC_Describe
+
       subroutine RiemannBC_Describe( self )
          use Physics
          implicit none
@@ -613,9 +582,6 @@ module DGBoundaryConditions
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Pressure inlet."
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total temperature: "       , self % Tt * refValues % T
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total enthalpy: "          , self % Ht * refValues % p
          write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
          write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
          write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a

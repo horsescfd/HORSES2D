@@ -425,7 +425,12 @@ module DGTimeIntegrator
 
    
             dx = min( norm2(nodes(1) % n % X-nodes(2) % n % X) , norm2(nodes(2) % n % X - nodes(3) % n % X) , norm2(nodes(3) % n % X -nodes(4) % n % X) , norm2(nodes(1) % n % X - nodes(4) % n % X))
+
+#ifdef _DIMENSIONLESS_TAU
             dt = min( dt , Dimensionless % Mach * sqrt(Thermodynamics % gamma) * self % Ccfl * dx / (umax + amax) / (mesh % elements(eID) % spA % N+1) )
+#else
+            dt = min( dt , self % Ccfl * dx / (umax + amax) / (mesh % elements(eID) % spA % N+1) )
+#endif
 
             end associate
 

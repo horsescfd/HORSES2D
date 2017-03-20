@@ -8,14 +8,15 @@
       subroutine DirichletBC_Construct( self , marker , in_label)
          use Setup_class
          implicit none
-         class(DirichletBC_t)      :: self
-         integer                   :: marker
-         character(len=*)          :: in_label
-         real(kind=RP), allocatable             :: pressure
-         real(kind=RP), allocatable         :: Temperature
-         real(kind=RP), allocatable         :: Mach
-         real(kind=RP), allocatable         :: AngleOfAttack
-         real(kind=RP)                          :: rho
+         class(DirichletBC_t)       :: self
+         integer                    :: marker
+         character(len=*)           :: in_label
+         real(kind=RP), allocatable :: pressure
+         real(kind=RP), allocatable :: Temperature
+         real(kind=RP), allocatable :: Mach
+         real(kind=RP), allocatable :: AngleOfAttack
+         real(kind=RP)              :: rho
+         real(kind=RP)              :: V
 
          call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
@@ -26,7 +27,7 @@
             pressure = pressure / refValues % p
          else
             allocate(pressure)
-            pressure = 1.0_RP
+            pressure = Setup % pressure_ref / refValues % p
          end if
 
          if ( allocated(Temperature) ) then
@@ -47,15 +48,22 @@
             allocate(AngleOfAttack)
             AngleOfAttack = 0.0_RP
          end if
+
+#ifdef _DIMENSIONLESS_TAU
+         rho = pressure / Temperature
+         V = sqrt(thermodynamics % gamma) * Mach
+#else
+         rho = dimensionless % gammaMach2 * pressure / Temperature
+         V = Mach * sqrt( thermodynamics % Gamma * pressure / rho )
+#endif
 !
 !        Construct the state vector
 !        --------------------------
          associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv)
-         rho = pressure / Temperature
          self % q(IRHO) = rho
-         self % q(IRHOU) = rho * sqrt(gamma) * Mach * cos(AngleOfAttack)
-         self % q(IRHOV) = rho * sqrt(gamma) * Mach * sin(AngleOfAttack)
-         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * gamma * Mach * Mach
+         self % q(IRHOU) = rho * V * cos(AngleOfAttack)
+         self % q(IRHOV) = rho * V * sin(AngleOfAttack)
+         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
          end associate
 
       end subroutine DirichletBC_Construct

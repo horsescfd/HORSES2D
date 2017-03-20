@@ -5,7 +5,7 @@
 !
 
 !-------------------------------------: Geometry
-			               Mesh file     : ./MESH/FreeStream.HiOMesh
+                        Mesh file     : ./MESH/StraightCoarse.HiOMesh
 			               Boundary file : _this_
 
 
@@ -16,11 +16,11 @@
 			           Reynolds length       : 1.0
 			           Reynolds number       : 1.0
 			           Prandtl number        : 0.72
-			           Mach number           : 0.01
+			           Mach number           : 0.1
 	
 !------------------------------------: DG Discretization
          		  Interpolation nodes : Legendre-Gauss
-         		  Polynomial order    : 4
+         		  Default polynomial order    : 5
 
 !------------------------------------: Initialization
          		    Initial condition : Uniform
@@ -29,7 +29,7 @@
 !---------------------------------------------: Inviscid discretization
 	            Inviscid strategy              : Standard
 	            Inviscid formulation           : Form I
-	            Inviscid Riemann Flux          : HLL
+	            Inviscid Riemann Flux          : Roe
 	            ! Number of integration points : 6
 
 !-------------------------------------------: Viscous discretization
@@ -40,7 +40,8 @@
 
 !----------------------------------------: Time integration
                     Integration mode     : Steady
-                    Integration scheme   : Williamson RK5
+                    Integration scheme   : Williamson RK3
+!                    Integration scheme   : Williamson RK5
                     Time step            : 1.0e-4
                     CFL Number           : 0.1
                     Simulation time      : 1.0
@@ -50,8 +51,8 @@
 !----------------------------------: Output variables
 		           Solution file     : ./RESULTS/FreeStreamOutflow.HiORst
 		           Autosave interval : 1000
-		           Output interval   : 1
-            Output file type       : Interpolated
+		           Output interval   : 10
+            Output file type       : DGSEM
    Number of representation points : 5
 		           Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
 

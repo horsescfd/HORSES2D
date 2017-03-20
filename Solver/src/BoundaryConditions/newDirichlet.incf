@@ -5,23 +5,27 @@
 !           -----------------
 !///////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine PressureInletBC_Construct( self , marker , in_label)
+      subroutine newDirichletBC_Construct( self , marker , in_label)
          use Setup_class
          implicit none
-         class(PressureInletBC_t)      :: self
-         integer                   :: marker
-         character(len=*)          :: in_label
-         real(kind=RP), allocatable             :: pressure
-         real(kind=RP), allocatable         :: Temperature
-         real(kind=RP), allocatable         :: Mach
-         real(kind=RP), allocatable         :: AngleOfAttack
-         real(kind=RP)                          :: rho
-         real(kind=RP)                       :: V
+         class(newDirichletBC_t)    :: self
+         integer                    :: marker
+         character(len=*)           :: in_label
+         real(kind=RP), allocatable :: pressure
+         real(kind=RP), allocatable :: Temperature
+         real(kind=RP), allocatable :: Mach
+         real(kind=RP), allocatable :: AngleOfAttack
+         real(kind=RP)              :: rho
+         real(kind=RP)              :: V
+         character(len=STR_LEN_BC)  :: outflowPressure
+         character(len=STR_LEN_BC)  :: mode
 
          call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Outflow Pressure", outflowPressure , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Mode" , mode , in_label , "# end" )
          
          if ( allocated(pressure) ) then
             pressure = pressure / refValues % p
@@ -48,6 +52,34 @@
             allocate(AngleOfAttack)
             AngleOfAttack = 0.0_RP
          end if
+
+         if ( trim(mode) .eq. "Specify speed" ) then
+            self % mode = SPECIFY_SPEED
+
+         elseif ( trim(mode) .eq. "Specify total pressure" ) then
+            self % mode = SPECIFY_TOTAL_PRESSURE
+
+         else
+!
+!           Default: Speed
+!           --------------
+            self % mode = SPECIFY_SPEED
+         
+         end if
+
+         if ( trim(outflowPressure) .eq. "Static" ) then
+            self % outflowPressure = STATIC_PRESSURE
+
+         elseif ( trim(outflowPressure) .eq. "Total" ) then
+            self % outflowPressure = TOTAL_PRESSURE
+
+         else
+!
+!           Default: Static pressure
+!           ------------------------
+            self % outflowPressure = STATIC_PRESSURE
+
+         end if
 !
 !        Construct the state vector
 !        --------------------------
@@ -67,19 +99,15 @@
          self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
          self % AngleOfAttack = AngleOfAttack
          self % p             = pressure
-         self % Tt            = Temperature * ( 1.0_RP + 0.5_RP * gm1 * Mach * Mach)
-         self % pt            = pressure * ( self % Tt / Temperature ) ** gogm1 
-         self % rhot          = rho * ( self % pt / pressure ) ** (1.0_RP / gamma)
-         self % at            = sqrt(gamma * self % pt / self % rhot)
-         self % st            = self % pt / (self % rhot) ** gamma
-         self % Ht            = Temperature * Dimensionless % cp + 0.5_RP * gamma * Mach * Mach
+         self % pt            = pressure * ( 1.0_RP + 0.5_RP * gm1 * Mach * Mach ) ** gogm1 
+         self % rhot          = rho * (self % pt / pressure ) ** (1.0_RP / gamma) 
          end associate
 
-      end subroutine PressureInletBC_Construct
+      end subroutine newDirichletBC_Construct
 
-      subroutine PressureInletBC_Associate(self , edge)
+      subroutine newDirichletBC_Associate(self , edge)
          implicit none
-         class(PressureInletBC_t)          :: self
+         class(newDirichletBC_t)          :: self
          class(Edge_t)                 :: edge
 
          associate ( N=> edge % spA % N )
@@ -111,11 +139,11 @@
         end select
         end associate
 
-      end subroutine PressureInletBC_Associate
+      end subroutine newDirichletBC_Associate
 
-      subroutine PressureInletBC_UpdateSolution( self , edge )
+      subroutine newDirichletBC_UpdateSolution( self , edge )
          implicit none
-         class(PressureInletBC_t) :: self
+         class(newDirichletBC_t) :: self
          class(Edge_t)            :: edge
          integer                  :: iXi
          integer                  :: N
@@ -123,7 +151,6 @@
          real(kind=RP)            :: rhoR , vnR , vtR , uR , vR , pR , aR , MR
          real(kind=RP)            :: a , b , c , rhostar
          real(kind=RP)            :: Rplus
-         real(kind=RP)            :: q(NCONS) , F(NCONS,NDIM)
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a InflowOutflow boundary
@@ -168,32 +195,35 @@
 !
 !                       Supersonic
 !                       ----------
-                        q = self % q
-                        F = inviscidflux( q )
+                        edge % uB(iXi,:) = self % q
       
                      else
 !  
 !                       Subsonic
 !                       --------
-                        a = (gamma+1.0_RP) / gm1
-                        b = -2*Rplus
-                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - self % at * self % at
+                        pR = pL
+                        rhoR = self % rhot * ( self % pt / pR ) ** (1.0_RP / gamma)
+                        aR = sqrt(gamma * pR / rhoR)
 
-                        aR = (-b + sqrt(b*b - 4.0_RP * a * c) ) / (2.0_RP * a)
+                        if ( self % mode .eq. SPECIFY_SPEED ) then
+                           edge % uB(iXi,IRHO) = self % q(IRHO)
+                           edge % uB(iXi,IRHOU) = self % q(IRHOU)
+                           edge % uB(iXi,IRHOV) = self % q(IRHOV)
+                           edge % uB(iXi,IRHOE) = cv * pR + 0.5_RP * ( edge % uB(iXi,IRHOU) * edge % uB(iXi,IRHOU) + edge % uB(iXi,IRHOV) * edge % uB(iXi,IRHOV) ) / edge % uB(iXi,IRHO)
 
-                        rhoR = ( aR * aR / ( gamma * self % st ) ) ** (cv)
-                        pR  = aR * aR * rhoR / gamma
-                        vnR = Rplus - 2.0_RP * cv * aR
-                        uR  = vnR * edge % n(IX,0) 
-                        vR  = vnR * edge % n(IY,0) 
+                        elseif ( self % mode .eq. SPECIFY_TOTAL_PRESSURE ) then
+                           if ( pR .ge. self % pt ) then
+                              MR = -sqrt(2.0_RP / gm1 * ( ( pR / self % pt) ** (gm1 / gamma) - 1.0_RP ) )
+                           else
+                              MR = sqrt(2.0_RP / gm1 * ( (self % pt/pR) ** (gm1/gamma) - 1.0_RP ) )
+                           end if
+      
+                           edge % uB(iXi,IRHO) = rhoR
+                           edge % uB(iXi,IRHOU) = rhoR * aR * MR * cos(self % AngleOfAttack)
+                           edge % uB(iXi,IRHOV) = rhoR * aR * MR * sin(self % AngleOfAttack)
+                           edge % uB(iXi,IRHOE) = cv * pR + 0.5_RP * rhoR * aR * aR * MR * MR
 
-                        q(IRHO) = rhoR
-                        q(IRHOU) = rhoR * uR
-                        q(IRHOV) = rhoR * vR
-                        q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR ) 
-   
-                        F = InviscidFlux( q )
-                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+                        end if
    
                      end if
     
@@ -205,30 +235,31 @@
 !
 !                       Supersonic
 !                       ----------
-                        q = edge % storage(1) % Q(iXi, 1:NCONS)
-                        F = inviscidFlux(q)
-                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+                        edge % uB(iXi,:) = edge % storage(1) % Q(iXi, 1:NCONS)
 
                      else
 !
 !                       Subsonic
 !                       --------
-                        q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
-                        q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
-                        q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) -  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
+                        edge % uB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
+                        edge % uB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
+                        edge % uB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
+      
+                        if ( self % outflowPressure .eq. STATIC_PRESSURE ) then
+                           edge % uB(iXi,IRHOE) = cv * (2.0_RP * self % p - pL) +  0.5_RP * ( edge % uB(iXi,IRHOU) * uL + edge % uB(iXi,IRHOV) * vL )
 
-                        F = inviscidFlux(q)
-                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+                        elseif ( self % outflowPressure .eq. TOTAL_PRESSURE ) then
+                           edge % uB(iXi,IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( edge % uB(iXi,IRHOU) * uL + edge % uB(iXi,IRHOV) * vL )
+
+                        end if
+
                      end if
                   end if
 
-                  edge % uB(iXi,1:NCONS) = q
-      
                end do 
 
             type is (CurvedBdryEdge_t) 
-               do iXi = 0 , N
+               do ixi = 0 , N
 !
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
@@ -236,14 +267,15 @@
                   uL  = edge % storage(1) % q(iXi , IRHOU) / rhoL
                   vL  = edge % storage(1) % q(iXi , IRHOV) / rhoL
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * edge % storage(1) % Q(iXi,IRHOU) * uL - 0.5_RP * edge % storage(1) % Q(iXi,IRHOV) * vL )
-                  aL  = sqrt( gamma * pL / rhoL) 
+                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
+                        ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
+                  aL  = sqrt( gamma * pL / rhoL ) 
                   ML  = sqrt(uL * uL + vL * vL) / aL
                   Rplus = vnL + 2.0_RP * dimensionless % cv * aL
 !
 !                 second stage: compute the "right" state depending on the result
 !                 ---------------------------------------------------------------
-                  if ( vnL .lt. 0.0_RP ) then
+                  if ( vnL .le. 0.0_RP ) then
 !
 !                    Entering fluid
 !                    --------------
@@ -251,33 +283,32 @@
 !
 !                       Supersonic
 !                       ----------
-                        q = self % q
-                        F = inviscidflux( q )
+                        edge % uB(iXi,:) = self % q
       
                      else
 !  
 !                       Subsonic
 !                       --------
-                        a = (gamma+1.0_RP) / gm1
-                        b = -2 * Rplus
-                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - self % at * self % at
+                        pR = pL
+                        rhoR = self % q(IRHO)
 
-                        aR = (-b + sqrt(b*b - 4.0_RP * a * c) ) / (2.0_RP * a)
-                        rhoR = ( aR * aR / ( gamma * self % st ) ) ** (cv)
-                        pR  = aR * aR * rhoR / gamma
-                        vnR = Rplus - 2.0_RP * cv * aR
-                        vtR = vtL
-                        uR  = vnR * edge % n(IX,iXi) 
-                        vR  = vnR * edge % n(IY,iXi) 
+                        if ( self % mode .eq. SPECIFY_SPEED ) then
+                           edge % uB(iXi,IRHO) = self % q(IRHO)
+                           edge % uB(iXi,IRHOU) = self % q(IRHOU)
+                           edge % uB(iXi,IRHOV) = self % q(IRHOV)
+                           edge % uB(iXi,IRHOE) = cv * pR + 0.5_RP * ( edge % uB(iXi,IRHOU) * edge % uB(iXi,IRHOU) + edge % uB(iXi,IRHOV) * edge % uB(iXi,IRHOV) ) / edge % uB(iXi,IRHO)
 
-                        q(IRHO) = rhoR
-                        q(IRHOU) = rhoR * uR
-                        q(IRHOV) = rhoR * vR
-                        q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR ) 
+                        elseif ( self % mode .eq. SPECIFY_TOTAL_PRESSURE ) then
+                           MR = sqrt(2.0_RP / gm1 * ( (self % pt/pR) ** (gm1/gamma) - 1.0_RP ) )
+                           aR = sqrt(gamma * rhoR / pR)
+      
+                           edge % uB(iXi,IRHO) = rhoR
+                           edge % uB(iXi,IRHOU) = rhoR * aR * MR * cos(self % AngleOfAttack)
+                           edge % uB(iXi,IRHOV) = rhoR * aR * MR * sin(self % AngleOfAttack)
+                           edge % uB(iXi,IRHOE) = cv * pR + 0.5_RP * rhoR * aR * aR * MR * MR
+
+                        end if
    
-                        F = InviscidFlux( q )
-                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
-            
                      end if
     
                   else
@@ -288,26 +319,27 @@
 !
 !                       Supersonic
 !                       ----------
-                        q = edge % storage(1) % Q(iXi, 1:NCONS)
-                        F = inviscidFlux(q)
-                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+                        edge % uB(iXi,:) = edge % storage(1) % Q(iXi, 1:NCONS)
 
                      else
 !
 !                       Subsonic
 !                       --------
-                        q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
-                        q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
-                        q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q(IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * q(IRHOU) + q(IRHOV) * q(IRHOV) ) / q(IRHO)
+                        edge % uB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
+                        edge % uB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
+                        edge % uB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
+      
+                        if ( self % outflowPressure .eq. STATIC_PRESSURE ) then
+                           edge % uB(iXi,IRHOE) = cv * (2.0_RP * self % p - pL) -  0.5_RP * ( edge % uB(iXi,IRHOU) * uL + edge % uB(iXi,IRHOV) * vL )
 
-                        F = inviscidFlux(q)
-                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+                        elseif ( self % outflowPressure .eq. TOTAL_PRESSURE ) then
+                           edge % uB(iXi,IRHOE) = cv * (2.0_RP * self % pt - pL) -  0.5_RP * ( edge % uB(iXi,IRHOU) * uL + edge % uB(iXi,IRHOV) * vL )
+
+                        end if
+
                      end if
                   end if
 
-                  edge % uB(iXi,1:NCONS) = q
-      
                end do 
 
             class default
@@ -315,4 +347,4 @@
 
          end associate
 
-      end subroutine PressureInletBC_UpdateSolution
+      end subroutine newDirichletBC_UpdateSolution
