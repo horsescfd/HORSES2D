@@ -3,6 +3,7 @@ module ChecksModule
    use Physics
    implicit none
 !
+#include "Defines.h"
 !  ========   
    contains
 !  ========   
@@ -67,7 +68,6 @@ module ChecksModule
             use QuadElementClass
             use Headers
             use QuadMeshClass
-            use QuadMeshDefinitions
             use MatrixOperations
             implicit none
             class(QuadMesh_t)          :: mesh
@@ -212,7 +212,6 @@ module ChecksModule
             use QuadElementClass
             use Headers
             use QuadMeshClass
-            use QuadMeshDefinitions
             use MatrixOperations
             implicit none
             type(QuadMesh_t)           :: mesh
@@ -336,13 +335,13 @@ module ChecksModule
 
                end if
                
-               if ( maxval(abs(dSx - dSe(iX,0:e % spA % N) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,0:e % spA % N) ) )
+               if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
                   current = eID
                   location = EBOTTOM
                end if
-               if (  maxval(abs(dSy - dSe(iY,0:e % spA % N) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,0:e % spA % N) ) )
+               if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,0:e % spA % N) ) )
                   current = eID 
                   location = EBOTTOM
                end if
@@ -387,13 +386,13 @@ module ChecksModule
 
                end if
  
-               if ( maxval(abs(dSx - dSe(iX,0:e % spA % N) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,0:e % spA % N) ) )
+               if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
                   current = eID
                   location = ERIGHT
                end if
-               if (  maxval(abs(dSy - dSe(iY,0:e % spA % N) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,:) ) )
+               if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
                   location = ERIGHT
                end if              
@@ -438,13 +437,13 @@ module ChecksModule
 
                end if
  
-               if ( maxval(abs(dSx - dSe(iX,:) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,:) ) )
+               if ( maxval(abs(dSx - dSe(IX,:) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,:) ) )
                   current = eID
                   location = ETOP
                end if
-               if (  maxval(abs(dSy - dSe(iY,:) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,:) ) )
+               if (  maxval(abs(dSy - dSe(IY,:) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
                   location = ETOP
                end if              
@@ -494,8 +493,8 @@ module ChecksModule
                   current = eID
                   location = ELEFT
                end if
-               if (  maxval(abs(dSy - dSe(iY,:) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,:) ) )
+               if (  maxval(abs(dSy - dSe(IY,:) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
                   location = ELEFT
                end if              
@@ -719,7 +718,6 @@ module ChecksModule
          use DGSEM_Class
          use DGSpatialDiscretizationMethods
          use Headers
-         use QuadMeshDefinitions
          implicit none
          class(DGSem_t)          :: sem
          integer                 :: iXi , iEta
@@ -827,6 +825,7 @@ module ChecksModule
           use Physics
           use NodesAndWeights_class
           use QuadMeshClass
+          use QuadElementClass
           use MeshFileClass
           use Setup_class
           use DGSpatialDiscretizationMethods
@@ -835,34 +834,48 @@ module ChecksModule
           use Headers
           implicit none
           class(DGSem_t)         :: sem
+          class(QuadElement_t), pointer   :: e
           integer                :: eID
           real(kind=RP)          :: error = 0.0_RP , localerror = 0.0_RP
           integer                :: elem = -1
           integer                :: iXi, iEta
           real(kind=RP)          :: x(NDIM)
-          real(kind=RP)          :: dQ(NDIM , NGRAD)
+          real(kind=RP)          :: dQ(NDIM , NCONS)
           real(kind=RP)          :: L 
+          logical                :: elementIsInterior
 
          write(STD_OUT,'(/)')
          call SubSection_Header("Testing Gradients")
 !
 !        Set the polynomic initial condition
 !        -----------------------------------
+         L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
          call sem % mesh % SetInitialCondition("ChecksPolynomic")
-         call sem % mesh % ApplyInitialCondition
+         call sem % mesh % ApplyInitialCondition(L)
 
           call DGSpatial_newTimeStep( sem % mesh )
 
 
           do eID = 1 , sem % mesh % no_of_elements
+   
+            e => sem % mesh % elements(eID) 
+
             do iXi = 0 , sem % mesh % elements(eID) % spA % N
                do iEta = 0 , sem % mesh % elements(eID) % spA % N
 
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
-                  dQ = dQPolynomicFcn(x)
-                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NGRAD) - dQ ) )
+                  dQ = dQPolynomicFcn(x,L)
 
-                  if ( localerror .gt. error ) then
+                  elementIsInterior = .true.
+
+                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) )
+
+                  if ( (localerror .gt. error) .and. elementIsInterior ) then
                      error = localerror
                      elem = eID
                   end if
@@ -885,14 +898,24 @@ module ChecksModule
          elem = -1
 
           do eID = 1 , sem % mesh % no_of_elements
+
+            e => sem % mesh % elements(eID) 
             do iXi = 0 , sem % mesh % elements(eID) % spA % N
                do iEta = 0 , sem % mesh % elements(eID) % spA % N
 
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
                   dQ = dQTrigonometricFcn(x , L )
-                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NGRAD) - dQ ) ) * L
 
-                  if ( localerror .gt. error ) then
+                  elementIsInterior = .true.
+
+                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) ) * L
+
+                  if ( (localerror .gt. error) .and. elementIsInterior ) then
                      error = localerror
                      elem = eID
                   end if
@@ -918,18 +941,24 @@ module ChecksModule
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 #ifdef NAVIER_STOKES
-        function dQPolynomicFcn ( x ) result ( val )
+        function dQPolynomicFcn ( x , L) result ( val )
          use Physics
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NDIM,NGRAD)
+         real(kind=RP)        :: L 
+         real(kind=RP)        :: val(NDIM,NCONS)
          
          associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
 
-         val(IX:IY , IGU) = [sqrt(gamma)*Mach , 0.0_RP]
-         val(IX:IY , IGV) = [0.0_RP , sqrt(gamma)*Mach]
-         val(IX:IY , IGT) = 2.0_RP * gamma * Mach * Mach * [ x(IX) , x(IY) ]
+#ifdef _DIMENSIONLESS_TAU
+         val(IX:IY , IRHO ) = 0.0_RP
+         val(IX:IY , IRHOU) = sqrt(gamma) * Mach / L * [1.0_RP , 0.0_RP]
+         val(IX:IY , IRHOV) = sqrt(gamma) * Mach / L * [0.0_RP , 1.0_RP]
+         val(IX:IY , IRHOE) = (dimensionless % cv + 0.5_RP) * gamma * Mach * Mach / L**2.0_RP * [2.0_RP*x(IX) , 2.0_RP*x(IY)]
 
+#else
+
+#endif        
          end associate
 
         end function dQPolynomicFcn
@@ -939,13 +968,23 @@ module ChecksModule
          implicit none
          real(kind=RP)        :: x(NDIM)
          real(kind=RP)        :: L 
-         real(kind=RP)        :: val(NDIM,NGRAD)
+         real(kind=RP)        :: val(NDIM,NCONS)
+         real(kind=RP)        :: u , v
          
-         associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+         associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach , cv => dimensionless % cv)
 
-         val(IX:IY , IGU) = sqrt(gamma)*Mach*PI * [ cos(PI*x(IX)/L)*cos(PI*x(IY)/L) , -sin(PI*x(IX)/L)*sin(PI*x(IY)/L)] / L
-         val(IX:IY , IGV) = sqrt(gamma)*Mach*PI * [ sin(PI*x(IX)/L)*sin(PI*x(IY)/L) , -cos(PI*x(IX)/L)*cos(PI*x(IY)/L)] / L
-         val(IX:IY , IGT) = -0.25_RP * gamma * Mach * Mach * PI * [ sin(2.0_RP * PI * x(IX)/L) , sin(2.0_RP * PI * x(IY)/L) ] / L 
+#ifdef _DIMENSIONLESS_TAU
+
+         u = sqrt(gamma) * Mach * sin(PI*x(IX)/L) * cos(PI*x(IY)/L)
+         v = -sqrt(gamma) * Mach * cos(PI*x(IX)/L) * sin(PI*x(IY)/L)
+
+         val(IX:IY , IRHO ) = 0.0_RP
+         val(IX:IY , IRHOU) = PI * sqrt(gamma) * Mach / L * [ cos(PI*x(IX)/L)*cos(PI*x(IY)/L) , -sin(PI*x(IX)/L)*sin(PI*x(IY)/L)]
+         val(IX:IY , IRHOV) = PI * sqrt(gamma) * Mach / L * [ sin(PI*x(IX)/L)*sin(PI*x(IY)/L) , -cos(PI*x(IX)/L)*cos(PI*x(IY)/L)]
+         val(IX:IY , IRHOE) = - cv * 0.25_RP * PI * gamma * Mach * Mach / L * [ sin(2.0_RP*PI*x(IX)/L) , sin(2.0_RP*PI*x(IY)/L) ] & 
+                              +  u * val(IX:IY,IRHOU) + v * val(IX:IY,IRHOV) 
+
+#endif
 
          end associate
 
@@ -1015,22 +1054,22 @@ module ChecksModule
          
 #ifdef NAVIER_STOKES
          associate ( mu => dimensionless % mu , kappa => dimensionless % kappa )
-
-         tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-         tauyy = -2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-         tauxy = 0.0_RP
-
-         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
-         tauyy_y = 2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
-
-         T_xx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
-         T_yy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
-
-         val(IRHOU) = val(IRHOU) + tauxx_x
-         val(IRHOV) = val(IRHOV) + tauyy_y
-         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * T_xx + kappa * T_yy
-
-
+!
+!         tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+!         tauyy = -2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+!         tauxy = 0.0_RP
+!
+!         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
+!         tauyy_y = 2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
+!
+!         T_xx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
+!         T_yy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
+!
+!         val(IRHOU) = val(IRHOU) + tauxx_x
+!         val(IRHOV) = val(IRHOV) + tauyy_y
+!         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * T_xx + kappa * T_yy
+!
+!
          end associate
 #endif
          end associate
@@ -1089,9 +1128,9 @@ module ChecksModule
          end associate
 #ifdef NAVIER_STOKES
          associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
-
-         val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
-
+!
+!         val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
+!
 
          end associate
 #endif

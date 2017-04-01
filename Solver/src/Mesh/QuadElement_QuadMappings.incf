@@ -206,7 +206,6 @@
 !   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !   
       pure function QuadElement_CheckIfInside_Straight ( self , x ) result ( isInside )
-         use QuadMeshDefinitions
          use Utilities
          implicit none
          class(QuadElement_t), intent(in) :: self
@@ -257,7 +256,6 @@
       end function QuadElement_CheckIfInside_Straight
    
       pure function QuadElement_CheckIfInside_Curved ( self , x ) result ( isInside )
-         use QuadMeshDefinitions
          use Utilities
          implicit none
          class(QuadElement_t), intent(in) :: self

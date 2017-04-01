@@ -2,6 +2,8 @@ module Utilities
    use SMConstants
    implicit none
 !
+#include "Defines.h"
+!
 !  ========
    contains
 !  ========

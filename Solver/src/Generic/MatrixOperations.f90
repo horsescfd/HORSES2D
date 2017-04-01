@@ -451,11 +451,16 @@ module MatrixOperations
 !     ----------------------------------------------------
 !
          implicit none
-         integer, intent(in)                :: d1C , d2C , d3C
-         real(kind=RP), target, intent(in)  :: A(:,:,:)
-         real(kind=RP), target, intent(in)  :: B(:,:)
-         integer                            :: index
+         integer,               intent (in) :: index
+         integer,               intent (in) :: d1C , d2C , d3C
+         real(kind=RP), target, intent (in) :: A(:,:,:)
+         real(kind=RP), target, intent (in) :: B(:,:)
          real(kind=RP), target              :: C(d1C,d2C,d3C)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          real(kind=RP), pointer             :: PC(:,:)
          real(kind=RP), pointer             :: P1C(:)
          real(kind=RP), pointer             :: PA(:,:)

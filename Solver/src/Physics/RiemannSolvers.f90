@@ -2,6 +2,7 @@ submodule (PhysicsNS)  RiemannSolvers
    use SMConstants
    contains
 
+#include "Defines.h"
 
 !
 !     ****************************************************
@@ -272,8 +273,8 @@ submodule (PhysicsNS)  RiemannSolvers
          real(kind=RP), dimension(NDIM) , intent(in)     :: n
          real(kind=RP), dimension(NCONS)     :: Fstar
 !        ---------------------------------------------------------------
-         real(kind=RP)                 :: rhoL , invRhoL , uL , vL , HL , aL , pL , rhoeL , TL , sqrtRhoL
-         real(kind=RP)                 :: rhoR , invRhoR , uR , vR , HR , aR , pR , rhoeR , TR , sqrtRhoR
+         real(kind=RP)                 :: rhoL , invRhoL , uL , vL , HL , aL , pL , rhoeL , sqrtRhoL
+         real(kind=RP)                 :: rhoR , invRhoR , uR , vR , HR , aR , pR , rhoeR , sqrtRhoR
          real(kind=RP)                 :: invrho , u , v , H , a
          real(kind=RP)                 :: SL , SR , invdS
          real(kind=RP)                 :: sqrtS
@@ -288,7 +289,6 @@ submodule (PhysicsNS)  RiemannSolvers
             uL       = (  qL(IRHOU) * n(IX) + qL(IRHOV) * n(IY) ) * invRhoL
             vL       = ( -qL(IRHOU) * n(IY) + qL(IRHOV) * n(IX) ) * invRhoL
             pL       = thermodynamics % gm1 * (qL(IRHOE) - 0.5_RP * rhoL * (uL * uL + vL * vL) )
-            TL       = dimensionless % gammaMach2 * pL * invRhoL
             HL       = dimensionless % cp * pL * invRhoL + 0.5_RP * ( uL*uL + vL*vL )
             aL       = sqrt( thermodynamics % gamma * pL * invRhoL )
             rhoeL    = qL(IRHOE)
@@ -299,7 +299,6 @@ submodule (PhysicsNS)  RiemannSolvers
             uR       = (  qR(IRHOU) * n(IX) + qR(IRHOV) * n(IY) ) * invRhoR
             vR       = ( -qR(IRHOU) * n(IY) + qR(IRHOV) * n(IX) ) * invRhoR
             pR       = thermodynamics % gm1 * (qR(IRHOE) - 0.5_RP * rhoR * (uR * uR + vR * vR) )
-            TR       = dimensionless % gammaMach2 * pR * invRhoR
             HR       = dimensionless % cp * pR * invRhoR + 0.5_RP * ( uR*uR + vR*vR )
             aR       = sqrt( thermodynamics % gamma * pR * invRhoR )
             rhoeR    = qR(IRHOE)

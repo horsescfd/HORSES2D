@@ -18,27 +18,31 @@
                stop "Stopped"
 
             type is (StraightBdryEdge_t)
-               allocate( edge % FB(0:N,NCONS) )
-               allocate( edge % uB(0:N,NCONS) )
+               allocate ( edge % FB  ( 0:N , NCONS )  ) 
+               allocate ( edge % uB  ( 0:N , NCONS )  ) 
 
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
+               allocate ( edge % uSB ( 0:N , NCONS            )  ) 
+!               edge % uSB(0: , 1:) => edge % storage(1) % Q(0:,1:)
+               edge % viscousBCType = ADIABATIC 
 #endif
  
             type is (CurvedBdryEdge_t)
-               allocate( edge % FB(0:N,NCONS) )
-               allocate( edge % uB(0:N,NCONS) )
+               allocate ( edge % FB  ( 0:N , NCONS )  ) 
+               allocate ( edge % uB  ( 0:N , NCONS )  ) 
 
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               allocate( edge % gB(0:N,1:NDIM,1:NGRAD) )
+               allocate ( edge % uSB ( 0:N , NCONS            )  ) 
+!               edge % uSB(0: , 1:) => edge % storage(1) % Q(0:,1:)
+               edge % viscousBCType = ADIABATIC 
 #endif
 
             class default
@@ -86,6 +90,9 @@
                edge % uB(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - 2.0_RP * rhovn * edge % n(IX,0)
                edge % uB(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - 2.0_RP * rhovn * edge % n(IY,0)
                edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+#ifdef NAVIER_STOKES   
+               edge % uSB = q
+#endif
       
             type is (CurvedBdryEdge_t)
 !
@@ -116,6 +123,9 @@
                edge % uB(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - 2.0_RP * rhovn * edge % n(IX,0:N)
                edge % uB(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - 2.0_RP * rhovn * edge % n(IY,0:N)
                edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+#ifdef NAVIER_STOKES
+               edge % uSB = q 
+#endif
  
             class default
          end select
@@ -124,65 +134,3 @@
 
       end subroutine EulerWall_UpdateSolution
 
-#ifdef NAVIER_STOKES 
-      subroutine EulerWall_UpdateGradient( self , edge )
-         implicit none  
-         class(EulerWall_t)                  :: self
-         class(Edge_t)                       :: edge
-!
-!        ***************************************************
-!           For each edge the ghost cell state is computed as
-!              UB(IRHO) = Q(IRHO)
-!              UB(IRHOU) = -Q(IRHOU)
-!              UB(IRHOV) = -Q(IRHOV)
-!              UB(IRHOE) = Q(IRHOE)
-!
-!           The primitive variables are set as follows:
-!              WB(IU) = 0
-!              WB(IV) = 0
-!              WB(IT) = Tint / Text (Adiabatic/Isothermal)
-!
-!           The gradients are set such that the stresses are
-!           computed from the inner flow, while the temperature
-!           flux is:
-!                 dT = dTi for Isothermal
-!                 dT = -dTi for Adiabatic
-!        ***************************************************
-!
-         associate( N => edge % spA % N )
-   
-         select type ( edge ) 
-            type is (StraightBdryEdge_t)
-   
-               edge % gB(0:N , 1:NDIM , IGU) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGU)
-               edge % gB(0:N , 1:NDIM , IGV) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGV)
-
-!               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-!                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
-!
-!               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
-!
-!               end if
-
-            type is (CurvedBdryEdge_t)
-
-
-               edge % gB(0:N , 1:NDIM , IGU) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGU)
-               edge % gB(0:N , 1:NDIM , IGV) = edge % storage(1) % dQ(0 : N , 1:NDIM , IGV)
-
-!               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-!                  edge % gB( 0:N , 1:NDIM , IGT ) = edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
-!
-!               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % gB( 0:N , 1:NDIM , IGT ) = -edge % storage(1) % dQ( 0:N , 1:NDIM , IGT)
-
-!               end if
-
-            class default
-         end select
-
-         end associate
-
-      end subroutine EulerWall_UpdateGradient
-#endif

@@ -32,10 +32,9 @@ DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DG
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
 InterpolationAndDerivatives: SMConstants Utilities
 LegendreAlgorithms: SMConstants
-QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions Utilities
+QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage DGBoundaryConditions Utilities
 MeshFile: Setup SMConstants NetCDF_Interface Headers
-QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives MatrixOperations MetricMatrix
-QuadDefinitions: SMConstants
+QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage InterpolationAndDerivatives MatrixOperations MetricMatrix
 NodeClass: SMConstants Physics
 MetricMatrix: SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
@@ -48,6 +47,8 @@ DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
 DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals
 DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
+DGInviscid_StandardDG: DGInviscidMethods
+DGViscous_BR1: DGViscousMethods
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 DirichletBC: DGBoundaryConditions
 EulerWallBC: DGBoundaryConditions
@@ -68,7 +69,7 @@ main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 # --------------- DO NOT EDIT ----------------------------------------------------
 
 F90_REMOVE=
-F90_INCLUDE=$(SRC_DIR)/Mesh/
+F90_INCLUDE=-I$(SRC_DIR)/Mesh/ -I$(SRC_DIR)/Generic/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
 OBJS_F90:= $(filter-out $(F90_REMOVE),$(OBJS_F90))
@@ -118,7 +119,7 @@ endif
 $(info )
 $(info )
 # ------------- LIBRARIES ------------------------
-INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
+INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 
 # ------------- Main rules -----------------------
 	

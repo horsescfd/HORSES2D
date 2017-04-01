@@ -26,6 +26,8 @@
     use DGBoundaryConditions
     implicit none
 !
+#include "Defines.h"
+!
     private
     public DGSEM_t , DGSEM_Initialize
 !
@@ -96,7 +98,7 @@
             allocate ( self % Storage % Q    ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
             allocate ( self % Storage % QDot ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
 #ifdef NAVIER_STOKES
-            allocate ( self % Storage % dQ   ( NDIM  * NGRAD * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
+            allocate ( self % Storage % dQ   ( NCONS  * NDIM * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
 #endif
 !
 !           Construct the spectral Integration class if Over-Integration is selected

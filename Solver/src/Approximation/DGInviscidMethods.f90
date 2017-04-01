@@ -3,8 +3,9 @@ module DGInviscidMethods
    use QuadElementClass
    use Physics
    use NodesAndWeights_class
-   use QuadMeshDefinitions
    implicit none
+
+#include "Defines.h"
 !
 !  *******************************************************************
    private
@@ -39,16 +40,12 @@ module DGInviscidMethods
 !  *******************************************************
    type, extends(InviscidMethod_t) ::  OverIntegrationDG_t
       integer           :: no_of_integrationPoints
-      contains
-         procedure ::  QDotVolumeLoop => OIDG_QDotVolumeLoop
    end type OverIntegrationDG_t
 !  *******************************************************
 !
 !  *******************************************************
    type, extends(InviscidMethod_t) ::  SplitDG_t
       real(kind=RP)         :: alpha
-      contains
-         procedure ::  QDotVolumeLoop => SplitDG_QDotVolumeLoop
    end type SplitDG_t
 
    interface
@@ -196,7 +193,7 @@ module DGInviscidMethods
 
       end function InviscidMethod_Initialization
 
-      subroutine StdDG_ComputeInnerFluxes( self , e , F) 
+      pure function StdDG_ComputeInnerFluxes( self , e ) result (F) 
 !
 !        **********************************************************************
 !              This subroutine computes the contravariant fluxes of the element
@@ -209,13 +206,13 @@ module DGInviscidMethods
          implicit none  
          class(InviscidMethod_t), intent (in)    :: self
          class(QuadElement_t),    intent (in)    :: e
-         real(kind=RP),           intent (inout) :: F(0:e % spA % N , 0:e % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                           :: F(0:e % spA % N , 0:e % spA % N , 1:NCONS , 1:NDIM)
 !        -------------------------------------------------------------
          real(kind=RP)              :: F_cartesian(0:e % spA % N,0:e % spA % N,1:NCONS,1:NDIM)
          integer                    :: eq
-         integer, pointer           :: N 
+         integer                    :: N 
 
-         N => e % spA % N         
+         N = e % spA % N         
 
          F_cartesian = InviscidFlux( e % spA % N , e % Q )
 
@@ -230,34 +227,7 @@ module DGInviscidMethods
             F(0:N,0:N,eq,IY) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
          end do
 
-      end subroutine StdDG_ComputeInnerFluxes
-
-      subroutine OIDG_QDotVolumeLoop( self , element , reset , compute)
-         use MatrixOperations
-         implicit none
-         class(OverIntegrationDG_t)          :: self
-         class(QuadElement_t)                  :: element
-         logical, optional                   :: reset
-         logical, optional                   :: compute
-!
-!        **********************************************
-!           Still under development...
-!        **********************************************
-!
-      end subroutine OIDG_QDotVolumeLoop
-
-      subroutine SplitDG_QDotVolumeLoop( self , element , reset , compute)
-         implicit none
-         class(SplitDG_t)        :: self
-         class(QuadElement_t)      :: element
-         logical, optional                   :: reset
-         logical, optional                   :: compute
-!
-!        **********************************************
-!           Still under development...
-!        **********************************************
-!
-      end subroutine SplitDG_QDotVolumeLoop
+      end function StdDG_ComputeInnerFluxes
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////////
 !

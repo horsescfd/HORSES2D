@@ -2,60 +2,23 @@ module PhysicsNS
     use SMConstants
     use Setup_class
 
+#include "Defines.h"
+
     private
-    public :: NCONS , NPRIM, NGRAD, NDIM , IX , IY , IRHO , IRHOU , IRHOV , IRHOE , solver
-    public :: IU , IV , IP , IA , IT
-    public :: IGU , IGV , IGT
+    public :: solver
     public :: RefValues , Dimensionless , Thermodynamics
     public :: RiemannSolverFunction , InitializePhysics
-    public :: InviscidFlux , ViscousFlux , ViscousNormalFlux , ComputeViscousTensor
+    public :: InviscidFlux , ViscousFlux , AdiabaticViscousFlux
+    public :: ComputeViscousTensor
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver
-    public :: getPressure , getSoundSpeed
-!
-!   *****************************************
-!        Definitions
-!   *****************************************
-!
-    integer, parameter              :: NCONS = 4
-    integer, parameter              :: NPRIM = 6
-    integer, parameter              :: NGRAD = 3
-    integer, parameter              :: NDIM = 2
-    integer, parameter              :: STR_LEN_PHYSICS = 128
-!
-!   *****************************************
-!        Parameter to control dimensions
-!   *****************************************
-!
-    integer, parameter :: IX = 1
-    integer, parameter :: IY = 2
-!
-!   ******************************************
-!        Parameters to select variables
-!   ******************************************
-!
-!   --- Conservative variables ---
-    integer, parameter :: IRHO  = 1
-    integer, parameter :: IRHOU = 2
-    integer, parameter :: IRHOV = 3
-    integer, parameter :: IRHOE = 4
+    public :: getPressure , getSoundSpeed , getStrainTensor , getTemperatureGradient
 
-!   --- Primitive variables ---
-    integer, parameter :: IU = 2
-    integer, parameter :: IV = 3
-    integer, parameter :: IP = 4 
-    integer, parameter :: IT = 5
-    integer, parameter :: IA = 6
-
-!   --- Gradient variables ---
-    integer, parameter :: IGU = 1
-    integer, parameter :: IGV = 2
-    integer, parameter :: IGT = 3
-!
 !   ********************************************
 !        Current solver
 !   ********************************************
 !
     character(LEN=*), PARAMETER     :: solver = "Navier-Stokes"
+    integer, parameter              :: STR_LEN_PHYSICS = 128
 
     type Thermodynamics_t  
       character(len=STR_LEN_PHYSICS)       :: fluid
@@ -98,7 +61,6 @@ module PhysicsNS
     abstract interface
       pure function RiemannSolverFunction( QL , QR , n ) result ( val )
          use SMConstants
-         import NCONS , NDIM , NPRIM
          real(kind=RP), dimension(NCONS), intent(in) :: QL
          real(kind=RP), dimension(NCONS), intent(in) :: QR
          real(kind=RP), dimension(NDIM) , intent(in) :: n
@@ -109,7 +71,7 @@ module PhysicsNS
 
 
     type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , &
-                              0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP , 2.0_RP / 3.0_RP )
+                              0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP , -2.0_RP / 3.0_RP )
     type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
@@ -120,12 +82,12 @@ module PhysicsNS
     end interface inviscidFlux
 
     interface viscousFlux
-      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D
+      module procedure viscousFlux0D , viscousFlux1D , viscousFlux2D , viscousFluxBC0D , viscousFluxBC1D
     end interface viscousFlux
 
-    interface viscousNormalFlux
-      module procedure viscousNormalFlux0D , viscousNormalFlux1D , viscousNormalFlux2D
-    end interface viscousNormalFlux
+    interface adiabaticViscousFlux
+      module procedure adiabaticViscousFlux0D , adiabaticViscousFlux1D , adiabaticViscousFlux2D
+    end interface adiabaticViscousFlux
 
     interface getPressure
       module procedure getPressure0D , getPressure1D , getPressure2D
@@ -138,6 +100,14 @@ module PhysicsNS
     interface getSoundSpeed
       module procedure getSoundSpeed0D , getSoundSpeed1D , getSoundSpeed2D 
     end interface getSoundSpeed
+
+    interface getStrainTensor
+      module procedure getStrainTensor0D , getStrainTensor1D , getStrainTensor2D   
+    end interface getStrainTensor
+
+    interface getTemperatureGradient
+      module procedure getTemperatureGradient0D , getTemperatureGradient1D , getTemperatureGradient2D
+    end interface getTemperatureGradient
 !
 !   //////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -147,65 +117,112 @@ module PhysicsNS
 !
 !
     interface
-      module function getPressure0D(Q) result (p)
+      module pure function getPressure0D(Q) result (p)
          implicit none
          real(kind=RP), intent(in)           :: Q(1:NCONS)
          real(kind=RP)                       :: p
       end function getPressure0D
 
-      module function getPressure1D(N,Q) result (p)
+      module pure function getPressure1D(N,Q) result (p)
          implicit none
          integer,       intent (in)  :: N
          real(kind=RP), intent (in)  :: Q(0:N,1:NCONS)
          real(kind=RP)               :: p(0:N)
       end function getPressure1D
 
-      module function getPressure2D(N,Q) result (p)
+      module pure function getPressure2D(N,Q) result (p)
          implicit none
          integer,       intent(in)     :: N 
          real(kind=RP), intent (in)  :: Q(0:N,0:N,1:NCONS)
          real(kind=RP)               :: p(0:N,0:N)
       end function getPressure2D
 
-      module function getTemperature0D(Q) result (T)
+      module pure function getTemperature0D(Q) result (T)
          implicit none
          real(kind=RP), intent(in)           :: Q(1:NCONS)
          real(kind=RP)                       :: T
       end function getTemperature0D
 
-      module function getTemperature1D(N,Q) result (T)
+      module pure function getTemperature1D(N,Q) result (T)
          implicit none
          integer,       intent (in)  :: N
          real(kind=RP), intent (in)  :: Q(0:N,1:NCONS)
          real(kind=RP)               :: T(0:N)
       end function getTemperature1D
 
-      module function getTemperature2D(N,Q) result (T)
+      module pure function getTemperature2D(N,Q) result (T)
          implicit none
          integer,       intent(in)     :: N 
          real(kind=RP), intent (in)  :: Q(0:N,0:N,1:NCONS)
          real(kind=RP)               :: T(0:N,0:N)
       end function getTemperature2D
 
-      module function getSoundSpeed0D(Q) result (a)
+      module pure function getSoundSpeed0D(Q) result (a)
          implicit none
          real(kind=RP), intent(in)        :: Q(1:NCONS)
          real(kind=RP)                    :: a
       end function getSoundSpeed0D
 
-      module function getSoundSpeed1D(N,Q) result (a)
+      module pure function getSoundSpeed1D(N,Q) result (a)
          implicit none
          integer,       intent(in)        :: N
          real(kind=RP), intent(in)        :: Q(0:N,1:NCONS)
          real(kind=RP)                    :: a(0:N)
       end function getSoundSpeed1D
 
-      module function getSoundSpeed2D(N,Q) result(a)
+      module pure function getSoundSpeed2D(N,Q) result(a)
          implicit none
          integer,       intent(in)        :: N
          real(kind=RP), intent(in)        :: Q(0:N,0:N,1:NCONS)
          real(kind=RP)                    :: a(0:N,0:N)
       end function getSoundSpeed2D
+#ifdef NAVIER_STOKES
+      module pure function getStrainTensor0D ( Q , dQ ) result ( du )
+         implicit none
+         real(kind=RP), intent(in)     :: Q(1:NCONS)
+         real(kind=RP), intent(in)     :: dQ(1:NDIM,1:NCONS)
+         real(kind=RP)                 :: du(1:NDIM , 1:NDIM)     
+      end function getStrainTensor0D
+ 
+      module pure function getStrainTensor1D ( N ,  Q , dQ ) result ( du )
+         implicit none
+         integer,       intent(in)     :: N
+         real(kind=RP), intent(in)     :: Q(0:N,1:NCONS)
+         real(kind=RP), intent(in)     :: dQ(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                 :: du(0:N,1:NDIM , 1:NDIM)     
+      end function getStrainTensor1D
+ 
+      module pure function getStrainTensor2D ( N ,  Q , dQ ) result ( du )
+         implicit none
+         integer,       intent(in)     :: N
+         real(kind=RP), intent(in)     :: Q(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)     :: dQ(0:N,0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                 :: du(0:N,0:N,1:NDIM , 1:NDIM)     
+      end function getStrainTensor2D
+
+      module pure function getTemperatureGradient0D( Q , dQ ) result ( gradT )
+         implicit none
+         real(kind=RP),    intent(in)        ::  Q(1:NCONS)
+         real(kind=RP),    intent(in)        :: dQ(1:NDIM , 1:NCONS)
+         real(kind=RP)                       :: gradT(1:NDIM) 
+      end function getTemperatureGradient0D
+
+      module pure function getTemperatureGradient1D( N , Q , dQ ) result ( gradT )
+         implicit none
+         integer      ,    intent(in)        :: N 
+         real(kind=RP),    intent(in)        ::  Q(0:N,1:NCONS)
+         real(kind=RP),    intent(in)        :: dQ(0:N,1:NDIM , 1:NCONS)
+         real(kind=RP)                       :: gradT(0:N,1:NDIM) 
+      end function getTemperatureGradient1D
+
+      module pure function getTemperatureGradient2D( N , Q , dQ ) result ( gradT )
+         implicit none
+         integer      ,    intent(in)        :: N 
+         real(kind=RP),    intent(in)        ::  Q(0:N,0:N,1:NCONS)
+         real(kind=RP),    intent(in)        :: dQ(0:N,0:N,1:NDIM , 1:NCONS)
+         real(kind=RP)                       :: gradT(0:N,0:N,1:NDIM) 
+      end function getTemperatureGradient2D
+#endif 
     end interface
 
     interface
@@ -270,59 +287,77 @@ module PhysicsNS
     end interface
 
     interface
-      module function viscousFlux0D( w , dq) result(val)
+      module pure function viscousFlux0D( q , dq) result(F)
          implicit none
-         real(kind=RP)          :: w(NPRIM)
-         real(kind=RP)          :: dq(NDIM , NGRAD)
-         real(kind=RP), target  :: val(NCONS,NDIM)
+         real(kind=RP), intent(in)    :: q(NCONS)
+         real(kind=RP), intent(in)    :: dq(NDIM , NCONS)
+         real(kind=RP)                :: F(2:NCONS,NDIM)
       end function viscousFlux0D
 
-      module function viscousFlux1D( N , w , dq ) result ( val )
+      module pure function viscousFlux1D( N , q , dq ) result ( F )
          implicit none
          integer, intent(in)                :: N 
-         real(kind=RP)                      :: w(0:N,1:NPRIM)
-         real(kind=RP)                      :: dq(0:N,1:NDIM,1:NGRAD)
-         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
+         real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
       end function viscousFlux1D
 
-      module function viscousFlux2D( N , w , dq ) result ( val )
+      module pure function viscousFlux2D( N , q , dq ) result ( F )
          implicit none
          integer, intent(in)                :: N 
-         real(kind=RP)                      :: w(0:N,0:N,1:NPRIM)
-         real(kind=RP)                      :: dq(0:N,0:N,1:NDIM,1:NGRAD)
-         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
+         real(kind=RP), intent(in)          :: Q(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dQ(0:N,0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
       end function viscousFlux2D
 
-      module function viscousNormalFlux0D( w , dq , dS ) result ( val )
+      module pure function viscousFluxBC0D( q , qB , dq ) result ( F )
          implicit none
-         real(kind=RP), intent(in)  :: w(NPRIM)
-         real(kind=RP), intent(in)  :: dq(NDIM,NGRAD)
-         real(kind=RP), intent(in)  :: dS(NDIM) 
-         real(kind=RP)              :: val(NCONS)
-      end function viscousNormalFlux0D
+         real(kind=RP), intent(in)          :: q(1:NCONS)
+         real(kind=RP), intent(in)          :: qB(1:NCONS)
+         real(kind=RP), intent(in)          :: dq(1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(2:NCONS,1:NDIM)
+      end function viscousFluxBC0D
 
-      module function viscousNormalFlux1D ( N , w , dq , dS ) result ( val )
+      module pure function viscousFluxBC1D( N , q , qB , dq ) result ( F )
          implicit none
-         integer, intent(in)        :: N
-         real(kind=RP), intent(in)  :: w(0:N ,1:NPRIM)
-         real(kind=RP), intent(in)  :: dq(0:N , 1:NDIM , 1:NGRAD )
-         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N )
-         real(kind=RP)              :: val(0:N , 1:NCONS)
-      end function viscousNormalFlux1D
+         integer, intent(in)                :: N 
+         real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: qB(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+      end function viscousFluxBC1D
 
-      module function viscousNormalFlux2D ( N , w , dq , dS ) result ( val )
+      module pure function adiabaticViscousFlux0D( q , qb , dq) result(F)
          implicit none
-         integer, intent(in)        :: N 
-         real(kind=RP), intent(in)  :: w(0:N , 0:N , 1:NPRIM)
-         real(kind=RP), intent(in)  :: dq(0:N , 0:N , 1:NDIM , 1:NGRAD )
-         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N , 0:N )
-         real(kind=RP)              :: val(0:N , 0:N , 1:NCONS)
-      end function viscousNormalFlux2D
+         real(kind=RP), intent(in)    :: q(NCONS)
+         real(kind=RP), intent(in)    :: qB(NCONS)
+         real(kind=RP), intent(in)    :: dq(NDIM , NCONS)
+         real(kind=RP)                :: F(2:NCONS,NDIM)
+      end function adiabaticViscousFlux0D
 
-      module function ComputeViscousTensor ( N , dQ ) result ( tau )
+      module pure function adiabaticViscousFlux1D( N , q , qb , dq ) result ( F )
+         implicit none
+         integer, intent(in)                :: N 
+         real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: qb(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+      end function adiabaticViscousFlux1D
+
+      module pure function adiabaticViscousFlux2D( N , q , qb , dq ) result ( F )
+         implicit none
+         integer, intent(in)                :: N 
+         real(kind=RP), intent(in)          :: Q(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: Qb(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dQ(0:N,0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+      end function adiabaticViscousFlux2D
+
+      module pure function ComputeViscousTensor ( N , Q , dQ ) result ( tau )
          implicit none
          integer,          intent(in)     :: N
-         real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NGRAD)
+         real(kind=RP),    intent(in)     ::  Q(0:N,1:NCONS)
+         real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NCONS)
          real(kind=RP)                    :: tau(0:N,1:NDIM,1:NDIM)
       end function ComputeViscousTensor
    end interface
@@ -359,7 +394,11 @@ module PhysicsNS
          refValues % a     = sqrt( refValues % p / refValues % rho )
          refValues % Mach  = Setup % Mach_number
          refValues % V     = sqrt( thermodynamics % gamma ) * refValues % Mach * refValues % a
-         refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         if ( setup % reynolds_number .eq. 0.0_RP ) then
+            refValues % mu = 0.0_RP
+         else
+            refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         end if
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
          refValues % tc    = refValues % L / (refValues % V )
 #else
@@ -384,7 +423,7 @@ module PhysicsNS
          dimensionless % gammaMach2       = thermodynamics % gamma * dimensionless % Mach * dimensionless % Mach
          dimensionless % invSqrtGammaMach = 1.0_RP / (sqrt(thermodynamics % gamma) * dimensionless % Mach)
          dimensionless % mu               = 1.0_RP / Setup % reynolds_number
-         dimensionless % kappa            = dimensionless % cp / (Setup % prandtl_number * Setup % reynolds_number * dimensionless % gammaMach2)
+         dimensionless % kappa            = thermodynamics % gogm1 / (Setup % prandtl_number * Setup % reynolds_number)
          dimensionless % cp               = thermodynamics % gogm1
          dimensionless % cv               = thermodynamics % invgm1
          dimensionless % Re               = Setup % reynolds_number

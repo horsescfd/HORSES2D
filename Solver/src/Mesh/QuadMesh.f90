@@ -4,9 +4,9 @@ module QuadMeshClass
     use QuadElementClass
     use InitialConditions
     use Storage_module
-    use QuadMeshDefinitions
     use DGBoundaryConditions
 
+#include "Defines.h"
     private
     public Zone_t , QuadMesh_t , InitializeMesh
 
@@ -47,9 +47,6 @@ module QuadMeshClass
        contains
           procedure      :: Construct      => Zone_Construct
           procedure      :: UpdateSolution => Zone_UpdateSolution
-#ifdef NAVIER_STOKES
-          procedure      :: UpdateGradient => Zone_UpdateGradient
-#endif
           procedure      :: Describe       => Zone_Describe
     end type Zone_t
  
@@ -155,10 +152,10 @@ module QuadMeshClass
 !            *******************************
 !
              if (present(which)) then
-               call InitialCondition( self % IC , which)
+               call getInitialCondition( self % IC , which)
 
              else
-               call InitialCondition( self % IC )
+               call getInitialCondition( self % IC )
 
              end if
 !

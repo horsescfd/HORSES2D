@@ -1,171 +1,414 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////
+!
+!     File: ViscousFluxes.f90
+!     Description:   This is a submodule of PhysicsNS.f90 containing the viscous fluxes 
+!                  procedures.
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////
+!
 submodule (PhysicsNS)   ViscousFluxes
    use SMConstants
    implicit none
 
+#include "Defines.h"
+
    contains
 
-
-      module function viscousFlux0D( w , dq) result(val)
+      module pure function viscousFlux0D( q , dq) result(F)
          implicit none
-         real(kind=RP)          :: w(NPRIM)
-         real(kind=RP)          :: dq(NDIM , NGRAD)
-         real(kind=RP), target  :: val(NCONS,NDIM)
-         real(kind=RP), pointer :: F(:) , G(:)
+         real(kind=RP), intent(in)  :: q(NCONS)
+         real(kind=RP), intent(in)  :: dq(NDIM , NCONS)
+         real(kind=RP)              :: F(2:NCONS,NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho , uDivRho , vDivRho , u , v , divV , dxT , dyT
 
-         F(1:NCONS)    => val(1:NCONS,IX)
-         G(1:NCONS)    => val(1:NCONS,IY)
+         invRho  = 1.0_RP / q(IRHO)
+         u       = q(IRHOU) * invRho
+         v       = q(IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
-           
-         F(IRHO)  = 0.0_RP
-         F(IRHOU) = mu * ( 2.0_RP * dq(IX , IGU) - lambda * ( dq(IX,IGU) + dq(IY,IGV) ) )
-         F(IRHOV) = mu * ( dq(IY,IGU) + dq(IX,IGV) )
-         F(IRHOE) = F(IRHOU) * w(IU) + F(IRHOV) * w(IV) + kappa * dq(IX,IGT) 
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
 
-         G(IRHO)  = 0.0_RP
-         G(IRHOU) = F(IRHOV)
-         G(IRHOV) = mu * ( 2.0_RP * dq(IY , IGV) - lambda * ( dq(IX,IGU) + dq(IY,IGV) ) )
-         G(IRHOE) = G(IRHOU) * w(IU) + G(IRHOV) * w(IV) + kappa * dq(IY,IGT) 
+
+         divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
+
+         dxT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IX,IRHO) + dq(IX,IRHOE) + u * ( u * dq(IX,IRHO) - dq(IX,IRHOU)) + v * (v * dq(IX,IRHO) - dq(IX,IRHOV)) ) 
+         dyT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IY,IRHO) + dq(IY,IRHOE) + u * ( u * dq(IY,IRHO) - dq(IY,IRHOU)) + v * (v * dq(IY,IRHO) - dq(IY,IRHOV)) ) 
+   
+
+         F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
+         F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
+
+         F(IRHOU,IY) = - mu * vDivRho * dq(IX,IRHO)  &
+                       - mu * uDivRho * dq(IY,IRHO)  &
+                       + mu * invRho  * dq(IY,IRHOU) &
+                       + mu * invRho  * dq(IX,IRHOV) 
+
+
+         F(IRHOV,IX) = F(IRHOU,IY)
+
+         F(IRHOE,IX) = u * F(IRHOU,IX) + v * F(IRHOU,IY) + kappa * dxT
+         F(IRHOE,IY) = u * F(IRHOV,IX) + v * F(IRHOV,IY) + kappa * dyT
 
          end associate
 
       end function viscousFlux0D
 
-      module function viscousFlux1D( N , w , dq ) result ( val )
+      module pure function viscousFlux1D( N , q , dq ) result ( F )
          implicit none
          integer, intent(in)                :: N 
-         real(kind=RP)                      :: w(0:N,1:NPRIM)
-         real(kind=RP)                      :: dq(0:N,1:NDIM,1:NGRAD)
-         real(kind=RP), target              :: val(0:N,1:NCONS,1:NDIM)
-         real(kind=RP), pointer             :: F(:,:) , G(:,:)
+         real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho(0:N) , uDivRho(0:N) , vDivRho(0:N) , u(0:N) , v(0:N) , divV(0:N) , dxT(0:N) , dyT(0:N)
 
-         F(0:,1:)    => val(0:,1:,IX)
-         G(0:,1:)    => val(0:,1:,IY)
+         invRho  = 1.0_RP / q(:,IRHO)
+         u       = q(:,IRHOU) * invRho
+         v       = q(:,IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
 
-         F(:,IRHO)  = 0.0_RP
-         F(:,IRHOU) = mu * ( 2.0_RP * dq(:,IX , IGU) - lambda * ( dq(:,IX,IGU) + dq(:,IY,IGV) ) )
-         F(:,IRHOV) = mu * ( dq(:,IY,IGU) + dq(:,IX,IGV) )
-         F(:,IRHOE) = F(:,IRHOU) * w(:,IU) + F(:,IRHOV) * w(:,IV) + kappa * dq(:,IX,IGT) 
 
-         G(:,IRHO)  = 0.0_RP
-         G(:,IRHOU) = F(:,IRHOV)
-         G(:,IRHOV) = mu * ( 2.0_RP * dq(:,IY , IGV) - lambda * ( dq(:,IX,IGU) + dq(:,IY,IGV) ) )
-         G(:,IRHOE) = G(:,IRHOU) * w(:,IU) + G(:,IRHOV) * w(:,IV) + kappa * dq(:,IY,IGT) 
+         divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
 
-         end associate 
+
+         dxT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IX,IRHO) + dq(:,IX,IRHOE) + u * ( u * dq(:,IX,IRHO) - dq(:,IX,IRHOU)) + v * (v * dq(:,IX,IRHO) - dq(:,IX,IRHOV)) ) 
+         dyT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IY,IRHO) + dq(:,IY,IRHOE) + u * ( u * dq(:,IY,IRHO) - dq(:,IY,IRHOU)) + v * (v * dq(:,IY,IRHO) - dq(:,IY,IRHOV)) ) 
+   
+         F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
+         F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
+
+         F(:,IRHOU,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
+                         - mu * uDivRho * dq(:,IY,IRHO)  &
+                         + mu * invRho  * dq(:,IY,IRHOU) &
+                         + mu * invRho  * dq(:,IX,IRHOV) 
+
+
+         F(:,IRHOV,IX) = F(:,IRHOU,IY)
+
+         F(:,IRHOE,IX) = u * F(:,IRHOU,IX) + v * F(:,IRHOU,IY) + kappa * dxT
+         F(:,IRHOE,IY) = u * F(:,IRHOV,IX) + v * F(:,IRHOV,IY) + kappa * dyT
+
+         end associate
 
       end function viscousFlux1D
 
-      module function viscousFlux2D( N , w , dq ) result ( val )
+      module pure function viscousFlux2D( N , q , dq ) result ( F )
          implicit none
          integer, intent(in)                :: N 
-         real(kind=RP)                      :: w(0:N,0:N,1:NPRIM)
-         real(kind=RP)                      :: dq(0:N,0:N,1:NDIM,1:NGRAD)
-         real(kind=RP), target              :: val(0:N,0:N,1:NCONS,1:NDIM)
-         real(kind=RP), pointer             :: F(:,:,:) , G(:,:,:)
+         real(kind=RP), intent(in)          :: q(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho(0:N,0:N) , uDivRho(0:N,0:N) , vDivRho(0:N,0:N) , u(0:N,0:N) , v(0:N,0:N) , divV(0:N,0:N) , dxT(0:N,0:N) , dyT(0:N,0:N)
 
-         F(0:,0:,1:)    => val(0:,0:,1:,iX)
-         G(0:,0:,1:)    => val(0:,0:,1:,iY)
+         invRho  = 1.0_RP / q(:,:,IRHO)
+         u       = q(:,:,IRHOU) * invRho
+         v       = q(:,:,IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa ) 
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
 
-         F(:,:,IRHO)  = 0.0_RP
-         F(:,:,IRHOU) = mu * ( 2.0_RP * dq(:,:,IX , IGU) - lambda * ( dq(:,:,IX,IGU) + dq(:,:,IY,IGV) ) )
-         F(:,:,IRHOV) = mu * ( dq(:,:,IY,IGU) + dq(:,:,IX,IGV) )
-         F(:,:,IRHOE) = F(:,:,IRHOU) * w(:,:,IU) + F(:,:,IRHOV) * w(:,:,IV) + kappa * dq(:,:,IX,IGT) 
 
-         G(:,:,IRHO)  = 0.0_RP
-         G(:,:,IRHOU) = F(:,:,IRHOV)
-         G(:,:,IRHOV) = mu * ( 2.0_RP * dq(:,:,IY , IGV) - lambda * ( dq(:,:,IX,IGU) + dq(:,:,IY,IGV) ) )
-         G(:,:,IRHOE) = G(:,:,IRHOU) * w(:,:,IU) + G(:,:,IRHOV) * w(:,:,IV) + kappa * dq(:,:,IY,IGT) 
+         divV = - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU) - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)
 
-         end associate 
+         dxT = gm1 * invRho * ( -q(:,:,IRHOE) * invRho * dq(:,:,IX,IRHO) + dq(:,:,IX,IRHOE) + u * ( u * dq(:,:,IX,IRHO) - dq(:,:,IX,IRHOU)) + v * (v * dq(:,:,IX,IRHO) - dq(:,:,IX,IRHOV)) ) 
+         dyT = gm1 * invRho * ( -q(:,:,IRHOE) * invRho * dq(:,:,IY,IRHO) + dq(:,:,IY,IRHOE) + u * ( u * dq(:,:,IY,IRHO) - dq(:,:,IY,IRHOU)) + v * (v * dq(:,:,IY,IRHO) - dq(:,:,IY,IRHOV)) ) 
+
+         F(:,:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * mu * divV
+         F(:,:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * mu * divV
+
+         F(:,:,IRHOU,IY) = - mu * vDivRho * dq(:,:,IX,IRHO)  &
+                           - mu * uDivRho * dq(:,:,IY,IRHO)  &
+                           + mu * invRho  * dq(:,:,IY,IRHOU) &
+                           + mu * invRho  * dq(:,:,IX,IRHOV) 
+ 
+
+         F(:,:,IRHOV,IX) = F(:,:,IRHOU,IY)
+
+         F(:,:,IRHOE,IX) = u * F(:,:,IRHOU,IX) + v * F(:,:,IRHOU,IY) + kappa * dxT
+         F(:,:,IRHOE,IY) = u * F(:,:,IRHOV,IX) + v * F(:,:,IRHOV,IY) + kappa * dyT
+
+         end associate
 
       end function viscousFlux2D
 
-      module function viscousNormalFlux0D( w , dq , dS ) result ( val )
+      module pure function viscousFluxBC0D( q , qB , dq) result(F)
          implicit none
-         real(kind=RP), intent(in)  :: w(NPRIM)
-         real(kind=RP), intent(in)  :: dq(NDIM,NGRAD)
-         real(kind=RP), intent(in)  :: dS(NDIM) 
-         real(kind=RP)              :: val(NCONS)
-!        ----------------------------------------------------------
-         real(kind=RP)              :: Fv(NCONS , NDIM)
+         real(kind=RP), intent(in)  :: q(NCONS)
+         real(kind=RP), intent(in)  :: qB(NCONS)
+         real(kind=RP), intent(in)  :: dq(NDIM , NCONS)
+         real(kind=RP)              :: F(2:NCONS,NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho , uDivRho , vDivRho , u , v , divV , dxT , dyT
 
-         Fv = viscousFlux0D ( w , dq )
+         invRho  = 1.0_RP / q(IRHO)
+         u       = q(IRHOU) * invRho
+         v       = q(IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
 
-         val = Fv(1:NCONS,IX) * dS(IX) + Fv(1:NCONS,IY) * dS(IY)
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
 
-      end function viscousNormalFlux0D
 
-      module function viscousNormalFlux1D ( N , w , dq , dS ) result ( val )
-         implicit none
-         integer, intent(in)        :: N
-         real(kind=RP), intent(in)  :: w(0:N ,1:NPRIM)
-         real(kind=RP), intent(in)  :: dq(0:N , 1:NDIM , 1:NGRAD )
-         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N )
-         real(kind=RP)              :: val(0:N , 1:NCONS)
-!        ---------------------------------------------------------
-         real(kind=RP)              :: Fv(0:N,1:NCONS,1:NDIM)
-         integer                    :: eq
+         divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
 
-         Fv = viscousFlux1D ( N , w , dq )
+         dxT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IX,IRHO) + dq(IX,IRHOE) + u * ( u * dq(IX,IRHO) - dq(IX,IRHOU)) + v * (v * dq(IX,IRHO) - dq(IX,IRHOV)) ) 
+         dyT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IY,IRHO) + dq(IY,IRHOE) + u * ( u * dq(IY,IRHO) - dq(IY,IRHOU)) + v * (v * dq(IY,IRHO) - dq(IY,IRHOV)) ) 
    
-         do eq = 1 , NCONS
-            val(:,eq) = Fv(:,eq,IX) * dS(IX,:) + Fv(:,eq,IY) * dS(IY,:)
-         end do
 
-      end function viscousNormalFlux1D
+         F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
+         F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
 
-      module function viscousNormalFlux2D ( N , w , dq , dS ) result ( val )
+         F(IRHOU,IY) = - mu * vDivRho * dq(IX,IRHO)  &
+                       - mu * uDivRho * dq(IY,IRHO)  &
+                       + mu * invRho  * dq(IY,IRHOU) &
+                       + mu * invRho  * dq(IX,IRHOV) 
+
+
+         F(IRHOV,IX) = F(IRHOU,IY)
+
+         F(IRHOE,IX) = ( qB(IRHOU) * F(IRHOU,IX) + qB(IRHOV) * F(IRHOU,IY) ) / qB(IRHO) + kappa * dxT
+         F(IRHOE,IY) = ( qB(IRHOU) * F(IRHOV,IX) + qB(IRHOV) * F(IRHOV,IY) ) / qB(IRHO) + kappa * dyT
+
+         end associate
+
+      end function viscousFluxBC0D
+
+      module pure function viscousFluxBC1D( N , q , qb , dq ) result ( F )
          implicit none
-         integer, intent(in)        :: N 
-         real(kind=RP), intent(in)  :: w(0:N , 0:N , 1:NPRIM)
-         real(kind=RP), intent(in)  :: dq(0:N , 0:N , 1:NDIM , 1:NGRAD )
-         real(kind=RP), intent(in)  :: dS(1:NDIM , 0:N , 0:N )
-         real(kind=RP)              :: val(0:N , 0:N , 1:NCONS)
-!        ---------------------------------------------------------
-         real(kind=RP)              :: Fv(0:N,0:N,1:NCONS,1:NDIM)
-         integer                    :: eq
+         integer, intent(in)                :: N 
+         real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: qB(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho(0:N) , uDivRho(0:N) , vDivRho(0:N) , u(0:N) , v(0:N) , divV(0:N) , dxT(0:N) , dyT(0:N)
 
-         Fv = viscousFlux2D ( N , w , dq )
+         invRho  = 1.0_RP / q(:,IRHO)
+         u       = q(:,IRHOU) * invRho
+         v       = q(:,IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+
+
+         divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
+
+
+         dxT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IX,IRHO) + dq(:,IX,IRHOE) + u * ( u * dq(:,IX,IRHO) - dq(:,IX,IRHOU)) + v * (v * dq(:,IX,IRHO) - dq(:,IX,IRHOV)) ) 
+         dyT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IY,IRHO) + dq(:,IY,IRHOE) + u * ( u * dq(:,IY,IRHO) - dq(:,IY,IRHOU)) + v * (v * dq(:,IY,IRHO) - dq(:,IY,IRHOV)) ) 
    
-         do eq = 1 , NCONS
-            val(:,:,eq) = Fv(:,:,eq,IX) * dS(IX,:,:) + Fv(:,:,eq,IY) * dS(IY,:,:)
-         end do
+         F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
+         F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
 
-      end function viscousNormalFlux2D
+         F(:,IRHOU,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
+                         - mu * uDivRho * dq(:,IY,IRHO)  &
+                         + mu * invRho  * dq(:,IY,IRHOU) &
+                         + mu * invRho  * dq(:,IX,IRHOV) 
 
-      module function ComputeViscousTensor ( N , dQ ) result ( tau )
+
+         F(:,IRHOV,IX) = F(:,IRHOU,IY)
+
+         F(:,IRHOE,IX) = (qB(:,IRHOU) * F(:,IRHOU,IX) + qB(:,IRHOV) * F(:,IRHOU,IY)) / qB(:,IRHO) + kappa * dxT
+         F(:,IRHOE,IY) = (qB(:,IRHOU) * F(:,IRHOV,IX) + qB(:,IRHOV) * F(:,IRHOV,IY)) / qB(:,IRHO) + kappa * dyT
+
+         end associate
+
+      end function viscousFluxBC1D
+
+      module pure function AdiabaticViscousFlux0D( q , qB , dq) result(F)
+         implicit none
+         real(kind=RP), intent(in)  :: q(NCONS)
+         real(kind=RP), intent(in)  :: qB(NCONS)
+         real(kind=RP), intent(in)  :: dq(NDIM , NCONS)
+         real(kind=RP)              :: F(2:NCONS,NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho , uDivRho , vDivRho , u , v , divV 
+
+         invRho  = 1.0_RP / q(IRHO)
+         u       = q(IRHOU) * invRho
+         v       = q(IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+
+
+         divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
+
+         F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
+         F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
+
+                                                               !                      -                                             -
+         F(IRHOU,IY) = - mu * vDivRho * dq(IX,IRHO)  &         !        du   dv      |    u  drho    1  drhou    v  drho    1  drhov |
+                       - mu * uDivRho * dq(IY,IRHO)  &         !     mu -- + -- = mu | - --- ---- + --- ----- - --- ---- + --- ----- |
+                       + mu * invRho  * dq(IY,IRHOU) &         !        dy   dx      |   rho  dy    rho  dy     rho  dx    rho  dx   |
+                       + mu * invRho  * dq(IX,IRHOV)           !                      -                                             -
+
+
+         F(IRHOV,IX) = F(IRHOU,IY)
+
+         F(IRHOE,IX) = (qB(IRHOU) * F(IRHOU,IX) + qB(IRHOV) * F(IRHOU,IY)) / qB(IRHO) 
+         F(IRHOE,IY) = (qB(IRHOU) * F(IRHOV,IX) + qB(IRHOV) * F(IRHOV,IY)) / qB(IRHO) 
+
+         end associate
+
+      end function AdiabaticViscousFlux0D
+
+      module pure function AdiabaticViscousFlux1D( N , q , qB , dq ) result ( F )
+         implicit none
+         integer, intent(in)                :: N 
+         real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: qB(0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho(0:N) , uDivRho(0:N) , vDivRho(0:N) , u(0:N) , v(0:N) , divV(0:N)
+
+         invRho  = 1.0_RP / q(:,IRHO)
+         u       = q(:,IRHOU) * invRho
+         v       = q(:,IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+
+
+         divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
+
+         F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
+         F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
+
+         F(:,IRHOU,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
+                         - mu * uDivRho * dq(:,IY,IRHO)  &
+                         + mu * invRho  * dq(:,IY,IRHOU) &
+                         + mu * invRho  * dq(:,IX,IRHOV) 
+
+
+         F(:,IRHOV,IX) = F(:,IRHOU,IY)
+
+         F(:,IRHOE,IX) = (qB(:,IRHOU) * F(:,IRHOU,IX) + qB(:,IRHOV) * F(:,IRHOU,IY) ) / qB(:,IRHO)
+         F(:,IRHOE,IY) = (qB(:,IRHOU) * F(:,IRHOV,IX) + qB(:,IRHOV) * F(:,IRHOV,IY) ) / qB(:,IRHO)
+
+         end associate
+
+      end function AdiabaticViscousFlux1D
+
+      module pure function AdiabaticViscousFlux2D( N , q , qB , dq ) result ( F )
+         implicit none
+         integer, intent(in)                :: N 
+         real(kind=RP), intent(in)          :: q(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: qB(0:N,0:N,1:NCONS)
+         real(kind=RP), intent(in)          :: dq(0:N,0:N,1:NDIM,1:NCONS)
+         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho(0:N,0:N) , uDivRho(0:N,0:N) , vDivRho(0:N,0:N) , u(0:N,0:N) , v(0:N,0:N) , divV(0:N,0:N)
+
+         invRho  = 1.0_RP / q(:,:,IRHO)
+         u       = q(:,:,IRHOU) * invRho
+         v       = q(:,:,IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
+
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+
+
+         divV = - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU) - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)
+
+         F(:,:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * mu * divV
+         F(:,:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * mu * divV
+
+         F(:,:,IRHOU,IY) = - mu * vDivRho * dq(:,:,IX,IRHO)  &
+                           - mu * uDivRho * dq(:,:,IY,IRHO)  &
+                           + mu * invRho  * dq(:,:,IY,IRHOU) &
+                           + mu * invRho  * dq(:,:,IX,IRHOV) 
+
+
+         F(:,:,IRHOV,IX) = F(:,:,IRHOU,IY)
+
+         F(:,:,IRHOE,IX) = ( qB(:,:,IRHOU) * F(:,:,IRHOU,IX) + qB(:,:,IRHOV) * F(:,:,IRHOU,IY) ) / qB(:,:,IRHO)
+         F(:,:,IRHOE,IY) = ( qB(:,:,IRHOU) * F(:,:,IRHOV,IX) + qB(:,:,IRHOV) * F(:,:,IRHOV,IY) ) / qB(:,:,IRHO) 
+
+         end associate
+
+      end function AdiabaticViscousFlux2D
+
+      module pure function ComputeViscousTensor ( N , Q , dQ ) result ( tau )
          implicit none
          integer,          intent(in)     :: N
-         real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NGRAD)
+         real(kind=RP),    intent(in)     ::  Q(0:N,1:NCONS)
+         real(kind=RP),    intent(in)     :: dQ(0:N,1:NDIM,1:NCONS)
          real(kind=RP)                    :: tau(0:N,1:NDIM,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: invRho(0:N) , uDivRho(0:N) , vDivRho(0:N) , u(0:N) , v(0:N) , divV(0:N) 
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda )
+         invRho  = 1.0_RP / q(:,IRHO)
+         u       = q(:,IRHOU) * invRho
+         v       = q(:,IRHOV) * invRho
+         uDivRho = u * invRho
+         vDivRho = v * invRho
 
-         tau(0:N , IX , IX ) = mu * ( 2.0_RP * dQ(0:N , IX , IGU ) - lambda * ( dQ(0:N,IX,IGU) + dQ(0:N,IY,IGV) ) )
-         tau(0:N , IY , IY ) = mu * ( 2.0_RP * dQ(0:N , IY , IGV ) - lambda * ( dQ(0:N,IX,IGU) + dQ(0:N,IY,IGV) ) )
-         tau(0:N , IX , IY ) = mu * ( dQ(0:N,IY,IGU) + dQ(0:N,IX,IGV) )
-         tau(0:N , IY , IX ) = tau(0:N , IX , IY )
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+
+
+         divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
+   
+         tau(:,IX,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
+         tau(:,IY,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
+
+         tau(:,IX,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
+                         - mu * uDivRho * dq(:,IY,IRHO)  &
+                         + mu * invRho  * dq(:,IY,IRHOU) &
+                         + mu * invRho  * dq(:,IX,IRHOV) 
+
+         tau(:,IY,IX) = tau(:,IX,IY)
 
          end associate
 
       end function ComputeViscousTensor
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 end submodule ViscousFluxes

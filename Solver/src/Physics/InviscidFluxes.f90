@@ -1,6 +1,8 @@
 submodule (PhysicsNS)  InviscidFluxes
    use SMConstants
 
+#include "Defines.h"
+
    contains
 
       module pure function inviscidFlux0D(u) result(val)

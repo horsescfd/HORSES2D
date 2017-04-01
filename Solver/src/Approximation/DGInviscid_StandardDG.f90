@@ -1,6 +1,8 @@
 submodule (DGInviscidMethods)       DGInviscid_StandardDG
    use Physics
 
+#include "Defines.h"
+
    contains
       module subroutine StdDG_ComputeRiemannFluxes_Interior( self , ed , FL , FR )
          use MatrixOperations
@@ -18,11 +20,11 @@ submodule (DGInviscidMethods)       DGInviscid_StandardDG
 
          if ( ed % transform(LEFT) .and. ed % inverse ) then
 !
-!           Transform the LEFT edg
+!           Transform the LEFT edge
 !           -----------------------            
             call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
 !
-!           Invert the RIGHT 
+!           Invert the RIGHT edge 
 !           ---------------------
             QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
 !
@@ -40,7 +42,7 @@ submodule (DGInviscidMethods)       DGInviscid_StandardDG
 !
 !           Invert the RIGHT 
 !           ---------------------
-            FR(0:ed % spA % N , 1:NCONS) = FR(ed % spA % N : 0 : -1 , 1:NCONS) * ed % dS(0)
+            FR(0:ed % spA % N , 1:NCONS) = FR(ed % spA % N : 0 : -1 , 1:NCONS)
 
          elseif ( ed % transform(LEFT) ) then
 !
@@ -93,14 +95,13 @@ submodule (DGInviscidMethods)       DGInviscid_StandardDG
 !
 !           Invert the 
 !           ---------------
-            FR(0:ed % spA % N,1:NCONS) = FR(ed % spA % N:0:-1 , 1:NCONS)
+            FR(0:ed % NLow,1:NCONS) = FR(ed % NLow:0:-1 , 1:NCONS)
 
          elseif ( ed % transform(RIGHT) ) then
 !
 !           Get the LEFT 
 !           -----------------
             QL = ed % storage(LEFT) % Q
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
 !
 !           Transform the RIGHT 
 !           ------------------------

@@ -12,7 +12,7 @@
              self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
              self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
 #ifdef NAVIER_STOKES
-             self % dQ   ( 0:N , 0:N , 1:NDIM , 1:NGRAD ) => storage % dQ   ( (self % address-1)/NCONS*NGRAD*NDIM + 1: ) 
+             self % dQ   ( 0:N , 0:N , 1:NDIM , 1:NCONS ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
 #endif
             end associate
 
@@ -38,7 +38,7 @@
    
             associate( N => self % spA % N )
             
-            do var = 1 , NGRAD
+            do var = 1 , NCONS
 !               call Mat_x_Mat( A = self % spA % D , B = self % W(0:N,0:N,gradVars(var))  , C = dxiQ(0:N,0:N) )
 !               call Mat_x_Mat( A = self % W(0:N,0:N,gradVars(var)) , B = self % spA % DT , C = detaQ(0:N,0:N) )
 print*, "Check this"

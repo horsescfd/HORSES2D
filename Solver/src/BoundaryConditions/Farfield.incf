@@ -96,7 +96,7 @@
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate ( edge % uSB  ( 0:N , NCONS )  ) 
 #endif
                
    
@@ -108,7 +108,7 @@
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate ( edge % uSB  ( 0:N , NCONS )  ) 
 #endif
          end select
          end associate
@@ -174,6 +174,10 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi , 1:NCONS)  = self % q
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, 1:NCONS)  = self % q
+#endif
                   
                      else
 !
@@ -188,7 +192,10 @@
                         edge % uB(iXi , IRHOU) = rhoR * uR
                         edge % uB(iXi , IRHOV) = rhoR * vR
                         edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
-   
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
                      end if
    
                   else
@@ -200,6 +207,9 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
    
                      else
 !
@@ -214,6 +224,9 @@
                         edge % uB(iXi , IRHOU) = rhoR * uR
                         edge % uB(iXi , IRHOV) = rhoR * vR
                         edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
                   
                      end if
                   end if
@@ -243,6 +256,9 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi , 1:NCONS)  = self % q
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
                   
                      else
 !
@@ -257,6 +273,9 @@
                         edge % uB(iXi , IRHOU) = rhoR * uR
                         edge % uB(iXi , IRHOV) = rhoR * vR
                         edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
    
                      end if
    
@@ -269,6 +288,10 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
    
                      else
 !
@@ -283,6 +306,9 @@
                         edge % uB(iXi , IRHOU) = rhoR * uR
                         edge % uB(iXi , IRHOV) = rhoR * vR
                         edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
                   
                      end if
                   end if

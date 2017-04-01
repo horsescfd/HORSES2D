@@ -25,6 +25,7 @@
             class(StraightBdryEdge_t), pointer :: edge2
             integer                          :: coord
             logical                          :: areInverted
+            logical                          :: sameEdges
 !
 !           Gather boundary conditions
 !           --------------------------
@@ -65,7 +66,13 @@
                   end select
 
                   if ( .not. edge2 % associated ) then   ! Look in this edge
-                     if ( almostEqual( edge1 % nodes(LEFT) % n % x(coord) , edge2 % nodes(RIGHT) % n % x(coord) ) ) then
+                     sameEdges = (( almostEqual ( edge1 % nodes(1) % n % x(coord) , edge2 % nodes(1) % n % x(coord) ) .and. &
+                                    almostEqual ( edge1 % nodes(2) % n % x(coord) , edge2 % nodes(2) % n % x(coord) ) ) &
+                                                                  .or.     &
+                                 (  almostEqual ( edge1 % nodes(1) % n % x(coord) , edge2 % nodes(2) % n % x(coord) ) .and. &
+                                    almostEqual ( edge1 % nodes(2) % n % x(coord) , edge2 % nodes(1) % n % x(coord) ) ) )
+
+                     if ( sameEdges ) then
 !                       
 !                       The pairing is found. Steps to perform:
 !                          -> Link edge2 with edge1 
@@ -83,8 +90,12 @@
                         edge1 % uB(0:,1:)    => edge2 % storage(1) % Q(0:,1:)
                         edge2 % uB(0:,1:)    => edge1 % storage(1) % Q(0:,1:)
 #ifdef NAVIER_STOKES
-                        edge1 % gB(0:,1:,1:) => edge2 % storage(1) % dQ(0:,1:,1:)
-                        edge2 % gB(0:,1:,1:) => edge1 % storage(1) % dQ(0:,1:,1:)
+                        edge1 % uSB(0:,1:)   => edge2 % storage(1) % Q(0:,1:)
+                        edge2 % uSB(0:,1:)   => edge1 % storage(1) % Q(0:,1:)
+                        edge1 % gB(0:,1:,1:)   => edge2 % storage(1) % dQ(0:,1:,1:)
+                        edge2 % gB(0:,1:,1:)   => edge1 % storage(1) % dQ(0:,1:,1:)
+                        edge1 % viscousBCType = PERIODIC
+                        edge2 % viscousBCType = PERIODIC
 #endif
 
                      end if
@@ -108,18 +119,7 @@
             end do
 
          end subroutine Zone_UpdateSolution
-#ifdef NAVIER_STOKES
-         subroutine Zone_UpdateGradient( self )
-            implicit none
-            class(Zone_t)           :: self
-            integer                 :: edID
 
-            do edID = 1 , self % no_of_edges
-               call self % BC % UpdateGradient( self % edges(edID) % f )
-            end do
-
-         end subroutine Zone_UpdateGradient
-#endif
          subroutine Zone_Describe( self ) 
             use Headers
             implicit none
@@ -149,10 +149,10 @@
             dotProduct = dot_product( edge1 % dX(IX:IY,0) , edge2 % dX(IX:IY,0) )
 
             if (dotProduct .ge. 0.0_RP) then
-               checkIfAreInverted = .true.
+               checkIfAreInverted = .false.
       
             else
-               checkIfAreInverted = .false.
+               checkIfAreInverted = .true.
 
             end if
 

@@ -110,7 +110,7 @@
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate( edge % uSB(0:N , NCONS) )
 #endif
    
             type is (CurvedBdryEdge_t)
@@ -122,7 +122,7 @@
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate( edge % uSB(0:N , NCONS) )
 #endif
 
          end select
@@ -189,6 +189,10 @@
                         F = inviscidFlux(q)
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,0) + F(1:NCONS , IY) * edge % n(IX,0) ) * edge % dS(0)
                         edge % uB(iXi,1:NCONS) = q
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
 
                      else
 !
@@ -215,6 +219,11 @@
                         F = inviscidFlux( q )
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,0) + F(1:NCONS , IY) * edge % n(IY,0) ) * edge % dS(0)
                         edge % uB(iXi,1:NCONS) = q
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS-1) = q(1:NCONS-1)
+                        edge % uSB(iXi,IRHOE)     = cv * pL + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
     
                      end if
                   
@@ -230,6 +239,10 @@
                         F = inviscidFlux( q )
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,0) + F(1:NCONS , IY) * edge % n(IY,0) ) * edge % dS(0)
                         edge % uB(iXi,1:NCONS) = q
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
 
                      else
 !
@@ -255,8 +268,12 @@
    
                         F = inviscidFlux( q )
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,0) + F(1:NCONS , IY) * edge % n(IY,0) ) * edge % dS(0)
-   
                         edge % uB(iXi,1:NCONS) = q
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS-1) = edge % storage(1) % Q(iXi, 1:NCONS-1)
+                        edge % uSB(iXi,IRHOE)     = cv * pR + 0.5_RP * rhoL * ( uL * uL + vL * vL )
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
 
                      end if
                   end if
@@ -294,6 +311,10 @@
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS , IY) * edge % n(IX,iXi) ) * edge % dS(iXi)
                         edge % uB(iXi,1:NCONS) = q
 
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+#endif
+
                      else
 !
 !                       Subsonic
@@ -319,6 +340,11 @@
                         F = inviscidFlux( q )
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS , IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
                         edge % uB(iXi,1:NCONS) = q
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS-1) = q(1:NCONS-1)
+                        edge % uSB(iXi,IRHOE)     = cv * pL + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR )
+#endif
     
                      end if
                   
@@ -334,6 +360,10 @@
                         F = inviscidFlux( q )
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS , IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
                         edge % uB(iXi,1:NCONS) = q
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+#endif
 
                      else
 !
@@ -359,8 +389,12 @@
    
                         F = inviscidFlux( q )
                         edge % FB(iXi,1:NCONS) = ( F(1:NCONS,IX) * edge % n(IX,iXi) + F(1:NCONS , IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
-   
                         edge % uB(iXi,1:NCONS) = q
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS-1) = edge % storage(1) % Q(iXi, 1:NCONS-1)
+                        edge % uSB(iXi,IRHOE)     = cv * pR + 0.5_RP * rhoL * ( uL * uL + vL * vL )
+#endif
 
                      end if
                   end if

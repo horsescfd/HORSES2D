@@ -2,9 +2,7 @@ module MeshFileClass
     use SMConstants
     use ParamfileIO
 
-
-    integer, parameter           :: POINTS_PER_EDGE = 2
-    integer, parameter           :: POINTS_PER_QUAD = 4
+#include "Defines.h"
 
     integer, parameter           :: STR_LEN_MESH = 128
 

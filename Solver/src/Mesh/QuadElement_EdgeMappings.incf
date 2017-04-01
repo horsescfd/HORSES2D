@@ -17,8 +17,8 @@
             self % dS(0) = norm2(dS)
             self % n(IX:IY,0) = dS / self % dS(0)
    
-            self % dX(IX,0) = n2(iX) - n1(iX)
-            self % dX(IY,0) = n2(iY) - n1(iY)
+            self % dX(IX,0) = n2(IX) - n1(IX)
+            self % dX(IY,0) = n2(IY) - n1(IY)
    
          end associate
       
@@ -107,11 +107,11 @@
       
             end if
       
-            X = self % X(iX:iY,correctediXi)
+            X = self % X(IX:IY,correctediXi)
       
          else 
    
-            X = self % X(iX:iY,iXi)
+            X = self % X(IX:IY,iXi)
    
          end if
    
@@ -259,11 +259,11 @@
       
             end if
       
-            X = self % X(iX:iY,correctediXi)
+            X = self % X(IX:IY,correctediXi)
       
          else 
    
-            X = self % X(iX:iY,iXi)
+            X = self % X(IX:IY,iXi)
    
          end if
    

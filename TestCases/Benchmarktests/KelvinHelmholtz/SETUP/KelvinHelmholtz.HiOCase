@@ -20,16 +20,16 @@
 	
 !------------------------------------: DG Discretization
          		  Interpolation nodes : Legendre-Gauss
-         		  Polynomial order    : 10
+         		  Default polynomial order    : 6
 
 !------------------------------------: Initialization
-         		    Initial condition : User-defined
-	         	    Restart file      : ./RESULTS/KevinHelmholtz.HiORst
+         		    Initial condition : Restart
+	         	    Restart file      : ./RESULTS/KelvinHelmholtz.HiORst
 
 !---------------------------------------------: Inviscid discretization
 	            Inviscid strategy              : Standard
 	            Inviscid formulation           : Form I
-	            Inviscid Riemann Flux          : Roe
+	            Inviscid Riemann Flux          : HLL
 	            ! Number of integration points : 6
 
 !-------------------------------------------: Viscous discretization
@@ -40,7 +40,7 @@
 
 !----------------------------------------: Time integration
                     Integration mode     : Steady
-                    Integration scheme   : Williamson RK3
+                    Integration scheme   : Williamson RK5
                     Time step            : 1.0e-4
                     CFL Number           : 0.1
                     Simulation time      : 1.0
@@ -53,7 +53,7 @@
 		           Output interval   : 10
             Output file type       : Interpolated
    Number of representation points : 10
-		           Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach_Vorticity
+		           Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
 
 !
 !       *************************************
@@ -63,17 +63,15 @@
 
 # define zone 1
 	Name      = Bottom
-	Type      = Periodic
-   Direction = y
-   Marker    = 2
-   Mach      = 0.0
+!	Type      = newDirichlet
+   Type = Euler wall
 # end 
 
 # define zone 2
 	Name      = Top
-	Type      = Periodic
-   Direction = y
-   Marker    = 1
+!	Type      = newDirichlet
+   Type = Euler wall
+!   Angle of attack = 180
 # end 
 
 # define zone 3
@@ -94,5 +92,5 @@
    Name = Inter_v
    x position = 0.5
    y position = 0.0
-   variable = v
+   Variable = v
 # end

@@ -27,18 +27,18 @@
                   associate ( N => e % spA % N ) 
 
                   if ( allocated(variable) ) deallocate (variable)
-                  allocate ( variable(0:e % spA % N , 0 : e % spA % N) )
+                  allocate ( variable(0:N , 0 : e % spA % N) )
 
-!                  variable = self % elements(eID) % W(0:N,0:N,IP) / (self % elements(eID) % W(0:N,0:N,IRHO)) ** ( thermodynamics % gamma ) - 1.0_RP
-!                  variable = variable * variable * e % jac
-!                  val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
+                  variable = getPressure( N , self % elements(eID) % Q ) / ( self % elements(eID) % Q(:,:,IRHO) ** thermodynamics % gamma ) - 1.0_RP
+                  variable = variable * variable * e % jac
+                  val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
 
                   end associate
                   end associate
                end do
    
-!               val = sqrt(val)
-      
+               val = sqrt(val)      
+
             end if
                
          end function Compute_volumeIntegral
@@ -83,9 +83,23 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-!                     variable => f % storage(1) % w(0:N , IP )
-!                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+                     allocate ( variable (0:N) )
 
+                     variable = getPressure( N , f % storage(1) % Q )
+
+                     select type ( f )
+                        type is (Edge_t)
+                           val = val + dot_product(variable * f % dS(0) , f % spA % w)
+                  
+                        type is (StraightBdryEdge_t) 
+                           val = val + dot_product(variable * f % dS(0) , f % spA % w)
+
+                        type is (CurvedBdryEdge_t)
+                           val = val + dot_product(variable * f % dS , f % spA % w)
+
+                     end select
+
+                     deallocate( variable )
                      end associate
                      end associate
                   end do
@@ -96,8 +110,21 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-!                     variable => f % storage(1) % w(0:N , IP )
-!                     val = val + dot_product(variable * norm2(f % dS , dim = 1) , f % spA % w)
+                     variable => f % storage(1) % Q(0:N , IRHO )
+
+                     select type ( f )
+                        type is (Edge_t)
+                           val = val + dot_product(variable * f % dS(0) , f % spA % w)
+                  
+                        type is (StraightBdryEdge_t) 
+                           val = val + dot_product(variable * f % dS(0) , f % spA % w)
+
+                        type is (CurvedBdryEdge_t)
+                           val = val + dot_product(variable * f % dS , f % spA % w)
+
+                     end select
+
+                     variable => NULL()
 
                      end associate
                      end associate
@@ -117,6 +144,7 @@
             real(kind=RP)                 :: val(1:NDIM)
 !           --------------------------------------------------------------
             integer                       :: edID , j
+            real(kind=RP)                 :: Q(1:NCONS)
 
             val = 0.0_RP
 
@@ -128,10 +156,28 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-!                     do j = 0 , N
-!                        val(IX:IY) = val(IX:IY) + f % storage(1) % W(j,IP) * f % spA % w(j) * f % dS(IX:IY,j)
-!                     end do
+                     select type ( f )
 
+                        type is (Edge_t)
+                           do j = 0 , N
+                              Q = f % storage(1) % Q(j,:)
+                              val(IX:IY) = val(IX:IY) + getPressure( Q ) * f % spA % w(j) * f % n(IX:IY,0) * f % dS(0)
+                           end do
+
+                        type is (StraightBdryEdge_t)
+                           do j = 0 , N
+                              Q = f % storage(1) % Q(j,:)
+                              val(IX:IY) = val(IX:IY) + getPressure( Q ) * f % spA % w(j) * f % n(IX:IY,0) * f % dS(0)
+                           end do
+
+                        type is (CurvedBdryEdge_t)
+                           do j = 0 , N
+                              Q = f % storage(1) % Q(j,:)
+                              val(IX:IY) = val(IX:IY) + getPressure( Q ) * f % spA % w(j) * f % n(IX:IY,j) * f % dS(j) 
+                           end do
+
+
+                     end select 
                      end associate
                      end associate
                   end do
@@ -161,7 +207,17 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-!                     val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % dS(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % dS(IY,0:N) ) )
+                     select type ( f )
+                        type is (Edge_t)
+                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) )
+
+                        type is (StraightBdryEdge_t)
+                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) )
+
+                        type is (CurvedBdryEdge_t)
+                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0:N) ) * f % dS(0:N) )
+
+                     end select
 
                      end associate
                      end associate
@@ -173,8 +229,19 @@
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
 
-!                     val = val + dot_product ( f % spA % w , ( f % storage(1) % W(0:N,IU) * f % dS(IX,0:N) + f % storage(1) % W(0:N,IV) * f % dS(IY,0:N) ) )
+                     select type ( f )
+                        type is (Edge_t)
+                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) / f % storage(1) % Q(0:N,IRHO) )
 
+                        type is (StraightBdryEdge_t)
+                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) / f % storage(1) % Q(0:N,IRHO) )
+
+                        type is (CurvedBdryEdge_t)
+                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0:N) ) * f % dS(0:N) / f % storage(1) % Q(0:N,IRHO) )
+
+                     end select
+
+ 
                      end associate
                      end associate
                   end do
@@ -193,35 +260,53 @@
             real(kind=RP)                 :: val(NDIM)
 !           --------------------------------------------------------------
             real(kind=RP), allocatable    :: tau(:,:,:)
-            real(kind=RP), pointer        :: dQ(:,:,:)
+            real(kind=RP), pointer        :: dQ(:,:,:) , Q(:,:)
             integer                       :: edID , j 
 
             val = 0.0_RP
 
             select case ( trim(var) ) 
    
+#ifdef NAVIER_STOKES
                case ( "viscous" )
                
                   do edID = 1 , self % zones(zone) % no_of_edges
                      associate ( f => self % zones(zone) % edges(edID) % f )
                      associate ( N => f % spA % N )
                      allocate ( tau(0:N , 1:NDIM , 1:NDIM ) )
-#ifdef NAVIER_STOKES
-!                     dQ => f % storage(1) % dQ ( 0:N,1:NDIM,1:NGRAD ) 
-#endif
-!                     tau = ComputeViscousTensor( N , dQ )
 
-                     do j = 0 , N
-!                        val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % dS(IX,j) + tau(j,IX,IY) * f % dS(IY,j) )
-!                        val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % dS(IX,j) + tau(j,IY,IY) * f % dS(IY,j) )
-                     end do
+                     dQ => f % storage(1) % dQ ( 0:N,1:NDIM,1:NCONS ) 
+                     Q  => f % storage(1) % Q  ( 0:N,1:NCONS)
+                     tau = ComputeViscousTensor( N , Q , dQ )
+
+                     select type ( f )
+   
+                        type is (Edge_t)
+                           do j = 0 , N
+                              val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % n(IX,0) + tau(j,IX,IY) * f % n(IY,0) ) * f % dS(0)
+                              val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % n(IX,0) + tau(j,IY,IY) * f % n(IY,0) ) * f % dS(0)
+                           end do
+
+                        type is (StraightBdryEdge_t)
+                           do j = 0 , N
+                              val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % n(IX,0) + tau(j,IX,IY) * f % n(IY,0) ) * f % dS(0)
+                              val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % n(IX,0) + tau(j,IY,IY) * f % n(IY,0) ) * f % dS(0)
+                           end do
+
+                        type is (CurvedBdryEdge_t)
+                           do j = 0 , N
+                              val(IX) = val(IX) + f % spA % w(j) * ( tau(j,IX,IX) * f % n(IX,j) + tau(j,IX,IY) * f % n(IY,j) ) * f % dS(j)
+                              val(IY) = val(IY) + f % spA % w(j) * ( tau(j,IY,IX) * f % n(IX,j) + tau(j,IY,IY) * f % n(IY,j) ) * f % dS(j)
+                           end do
+
+                     end select
 
                      deallocate( tau )
 
                      end associate
                      end associate
                   end do
-
+#endif
             end select
 
          end function Compute_TensorVectorSurfaceIntegral

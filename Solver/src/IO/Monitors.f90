@@ -11,6 +11,8 @@ module MonitorsClass
    use QuadMeshClass
    implicit none
 !
+#include "Defines.h"
+
    private
    public      Monitor_t , ConstructMonitors
 !

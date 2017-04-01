@@ -29,7 +29,7 @@
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy     : Standard
 	            Inviscid formulation  : Form I
-	            Inviscid Riemann Flux : Exact
+	            Inviscid Riemann Flux : HLL
 
 !------------------------------------: Viscous discretization
                      Viscous strategy: BR1
@@ -39,11 +39,11 @@
 
 !-----------------------------------: Time integration
                Integration mode     : Steady
-               Integration scheme   : Williamson RK3
+               Integration scheme   : Williamson RK5
                Time step            : 1.0e-2
                CFL Number           : 0.1
                Simulation time      : 1.0
-               Number of iterations : 250
+               Number of iterations : 25000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
@@ -52,7 +52,7 @@
                     Output interval: 10
 		Output file type: Interpolated
 	Number of representation points: 10
-                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+                     Save variables: rho_rhou_rhov_rhoe_u_v_p_Mach_vort
 
 !
 !            **********************************
@@ -61,22 +61,24 @@
 !
 
 # define p-Refinement
-	1: 2
-	2: 10
-	3: 8
-	4: 4
+	1: 3
+	2: 3
+	3: 3
+	4: 3
 # end
 
 
 # define zone 1
 	Name = Symmetry
-	Type = Euler wall
+!	Type = newDirichlet
+   Type = Dirichlet
    Riemann solver = Exact
 # end 
 
 # define zone 2
 	Name = Symmetry
-	Type = Euler wall
+!	Type = Euler wall
+   Type = Dirichlet
    Riemann solver = Exact
 # end 
 
@@ -84,7 +86,6 @@
 	Name = Inflow
    Type = Dirichlet
    Riemann solver = Exact
-!   Mach = 0.1
 # end
 
 # define zone 4
@@ -96,6 +97,7 @@
 
 # define zone 5
 	Name = Wall
+!   Type = Dirichlet
    Type = Viscous wall
    Wall type = Adiabatic
    Riemann solver = Exact

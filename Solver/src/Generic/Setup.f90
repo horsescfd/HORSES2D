@@ -3,6 +3,8 @@ module Setup_class
     use ParamfileIO
     implicit none
 
+#include "Defines.h"
+
     private
     public  :: setup
   
@@ -165,9 +167,9 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Inviscid formulation" , inviscid_form ) 
       
           if ( trim(inviscid_form) .eq. "Form I" ) then
-            Setup % inviscid_formulation = FormI
+            Setup % inviscid_formulation = FORMI
           elseif ( trim(inviscid_form) .eq. "Form II" ) then
-            Setup % inviscid_formulation = FormII
+            Setup % inviscid_formulation = FORMII
           end if
 
           call readValue ( trim ( case_name )  , "Inviscid Riemann Flux"        , Setup % inviscid_flux          ) 

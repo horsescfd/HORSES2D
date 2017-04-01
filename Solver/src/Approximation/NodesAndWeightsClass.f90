@@ -3,6 +3,9 @@ module nodesAndWeights_class
     use SMConstants
     use InterpolationAndDerivatives
     use LegendreAlgorithms
+    implicit none
+
+#include "Defines.h" 
 
     private
     public NodalStorage , newNodalStorage

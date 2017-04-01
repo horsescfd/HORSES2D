@@ -93,7 +93,7 @@
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate( edge % uSB(0:N,1:NCONS) )
 #endif
 
             type is (CurvedBdryEdge_t)
@@ -105,7 +105,7 @@
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate( edge % uSB(0:N,1:NCONS) )
 #endif
 
         end select
@@ -124,18 +124,6 @@
          real(kind=RP)            :: a , b , c , rhostar
          real(kind=RP)            :: Rplus
          real(kind=RP)            :: q(NCONS) , F(NCONS,NDIM)
-!
-!        *********************************************************************
-!           This routine computes the "Right" state of a InflowOutflow boundary
-!          condition. Once this is done, the Riemann flux is computed
-!          from the computed state, and the real boundary state. This
-!          ficticial state is computed by means of the characteristics method
-!          which yields in four cases:
-!              * Supersonic inflow (Four entering characteristics)
-!              * Subsonic inflow (Three entering characteristics)
-!              * Subsonic outflow (One entering characteristics)
-!              * Supersonic outflow (All characteristics leave the domain)
-!        *********************************************************************
 !
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp , cv => Dimensionless % cv)
 
@@ -170,6 +158,11 @@
 !                       ----------
                         q = self % q
                         F = inviscidflux( q )
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
       
                      else
 !  
@@ -194,6 +187,13 @@
    
                         F = InviscidFlux( q )
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, IRHO ) = rhoR
+                        edge % uSB(iXi, IRHOU) = rhoR * uR
+                        edge % uSB(iXi, IRHOV) = rhoR * vR
+                        edge % uSB(iXi, IRHOE) = cv * pL + 0.5_RP * rhoR * ( uR * uR + vR * vR ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
    
                      end if
     
@@ -208,6 +208,10 @@
                         q = edge % storage(1) % Q(iXi, 1:NCONS)
                         F = inviscidFlux(q)
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, : ) = q
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
 
                      else
 !
@@ -216,10 +220,17 @@
                         q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
                         q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
                         q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) -  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
+                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
 
                         F = inviscidFlux(q)
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi , IRHO ) = q(IRHO)
+                        edge % uSB(iXi , IRHOU) = q(IRHOU)
+                        edge % uSB(iXi , IRHOV) = q(IRHOV)
+                        edge % uSB(iXi , IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
                      end if
                   end if
 
@@ -253,6 +264,12 @@
 !                       ----------
                         q = self % q
                         F = inviscidflux( q )
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
       
                      else
 !  
@@ -277,6 +294,14 @@
    
                         F = InviscidFlux( q )
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, IRHO ) = rhoR
+                        edge % uSB(iXi, IRHOU) = rhoR * uR
+                        edge % uSB(iXi, IRHOV) = rhoR * vR
+                        edge % uSB(iXi, IRHOE) = cv * pL + 0.5_RP * rhoR * ( uR * uR + vR * vR ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
             
                      end if
     
@@ -292,6 +317,11 @@
                         F = inviscidFlux(q)
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
 
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, : ) = q
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
+
                      else
 !
 !                       Subsonic
@@ -303,6 +333,14 @@
 
                         F = inviscidFlux(q)
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi , IRHO ) = q(IRHO)
+                        edge % uSB(iXi , IRHOU) = q(IRHOU)
+                        edge % uSB(iXi , IRHOV) = q(IRHOV)
+                        edge % uSB(iXi , IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
                      end if
                   end if
 

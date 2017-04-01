@@ -4,6 +4,8 @@ module DGTimeIntegrator
    use QuadMeshClass
    use MonitorsClass
 !
+#include "Defines.h"
+
    private
    public TimeIntegrator_t , NewTimeIntegrator
 !

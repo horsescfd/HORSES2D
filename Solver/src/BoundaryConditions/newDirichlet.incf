@@ -120,9 +120,6 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-#ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
-#endif
 
             type is (CurvedBdryEdge_t)
                allocate ( edge % FB ( 0:N , 1:NCONS ) )
@@ -131,10 +128,6 @@
                edge % BCWeakType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
-
-#ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
-#endif
 
         end select
         end associate
@@ -196,6 +189,9 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi,:) = self % q
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
       
                      else
 !  
@@ -224,6 +220,9 @@
                            edge % uB(iXi,IRHOE) = cv * pR + 0.5_RP * rhoR * aR * aR * MR * MR
 
                         end if
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
    
                      end if
     
@@ -236,6 +235,9 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi,:) = edge % storage(1) % Q(iXi, 1:NCONS)
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
 
                      else
 !
@@ -252,11 +254,18 @@
                            edge % uB(iXi,IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( edge % uB(iXi,IRHOU) * uL + edge % uB(iXi,IRHOV) * vL )
 
                         end if
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
 
                      end if
                   end if
 
                end do 
+
+#ifdef NAVIER_STOKES
+               edge % uSB(0:,1:) => edge % uB(0:,1:)
+#endif
 
             type is (CurvedBdryEdge_t) 
                do ixi = 0 , N
@@ -284,6 +293,9 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi,:) = self % q
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
       
                      else
 !  
@@ -308,6 +320,9 @@
                            edge % uB(iXi,IRHOE) = cv * pR + 0.5_RP * rhoR * aR * aR * MR * MR
 
                         end if
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
    
                      end if
     
@@ -320,6 +335,9 @@
 !                       Supersonic
 !                       ----------
                         edge % uB(iXi,:) = edge % storage(1) % Q(iXi, 1:NCONS)
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
 
                      else
 !
@@ -336,15 +354,23 @@
                            edge % uB(iXi,IRHOE) = cv * (2.0_RP * self % pt - pL) -  0.5_RP * ( edge % uB(iXi,IRHOU) * uL + edge % uB(iXi,IRHOV) * vL )
 
                         end if
+#ifdef NAVIER_STOKES
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
 
                      end if
                   end if
 
                end do 
 
+#ifdef NAVIER_STOKES
+               edge % uSB(0:,1:) => edge % uB(0:,1:)
+#endif
+
             class default
          end select
 
          end associate
+
 
       end subroutine newDirichletBC_UpdateSolution

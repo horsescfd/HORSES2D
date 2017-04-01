@@ -4,8 +4,9 @@ module QuadElementClass
     use NodeClass
     use NodesAndWeights_class
     use Storage_module
-    use QuadMeshDefinitions
     implicit none
+
+#include "Defines.h"
 
     private
     public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
@@ -83,11 +84,11 @@ module QuadElementClass
 !
     type Edge_t
         integer                             :: ID                         ! Edge ID
-        integer                             :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
+        integer(kind=1)                     :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
         logical                             :: inverse                    ! Whether both edge projections are in the same or different direction
         logical                             :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree 
-        integer                             :: Nlow                       ! Lower polynomial degree
-        integer,                    pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        integer(kind=1)                     :: Nlow                       ! Lower polynomial degree
+        integer(kind=1),            pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
         real(kind=RP)                       :: Area                       ! Area of the edge
         real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
         real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
@@ -112,24 +113,28 @@ module QuadElementClass
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
-        integer                           :: BCWeakType
+        integer(kind=1)                   :: BCWeakType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
-        real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
-        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
+        real(kind=RP), pointer            :: uB(:,:)  => NULL()      ! Solution at the boundary (used by the inviscid Riemann solver)
+        real(kind=RP), pointer            :: FB(:,:)  => NULL()      ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
 #ifdef NAVIER_STOKES
-        real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
+        integer(kind=1), allocatable      :: viscousBCType(:)
+        real(kind=RP), pointer            :: uSB(:,:)  => NULL()     ! Solution at the boundary (used by the solution Riemann solver)
+        real(kind=RP), pointer            :: gB(:,:,:) => NULL()     ! Solution gradient at the boundary
 #endif
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
-        integer                           :: BCWeakType
+        integer(kind=1)                   :: BCWeakType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
-        real(kind=RP), pointer            :: uB(:,:)   => NULL()         ! Solution at the boundary (used by the Riemann solver)
-        real(kind=RP), pointer            :: FB(:,:)   => NULL()           ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
+        real(kind=RP), pointer            :: uB(:,:)  => NULL()     ! Solution at the boundary (used by the Riemann solver)
+        real(kind=RP), pointer            :: FB(:,:)  => NULL()     ! Fluxes at the boundary (used for weak-prescribed type boundary conditions)
 #ifdef NAVIER_STOKES
-        real(kind=RP), pointer            :: gB(:,:,:) => NULL()         ! Solution gradient at the boundary
+        integer(kind=1), allocatable      :: viscousBCType(:)
+        real(kind=RP), pointer            :: uSB(:,:)  => NULL()    ! Solution at the boundary (used by the viscous solver)
+        real(kind=RP), pointer            :: gB(:,:,:) => NULL()    ! Solution gradient at the boundary
 #endif
         contains
             procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
@@ -318,11 +323,17 @@ module QuadElementClass
                   allocate ( self % f % dX ( NDIM , 0:0 )  ) 
                   allocate ( self % f % dS (        0:0 )  ) 
                   allocate ( self % f % n  ( NDIM , 0:0 )  ) 
+#ifdef NAVIER_STOKES
+                  allocate ( f % viscousBCType( 0 : self % f % spA % N ) )
+#endif
 
                type is (CurvedBdryEdge_t)
                   allocate ( self % f % dX ( NDIM , 0 : self % f % spA % N )  )
                   allocate ( self % f % dS (        0 : self % f % spA % N )  )
                   allocate ( self % f % n  ( NDIM , 0 : self % f % spA % N )  )
+#ifdef NAVIER_STOKES
+                  allocate ( f % viscousBCType( 0 : self % f % spA % N ) )
+#endif
 
             end select
 

@@ -1,3 +1,5 @@
+#include "Defines.h"
+
 program main
     use SMConstants
     use MeshFileClass
@@ -14,11 +16,12 @@ program main
     integer                :: eID , edID
    real(kind=RP)  :: tstart , tend
 
-!   =====================
-!   The REAL main program
-!   =====================
-!
-    call Main_Header("High-order discontinuous Galerkin CFD 2D Solver")
+#ifdef NAVIER_STOKES
+    call Main_Header("Compressible Navier-Stokes equations high-order discontinuous Galerkin CFD 2D Solver")
+#else
+    call Main_Header("Compressible Euler equations high-order discontinuous Galerkin CFD 2D Solver")
+#endif
+
 
     call setup % Initialization()
 
@@ -38,6 +41,7 @@ program main
     sem = DGSEM_Initialize()
     call sem % construct(meshFile)
     call ExportMeshToTecplot( sem % mesh , Setup % mesh_file )       ! This one should be inside DGSEM or Mesh
+
 !   
 !   ***********************************************
 !   Set the initial condition to all flow variables
@@ -47,8 +51,6 @@ program main
     call ExportToTecplot( sem % mesh , './RESULTS/InitialCondition.plt')      ! This one should be inside DGSEM or Mesh
 
     call checks( sem )           ! This one should be inside DGSEM
-
-
 
 call cpu_time(tstart)
     call sem % Integrate()

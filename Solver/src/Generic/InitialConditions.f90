@@ -2,10 +2,12 @@ module InitialConditions
    use SMConstants
    use Physics
    implicit none
+
+#include "Defines.h"
 !
 !  *******
    private
-   public ICFcn , InitialCondition , InitialCondition_Describe
+   public ICFcn , getInitialCondition , InitialCondition_Describe
 !  *******
 !
 
@@ -46,7 +48,7 @@ module InitialConditions
 !  ========   
 !
 
-      subroutine InitialCondition( fcn , which )
+      subroutine getInitialCondition( fcn , which )
          use SMConstants
          use Setup_class
          implicit none
@@ -169,7 +171,7 @@ module InitialConditions
 !
 
 
-      end subroutine InitialCondition
+      end subroutine getInitialCondition
             
       function UniformInitialCondition(x , argin ) result(val)
 !        ***************************************************************
@@ -275,10 +277,10 @@ module InitialConditions
 
          associate ( gamma => Thermodynamics % Gamma , Mach => Dimensionless % Mach , cv => Dimensionless % cv )
 
-         r2 = ((x(iX) - XC)*(x(iX) - XC) + (x(iY) - YC)*(x(iY) - YC)) / (R*R)
+         r2 = ((x(IX) - XC)*(x(IX) - XC) + (x(IY) - YC)*(x(IY) - YC)) / (R*R)
       
-         u = sqrt(gamma) * Mach * (cos(AngleOfAttack) - Beta * (x(iY) - YC) / R * exp(-0.5_RP * r2))
-         v = sqrt(gamma) * Mach * (sin(AngleOfAttack) + Beta * (x(iX) - XC) / R * exp(-0.5_RP * r2))
+         u = sqrt(gamma) * Mach * (cos(AngleOfAttack) - Beta * (x(IY) - YC) / R * exp(-0.5_RP * r2))
+         v = sqrt(gamma) * Mach * (sin(AngleOfAttack) + Beta * (x(IX) - XC) / R * exp(-0.5_RP * r2))
          T = 1.0_RP - gamma * Mach * Mach * beta * beta / (2.0_RP * Dimensionless % cp) * exp(-r2)
          rho = T**( Thermodynamics % invgm1 ) 
 
@@ -440,7 +442,7 @@ module InitialConditions
 
          associate ( gamma => Thermodynamics % Gamma  , Mach => Dimensionless % Mach ) 
          val(IRHO) = 1.0_RP
-         val(IRHOU) = sqrt(gamma) * Mach * ( 1.0_RP + 0.05_RP * sin(2.0_RP * pi * x(1) ) ) 
+         val(IRHOU) = sqrt(gamma) * Mach * ( 1.0_RP + 0.05_RP * sin(2.0_RP * PI * x(1) ) ) 
          val(IRHOV) = 0.0_RP
          val(IRHOE) = Dimensionless % cv + 0.5_RP * 1.0_RP * ( val(IRHOU)**2.0_RP )
          end associate

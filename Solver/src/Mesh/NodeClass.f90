@@ -3,6 +3,7 @@ module nodeClass
      use Physics
      implicit none
 
+#include "Defines.h"
      private
      public Node_t , Node_p
 

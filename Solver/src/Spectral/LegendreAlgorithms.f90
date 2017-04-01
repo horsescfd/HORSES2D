@@ -18,6 +18,8 @@
       MODULE LegendreAlgorithms
       USE SMConstants
       IMPLICIT NONE
+
+#include "Defines.h"
       
       PUBLIC  :: GaussLegendreNodesAndWeights
       PRIVATE :: LegendrePolyAndDerivative

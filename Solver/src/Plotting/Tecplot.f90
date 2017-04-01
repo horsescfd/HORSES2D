@@ -1,6 +1,8 @@
 module Tecplot
    use SMConstants
 
+#include "Defines.h"
+
    private
    public         :: ExportToTecplot , ExportMeshToTecplot
 
@@ -229,6 +231,7 @@ module Tecplot
          real(kind=RP), pointer  :: rho (:,:) , rhou (:,:) , rhov (:,:) , rhoe (:,:)
          real(kind=RP), pointer  :: rhot(:,:) , rhout(:,:) , rhovt(:,:) , rhoet(:,:)
 #ifdef NAVIER_STOKES
+         real(kind=RP), target   :: du(0:mesh % elements(eID) % spA % N , 0:mesh % elements(eID) % spA % N , 1:NDIM , 1:NDIM)
          real(kind=RP), pointer  :: ux(:,:) , uy(:,:) , vx(:,:) , vy(:,:)
 #endif
          integer                 :: iXi , iEta
@@ -254,16 +257,19 @@ module Tecplot
          rhovt(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
          rhoet(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
 #ifdef NAVIER_STOKES
-         ux(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGU)
-         uy(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGU)
-         vx(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGV)
-         vy(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGV)
+   if ( self % no_of_variables .ne. 0 ) then
+         du = getStrainTensor( N , mesh % elements(eID) % Q , mesh % elements(eID) % dQ )
+         ux(0:,0:) => du(0:,0:,IX,IX)
+         uy(0:,0:) => du(0:,0:,IY,IX)
+         vx(0:,0:) => du(0:,0:,IX,IY)
+         vy(0:,0:) => du(0:,0:,IY,IY)
+   end if
 #endif
 
 
          do iEta = 0 , N
             do iXi = 0 , N
-               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
+               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)',advance="no") mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
                                                                               , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
                                                                               , 0.0_RP  
 !
@@ -273,50 +279,50 @@ module Tecplot
 
                   select case ( trim( self % variables(var) ) )
                      case ("rho")
-                        write(self % fID,'(1X,E16.10)',advance="no") rho(iXi,iEta) * refValues % rho
+                        write(self % fID,'(1X,ES17.10)',advance="no") rho(iXi,iEta) * refValues % rho
 
                      case ("rhou")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhov")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhoe")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
 
                      case ("rhot")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
 
                      case ("rhout")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhovt")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhoet")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
 
                      case ("u")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
 
                      case ("v")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
    
                      case ("p")
                         Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-                        write(self % fID,'(1X,E16.10)',advance="no") getPressure( Q ) * refValues % p
+                        write(self % fID,'(1X,ES17.10)',advance="no") getPressure( Q ) * refValues % p
       
                      case ("Mach")
                         Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
+                        write(self % fID,'(1X,ES17.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
 
                      case ("s")
-                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
+                        write(self % fID,'(1X,ES17.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
                                                   0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
                                                     / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
 #ifdef NAVIER_STOKES
-                     case ("Vorticity")
-                        write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
+                     case ("vort")
+                        write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
 #endif
 
                   end select                        
@@ -358,8 +364,11 @@ module Tecplot
          real(kind=RP), pointer     :: rho    (:,:) ,  rhou    (:,:) ,  rhov    (:,:) ,  rhoe    (:,:) 
          real(kind=RP), pointer     :: rhot   (:,:) ,  rhout   (:,:) ,  rhovt   (:,:) ,  rhoet   (:,:) 
 #ifdef NAVIER_STOKES
+         real(kind=RP), target      :: du(0:mesh % elements(eID) % spA % N , 0:mesh % elements(eID) % spA % N , 1:NDIM , 1:NDIM)
          real(kind=RP), pointer     :: uxDG   (:,:) ,  uyDG    (:,:) ,  vxDG    (:,:) ,  vyDG    (:,:)
+         real(kind=RP), pointer     :: rhoxDG (:,:) ,  rhoyDG  (:,:) ,  rhoexDG (:,:) ,  rhoeyDG (:,:)
          real(kind=RP), pointer     :: ux     (:,:) ,  uy      (:,:) ,  vx      (:,:) ,  vy      (:,:)
+         real(kind=RP), pointer     :: rhox   (:,:) ,  rhoy    (:,:) ,  rhoex   (:,:) ,  rhoey   (:,:)
 #endif
          real(kind=RP), allocatable :: xi(:) , T(:,:) , x(:)
          integer                    :: iXi , iEta
@@ -395,11 +404,15 @@ module Tecplot
          rhoutDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
          rhovtDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
          rhoetDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
+
 #ifdef NAVIER_STOKES
-         uxDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGU)
-         uyDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGU)
-         vxDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IX,IGV)
-         vyDG(0:,0:)    => mesh % elements(eID) % dQ(0:,0:,IY,IGV)
+      if ( self % no_of_variables .ne. 0 ) then
+         du = getStrainTensor( N , mesh % elements(eID) % Q , mesh % elements(eID) % dQ )
+         uxDG(0:,0:) => du(0:,0:,IX,IX)
+         uyDG(0:,0:) => du(0:,0:,IY,IX)
+         vxDG(0:,0:) => du(0:,0:,IX,IY)
+         vyDG(0:,0:) => du(0:,0:,IY,IY)
+      end if
 #endif
 !
 !        Obtain the interpolation to a new set of equispaced points
@@ -408,6 +421,7 @@ module Tecplot
          allocate  (  rhot(0:Nout , 0:Nout) , rhout(0:Nout , 0:Nout) , rhovt(0:Nout , 0:Nout) , rhoet(0:Nout , 0:Nout) )
 #ifdef NAVIER_STOKES
          allocate  (  ux(0:Nout , 0:Nout) , uy(0:Nout , 0:Nout) , vx(0:Nout , 0:Nout) , vy(0:Nout,0:Nout) )
+         allocate  (  rhox(0:Nout , 0:Nout) , rhoy(0:Nout , 0:Nout) , rhoex(0:Nout , 0:Nout) , rhoey(0:Nout,0:Nout) )
 #endif
          call TripleMatrixProduct ( T , rhoDG   , T , rho   , trC = .true. ) 
          call TripleMatrixProduct ( T , rhouDG  , T , rhou  , trC = .true. ) 
@@ -428,7 +442,7 @@ module Tecplot
             do iXi = 0 , Nout
 
                x = mesh % elements(eID) % compute_X ( xi(iXi) , xi(iEta) )
-               write( self % fID , '(E16.10,1X,E16.10,1X,E16.10)',advance="no") x(IX)  * RefValues % L &
+               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)',advance="no") x(IX)  * RefValues % L &
                                                                               , x(IY) * RefValues % L &
                                                                               , 0.0_RP  
 !
@@ -438,50 +452,62 @@ module Tecplot
 
                   select case ( trim( self % variables(var) ) )
                      case ("rho")
-                        write(self % fID,'(1X,E16.10)',advance="no") rho(iXi,iEta) * refValues % rho
+                        write(self % fID,'(1X,ES17.10)',advance="no") rho(iXi,iEta) * refValues % rho
 
                      case ("rhou")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhov")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhoe")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
 
                      case ("rhot")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
 
                      case ("rhout")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhovt")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhoet")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
 
                      case ("u")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
 
                      case ("v")
-                        write(self % fID,'(1X,E16.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
    
                      case ("p")
                         Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-                        write(self % fID,'(1X,E16.10)',advance="no") getPressure( Q ) * refValues % p
+                        write(self % fID,'(1X,ES17.10)',advance="no") getPressure( Q ) * refValues % p
       
                      case ("Mach")
                         Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-                        write(self % fID,'(1X,E16.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
+                        write(self % fID,'(1X,ES17.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
 
                      case ("s")
-                        write(self % fID,'(1X,E16.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
+                        write(self % fID,'(1X,ES17.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
                                                   0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
                                                     / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
 #ifdef NAVIER_STOKES
-                     case ("Vorticity")
-                        write(self % fID,'(1X,E16.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
+                      case ( "ux" ) 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
+
+                      case ( "uy" ) 
+                        write(self % fID,'(1X,ES17.10)',advance="no") uy(iXi,iEta) * refValues % a
+   
+                      case ( "vx" ) 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
+
+                      case ( "vy" )
+                        write(self % fID,'(1X,ES17.10)',advance="no") vy(iXi,iEta) * refValues % a
+
+                     case ("vort")
+                        write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
 #endif
 
                   end select                        
@@ -508,7 +534,6 @@ module Tecplot
       end subroutine Tecplot_InterpolatedZone
 
       function pointPosition(iXi , iEta , N) result( val )
-         use QuadMeshDefinitions
          implicit none
          integer        :: iXi
          integer        :: iEta

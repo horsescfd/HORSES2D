@@ -2,6 +2,8 @@ MODULE Headers
    use SMConstants
    implicit none
 
+#include "Defines.h"
+
         INTEGER,        SAVE     :: iter
         INTEGER,        SAVE     :: loop_size
         INTEGER,        SAVE     :: no_of_points
@@ -22,6 +24,7 @@ MODULE Headers
                 CHARACTER(LEN = siz)    :: ast1,ast2,astTitle,astGroup
                 CHARACTER(LEN = siz)    :: compilationDate
                 CHARACTER(LEN = siz)    :: astCompilation
+                CHARACTER(LEN = siz)    :: astBox
                 INTEGER                 :: i
 
                 ast1 = ''
@@ -43,19 +46,30 @@ MODULE Headers
                 astGroup(siz:siz) = '#'
                 
                 write(compilationDate,'(A,A,A,A)') "Compiled at ",__DATE__ , ", ",  __TIME__
-                do i = 2 , siz-2
+                do i = 2 , siz-3
                   astCompilation(i:i) = ","
                 end do
                 astCompilation(1:1) = '#'
-                astCompilation(siz-2-len_trim(compilationDate) : siz-2) = TRIM(compilationDate)
+                astCompilation(siz-4-len_trim(compilationDate) : siz-2) = "| " // TRIM(compilationDate)
                 astCompilation(siz-1:siz) = " #"
+                do i = 1 , siz
+                  astBox(i:i) = ","
+                end do
+
+                do i = siz-4-len_trim(compilationDate) , siz-1
+                  astBox(i:i) = "-"
+                end do
+
+                astBox(1:1) = "#"
+                astBox(siz:siz) = "#"
                 WRITE(*,'(A)') ast1
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') astTitle
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') astGroup
-                include './header.incf'
+#include "./header.incf"
+                WRITE(*,'(A)') astBox
                 WRITE(*,'(A)') astCompilation
                 WRITE(*,'(A)') ast1
 

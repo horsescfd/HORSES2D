@@ -10,7 +10,10 @@ module DGBoundaryConditions
    use Physics
    use QuadElementClass
    use ParamfileIO
+   use InitialConditions
    implicit none
+
+#include "Defines.h"
 
    private
    public BoundaryCondition_t , Construct
@@ -47,9 +50,6 @@ module DGBoundaryConditions
          procedure :: Associate        => BaseClass_Associate
          procedure :: UpdateSolution   => BaseClass_UpdateSolution
          procedure :: Describe         => BaseClass_Describe
-#ifdef NAVIER_STOKES
-         procedure :: UpdateGradient   => BaseClass_UpdateGradient
-#endif
    end type BoundaryCondition_t
 !
 !  *********************************
@@ -72,10 +72,15 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: DirichletBC_t
       real(kind=RP), dimension(NCONS)       :: q
+      real(kind=RP)                         :: p
+      procedure(ICFcn), pointer, nopass     :: IC => NULL()
       contains
          procedure ::      Construct => DirichletBC_Construct
          procedure ::      Associate => DirichletBC_Associate
          procedure ::      Describe  => DirichletBC_Describe
+#ifdef NAVIER_STOKES
+         procedure :: UpdateSolution => DirichletBC_UpdateSolution
+#endif
    end type DirichletBC_t
 !
 !  *********************************
@@ -178,9 +183,6 @@ module DGBoundaryConditions
          procedure   ::    Associate => EulerWall_Associate
          procedure   ::    UpdateSolution    => EulerWall_UpdateSolution
          procedure   ::    Describe  => EulerWall_Describe
-#ifdef NAVIER_STOKES
-         procedure   ::    UpdateGradient    => EulerWall_UpdateGradient
-#endif
    end type EulerWall_t
 !
 !  *************************************
@@ -194,9 +196,6 @@ module DGBoundaryConditions
          procedure   ::    Construct => ViscousWall_Construct
          procedure   ::    Associate => ViscousWall_Associate
          procedure   ::    UpdateSolution    => ViscousWall_UpdateSolution
-#ifdef NAVIER_STOKES
-         procedure   ::    UpdateGradient    => ViscousWall_UpdateGradient
-#endif
          procedure   ::    Describe  => ViscousWall_Describe
    end type ViscousWall_t
 !
@@ -426,17 +425,6 @@ module DGBoundaryConditions
 !        *****************************************
 !
       end subroutine BaseClass_UpdateSolution
-
-      subroutine BaseClass_UpdateGradient( self , edge )
-         implicit none
-         class(BoundaryCondition_t)          :: self
-         class(Edge_t)                       :: edge
-!
-!        *****************************************
-!           The base class does nothing
-!        *****************************************
-!
-      end subroutine BaseClass_UpdateGradient
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
