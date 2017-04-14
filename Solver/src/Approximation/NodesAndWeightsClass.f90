@@ -228,7 +228,6 @@ module nodesAndWeights_class
             class(NodesAndWeights_t)        :: self
             integer                         :: N
             integer                         :: i
-            integer                         :: j
         
             N = self % N
 

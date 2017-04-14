@@ -39,6 +39,10 @@ module DGSpatialDiscretizationMethods
 !
 !///////////////////////////////////////////////////////////////////////////////////////////////////////
 !
+!              INITIALIZATION
+!              --------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       subroutine DGSpatial_Initialization()
          use Setup_class
          use Headers
@@ -58,7 +62,13 @@ module DGSpatialDiscretizationMethods
 #endif
   
       end subroutine DGSpatial_Initialization
-
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!     
+!              COMPUTE TIME DERIVATIVE
+!              -----------------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       subroutine DGSpatial_computeTimeDerivative( mesh ) 
 !
 !        ***************************************************
@@ -87,7 +97,7 @@ module DGSpatialDiscretizationMethods
 !          for a new time-step. 
 !              1) Set QDot to zero
 !              2) Interpolate the solution to boundaries
-!              3) Compute the primitive variables
+!              3) Update the boundary zones
 !              4) Compute the solution gradient
 !              5) Interpolate the gradient to boundaries
 !        *************************************************************
@@ -134,6 +144,7 @@ module DGSpatialDiscretizationMethods
          end do
 
       end subroutine DGSpatial_resetQDot
+
 #ifdef NAVIER_STOKES
       subroutine DGSpatial_computeGradient( mesh )
 !
@@ -153,7 +164,6 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID
          integer                 :: edID 
          integer                 :: iDim , eq
-         integer                 :: zoneID
 !
 !        ************
 !        Volume loops
@@ -193,6 +203,7 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_computeGradient
 #endif
+
       subroutine DGSpatial_computeQDot( mesh )
 !
 !        *************************************************************
@@ -232,12 +243,12 @@ module DGSpatialDiscretizationMethods
 
                type is (StraightBdryEdge_t)
                   call DGSpatial_QDotFaceLoop_StraightBdry( f )
-   
+  
                type is (CurvedBdryEdge_t)
                   call DGSpatial_QDotFaceLoop_CurvedBdry( f )
 
             end select
-!            call DGSpatial_QDotFaceLoop( mesh % edges(edID) % f ) 
+!            call DGSpatial_QDotFaceLoop( f ) 
          end do
 !
 !        ***********************
@@ -450,7 +461,7 @@ module DGSpatialDiscretizationMethods
          implicit none
          class(QuadMesh_t) :: mesh
 !        --------------------------------------------------------------------
-         integer                       :: eID , edID , eq
+         integer                       :: eID , eq
          class(QuadElement_t), pointer :: e
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
@@ -500,7 +511,7 @@ module DGSpatialDiscretizationMethods
          implicit none
          class(QuadMesh_t) :: mesh
 !        --------------------------------------------------------------------
-         integer                       :: eID , edID , eq , iDim
+         integer                       :: eID , eq , iDim
          class(QuadElement_t), pointer :: e
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
@@ -544,4 +555,3 @@ module DGSpatialDiscretizationMethods
 #endif
 
 end module DGSpatialDiscretizationMethods
-

@@ -900,7 +900,6 @@ readloop:do
 !        ----------------------------------------------
          character(len=STR_LEN_MONITORS)  :: in_label
          character(len=STR_LEN_MONITORS)  :: fileName
-         character(len=STR_LEN_MONITORS)  :: mode
          integer, allocatable             :: marker
          integer                          :: pos
          integer                          :: fID

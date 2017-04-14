@@ -245,7 +245,7 @@ module DGViscousMethods
 !        The base class does nothing
 !        ---------------------------
 !
-
+         Fv = HUGE(1.0_RP)
       end function BaseClass_ComputeInnerFluxes
 
       pure function BaseClass_SolutionRiemannSolver( self , N , uL , uR ) result ( uStar )
@@ -260,6 +260,7 @@ module DGViscousMethods
 !        The base class does nothing
 !        ---------------------------
 !
+         uStar = HUGE(1.0_RP)
       end function BaseClass_SolutionRiemannSolver
 
       pure function BaseClass_RiemannSolver( self , N , uL , uR , duL , duR , normal ) result ( FStar )
@@ -277,6 +278,7 @@ module DGViscousMethods
 !        The base class does nothing
 !        ---------------------------
 !
+         FStar = HUGE(1.0_RP)
       end function BaseClass_RiemannSolver
 
       pure function BaseClass_RiemannSolver_Dirichlet( self , u , g , uB , n ) result ( Fstar )
@@ -292,6 +294,7 @@ module DGViscousMethods
 !        The base class does nothing
 !        ---------------------------
 !
+         FStar = HUGE(1.0_RP)
       end function BaseClass_RiemannSolver_Dirichlet
 
       pure function BaseClass_RiemannSolver_Adiabatic( self , N , u , g , uB , normal ) result ( Fstar )
@@ -308,6 +311,7 @@ module DGViscousMethods
 !        The base class does nothing
 !        ---------------------------
 !
+         FStar = HUGE(1.0_RP)
       end function BaseClass_RiemannSolver_Adiabatic
 
       subroutine BaseClass_ComputeSolutionRiemann_Interior( self ,  ed , uStarL , uStarR )
@@ -346,10 +350,8 @@ module DGViscousMethods
 !        Local variables
 !        ---------------
 !
-         integer(kind=1)          :: iDim
          real ( kind=RP ), target :: QL ( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP ), target :: QR ( 0 : ed % spA % N , 1 : NCONS )
-         integer                  :: iXi
 
          if ( ed % transform(LEFT) .and. ed % inverse ) then
 ! 
@@ -524,7 +526,6 @@ module DGViscousMethods
 !
          real(kind=RP)                 :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
          integer                       :: N
-         integer                       :: iXi
 
          N = ed % spA % N
 
@@ -583,7 +584,6 @@ module DGViscousMethods
 !
          real(kind=RP)                 :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
          integer                       :: N
-         integer                       :: iXi
 
          N = ed % spA % N
 

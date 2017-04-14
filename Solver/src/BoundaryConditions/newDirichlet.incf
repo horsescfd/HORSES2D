@@ -24,7 +24,7 @@
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
-         call readValueInRegion( trim(Setup % bdry_file) , "Outflow Pressure", outflowPressure , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Outflow pressure", outflowPressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mode" , mode , in_label , "# end" )
          
          if ( allocated(pressure) ) then
@@ -140,9 +140,8 @@
          class(Edge_t)            :: edge
          integer                  :: iXi
          integer                  :: N
-         real(kind=RP)            :: rhoL , vnL , vtL , uL , vL , pL , ML , aL 
-         real(kind=RP)            :: rhoR , vnR , vtR , uR , vR , pR , aR , MR
-         real(kind=RP)            :: a , b , c , rhostar
+         real(kind=RP)            :: rhoL , vnL , uL , vL , pL , ML , aL 
+         real(kind=RP)            :: rhoR , pR , aR , MR
          real(kind=RP)            :: Rplus
 !
 !        *********************************************************************

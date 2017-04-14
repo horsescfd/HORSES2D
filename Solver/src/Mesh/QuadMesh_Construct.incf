@@ -19,7 +19,6 @@
              integer                                  :: polynomialOrder
              integer                                  :: curve
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
-             class(QuadElement_t), pointer            :: leftE , rightE , bdryE
              logical                                  :: curvilinear
 !            ----------------------------------------------------------------------
 !

@@ -305,7 +305,7 @@ module DGWeakIntegrals
 !        Local variables
 !        ---------------
 !
-         integer                       :: iXi , iEta , iDim , eq
+         integer                       :: iXi , iEta , eq
          real(kind=RP)                 :: loc_sign
 !
 !        -------------------------------------------------------------

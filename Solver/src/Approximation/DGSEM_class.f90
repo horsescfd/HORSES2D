@@ -52,6 +52,7 @@
             procedure       :: Integrate => DGSEM_Integrate
             procedure       :: LoadRestartFile => DGSEM_LoadRestartFile
     end type DGSEM_t
+
 !
 !   ========
     contains
@@ -76,41 +77,40 @@
              
         end function DGSEM_Initialize
          
-        subroutine DGSEM_construct( self ,  meshFile )
+        subroutine DGSEM_construct( self )
             use Setup_class
             use QuadElementClass
+            use Tecplot
             implicit none
-            class(DGSEM_t)                                               :: self
-            class(MeshFile_t)                                            :: meshFile
-!           ----------------------------------------------------------------------------------------------
-            integer                                                      :: total_polyorder
-            integer                                                      :: eID
-            integer                                                      :: iBC
-            integer                                                      :: fID
-            class(Edge_t), pointer                                       :: face
+            class(DGSEM_t)   :: self
 !
-!           Allocate memory for Q , W , QDot , dQ , and F
-!              The sizes are the following:
-!                 Q    -> NCONS * (N+1) * (N+1) * no_of_elements
-!                 QDot -> NCONS * (N+1) * (N+1) * no_of_elements
-!                 dQ   -> NGRAD * NDIM * (N+1) * (N+1) * no_of_elements
-!           ---------------------------------------------------------------------------------------------------------
-            allocate ( self % Storage % Q    ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-            allocate ( self % Storage % QDot ( NCONS *         meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-#ifdef NAVIER_STOKES
-            allocate ( self % Storage % dQ   ( NCONS  * NDIM * meshFile % cumulativePolynomialOrder ( meshFile % no_of_elements )  )  ) 
-#endif
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            type(MeshFile_t) :: meshFile
+            integer          :: totalPolynomialOrder
+!
+!           Read the mesh file
+!           ------------------
+            call meshFile % Read
+!
+!           Allocate memory for the solution, time derivative, and gradients
+!           ----------------------------------------------------------------
+            totalPolynomialOrder = meshFile % cumulativePolynomialOrder( meshFile % no_of_elements )
+            call self % Storage % AllocateMemory( totalPolynomialOrder )
 !
 !           Construct the spectral Integration class if Over-Integration is selected
 !           ------------------------------------------------------------------------
             if (Setup % inviscid_discretization .eq. "Over-Integration") then
                allocate( self % spI )
                call self % spI % init( Setup % integration_points , Setup % nodes )
-
+            else
+               self % spI => NULL()
             end if
 !
-!           Construct the mesh
-!           ------------------
+!           Construct the spectral element mesh object
+!           ------------------------------------------
             call self % mesh % constructFromFile(meshFile , self % spA , self % Storage , self % spI)
 !
 !           Prepare the spectral Approximation structures generated for Over-Integration
@@ -130,8 +130,19 @@
 !           Initialize Inviscid and Viscous discretization methods
 !           ------------------------------------------------------
             call DGSpatial_Initialization() 
-
-            
+!
+!           Export the mesh to tecplot            
+!           --------------------------
+            call ExportMeshToTecplot( self % mesh , Setup % mesh_file )   
+!
+!           Destruct the mesh file object
+!           -----------------------------
+            call meshFile % Destruct
+!
+!           Set the initial condition to all flow variables
+!           -----------------------------------------------
+            call self % SetInitialCondition()
+            call ExportToTecplot( self % mesh , './RESULTS/InitialCondition.plt')     
             
         end subroutine DGSEM_construct
             

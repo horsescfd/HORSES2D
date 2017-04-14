@@ -13,14 +13,14 @@
 !                    -> edgeDirection: linking edge/element: FORWARD, BACKWARD
 !           ******************************************************************************************
             implicit none
-            integer, intent(in)        :: nodesEl(:)
-            integer, intent(in)        :: nodesEdge(:)
-            logical, intent(out)       :: needsInversion
-            integer, intent(out)       :: edgePosition
-            integer, intent(out)       :: edgeDirection
+            integer,         intent (in)        :: nodesEl(:)
+            integer,         intent (in)        :: nodesEdge(:)
+            logical,         intent (out)       :: needsInversion
+            integer(kind=1), intent (out)       :: edgePosition
+            integer(kind=1), intent (out)       :: edgeDirection
 !           -----------------------------------------------------------
             integer                    :: currentEdge(POINTS_PER_EDGE)
-            integer                    :: edge
+            integer(kind=1)            :: edge
             logical                    :: edges_are_equal
 
             do edge = 1 , EDGES_PER_QUAD
@@ -56,11 +56,11 @@
 
          subroutine compareEdges ( edge1 , edge2 , edge_position , edges_are_equal , edgeDirection )
             implicit none
-            integer, intent(in)        :: edge1(:)
-            integer, intent(in)        :: edge2(:)
-            integer, intent(in)        :: edge_position
-            logical, intent(out)       :: edges_are_equal
-            integer, intent(out)       :: edgeDirection
+            integer,         intent (in)        :: edge1(:)
+            integer,         intent (in)        :: edge2(:)
+            integer(kind=1), intent (in)        :: edge_position
+            logical,         intent (out)       :: edges_are_equal
+            integer(kind=1), intent (out)       :: edgeDirection
 
             if ((edge1(1) .eq. edge2(1)) .and. (edge1(2) .eq. edge2(2))) then
                edges_are_equal = .true.

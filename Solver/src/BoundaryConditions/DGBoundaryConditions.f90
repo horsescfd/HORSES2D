@@ -41,7 +41,7 @@ module DGBoundaryConditions
       character(len=STR_LEN_BC)                         :: Name
       integer                                           :: marker
       integer                                           :: BCType
-      integer                                           :: WeakType
+      integer(kind=1)                                   :: WeakType
       character(len=STR_LEN_BC)                         :: RiemannSolverName
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains

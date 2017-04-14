@@ -235,30 +235,15 @@ module DGInviscidMethods
 !           --------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      pure function ComputePrimitiveVariables(Q) result (W)
-         implicit none
-         real(kind=RP), intent(in) :: Q(NCONS)
-         real(Kind=RP)             :: W(NPRIM)
-         real(kind=RP)             :: invRho
-
-         W(IRHO) = Q(IRHO)
-         invRho  = 1.0_RP / Q(IRHO)
-         W(IU)   = Q(IRHOU) * invRho
-         W(IV)   = Q(IRHOV) * invRho
-         W(IP)   = Thermodynamics % gm1 * ( Q(IRHOE) - 0.5_RP *( Q(IRHOU) * W(IU) + Q(IRHOV) * W(IV))) 
-         W(IT)   = W(IP) * invRho
-         W(IA)   = sqrt(Thermodynamics % gamma * W(IT))
-
-      end function ComputePrimitiveVariables
-
       subroutine InviscidMethod_describe( self )
          use Headers
+         use Setup_class
          implicit none
          class(InviscidMethod_t)        :: self
 
          write(STD_OUT,'(/)') 
          call SubSection_Header("Inviscid discretization")
-         write(STD_OUT,'(30X,A,A15,A)') "-> ","Method: " , trim( self % method ) 
+         write(STD_OUT,'(30X,A,A18,A)') "-> ","Method: " , trim( self % method ) 
 !
 !        ********************
          select type ( self ) 
@@ -267,9 +252,9 @@ module DGInviscidMethods
 !           -------------------------------------------------------------------------------------
             type is ( StandardDG_t )
                if ( self % formulation .eq. FORMI ) then
-                  write(STD_OUT , '(30X,A,A15,A)') "-> ","Formulation: ","Green form"
+                  write(STD_OUT , '(30X,A,A18,A)') "-> ","Formulation: ","Green form"
                elseif ( self % formulation .eq. FORMII ) then
-                  write(STD_OUT , '(30X,A,A15,A)') "-> ","Formulation: ","Divergence form"
+                  write(STD_OUT , '(30X,A,A18,A)') "-> ","Formulation: ","Divergence form"
                end if
 !           
 !           -------------------------------------------------------------------------------------
@@ -286,6 +271,7 @@ module DGInviscidMethods
          end select
 !        **********
 !
+         write(STD_OUT,'(30X,A,A18,A)') "-> " , "Riemann solver: " , trim ( Setup % inviscid_flux )
       end subroutine InviscidMethod_describe
 
 end module DGInviscidMethods

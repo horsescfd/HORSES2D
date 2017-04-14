@@ -3,9 +3,13 @@
          class(Edge_t)                       :: self
          real(kind=RP), intent(in), optional :: points(:,:)
          integer      , intent(in), optional :: order
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          integer                             :: p
          real(kind=RP)                       :: dS(NDIM)
-         integer                             :: iXi
    
          self % x = reshape((/( self % nodes(1) % n % X * (1.0_RP - self % spA % xi(p)) + self % nodes(2) % n % X * self % spA % xi(p) , &
                                              p = 0 , self % spA % N)/),(/ NDIM , self % spA % N + 1 /) )
@@ -123,15 +127,11 @@
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: dX (NDIM)
-!        -------------------------------------------------------------
-         integer, allocatable                      :: correctediXi
    
          if (present(direction)) then
-      
             dX = real(direction,kind=RP) * self % dX(IX:IY,0)
       
          else
-     
             dX = self % dX(IX:IY,0)
     
          end if
@@ -144,15 +144,11 @@
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: dS (NDIM)
-!        -------------------------------------------------------------
-         integer, allocatable                      :: correctediXi
    
          if (present(direction)) then
-      
             dS = self % n(IX:IY,0) * self % dS(0)
       
          else
-     
             dS = self % n(IX:IY,0) * self % dS(0)
     
          end if

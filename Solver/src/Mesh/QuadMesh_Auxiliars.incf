@@ -25,9 +25,8 @@
             real(kind=RP)     ,  intent (out)  :: xi
             real(kind=RP)     ,  intent (out)  :: eta
 !           ------------------------------------------------------------------
-            integer                           :: eID , edID
+            integer                           :: eID
             logical                           :: isInside
-            real(kind=RP)                     :: distance , minimumDistance
 
 elloop:     do eID = 1 , self % no_of_elements
 

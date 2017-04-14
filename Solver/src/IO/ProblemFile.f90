@@ -8,7 +8,6 @@ function UserDefinedInitialCondition(x , argin) result (val)
    real(kind=RP)           :: x(NDIM)
    real(kind=RP), optional :: argin
    real(kind=RP)           :: val(NCONS)
-   real(kind=RP)           :: pert
 
 
    associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach ) 

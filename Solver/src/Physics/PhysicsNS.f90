@@ -100,7 +100,7 @@ module PhysicsNS
     interface getSoundSpeed
       module procedure getSoundSpeed0D , getSoundSpeed1D , getSoundSpeed2D 
     end interface getSoundSpeed
-
+#ifdef NAVIER_STOKES
     interface getStrainTensor
       module procedure getStrainTensor0D , getStrainTensor1D , getStrainTensor2D   
     end interface getStrainTensor
@@ -108,6 +108,7 @@ module PhysicsNS
     interface getTemperatureGradient
       module procedure getTemperatureGradient0D , getTemperatureGradient1D , getTemperatureGradient2D
     end interface getTemperatureGradient
+#endif
 !
 !   //////////////////////////////////////////////////////////////////////////////////////////////////////
 !

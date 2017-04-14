@@ -52,7 +52,6 @@
          implicit none
          class(ViscousWall_t)          :: self
          class(Edge_t)                 :: edge
-         integer                       :: i
 
          associate ( N => edge % spA % N )
 

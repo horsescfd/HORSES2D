@@ -135,13 +135,14 @@ module Utilities
             implicit none
             real(kind=RP), intent(in) :: x
             integer                   :: val
-!           ------------------------------------
-            integer           :: gt0 , lt0
 
-            lt0 = (x .lt. 0)
-            gt0 = (x .gt. 0)
-
-            val = gt0 - lt0
+            if ( x .lt. 0.0_RP ) then
+               val = -1
+            elseif ( x .gt. 0.0_RP ) then
+               val = 1
+            else
+               val = 0
+            end if
 
          end function newSign
 

@@ -89,7 +89,6 @@
          implicit none
          class(PressureOutletBC_t)          :: self
          class(Edge_t)                 :: edge
-         integer                       :: i
 
          associate ( N => edge % spA % N )
 
@@ -135,11 +134,10 @@
          integer                       :: iXi
          integer                    :: N 
          real(kind=RP)              :: rhoL , vnL , uL , vL , pL , ML , aL 
-         real(kind=RP)              :: rhoR , uR , vR , pR , VtR , aR , MR , vnR
-         real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty , ptInfty , TtInfty
-         real(kind=RP)              :: acoef , bcoef , ccoef , Ht
+         real(kind=RP)              :: rhoR , uR , vR , pR , aR , vnR
+         real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty
          real(kind=RP)              :: nInfty(NDIM)
-         real(kind=RP)              :: Rminus , Rplus , R0
+         real(kind=RP)              :: Rplus , R0
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a Outflow boundary

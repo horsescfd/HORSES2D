@@ -22,8 +22,6 @@ module ChecksModule
           implicit none
           class(DGSEM_t)                :: sem
           integer, parameter            :: STR_LEN_CHECKS = 128
-          integer                       :: fID
-          integer                       :: eID
           integer                       :: command_argument_count
           integer                       :: nArgs
           character(len=STR_LEN_CHECKS) :: arg
@@ -216,7 +214,7 @@ module ChecksModule
             implicit none
             type(QuadMesh_t)           :: mesh
 !           ---------------------------------------
-            integer                    :: eID , edID
+            integer                    :: eID 
             real(kind=RP), allocatable :: dxiX(:,:,:)
             real(kind=RP), allocatable :: detaX(:,:,:)
             real(kind=RP)              :: error , localerror
@@ -721,7 +719,7 @@ module ChecksModule
          implicit none
          class(DGSem_t)          :: sem
          integer                 :: iXi , iEta
-         integer                 :: eID , elem = -1 , zoneID
+         integer                 :: eID , elem = -1
          real(kind=RP)           :: error = 0.0_RP , localerror
          real(kind=RP)           :: x(NDIM)
          real(kind=RP)           :: L 
@@ -998,8 +996,6 @@ module ChecksModule
          real(kind=RP)           :: val(NCONS)
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
-         real(kind=RP)           :: tauxx , tauxy , tauyy , tauxx_x , tauyy_y
-         real(kind=RP)           :: T_xx  , T_yy
 
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)

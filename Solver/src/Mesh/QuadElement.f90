@@ -87,7 +87,7 @@ module QuadElementClass
         integer(kind=1)                     :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
         logical                             :: inverse                    ! Whether both edge projections are in the same or different direction
         logical                             :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree 
-        integer(kind=1)                     :: Nlow                       ! Lower polynomial degree
+        integer                             :: Nlow                       ! Lower polynomial degree
         integer(kind=1),            pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
         real(kind=RP)                       :: Area                       ! Area of the edge
         real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
@@ -243,13 +243,12 @@ module QuadElementClass
             class(Node_p)                     :: nodes(:)
             logical                           :: curvilinear
             integer                           :: N 
-            integer                           :: edgeType
+            integer(kind=1)                   :: edgeType
             integer                           :: node
             class(NodalStorage)               :: spA
             class(NodesAndWeights_t), pointer :: spI
 !           --------------------------------------------------
             integer                           :: quad
-            integer                           :: p
 !
 !           *************************************************
 !              Allocate the edge depending on its type

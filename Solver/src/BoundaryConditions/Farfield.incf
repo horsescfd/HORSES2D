@@ -78,7 +78,6 @@
          implicit none
          class(FarfieldBC_t)          :: self
          class(Edge_t)                 :: edge
-         integer                       :: i
 
          associate ( N => edge % spA % N )
 
@@ -121,11 +120,9 @@
          integer                       :: iXi
          integer                    :: N 
          real(kind=RP)              :: rhoL , vnL , uL , vL , pL , ML , aL 
-         real(kind=RP)              :: rhoR , uR , vR , pR , VtR , TR , aR , MR
-         real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty , ptInfty , TtInfty
-         real(kind=RP)              :: acoef , bcoef , ccoef , Ht
+         real(kind=RP)              :: rhoR , uR , vR , pR 
+         real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty
          real(kind=RP)              :: nInfty(NDIM)
-         real(kind=RP)              :: Rminus
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a Farfield boundary

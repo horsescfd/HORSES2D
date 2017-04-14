@@ -73,7 +73,6 @@ module Tecplot
          class(QuadMesh_t)       :: mesh
          character(len=*)        :: Name
          type(Tecplot_t)         :: tec 
-         integer                 :: var
          integer                 :: eID
 
          tec % Name = trim(Name)
@@ -94,7 +93,6 @@ module Tecplot
          use Setup_Class
          implicit none
          class(Tecplot_t)               :: self
-         logical                        :: flag = .true.
          integer                        :: pos
          character(len=STR_LEN_TECPLOT) :: auxstr
          type(LinkedList_t)             :: entries
@@ -321,6 +319,18 @@ module Tecplot
                                                   0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
                                                     / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
 #ifdef NAVIER_STOKES
+                      case ( "ux" ) 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
+
+                      case ( "uy" ) 
+                        write(self % fID,'(1X,ES17.10)',advance="no") uy(iXi,iEta) * refValues % a
+   
+                      case ( "vx" ) 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
+
+                      case ( "vy" )
+                        write(self % fID,'(1X,ES17.10)',advance="no") vy(iXi,iEta) * refValues % a
+
                      case ("vort")
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
 #endif
@@ -366,9 +376,7 @@ module Tecplot
 #ifdef NAVIER_STOKES
          real(kind=RP), target      :: du(0:mesh % elements(eID) % spA % N , 0:mesh % elements(eID) % spA % N , 1:NDIM , 1:NDIM)
          real(kind=RP), pointer     :: uxDG   (:,:) ,  uyDG    (:,:) ,  vxDG    (:,:) ,  vyDG    (:,:)
-         real(kind=RP), pointer     :: rhoxDG (:,:) ,  rhoyDG  (:,:) ,  rhoexDG (:,:) ,  rhoeyDG (:,:)
          real(kind=RP), pointer     :: ux     (:,:) ,  uy      (:,:) ,  vx      (:,:) ,  vy      (:,:)
-         real(kind=RP), pointer     :: rhox   (:,:) ,  rhoy    (:,:) ,  rhoex   (:,:) ,  rhoey   (:,:)
 #endif
          real(kind=RP), allocatable :: xi(:) , T(:,:) , x(:)
          integer                    :: iXi , iEta
@@ -421,7 +429,6 @@ module Tecplot
          allocate  (  rhot(0:Nout , 0:Nout) , rhout(0:Nout , 0:Nout) , rhovt(0:Nout , 0:Nout) , rhoet(0:Nout , 0:Nout) )
 #ifdef NAVIER_STOKES
          allocate  (  ux(0:Nout , 0:Nout) , uy(0:Nout , 0:Nout) , vx(0:Nout , 0:Nout) , vy(0:Nout,0:Nout) )
-         allocate  (  rhox(0:Nout , 0:Nout) , rhoy(0:Nout , 0:Nout) , rhoex(0:Nout , 0:Nout) , rhoey(0:Nout,0:Nout) )
 #endif
          call TripleMatrixProduct ( T , rhoDG   , T , rho   , trC = .true. ) 
          call TripleMatrixProduct ( T , rhouDG  , T , rhou  , trC = .true. ) 

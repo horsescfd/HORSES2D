@@ -27,7 +27,7 @@ module MeshFileClass
        integer, allocatable                     :: curved_bdryedges(:)                ! Which edges are curved
        integer, allocatable                     :: pRefinementZones(:)               ! The elements for the different pRefinement zones 
        integer, allocatable                     :: pRefinementOrder(:)               ! The elements for the different pRefinement zones 
-       integer, allocatable                     :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
+       integer(kind=1), allocatable             :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
        real(kind=RP), allocatable               :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
        real(kind=RP), allocatable               :: curvilinear_coords(:,:,:)          ! Array with the coordinates of curvilinear edges (x/y , 0:N , edge)
        character(len=STR_LEN_MESH), allocatable :: bdryzones_names(:)
@@ -128,6 +128,8 @@ module MeshFileClass
                   if ( allocated ( zoneOrder ) ) then
                      mesh % pRefinementOrder(pRefZone) = zoneOrder
                      deallocate( zoneOrder )
+                  else
+                     mesh % pRefinementOrder(pRefZone) = Setup % N
                   end if
                end do
 !
@@ -255,8 +257,6 @@ module MeshFileClass
          subroutine ComputeMesh( self )
             implicit none
             class(MeshFile_t)          :: self
-!           -----------------------------------------
-            integer                    :: eID
 !
 !           -------------------------------
 !              Compute number of edges

@@ -12,9 +12,8 @@
             integer                        :: nodesEl2(POINTS_PER_QUAD)
             integer                        :: nodesElb(POINTS_PER_QUAD)
             integer                        :: node
-            integer                        :: edgeID
-            integer                        :: edgePosition
-            integer                        :: edgeDirection
+            integer(kind=1)                :: edgePosition
+            integer(kind=1)                :: edgeDirection
             logical                        :: needsInversion
 
             do node = 1 , POINTS_PER_EDGE
@@ -186,7 +185,6 @@
 !           --------------------------------------
             logical                 :: changeSigndS_val
             class(Node_t), pointer  :: auxnode
-            integer                 :: iXi
 
             if ( present(changeSigndS) ) then
                changeSigndS_val = changeSigndS

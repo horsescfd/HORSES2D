@@ -91,7 +91,6 @@
          implicit none
          class(RiemannBC_t) :: self
          class(Edge_t)      :: edge
-         integer            :: i
 
          associate ( N => edge % spA % N )
 
@@ -136,8 +135,8 @@
          class(Edge_t)                       :: edge
          integer                       :: iXi
          integer                    :: N 
-         real(kind=RP)              :: rhoL , vnL , uL , vL , pL , ML , aL  , TL , Rplus , invRhoL
-         real(kind=RP)              :: rhoR , vnR , uR , vR , pR , VtR , TR , aR , MR , sR
+         real(kind=RP)              :: rhoL , vnL , uL , vL , pL , ML , aL  , Rplus , invRhoL
+         real(kind=RP)              :: rhoR , vnR , uR , vR , pR , aR , sR
          real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty  , vnInfty , aInfty
          real(kind=RP)              :: nInfty(NDIM)
          real(kind=RP)              :: F(NCONS , NDIM)

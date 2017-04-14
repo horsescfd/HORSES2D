@@ -170,7 +170,6 @@ submodule (PhysicsNS)  RiemannSolvers
          real(kind=RP)                 :: K(NCONS,NCONS)
          real(kind=RP)                 :: alpha(NCONS)
          real(kind=RP)                 :: Ft
-         integer                       :: eq
          integer                       :: negativeWaves
          integer                       :: wave
         
@@ -277,7 +276,6 @@ submodule (PhysicsNS)  RiemannSolvers
          real(kind=RP)                 :: rhoR , invRhoR , uR , vR , HR , aR , pR , rhoeR , sqrtRhoR
          real(kind=RP)                 :: invrho , u , v , H , a
          real(kind=RP)                 :: SL , SR , invdS
-         real(kind=RP)                 :: sqrtS
          real(kind=RP)                 :: Ft
         
 

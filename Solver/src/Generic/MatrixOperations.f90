@@ -200,11 +200,15 @@ module MatrixOperations
          logical,       intent(in), optional :: trA
          logical                             :: tA
 
-         if (present(trA) ) then
-            call BilinearForm(A , X , Y , B , trA )
+         if ( present(trA) ) then
+            tA = trA
+
          else
-            call BilinearForm(A , X , Y , B )
+            tA = .false.
+
          end if
+
+         call BilinearForm(A , X , Y , B , tA)
 
       end function BilinearForm_F
        

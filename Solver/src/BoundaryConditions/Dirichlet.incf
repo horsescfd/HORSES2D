@@ -157,9 +157,9 @@
 !
          integer                  :: iXi
          integer                  :: N
-         real(kind=RP)            :: rhoL , vnL , vtL , uL , vL , pL , ML , aL 
-         real(kind=RP)            :: rhoR , vnR , vtR , uR , vR , pR , aR , MR
-         real(kind=RP)            :: a , b , c , rhostar
+         real(kind=RP)            :: rhoL , vnL , uL , vL , pL , ML , aL 
+         real(kind=RP)            :: pR
+         real(kind=RP)            :: q(NCONS)
 !
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp , cv => Dimensionless % cv)
 
@@ -226,7 +226,8 @@
                         edge % uSB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
                         edge % uSB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
                         edge % uSB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        edge % uSB(iXi,IRHOE) = cv * getPressure( edge % uB(iXi,:) ) +  0.5_RP * ( edge % uSB(iXi,IRHOU) * uL + edge % uSB(iXi,IRHOV) * vL )
+                        q = edge % uB(iXi,:)
+                        edge % uSB(iXi,IRHOE) = cv * getPressure( q ) +  0.5_RP * ( edge % uSB(iXi,IRHOU) * uL + edge % uSB(iXi,IRHOV) * vL )
                         edge % viscousBCType(iXi) = DIRICHLET
 
                      end if
@@ -295,7 +296,8 @@
                         edge % uSB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
                         edge % uSB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
                         edge % uSB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        edge % uSB(iXi,IRHOE) = cv * getPressure( edge % uB(iXi,:) ) +  0.5_RP * ( edge % uSB(iXi,IRHOU) * uL + edge % uSB(iXi,IRHOV) * vL )
+                        q = edge % uB(iXi,:)
+                        edge % uSB(iXi,IRHOE) = cv * getPressure( q ) +  0.5_RP * ( edge % uSB(iXi,IRHOU) * uL + edge % uSB(iXi,IRHOV) * vL )
                         edge % viscousBCType(iXi) = DIRICHLET
 
                      end if
