@@ -16,7 +16,7 @@
 
          end function Mesh_ComputeResiduals
 
-         pure subroutine Mesh_FindElementWithCoords( self , x , elemID , xi , eta )
+         subroutine Mesh_FindElementWithCoords( self , x , elemID , xi , eta )
             use Physics
             implicit none
             class(QuadMesh_t) ,  intent (in)  :: self
@@ -41,7 +41,10 @@ elloop:     do eID = 1 , self % no_of_elements
             end do elloop
 
             if ( .not. isInside ) then
-!               print*, "Warning, the point probe was not found in the mesh."
+               write(STD_OUT,'(/)') 
+               print*, "** Warning, the point probe was not found in the mesh."
+               print*, "   -------------------------------------------------- "
+               write(STD_OUT,'(/)') 
                elemID = -1
                xi = huge(0.0_RP)
                eta = huge(0.0_RP)

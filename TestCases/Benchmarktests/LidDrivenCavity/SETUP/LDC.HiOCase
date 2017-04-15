@@ -1,0 +1,84 @@
+!
+!            ***********************************
+!       * Vortex transport parameter file *
+!       ***********************************
+!
+
+!-------------------------------------: Geometry
+              Mesh file: ./MESH/LDC.HiOMesh
+          Boundary file: _this_
+
+
+!-------------------------------------: Physics
+                    Gas: Air
+          Reference pressure: 101325.0
+       Reference Temperature: 273.15
+                   Reynolds length: 0.1
+             Reynolds number: 200.0
+              Prandtl number: 0.72
+                 Mach number: 0.1
+   
+!------------------------------------: DG Discretization
+        Interpolation nodes: Legendre-Gauss
+           Default polynomial order: 4
+
+!------------------------------------: Initialization
+          Initial condition: Restart
+               Restart file: ./RESULTS/LDC.HiORst
+
+!------------------------------------: Inviscid discretization
+               Inviscid discretization: Standard
+                 Inviscid formulation: Green form
+                Inviscid Riemann solver: Roe
+          ! Number of integration points: 6
+
+!----------------------------------------: Viscous discretization
+        Viscous discretization           : BR1
+        Interior penalty method          : SIPG
+        Jumps penalty parameter          : 10.0
+        Gradient jumps penalty parameter : 0.0
+
+!----------------------------------------: Time integration
+                    Integration mode     : Steady
+                    Integration scheme   : Williamson RK5
+                    Time step            : 1.0
+                    CFL Number           : 0.1
+                    Simulation time      : 1.0
+                    Number of iterations : 1000000
+                    Initial time         : 0.0
+
+!----------------------------------: Output variables
+            Solution file: ./RESULTS/LDC.HiORst
+                  Autosave interval: 50000
+                    Output interval: 10
+                  Output file type : Interpolated
+   Number of representation points : 10
+                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+
+
+
+# define zone 1
+   Name      = Bottom
+   Type      = Viscous wall
+   Wall type = Adiabatic
+# end 
+
+# define zone 2
+   Name      = Top
+   Type      = Viscous wall
+   Wall type = Adiabatic
+   Mach number = 0.1
+   Velocity direction = [1.0 , 0.0]
+# end 
+
+# define zone 3
+   Name      = Left
+   Type      = Viscous wall
+   Wall type = Adiabatic
+# end
+
+# define zone 4
+   Name      = Right
+   Type      = Viscous wall
+   Wall type = Adiabatic
+# end

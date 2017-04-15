@@ -31,6 +31,8 @@ ViscousFluxes: PhysicsNS SMConstants
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
 InterpolationAndDerivatives: SMConstants Utilities
+Utilities: RealDataLinkedList SMConstants
+RealDataLinkedList: SMConstants
 LegendreAlgorithms: SMConstants
 QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage DGBoundaryConditions Utilities
 MeshFile: Setup SMConstants NetCDF_Interface Headers

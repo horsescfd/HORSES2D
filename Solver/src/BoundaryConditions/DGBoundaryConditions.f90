@@ -192,6 +192,7 @@ module DGBoundaryConditions
    type, extends(BoundaryCondition_t)           :: ViscousWall_t
       real(kind=RP)                 :: Tw
       integer                       :: wall_type
+      real(kind=RP)                 :: v(NDIM)
       contains
          procedure   ::    Construct => ViscousWall_Construct
          procedure   ::    Associate => ViscousWall_Associate
@@ -620,6 +621,8 @@ module DGBoundaryConditions
 
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Boundary condition type: " , "Viscous wall."
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
+         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "           , self % v(IX) * refValues % a
+         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "           , self % v(IY) * refValues % a
 
       end subroutine ViscousWall_Describe
 

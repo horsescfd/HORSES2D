@@ -151,7 +151,7 @@
    
       end function QuadElement_Compute_X
    
-      pure subroutine QuadElement_FindPointWithCoords( self , x , xi , eta , isInside )
+      subroutine QuadElement_FindPointWithCoords( self , x , xi , eta , isInside )
          implicit none
          class(QuadElement_t), intent(in)             :: self
          real(kind=RP),        intent(in)             :: x(NDIM)
@@ -163,7 +163,7 @@
       
          curvilinear = .false.
 !   
-!        Find whether the element has curvilinear edges or not    (TODO: save this parameter in self % curvilinear )
+!        Find whether the element has curvilinear edges or not
 !        -----------------------------------------------------
          do edge = 1 , EDGES_PER_QUAD
             select type ( f => self % edges(edge) % f )
@@ -205,7 +205,7 @@
 !              -------------------------------------------------------------
 !   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !   
-      pure function QuadElement_CheckIfInside_Straight ( self , x ) result ( isInside )
+      function QuadElement_CheckIfInside_Straight ( self , x ) result ( isInside )
          use Utilities
          implicit none
          class(QuadElement_t), intent(in) :: self
@@ -255,7 +255,7 @@
    
       end function QuadElement_CheckIfInside_Straight
    
-      pure function QuadElement_CheckIfInside_Curved ( self , x ) result ( isInside )
+      function QuadElement_CheckIfInside_Curved ( self , x ) result ( isInside )
          use Utilities
          implicit none
          class(QuadElement_t), intent(in) :: self
@@ -417,7 +417,7 @@
        end function QuadElement_CheckIfInside_Curved
    
    
-      pure subroutine QuadElement_FindLocalCoordinates_Straight ( self , x , xi , eta)
+      subroutine QuadElement_FindLocalCoordinates_Straight ( self , x , xi , eta)
          use Utilities
 !   
 !        ***********************************************************************
@@ -490,7 +490,7 @@
    
       end subroutine QuadElement_FindLocalCoordinates_Straight
    
-      pure subroutine QuadElement_FindLocalCoordinates_Curved ( self , x , xi , eta )
+      subroutine QuadElement_FindLocalCoordinates_Curved ( self , x , xi , eta )
          use MatrixOperations
          use Utilities
          implicit none
@@ -498,7 +498,7 @@
          real(kind=RP)     ,    intent (in)    :: x(NDIM)
          real(kind=RP)     ,    intent (inout) :: xi , eta
 !        -------------------------------------------------------
-         integer, parameter                  :: N_MAX_ITER = 20
+         integer, parameter                  :: N_MAX_ITER = 50
          real(kind=RP), parameter            :: TOLERANCE = 1.0e-10_RP , STEP = 1.0_RP
          real(kind=RP)                       :: F(NDIM) , dxiF(NDIM) , detaF(NDIM)
          real(kind=RP)                       :: lxi(0:self % spA % N) , leta(0:self % spA % N) , dxil(0:self % spA % N) , detal(0: self % spA % N)
@@ -538,8 +538,8 @@
    
             
             if ( (xi .gt. 2.0_RP) .or. (xi .lt. -1.0_RP) .or. (eta .gt. 2.0_RP) .or. (eta .lt. -1.0_RP) ) then
-!               print*, "The probe was not found in any element."
-!               stop "Stopped"
+               print*, "The probe was not found in any element."
+               stop "Stopped"
    
             end if
    
