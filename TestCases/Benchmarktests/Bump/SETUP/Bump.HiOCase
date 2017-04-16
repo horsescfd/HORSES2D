@@ -14,13 +14,13 @@
                     Reference pressure    : 101325.0
                     Reference Temperature : 273.15
                     Reynolds length       : 1.0
-                    Reynolds number       : 1600000.0
+                    Reynolds number       : 160.0
                     Prandtl number        : 0.72
                     Mach number           : 0.5
    
 !------------------------------------: DG Discretization
                  Interpolation nodes : Legendre-Gauss
-                 Default polynomial order    : 6
+                 Default polynomial order    : 1
 
 !------------------------------------: Initialization
                    Initial condition : Uniform
@@ -44,7 +44,7 @@
                     Time step            : 2.0e-0
                     CFL Number           : 0.1
                     Simulation time      : 1.0
-                    Number of iterations : 100000
+                    Number of iterations : 1000
                     Initial time         : 0.0
 
 !-----------------------------------: Output variables
@@ -75,14 +75,16 @@
 
 # define zone 3
    Name = Outflow
-   Type = Pressure outlet
-   Outflow type = Partially non reflective 
+   Type = Dirichlet
+!   Type = Pressure outlet
+!   Outflow type = Partially non reflective 
 # end
 
 # define zone 4
    Name = Inflow
-   Type = newDirichlet
-   Mode = Specify total pressure
+   Type = Dirichlet
+!   Type = newDirichlet
+!   Mode = Specify total pressure
 # end
 
 # define volume monitor 1

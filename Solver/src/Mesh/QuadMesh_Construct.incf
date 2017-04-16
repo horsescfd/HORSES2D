@@ -124,7 +124,11 @@
 !              =================================
 !
                do eID = 1 , self % no_of_elements
+!
+!                 Compute the element mapping
+!                 ---------------------------
                   call self % elements(eID) % SetMappings
+
                end do
 !
 !              Compute areas and volumes
@@ -140,16 +144,21 @@
                      select type (ed)
                         type is (Edge_t)
                            ed % Area = sum( ed % dS(0) * ed % spA % w )
+                           ed % invh = ed % Area / min( ed % quads(LEFT) % e % Volume , ed % quads(RIGHT) % e % Volume )
 
                         type is (StraightBdryEdge_t)
                            ed % Area = sum( ed % dS(0) * ed % spA % w )
+                           ed % invh = ed % Area / ed % quads(1) % e % Volume
 
                         type is (CurvedBdryEdge_t)
                            ed % Area = sum( ed % dS * ed % spA % w )
+                           ed % invh = ed % Area / ed % quads(1) % e % Volume
 
                      end select
                   end associate
                end do
+
+               
 
          end subroutine constructElementsAndEdges
 

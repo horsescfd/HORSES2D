@@ -65,8 +65,8 @@ module QuadElementClass
 !   *******************************************************************************
 !
    type BoundaryData_t
-        class(NodesAndWeights_t) , pointer :: spA
-        real(kind=RP)            , pointer :: Q   (:,:)        ! Solution interpolation to boundaries ( xi , eq )
+        class(NodesAndWeights_t) , pointer     :: spA
+        real(kind=RP)            , pointer     :: Q   (:,:)        ! Solution interpolation to boundaries ( xi , eq )
 #ifdef NAVIER_STOKES
         real(kind=RP)            , pointer :: dQ  (:,:,:)      ! Solution gradient interpolation to boundary ( xi , eq , X/Y )
 #endif
@@ -90,6 +90,7 @@ module QuadElementClass
         integer                             :: Nlow                       ! Lower polynomial degree
         integer(kind=1),            pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
         real(kind=RP)                       :: Area                       ! Area of the edge
+        real(kind=RP)                       :: invh                       ! Normal minimum distance approximation (inversed)
         real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
         real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
         real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)

@@ -8,8 +8,9 @@
 !
 !           >> Scalar weak integrals: Those whose test function is scalar
 !
-!                 StdVolumeGreen:   \int \vec{F} \cdot \nabla v dx
-!                 StdFace       :   \int \vec{F} \cdot \vec{n} v ds
+!                 StdVolumeGreen  :   \int \vec{F} \cdot \nabla v dx
+!                 StdFace         :   \int \vec{F} \cdot \vec{n} v ds
+!                 StdGradientFace :   \int \vec{F} \cdot \nabla v ds
 !
 !              These weak integrals are computed for 0:N - 0:N - 1:NCONS test functions
 !                    (i,j,eq) < l_i^eq l_j^eq 
@@ -42,6 +43,7 @@ module DGWeakIntegrals
 !  *******
    private
    public   ScalarWeakIntegrals_t , VectorWeakIntegrals_t
+   public   ScalarWeakIntegrals   , VectorWeakIntegrals
 !  *******
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,6 +60,7 @@ module DGWeakIntegrals
       contains
          procedure, nopass      :: StdVolumeGreen  => Scalar_StdVolumeGreen
          procedure, nopass      :: StdFace         => Scalar_StdFace
+         procedure, nopass      :: StdGradientFace => Scalar_StdGradientFace
    end type ScalarWeakIntegrals_t
 !
 !  ----------------------------------------------------
@@ -69,6 +72,10 @@ module DGWeakIntegrals
          procedure, nopass      :: StdVolumeGreen  => Vector_StdVolumeGreen
          procedure, nopass      :: StdFace         => Vector_StdFace
    end type VectorWeakIntegrals_t
+!
+!
+   type(ScalarWeakIntegrals_t)      :: ScalarWeakIntegrals
+   type(VectorWeakIntegrals_t)      :: VectorWeakIntegrals
 !
 !  ========
    contains
@@ -201,6 +208,167 @@ module DGWeakIntegrals
          end associate
 
       end function Scalar_StdFace
+
+      pure function Scalar_StdGradientFace( ed , loc , F ) result ( faceInt )
+!
+!     *****************************************************************************
+!           This computes the following weak integral with scalar test function:
+!           
+!              faceInt = \frac{1}{w_i w_j} \int_0^1 \vec{F}\cdot\nabla  \phi_{ij} dxi
+!
+!           The integral is computed at the face, which is located at the
+!           "loc" (e.g. LEFT/RIGHT) element.
+!
+!           First, the position referred to the element is computed, to apply
+!           the appropriate test function \phi. Then, it is integrated
+!           along the face.
+!
+!           Important: To this subroutine, \vec{F} <= \vec{F} dS, enters such 
+!           that a scalar integral is computed for \vec{F} in the computational domain!
+!        
+!     *****************************************************************************
+!
+         use MatrixOperations
+         implicit none
+         class(Edge_t), intent(in)     :: ed
+         integer,       intent(in)     :: loc
+         real(kind=RP), intent(in)     :: F(0:ed % storage(loc) % spA % N,1:NCONS,1:NDIM)
+         real(kind=RP)                 :: faceInt(0:ed % storage(loc) % spA % N , 0:ed % storage(loc) % spA % N , 1:NCONS)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)     :: Ja_xi(0:ed % storage(loc) % spA % N , 1:NDIM)
+         real(kind=RP)     :: Ja_eta(0:ed % storage(loc) % spA % N , 1:NDIM)
+         real(kind=RP)     :: jac(0:ed % storage(loc) % spA % N)
+         real(kind=RP)     :: F_contravariant( 0 : ed % storage(loc) % spA % N , 1:NCONS )
+         real(kind=RP)     :: G_contravariant( 0 : ed % storage(loc) % spA % N , 1:NCONS )
+         real(kind=RP)     :: dF             ( 0 : ed % storage(loc) % spA % N , 1:NCONS )
+         real(kind=RP)     :: dG             ( 0 : ed % storage(loc) % spA % N , 1:NCONS )
+         integer     :: iXi , iEta , eq , iDim
+
+         associate ( e => ed % quads(loc) % e )
+!
+!        ------------------------------------------------------------
+!>       The location of the edge referred to the element is gathered
+!        ------------------------------------------------------------
+!
+         select case ( ed % edgeLocation(loc) ) 
+
+            case (EBOTTOM)
+!
+!              -----------------------------------------------------------            
+!>             Bottom edge: Variables are defined for Xi-coordinate, 
+!                       while the test function is written in Eta=-1
+!              -----------------------------------------------------------            
+!
+               do iDim = 1 , NDIM
+                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,LEFT) , e % spA % N + 1 )
+                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,LEFT) , e % spA % N + 1 )
+               end do
+               
+               jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,LEFT) , e % spA % N + 1 )
+
+               do eq = 1 , NCONS
+                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
+                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               end do
+!
+!              dF(i,eq) = hatD(m,i) * F(m,eq)
+!              ------------------------------
+               dF = Mat_x_Mat_F( e % spA % hatD , F_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
+               
+               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(iXi,iEta,eq) = dF(iXi,eq) * e % spA % lbw(iEta,LEFT) +  G_contravariant(iXi,eq) * e % spA % dlbw(iEta,LEFT)
+               end do ;            end do ;                    end do
+
+            case (ERIGHT)
+!
+!              -----------------------------------------------------------            
+!>             Right edge: Variables are defined for Eta-coordinate, 
+!                       while the test function is written in Xi=+1
+!              -----------------------------------------------------------            
+!
+               do iDim = 1 , NDIM
+                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true. )
+                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true. )
+               end do
+               
+               jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true.)
+
+               do eq = 1 , NCONS
+                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
+                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               end do
+!
+!              dG(i,eq) = hatD(m,i) * F(m,eq)
+!              ------------------------------
+               dG = Mat_x_Mat_F( e % spA % hatD , G_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
+               
+               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(iXi,iEta,eq) = F_contravariant(iEta,eq) * e % spA % dlbw(iXi,RIGHT) + dG(iEta,eq) * e % spA % lbw(iXi,RIGHT)
+               end do ;            end do ;                    end do
+
+            case (ETOP)
+!
+!              -----------------------------------------------------------            
+!>             Top edge: Variables are defined for Xi-coordinate, 
+!                       while the test function is written in Eta=1
+!              -----------------------------------------------------------            
+!
+               do iDim = 1 , NDIM
+                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
+                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
+               end do
+               
+               jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
+
+               do eq = 1 , NCONS
+                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
+                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               end do
+!
+!              dF(i,eq) = hatD(m,i) * F(m,eq)
+!              ------------------------------
+               dF = Mat_x_Mat_F( e % spA % hatD , F_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
+               
+               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(iXi,iEta,eq) = dF(iXi,eq) * e % spA % lbw(iEta,RIGHT) +  G_contravariant(iXi,eq) * e % spA % dlbw(iEta,RIGHT)
+               end do ;            end do ;                    end do
+
+            case (ELEFT)
+!
+!              -----------------------------------------------------------            
+!>             Left edge: Variables are defined for Eta-coordinate, 
+!                       while the test function is written in Xi=+0
+!              -----------------------------------------------------------            
+!
+               do iDim = 1 , NDIM
+                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true. )
+                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true. )
+               end do
+               
+               jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true.)
+
+               do eq = 1 , NCONS
+                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
+                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               end do
+!
+!              dG(i,eq) = hatD(m,i) * F(m,eq)
+!              ------------------------------
+               dG = Mat_x_Mat_F( e % spA % hatD , G_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
+               
+               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(iXi,iEta,eq) = F_contravariant(iEta,eq) * e % spA % dlbw(iXi,LEFT) + dG(iEta,eq) * e % spA % lbw(iXi,LEFT)
+               end do ;            end do ;                    end do
+
+         end select
+      
+         end associate
+
+      end function Scalar_StdGradientFace
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////
 !

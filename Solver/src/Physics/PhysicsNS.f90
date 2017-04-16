@@ -292,7 +292,7 @@ module PhysicsNS
          implicit none
          real(kind=RP), intent(in)    :: q(NCONS)
          real(kind=RP), intent(in)    :: dq(NDIM , NCONS)
-         real(kind=RP)                :: F(2:NCONS,NDIM)
+         real(kind=RP)                :: F(1:NCONS,NDIM)
       end function viscousFlux0D
 
       module pure function viscousFlux1D( N , q , dq ) result ( F )
@@ -300,7 +300,7 @@ module PhysicsNS
          integer, intent(in)                :: N 
          real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,1:NCONS,1:NDIM)
       end function viscousFlux1D
 
       module pure function viscousFlux2D( N , q , dq ) result ( F )
@@ -308,7 +308,7 @@ module PhysicsNS
          integer, intent(in)                :: N 
          real(kind=RP), intent(in)          :: Q(0:N,0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dQ(0:N,0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,0:N,1:NCONS,1:NDIM)
       end function viscousFlux2D
 
       module pure function viscousFluxBC0D( q , qB , dq ) result ( F )
@@ -316,7 +316,7 @@ module PhysicsNS
          real(kind=RP), intent(in)          :: q(1:NCONS)
          real(kind=RP), intent(in)          :: qB(1:NCONS)
          real(kind=RP), intent(in)          :: dq(1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(1:NCONS,1:NDIM)
       end function viscousFluxBC0D
 
       module pure function viscousFluxBC1D( N , q , qB , dq ) result ( F )
@@ -325,7 +325,7 @@ module PhysicsNS
          real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: qB(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,1:NCONS,1:NDIM)
       end function viscousFluxBC1D
 
       module pure function adiabaticViscousFlux0D( q , qb , dq) result(F)
@@ -333,7 +333,7 @@ module PhysicsNS
          real(kind=RP), intent(in)    :: q(NCONS)
          real(kind=RP), intent(in)    :: qB(NCONS)
          real(kind=RP), intent(in)    :: dq(NDIM , NCONS)
-         real(kind=RP)                :: F(2:NCONS,NDIM)
+         real(kind=RP)                :: F(1:NCONS,NDIM)
       end function adiabaticViscousFlux0D
 
       module pure function adiabaticViscousFlux1D( N , q , qb , dq ) result ( F )
@@ -342,7 +342,7 @@ module PhysicsNS
          real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: qb(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,1:NCONS,1:NDIM)
       end function adiabaticViscousFlux1D
 
       module pure function adiabaticViscousFlux2D( N , q , qb , dq ) result ( F )
@@ -351,7 +351,7 @@ module PhysicsNS
          real(kind=RP), intent(in)          :: Q(0:N,0:N,1:NCONS)
          real(kind=RP), intent(in)          :: Qb(0:N,0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dQ(0:N,0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,0:N,1:NCONS,1:NDIM)
       end function adiabaticViscousFlux2D
 
       module pure function ComputeViscousTensor ( N , Q , dQ ) result ( tau )

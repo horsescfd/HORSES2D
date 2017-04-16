@@ -19,7 +19,7 @@ submodule (PhysicsNS)   ViscousFluxes
          implicit none
          real(kind=RP), intent(in)  :: q(NCONS)
          real(kind=RP), intent(in)  :: dq(NDIM , NCONS)
-         real(kind=RP)              :: F(2:NCONS,NDIM)
+         real(kind=RP)              :: F(1:NCONS,NDIM)
 !
 !        ---------------
 !        Local variables
@@ -41,7 +41,7 @@ submodule (PhysicsNS)   ViscousFluxes
          dxT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IX,IRHO) + dq(IX,IRHOE) + u * ( u * dq(IX,IRHO) - dq(IX,IRHOU)) + v * (v * dq(IX,IRHO) - dq(IX,IRHOV)) ) 
          dyT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IY,IRHO) + dq(IY,IRHOE) + u * ( u * dq(IY,IRHO) - dq(IY,IRHOU)) + v * (v * dq(IY,IRHO) - dq(IY,IRHOV)) ) 
    
-
+         F(IRHO,:) = 0.0_RP
          F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
          F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
 
@@ -65,7 +65,7 @@ submodule (PhysicsNS)   ViscousFluxes
          integer, intent(in)                :: N 
          real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,1:NCONS,1:NDIM)
 !
 !        ---------------
 !        Local variables
@@ -88,6 +88,7 @@ submodule (PhysicsNS)   ViscousFluxes
          dxT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IX,IRHO) + dq(:,IX,IRHOE) + u * ( u * dq(:,IX,IRHO) - dq(:,IX,IRHOU)) + v * (v * dq(:,IX,IRHO) - dq(:,IX,IRHOV)) ) 
          dyT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IY,IRHO) + dq(:,IY,IRHOE) + u * ( u * dq(:,IY,IRHO) - dq(:,IY,IRHOU)) + v * (v * dq(:,IY,IRHO) - dq(:,IY,IRHOV)) ) 
    
+         F(:,IRHO,:)   = 0.0_RP
          F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
          F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
 
@@ -111,7 +112,7 @@ submodule (PhysicsNS)   ViscousFluxes
          integer, intent(in)                :: N 
          real(kind=RP), intent(in)          :: q(0:N,0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,0:N,1:NCONS,1:NDIM)
 !
 !        ---------------
 !        Local variables
@@ -133,6 +134,7 @@ submodule (PhysicsNS)   ViscousFluxes
          dxT = gm1 * invRho * ( -q(:,:,IRHOE) * invRho * dq(:,:,IX,IRHO) + dq(:,:,IX,IRHOE) + u * ( u * dq(:,:,IX,IRHO) - dq(:,:,IX,IRHOU)) + v * (v * dq(:,:,IX,IRHO) - dq(:,:,IX,IRHOV)) ) 
          dyT = gm1 * invRho * ( -q(:,:,IRHOE) * invRho * dq(:,:,IY,IRHO) + dq(:,:,IY,IRHOE) + u * ( u * dq(:,:,IY,IRHO) - dq(:,:,IY,IRHOU)) + v * (v * dq(:,:,IY,IRHO) - dq(:,:,IY,IRHOV)) ) 
 
+         F(:,:,IRHO,:)   = 0.0_RP
          F(:,:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * mu * divV
          F(:,:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * mu * divV
 
@@ -156,7 +158,7 @@ submodule (PhysicsNS)   ViscousFluxes
          real(kind=RP), intent(in)  :: q(NCONS)
          real(kind=RP), intent(in)  :: qB(NCONS)
          real(kind=RP), intent(in)  :: dq(NDIM , NCONS)
-         real(kind=RP)              :: F(2:NCONS,NDIM)
+         real(kind=RP)              :: F(1:NCONS,NDIM)
 !
 !        ---------------
 !        Local variables
@@ -179,6 +181,7 @@ submodule (PhysicsNS)   ViscousFluxes
          dyT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IY,IRHO) + dq(IY,IRHOE) + u * ( u * dq(IY,IRHO) - dq(IY,IRHOU)) + v * (v * dq(IY,IRHO) - dq(IY,IRHOV)) ) 
    
 
+         F(IRHO,:)   = 0.0_RP
          F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
          F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
 
@@ -203,7 +206,7 @@ submodule (PhysicsNS)   ViscousFluxes
          real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: qB(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,1:NCONS,1:NDIM)
 !
 !        ---------------
 !        Local variables
@@ -226,6 +229,7 @@ submodule (PhysicsNS)   ViscousFluxes
          dxT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IX,IRHO) + dq(:,IX,IRHOE) + u * ( u * dq(:,IX,IRHO) - dq(:,IX,IRHOU)) + v * (v * dq(:,IX,IRHO) - dq(:,IX,IRHOV)) ) 
          dyT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IY,IRHO) + dq(:,IY,IRHOE) + u * ( u * dq(:,IY,IRHO) - dq(:,IY,IRHOU)) + v * (v * dq(:,IY,IRHO) - dq(:,IY,IRHOV)) ) 
    
+         F(:,IRHO,:)   = 0.0_RP
          F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
          F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
 
@@ -249,7 +253,7 @@ submodule (PhysicsNS)   ViscousFluxes
          real(kind=RP), intent(in)  :: q(NCONS)
          real(kind=RP), intent(in)  :: qB(NCONS)
          real(kind=RP), intent(in)  :: dq(NDIM , NCONS)
-         real(kind=RP)              :: F(2:NCONS,NDIM)
+         real(kind=RP)              :: F(1:NCONS,NDIM)
 !
 !        ---------------
 !        Local variables
@@ -268,6 +272,7 @@ submodule (PhysicsNS)   ViscousFluxes
 
          divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
 
+         F(IRHO,:)   = 0.0_RP
          F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
          F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
 
@@ -293,7 +298,7 @@ submodule (PhysicsNS)   ViscousFluxes
          real(kind=RP), intent(in)          :: q(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: qB(0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,1:NCONS,1:NDIM)
 !
 !        ---------------
 !        Local variables
@@ -312,6 +317,7 @@ submodule (PhysicsNS)   ViscousFluxes
 
          divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
 
+         F(:,IRHO ,: ) = 0.0_RP
          F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
          F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
 
@@ -336,7 +342,7 @@ submodule (PhysicsNS)   ViscousFluxes
          real(kind=RP), intent(in)          :: q(0:N,0:N,1:NCONS)
          real(kind=RP), intent(in)          :: qB(0:N,0:N,1:NCONS)
          real(kind=RP), intent(in)          :: dq(0:N,0:N,1:NDIM,1:NCONS)
-         real(kind=RP)                      :: F(0:N,0:N,2:NCONS,1:NDIM)
+         real(kind=RP)                      :: F(0:N,0:N,1:NCONS,1:NDIM)
 !
 !        ---------------
 !        Local variables
@@ -355,6 +361,7 @@ submodule (PhysicsNS)   ViscousFluxes
 
          divV = - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU) - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)
 
+         F(:,:,IRHO , :) = 0.0_RP
          F(:,:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * mu * divV
          F(:,:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * mu * divV
 

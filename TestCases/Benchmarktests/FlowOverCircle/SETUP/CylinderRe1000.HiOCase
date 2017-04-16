@@ -14,7 +14,7 @@
                 Reference pressure    : 101325.0
                 Reference Temperature : 273.15
                 Reynolds length       : 1.0
-                Reynolds number       : 100.0
+                Reynolds number       : 1000.0
                 Prandtl number        : 0.72
                 Mach number           : 0.1
 	
@@ -32,23 +32,23 @@
              Inviscid Riemann solver : HLL
 
 !------------------------------------: Viscous discretization
-               Viscous discretization: BR1
+               Viscous discretization: IP
               Interior penalty method: SIPG
-              Jumps penalty parameter: 1.0
+              Jumps penalty parameter: 5.0
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
-               Integration mode     : Steady
+               Integration mode     : Transient
                Integration scheme   : Williamson RK5
                Time step            : 1.0e-2
                CFL Number           : 0.1
-               Simulation time      : 0.01
-               Number of iterations : 250
+               Simulation time      : 1000.0
+               Number of iterations : 10000000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
                       Solution file: ./RESULTS/Cylinder.HiORst
-                  Autosave interval: 1000
+                  Autosave interval: 100000
                     Output interval: 10
                    Output file type: Interpolated
     Number of representation points: 10

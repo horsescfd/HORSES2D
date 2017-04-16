@@ -55,7 +55,11 @@
          end if
 
          if ( allocated( Mach_number ) ) then
+#ifdef _DIMENSIONLESS_TAU
             self % v = sqrt(thermodynamics % gamma) * Mach_number
+#else
+            self % v = Mach_number * sqrt( thermodynamics % gamma * setup % pressure_ref / refValues % p )
+#endif
          else
             self % v = 0.0_RP
          end if
@@ -71,6 +75,7 @@
             self % v = self % v * vel_dir(1:NDIM)
 
          end if
+
 
       end subroutine ViscousWall_Construct
 

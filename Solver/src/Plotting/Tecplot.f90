@@ -1,100 +1,82 @@
-module Tecplot
+submodule (Plotter) Tecplot
    use SMConstants
 
 #include "Defines.h"
 
-   private
-   public         :: ExportToTecplot , ExportMeshToTecplot
-
-   integer, parameter         :: STR_LEN_TECPLOT = 128
-
-   type Tecplot_t
-      integer        :: no_of_variables = 0
-      integer        :: fID
-      character(len=STR_LEN_TECPLOT), allocatable   :: variables(:)
-      character(len=STR_LEN_TECPLOT)                :: Name
-      
-      contains
-         procedure      :: gatherVariables      => Tecplot_GatherVariables
-         procedure      :: Open                 => Tecplot_OpenFile
-         procedure      :: NewZone              => Tecplot_NewZone
-   end type Tecplot_t
-
    type LinkedList_t
       integer        :: no_of_entries = 0
       class(Charlist), pointer    :: HEAD => NULL()
+      contains
+         procedure   :: Destruct => LinkedList_Destruct
    end type LinkedList_t
 
    type Charlist
-      character(len=STR_LEN_TECPLOT)      :: str
+      character(len=STR_LEN_PLOTTER)      :: str
       class(Charlist), pointer            :: next => NULL()
    end type Charlist
-
-   interface ExportToTecplot
-      module procedure Tecplot_Save
-   end interface ExportToTecplot
-
-   interface ExportMeshToTecplot
-      module procedure Tecplot_SaveMesh
-   end interface ExportMeshToTecplot
-
+!
 !
 !  ========
    contains
 !  ========
 !
-      subroutine Tecplot_SaveMesh( mesh , Name ) 
+      module subroutine Tecplot_Initialization ( self )
+         use QuadMeshClass
+         class(Tecplot_t)     :: self
+
+         call Tecplot_GatherVariables( self )
+
+      end subroutine Tecplot_Initialization
+         
+      module subroutine Tecplot_ExportMesh( self , mesh , Name ) 
          use QuadMeshClass
          implicit none
+         class(Tecplot_t)        :: self
          class(QuadMesh_t)       :: mesh
          character(len=*)        :: Name
-         type(Tecplot_t)         :: tec
          integer                 :: eID
-         character(len=STR_LEN_TECPLOT)      :: auxname
+         character(len=STR_LEN_PLOTTER)      :: auxname
 
          auxname = Name(1: len_trim(Name) - len(".HiOMesh")) // ".plt"
 
-         tec % Name = trim(auxname)
+         self % Name = trim(auxname)
 
-
-         call tec % Open
+         call Tecplot_OpenFile ( self , isMesh = .true. ) 
       
          do eID = 1 , mesh % no_of_elements
-            call tec % NewZone( mesh , eID , "DGSEM") 
+            call Tecplot_NewMeshZone( self , mesh , eID ) 
          end do
    
-         close ( tec % fID )
+         close ( self % fID )
 
-      end subroutine Tecplot_SaveMesh
+      end subroutine Tecplot_ExportMesh
 
-      subroutine TecPlot_Save( mesh , Name) 
+      module subroutine TecPlot_Export( self , mesh , Name) 
          use QuadMeshClass
          implicit none
+         class(Tecplot_t)         :: self
          class(QuadMesh_t)       :: mesh
          character(len=*)        :: Name
-         type(Tecplot_t)         :: tec 
          integer                 :: eID
 
-         tec % Name = trim(Name)
+         self % Name = trim(Name) // ".plt"
 
-         call tec % GatherVariables
-
-         call tec % Open
+         call TecPlot_OpenFile ( self , isMesh = .false. )
 
          do eID = 1 , mesh % no_of_elements
-            call tec % NewZone( mesh , eID )
+            call Tecplot_NewZone( self , mesh , eID )
          end do
 
-         close( tec % fID )
+         close( self % fID )
 
-      end subroutine
+      end subroutine TecPlot_Export
 
       subroutine TecPlot_GatherVariables( self ) 
          use Setup_Class
          implicit none
          class(Tecplot_t)               :: self
          integer                        :: pos
-         character(len=STR_LEN_TECPLOT) :: auxstr
+         character(len=STR_LEN_PLOTTER) :: auxstr
          type(LinkedList_t)             :: entries
          class(CharList), pointer       :: current
          integer                        :: i
@@ -161,9 +143,10 @@ module Tecplot
 
       end subroutine TecPlot_gatherVariables
 
-      subroutine Tecplot_OpenFile( self ) 
+      subroutine Tecplot_OpenFile( self , IsMesh ) 
          implicit none
          class(Tecplot_t)        :: self
+         logical                 :: IsMesh
          integer                 :: var
 
          open( newunit = self % fID , file = trim(self % Name) , status = "unknown" , action = "write" ) 
@@ -174,12 +157,62 @@ module Tecplot
          write( self % fID , '(A,A,A)') 'TITLE = "',trim(self % Name),'"'
          write( self % fID , '(A)' , advance="no") 'VARIABLES = "X" "Y" "Z" '
 
-         do var = 1 , self % no_of_variables
-            write( self % fID , '(A,A,A)' , advance="no" ) '"',trim(self % variables(var)),'" '
-         end do
+         if ( .not. IsMesh ) then
+            do var = 1 , self % no_of_variables
+               write( self % fID , '(A,A,A)' , advance="no" ) '"',trim(self % variables(var)),'" '
+            end do
+         end if
          write( self % fID , * )
 
       end subroutine Tecplot_OpenFile
+
+      subroutine Tecplot_NewMeshZone(self , mesh , eID ) 
+         use QuadMeshClass
+         use Physics
+         implicit none
+         class(Tecplot_t)        :: self
+         class(QuadMesh_t)       :: mesh
+         integer                 :: eID 
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         integer                 :: iXi , iEta
+         integer                 :: var
+         real(kind=RP)              :: Q(1:NCONS)
+
+         associate ( N => mesh % elements(eID) % spA % N )
+!         
+!        New header
+!        ----------
+         write( self % fID , '(A,I0,A)' , advance="no" ) "ZONE N=",(N+1)*(N+1),", "
+         write( self % fID , '(A,I0,A)' , advance="no" ) "E=",(N)*(N),", "
+         write( self % fID , '(A)'                     ) "DATAPACKING=POINT, ZONETYPE=FEQUADRILATERAL"
+
+         do iEta = 0 , N
+            do iXi = 0 , N
+               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)',advance="no") mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
+                                                                              , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
+                                                                              , 0.0_RP  
+!
+!              Jump to next line
+!              -----------------
+               write( self % fID , *)
+            end do
+         end do
+
+         write( self % fID , * )    ! One blank line
+
+         do iEta = 1 , N
+            do iXi = 1 , N
+               write(self % fID , '(I0,1X,I0,1X,I0,1X,I0)')  pointPosition(iXi,iEta,N)
+            end do
+         end do
+
+         end associate
+
+      end subroutine Tecplot_NewMeshZone
 
       subroutine Tecplot_NewZone( self , mesh , eID , zoneType) 
          use QuadMeshClass
@@ -190,7 +223,7 @@ module Tecplot
          class(QuadMesh_t)       :: mesh
          integer                 :: eID 
          character(len=*), optional :: zoneType
-         character(len=STR_LEN_TECPLOT)           :: zType
+         character(len=STR_LEN_PLOTTER)           :: zType
 
          associate ( N => mesh % elements(eID) % spA % N )
 
@@ -553,4 +586,23 @@ module Tecplot
          val(4) = (N+1)*iEta + iXi + 1
       end function pointPosition
 
-end module Tecplot  
+      subroutine LinkedList_Destruct( self ) 
+         implicit none
+         class(LinkedList_t)      :: self
+         class(Charlist), pointer :: current
+         class(Charlist), pointer :: next
+         integer                  :: i
+
+         current => self % head
+
+         do i = 1 , self % no_of_entries
+            next => current % next
+            deallocate( current )
+            current => next
+
+         end do
+
+
+      end subroutine LinkedList_Destruct
+
+end submodule Tecplot  

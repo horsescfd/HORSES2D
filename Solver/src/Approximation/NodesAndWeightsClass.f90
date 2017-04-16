@@ -33,6 +33,8 @@ module nodesAndWeights_class
         real(kind=RP), pointer    :: tildeMTD(:,:)
         real(kind=RP), pointer    :: lb(:,:)
         real(kind=RP), pointer    :: lbw(:,:)
+        real(kind=RP), pointer    :: dlb(:,:)
+        real(kind=RP), pointer    :: dlbw(:,:)
         real(kind=RP), pointer    :: T(:,:)     ! Interpolation matrix to the TAIL of the linked list 
 !                                                  (integration points are placed there)
         class(NodesAndWeights_t), pointer :: next => NULL()
@@ -172,6 +174,8 @@ module nodesAndWeights_class
             allocate ( self % trMD   ( 0:N,0:N )  ) 
             allocate ( self % lb     ( 0:N,2   )  ) 
             allocate ( self % lbw    ( 0:N,2   )  ) 
+            allocate ( self % dlb    ( 0:N,2   )  ) 
+            allocate ( self % dlbw   ( 0:N,2   )  ) 
 
             self % T => NULL()
             self % tildeMTD => NULL()
@@ -224,6 +228,7 @@ module nodesAndWeights_class
 !       *********************
 !
         subroutine computeNodesAndWeights(self)
+            use MatrixOperations
             implicit none
             class(NodesAndWeights_t)        :: self
             integer                         :: N
@@ -295,6 +300,12 @@ module nodesAndWeights_class
    
             self % lbw ( :,LEFT  ) = self % lb ( :,LEFT  ) / self % w
             self % lbw ( :,RIGHT ) = self % lb ( :,RIGHT ) / self % w
+
+            self % dlb ( : , LEFT  ) = MatrixTimesVector_F ( self % DT , self % lb ( : , LEFT  )  , self % N + 1 ) 
+            self % dlb ( : , RIGHT ) = MatrixTimesVector_F ( self % DT , self % lb ( : , RIGHT )  , self % N + 1 ) 
+
+            self % dlbw ( :,LEFT  ) = self % dlb ( :,LEFT  ) / self % w
+            self % dlbw ( :,RIGHT ) = self % dlb ( :,RIGHT ) / self % w
             
 
         end subroutine computeNodesAndWeights

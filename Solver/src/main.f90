@@ -36,10 +36,10 @@ program main
 !   -------------------------------------
     call checks( sem )
 
-call cpu_time(tstart)
+    call cpu_time(tstart)
     call sem % Integrate()
-call cpu_time(tend)
-   print*, "Time: ",tend-tstart
+    call cpu_time(tend)
+    print*, "Time: ",tend-tstart
 !
 !  Program finished
 !  ----------------

@@ -247,4 +247,5 @@
 #ifdef NAVIER_STOKES
             allocate ( self % dQ ( 0 : self % spA % N , NDIM  , NCONS ) ) 
 #endif
+
          end subroutine BoundaryData_Initialize

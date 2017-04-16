@@ -1,4 +1,4 @@
-$(info High-Order Discontinuous Galerkin 2D Solver Compilation. Madrid TU.)
+
 $(info )
 $(info )
 
@@ -28,7 +28,9 @@ VariableConversion: PhysicsNS
 RiemannSolvers: PhysicsNS SMConstants InviscidFluxes
 InviscidFluxes: PhysicsNS SMConstants
 ViscousFluxes: PhysicsNS SMConstants
-DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
+DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter
+Plotter: SMConstants
+Tecplot: Plotter
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
 InterpolationAndDerivatives: SMConstants Utilities
 Utilities: RealDataLinkedList SMConstants
@@ -47,10 +49,11 @@ InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
 DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
 DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals
-DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers
+DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers DGWeakIntegrals
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGInviscid_StandardDG: DGInviscidMethods
 DGViscous_BR1: DGViscousMethods
+DGViscous_IP: DGViscousMethods
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
 DirichletBC: DGBoundaryConditions
 EulerWallBC: DGBoundaryConditions
@@ -62,7 +65,7 @@ RiemannBC: DGBoundaryConditions
 ViscousWallBC: DGBoundaryConditions
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants
-DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot Monitors
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Plotter Monitors
 Monitors: SMConstants Setup Paramfile Physics QuadMesh
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class

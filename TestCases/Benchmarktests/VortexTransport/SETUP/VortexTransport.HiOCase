@@ -1,0 +1,84 @@
+!
+!            ***********************************
+!       * Vortex transport parameter file *
+!       ***********************************
+!
+
+!-------------------------------------: Geometry
+              Mesh file: ./MESH/VortexTransport_Coarse.HiOMesh
+          Boundary file: _this_
+
+
+!-------------------------------------: Physics
+                    Gas: Air
+          Reference pressure: 101325.0
+       Reference Temperature: 273.15
+                   Reynolds length: 0.1
+             Reynolds number: 250.0
+              Prandtl number: 0.72
+                 Mach number: 0.6
+   
+!------------------------------------: DG Discretization
+        Interpolation nodes: Legendre-Gauss
+           Default polynomial order: 4
+
+!------------------------------------: Initialization
+          Initial condition: Vortex transport
+               Restart file: ./RESULTS/VortexTransport.HiORst
+
+!------------------------------------: Inviscid discretization
+               Inviscid discretization : Standard
+                 Inviscid formulation: Green form
+                Inviscid Riemann Flux: HLL
+          ! Number of integration points: 6
+
+!------------------------------------: Viscous discretization
+                     Viscous discretization: IP
+              Interior penalty method: SIPG
+              Jumps penalty parameter: 1.0
+     Gradient jumps penalty parameter: 0.0
+
+!-----------------------------------: Time integration
+                    Integration mode: Transient
+                    Integration scheme: Williamson RK5
+                           Time step: 1.0e-2
+                        CFL Number : 0.2
+               Simulation time: 1.0
+         Number of iterations: 1000000
+                Initial time: 0.0
+
+!----------------------------------: Output variables
+            Solution file: ./RESULTS/VortexTransport.HiORst
+                  Autosave interval: 5000
+                    Output interval: 10
+                     Save variables: rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+
+
+
+# define zone 1
+   Name      = Bottom
+   Type      = Periodic
+   Direction = y
+   Marker    = 2
+# end 
+
+# define zone 2
+   Name      = Top
+   Type      = Periodic
+   Direction = y
+   Marker    = 1
+# end 
+
+# define zone 3
+   Name      = Left
+   Type      = Periodic
+   Direction = x
+   Marker    = 4
+# end
+
+# define zone 4
+   Name      = Right
+   Type      = Periodic
+   Direction = x
+   Marker    = 3
+# end

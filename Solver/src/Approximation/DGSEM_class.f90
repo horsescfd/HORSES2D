@@ -24,6 +24,7 @@
     use DGTimeIntegrator
     use Storage_module
     use DGBoundaryConditions
+    use Plotter
     implicit none
 !
 #include "Defines.h"
@@ -46,6 +47,7 @@
         type(Storage_t)                     :: Storage
         class(BoundaryCondition_t), pointer :: BoundaryConditions(:)
         type(TimeIntegrator_t)              :: Integrator
+        class(Plotter_t), allocatable       :: Plotter
         contains
             procedure       :: Construct => DGSEM_construct
             procedure       :: SetInitialCondition => DGSEM_SetInitialCondition
@@ -80,7 +82,6 @@
         subroutine DGSEM_construct( self )
             use Setup_class
             use QuadElementClass
-            use Tecplot
             implicit none
             class(DGSEM_t)   :: self
 !
@@ -131,9 +132,10 @@
 !           ------------------------------------------------------
             call DGSpatial_Initialization() 
 !
-!           Export the mesh to tecplot            
-!           --------------------------
-            call ExportMeshToTecplot( self % mesh , Setup % mesh_file )   
+!           Construct plotter and Export the mesh            
+!           -------------------------------------
+            call ConstructPlotter( self % Plotter )
+            call self % Plotter % ExportMesh( self % mesh , Setup % mesh_file )   
 !
 !           Destruct the mesh file object
 !           -----------------------------
@@ -142,7 +144,7 @@
 !           Set the initial condition to all flow variables
 !           -----------------------------------------------
             call self % SetInitialCondition()
-            call ExportToTecplot( self % mesh , './RESULTS/InitialCondition.plt')     
+            call self % Plotter % Export( self % mesh , './RESULTS/InitialCondition')     
             
         end subroutine DGSEM_construct
             
@@ -190,7 +192,6 @@
 !           *********************************************************
 !
             use Setup_Class
-            use Tecplot
             implicit none
             class(DGSEM_t)                   :: self
             character(len=STR_LEN_DGSEM)     :: solutionpltName
@@ -210,10 +211,10 @@
             pos = index( Setup % solution_file , '.HiORst')
 
             if ( pos .gt. 0 ) then
-               solutionpltName = Setup % solution_file(1:pos-1) // ".plt"
+               solutionpltName = Setup % solution_file(1:pos-1) 
             end if
    
-            call ExportToTecplot( self % mesh , trim(solutionpltname))  
+            call self % Plotter % Export ( self % mesh , trim(solutionpltname))  
 
         end subroutine DGSEM_Integrate
 !

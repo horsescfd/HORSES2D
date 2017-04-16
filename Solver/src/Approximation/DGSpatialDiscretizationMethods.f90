@@ -14,16 +14,11 @@ module DGSpatialDiscretizationMethods
    private
    public DGSpatial_Initialization  , DGSpatial_computeTimeDerivative , DGSpatial_interpolateSolutionToBoundaries
    public DGSpatial_newTimeStep
-#ifdef NAVIER_STOKES
-   public DGSpatial_computeGradient
-#endif
 !
 !  ************************************
 !  Inviscid and Viscous methods objects
 !  ************************************
 !
-   type(ScalarWeakIntegrals_t)      :: ScalarWeakIntegrals
-   type(VectorWeakIntegrals_t)      :: VectorWeakIntegrals
    class(InviscidMethod_t), pointer :: InviscidMethod
 #ifdef NAVIER_STOKES
    class(ViscousMethod_t),  pointer :: ViscousMethod
@@ -124,7 +119,7 @@ module DGSpatialDiscretizationMethods
 !
 !        Compute the solution Q gradient dQ
 !        ----------------------------------
-         call DGSpatial_computeGradient( mesh )
+         call ViscousMethod % ComputeGradient( mesh ) 
 !
 !        Interpolate gradient to boundaries
 !        ----------------------------------
@@ -144,65 +139,6 @@ module DGSpatialDiscretizationMethods
          end do
 
       end subroutine DGSpatial_resetQDot
-
-#ifdef NAVIER_STOKES
-      subroutine DGSpatial_computeGradient( mesh )
-!
-!        ***************************************************
-!              This routine computes the solution gradient.
-!           This is performed in four stages:
-!              1) Initialization
-!              2) Volume loops
-!              3) Face loops
-!              4) Scaling
-!        ***************************************************
-
-         use QuadElementClass
-         implicit none
-         class(QuadMesh_t)         :: mesh
-!        --------------------------------
-         integer                 :: eID
-         integer                 :: edID 
-         integer                 :: iDim , eq
-!
-!        ************
-!        Volume loops
-!        ************
-!
-         do eID = 1 , mesh % no_of_elements
-            call DGSpatial_dQVolumeLoop( mesh % elements(eID) )
-         end do
-
-!        **********
-!        Face loops
-!        **********
-!
-         do edID = 1 , mesh % no_of_edges
-            select type ( f => mesh % edges(edID) % f ) 
-               type is (Edge_t)
-                  call DGSpatial_dQFaceLoop_Interior( f ) 
-
-               type is (StraightBdryEdge_t)
-                  call DGSpatial_dQFaceLoop_StraightBdry( f )
-   
-               type is (CurvedBdryEdge_t)
-                  call DGSpatial_dQFaceLoop_CurvedBdry( f )
-
-            end select
-         end do
-!
-!        ***********************
-!        Scale with the jacobian
-!        ***********************
-!
-         do eID = 1 , mesh % no_of_elements 
-            do iDim = 1 , NDIM   ;  do eq = 1 , NCONS
-               mesh % elements(eID) % dQ(:,:,iDim,eq) = mesh % elements(eID) % dQ(:,:,iDim,eq) / mesh % elements(eID) % Jac
-            end do               ;  end do
-         end do
-
-      end subroutine DGSpatial_computeGradient
-#endif
 
       subroutine DGSpatial_computeQDot( mesh )
 !
@@ -265,78 +201,6 @@ module DGSpatialDiscretizationMethods
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-!              GRADIENT VOLUME AND FACE LOOPS
-!              ------------------------------
-!/////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
-#ifdef NAVIER_STOKES
-      subroutine DGSpatial_dQVolumeLoop( e )
-         use QuadElementClass
-         class(QuadElement_t)          :: e
-         real(kind=RP), pointer        :: dQ(:,:,:,:)
-         integer      , pointer        :: N
-
-         N => e % spA % N
-         dQ(0:,0:,1:,1:) => e % dQ
-
-         dQ = - VectorWeakIntegrals % StdVolumeGreen( e , e % Q ) 
-
-      end subroutine DGSpatial_dQVolumeLoop
-
-      subroutine DGSpatial_dQFaceLoop_Interior( ed )
-         use QuadElementClass
-         implicit none
-         type(Edge_t)                  :: ed
-         real(kind=RP)                 :: UstarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
-         real(kind=RP)                 :: UstarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
-         real(kind=RP), pointer        :: dQ(:,:,:,:)
-
-         call ViscousMethod % ComputeSolutionRiemann( ed , UstarL , UstarR )
-!
-!>       Add the contribution to the LEFT element
-!        ----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , UstarL )
-!
-!>       Add the contribution to the RIGHT element
-!        -----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , UstarR ) 
-
-      end subroutine DGSpatial_dQFaceLoop_Interior
-
-      subroutine DGSpatial_dQFaceLoop_StraightBdry( ed )
-         use QuadElementClass
-         implicit none
-         type(StraightBdryEdge_t)         :: ed
-         real(kind=RP)                    :: Ustar( 0 : ed % spA % N , 1:NCONS)
-         real(kind=RP), pointer           :: dQ(:,:,:,:)
-      
-         call ViscousMethod % ComputeSolutionRiemann( ed , Ustar ) 
-!
-!>       Add the contribution to the element
-!        -----------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(1) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , Ustar )
-!
-      end subroutine DGSpatial_dQFaceLoop_StraightBdry
-
-      subroutine DGSpatial_dQFaceLoop_CurvedBdry( ed )
-         use QuadElementClass
-         implicit none
-         type(CurvedBdryEdge_t)      :: ed
-         real(kind=RP), pointer        :: dQ(:,:,:,:)
-!
-!>       Add the boundary contribution to the element
-!        --------------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(1) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , ed % uSB )
-!
-      end subroutine DGSpatial_dQFaceLoop_CurvedBdry         
-#endif
-!
-!/////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
 !              TIME DERIVATIVE VOLUME AND FACE LOOPS
 !              -------------------------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -346,7 +210,7 @@ module DGSpatialDiscretizationMethods
          implicit none
          class(QuadElement_t)          :: e 
          real ( kind=RP )       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: Fv ( 0:e % spA % N , 0:e % spA % N , 2:NCONS   , 1:NDIM )
+         real ( kind=RP )       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real ( kind=RP )       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real(kind=RP), pointer :: QDot(:,:,:)
 
@@ -354,8 +218,7 @@ module DGSpatialDiscretizationMethods
 #ifdef NAVIER_STOKES
          Fv = ViscousMethod  % ComputeInnerFluxes( e )
 
-         F(:,:,1,:) =  Fi(:,:,1,:)
-         F(:,:,2:NCONS,:)  = Fi(:,:,2:NCONS,:) - Fv
+         F = Fi - Fv
 #else
          F = Fi
 #endif
@@ -371,19 +234,19 @@ module DGSpatialDiscretizationMethods
          type(Edge_t)               :: ed
          real ( kind=RP )           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
          real ( kind=RP )           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 2 : NCONS )
-         real ( kind=RP )           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 2 : NCONS )
+         real ( kind=RP )           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real ( kind=RP )           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real ( kind=RP )           :: GvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real ( kind=RP )           :: GvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
          real ( kind=RP )           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
          real ( kind=RP )           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
          real ( kind=RP ), pointer  :: QDot(:,:,:)
 
          call InviscidMethod % ComputeRiemannFluxes( ed , FiL , FiR )
 #ifdef NAVIER_STOKES
-         call ViscousMethod % ComputeRiemannFluxes( ed , FvL , FvR )
-         FL(:,IRHO)    = FiL(:,IRHO)
-         FL(:,2:NCONS) = FiL(:,2:NCONS) - FvL
-         FR(:,IRHO)    = FiR(:,IRHO)
-         FR(:,2:NCONS) = FiR(:,2:NCONS) - FvR
+         call ViscousMethod % ComputeRiemannFluxes( ed , FvL , FvR , GvL , GvR )
+         FL = FiL - FvL
+         FR = FiR - FvR
 #else
          FL = FiL
          FR = FiR
@@ -400,6 +263,23 @@ module DGSpatialDiscretizationMethods
          QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT , FR ) 
 
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Add the contribution to the LEFT element
+!           ----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GvL ) 
+!
+!           Add the contribution to the RIGHT element
+!           -----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT , GvR ) 
+!
+         end if
+#endif
+           
+
       end subroutine DGSpatial_QDotFaceLoop_Interior
 
       subroutine DGSpatial_QDotFaceLoop_StraightBdry( ed )
@@ -407,21 +287,28 @@ module DGSpatialDiscretizationMethods
          implicit none
          type(StraightBdryEdge_t)  :: ed
          real(kind=RP)             :: Fi ( 0 : ed % spA % N , 1:NCONS)
-         real(kind=RP)             :: Fv ( 0 : ed % spA % N , 2:NCONS)
+         real(kind=RP)             :: Fv ( 0 : ed % spA % N , 1:NCONS)
+         real(kind=RP)             :: Gv ( 0 : ed % spA % N , 1:NCONS , 1:NDIM )  
          real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
          real ( kind=RP ), pointer :: QDot(:,:,:)
 
          call InviscidMethod % ComputeRiemannFluxes( ed , Fi )
 #ifdef NAVIER_STOKES
-         call ViscousMethod % ComputeRiemannFluxes( ed , Fv )
-         F(:,IRHO) = Fi(:,IRHO)
-         F(:,2:NCONS) = Fi(:,2:NCONS) - Fv
+         call ViscousMethod % ComputeRiemannFluxes( ed , Fv , Gv)
+         F = Fi - Fv
 #else
          F = Fi
 #endif
 
          QDot(0:,0:,1:) => ed % quads(1) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace( ed , 1 , F )
+
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , 1  , Gv ) 
+
+         end if
+#endif
 
       end subroutine DGSpatial_QDotFaceLoop_StraightBdry
 
@@ -430,21 +317,28 @@ module DGSpatialDiscretizationMethods
          implicit none
          type(CurvedBdryEdge_t)    :: ed
          real(kind=RP)             :: Fi ( 0 : ed % spA % N , 1:NCONS)
-         real(kind=RP)             :: Fv ( 0 : ed % spA % N , 2:NCONS)
+         real(kind=RP)             :: Fv ( 0 : ed % spA % N , 1:NCONS)
+         real(kind=RP)             :: Gv ( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
          real ( kind=RP ), pointer :: QDot(:,:,:)
 
          call InviscidMethod % ComputeRiemannFluxes( ed , Fi )
 #ifdef NAVIER_STOKES
-         call ViscousMethod % ComputeRiemannFluxes( ed , Fv )
-         F(:,IRHO) = Fi(:,IRHO)
-         F(:,IRHO+1:NCONS) = Fi(:,IRHO+1:NCONS) - Fv
+         call ViscousMethod % ComputeRiemannFluxes( ed , Fv , Gv )
+         F = Fi - Fv
 #else
          F = Fi
 #endif
 
          QDot(0:,0:,1:) => ed % quads(1) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace( ed , 1 , F )
+
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , 1  , Gv ) 
+
+         end if
+#endif
 
       end subroutine DGSpatial_QDotFaceLoop_CurvedBdry
 !

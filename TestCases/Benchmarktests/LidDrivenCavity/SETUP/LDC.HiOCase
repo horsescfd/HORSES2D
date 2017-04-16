@@ -23,7 +23,7 @@
            Default polynomial order: 4
 
 !------------------------------------: Initialization
-          Initial condition: Restart
+          Initial condition: Steady
                Restart file: ./RESULTS/LDC.HiORst
 
 !------------------------------------: Inviscid discretization
