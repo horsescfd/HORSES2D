@@ -196,10 +196,7 @@ module DGInviscidMethods
       pure function StdDG_ComputeInnerFluxes( self , e ) result (F) 
 !
 !        **********************************************************************
-!              This subroutine computes the contravariant fluxes of the element
-!           The fluxes read:
-!                 F <- F * Ja(1,1) + G * Ja(2,1)
-!                 G <- F * Ja(1,2) + G * Ja(2,2)
+!              This subroutine computes the cartesian fluxes of the element
 !        **********************************************************************
 !
          use Physics
@@ -207,25 +204,8 @@ module DGInviscidMethods
          class(InviscidMethod_t), intent (in)    :: self
          class(QuadElement_t),    intent (in)    :: e
          real(kind=RP)                           :: F(0:e % spA % N , 0:e % spA % N , 1:NCONS , 1:NDIM)
-!        -------------------------------------------------------------
-         real(kind=RP)              :: F_cartesian(0:e % spA % N,0:e % spA % N,1:NCONS,1:NDIM)
-         integer                    :: eq
-         integer                    :: N 
 
-         N = e % spA % N         
-
-         F_cartesian = InviscidFlux( e % spA % N , e % Q )
-
-         do eq = 1 , NCONS
-!           
-!           F flux (contravariant)
-!           ----------------------
-            F(0:N,0:N,eq,IX) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,1) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,1)
-!           
-!           G flux (contravariant)
-!           ----------------------
-            F(0:N,0:N,eq,IY) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
-         end do
+         F = InviscidFlux( e % spA % N , e % Q )
 
       end function StdDG_ComputeInnerFluxes
 !

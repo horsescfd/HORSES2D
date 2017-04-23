@@ -115,12 +115,28 @@ module DGWeakIntegrals
          real(kind=RP), intent(in)        :: F(0:e % spA % N , 0:e % spA % N, 1:NCONS , 1:NDIM)
          real(kind=RP)                    :: volInt(0:e % spA % N, 0:e % spA % N , 1:NCONS)
 !        ----------------------------------------------------------------------------------------------
+         real(kind=RP)                    :: contravariant_F( 0 : e % spA % N , 0 : e % spA % N , 1:NCONS )
+         real(kind=RP)                    :: contravariant_G( 0 : e % spA % N , 0 : e % spA % N , 1:NCONS )
          integer, pointer                 :: N
+         integer                          :: eq
    
          N => e % spA % N
-   
-         volInt =    MatrixMultiplyInIndex_F(F(:,:,:,IX) , e % spA % hatD , N+1 , N+1 , NCONS , IX)          &
-                   + MatrixMultiplyInIndex_F(F(:,:,:,IY) , e % spA % hatD , N+1 , N+1 , NCONS , IY)
+ 
+         do eq = 1 , NCONS
+!           
+!           F flux (contravariant)
+!           ----------------------
+            contravariant_F(0:N,0:N,eq) = F(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,1)
+!           
+!           G flux (contravariant)
+!           ----------------------
+            contravariant_G(0:N,0:N,eq) = F(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
+         end do
+
+  
+
+         volInt =    MatrixMultiplyInIndex_F(contravariant_F , e % spA % hatD , N+1 , N+1 , NCONS , IX)          &
+                   + MatrixMultiplyInIndex_F(contravariant_G , e % spA % hatD , N+1 , N+1 , NCONS , IY)
    
       end function Scalar_StdVolumeGreen
 

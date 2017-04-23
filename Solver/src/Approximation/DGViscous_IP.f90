@@ -59,31 +59,9 @@ submodule (DGViscousMethods)  DGViscous_IP
          class(QuadElement_t), intent(in)   :: e
          real(kind=RP)                      :: Fv(0 : e % spA % N , 0 : e % spA % N , 1:NCONS , 1:NDIM)
 !
-!        ---------------
-!        Local variables
-!        ---------------
-!
-         real(kind=RP)              :: F_cartesian(0:e % spA % N,0:e % spA % N,1:NCONS,1:NDIM)
-         integer                    :: eq
-         integer                    :: N 
-
-         N = e % spA % N         
-!
 !        Compute the cartesian flux
 !        --------------------------
-         F_cartesian = ViscousFlux( e % spA % N , e % Q , e % dQ)
-
-         do eq = 1 , NCONS
-!           
-!           F flux (contravariant)
-!           ----------------------
-            Fv(0:N,0:N,eq,IX) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,1) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,1)
-!           
-!           G flux (contravariant)
-!           ----------------------
-            Fv(0:N,0:N,eq,IY) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
-         end do
-
+         Fv = ViscousFlux( e % spA % N , e % Q , e % dQ)
 
       end function IP_ComputeInnerFluxes
 
