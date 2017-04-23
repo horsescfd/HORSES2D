@@ -37,4 +37,3 @@
          self % associated = .false.
 
       end subroutine PeriodicBC_Construct
-

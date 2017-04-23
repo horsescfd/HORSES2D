@@ -3,6 +3,7 @@ module ChecksModule
    use Physics
    implicit none
 !
+#include "Defines.h"
 !  ========   
    contains
 !  ========   
@@ -21,8 +22,6 @@ module ChecksModule
           implicit none
           class(DGSEM_t)                :: sem
           integer, parameter            :: STR_LEN_CHECKS = 128
-          integer                       :: fID
-          integer                       :: eID
           integer                       :: command_argument_count
           integer                       :: nArgs
           character(len=STR_LEN_CHECKS) :: arg
@@ -43,6 +42,8 @@ module ChecksModule
             write(STD_OUT , '(/)')
             call Section_Header("Performing tests on the built framework") 
             write(STD_OUT , '(/)')
+
+            call CheckMesh( sem % mesh )
    
             call CheckMappings( sem % mesh )
 
@@ -60,17 +61,160 @@ module ChecksModule
          end if
 
         end subroutine checks
+
+        subroutine CheckMesh( mesh )
+            use QuadElementClass
+            use Headers
+            use QuadMeshClass
+            use MatrixOperations
+            implicit none
+            class(QuadMesh_t)          :: mesh
+!           ---------------------------------------------
+            integer                :: eID
+            integer                :: edID
+            integer                :: nodesID(EDGES_PER_QUAD,QUADS_PER_EDGE)
+            real(kind=RP)          :: xL(NDIM) , xR(NDIM)
+            real(kind=RP)          :: dx(NDIM)
+            class(Edge_t), pointer :: edge
+            class(QuadElement_t), pointer       :: eL , eR
+
+            nodesID ( EBOTTOM , : )  = [1 , 2]
+            nodesID ( ERIGHT  , : )  = [2 , 3]
+            nodesID ( ETOP    , : )  = [4 , 3]
+            nodesID ( ELEFT   , : )  = [1 , 4]
+
+            call SubSection_Header("Checking the Mesh")
+
+!
+!           Checking that in each mesh the element and edges connectivities are correct
+!           ---------------------------------------------------------------------------
+            do eID = 1 , mesh % no_of_elements
+
+               do edID = 1 , EDGES_PER_QUAD
+                  if ( mesh % elements(eID) % edgesDirection(edID) .eq. FORWARD ) then
+                     if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(1) % n % ID ) then
+                        print*, "Connectivities are not correct."
+                        stop "Stopped"
+                     elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(2) % n % ID ) then
+                        print*, "Connectivities are not correct."
+                        stop "Stopped"
+
+                     end if
+
+                  elseif ( mesh % elements(eID) % edgesDirection(edID) .eq. BACKWARD ) then
+                     if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(2) % n % ID ) then
+                        print*, "Connectivities are not correct."
+                        stop "Stopped"
+                     elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(1) % n % ID ) then
+                        print*, "Connectivities are not correct."
+                        stop "Stopped"
+
+                     end if
+               
+                  end if
+
+                  if ( minval( mesh % elements(eID) % jac ) .le. 0.0_RP ) then
+                     print*, "Negative volume in element " , eID
+                     stop "Stopped"
+                  end if
+               end do
+            end do
+!
+!           Checking that the normal direction points towards the LEFT element, or towards the outside for boundaries
+!           ---------------------------------------------------------------------------------------------------------
+            do edID = 1 , mesh % no_of_edges
+
+               edge => mesh % edges(edID) % f
+
+               select type ( edge )
+   
+                  type is (Edge_t)
+
+                     eL => mesh % edges(edID) % f % quads(LEFT) % e
+                     eR => mesh % edges(edID) % f % quads(RIGHT) % e
+
+                     xL = sum( sum( eL % X , dim = 1) , dim = 1 ) / ( eL % spA % N + 1.0_RP) ** 2.0_RP
+                     xR = sum( sum( eR % X , dim = 1) , dim = 1 ) / ( eR % spA % N + 1.0_RP) ** 2.0_RP
+
+                     if ( dot_product( xR-xL , edge % n(IX:IY,0) ) .lt. 0.0_RP  ) then
+                        print*, "Edges normal orientation is not correct. "
+                        stop "Stopped"
+
+                     elseif ( edge % dS(0) .lt. 0.0_RP ) then
+                        print*, "Negative surface in edge " , edID
+
+                     end if
+                  
+                  type is (StraightBdryEdge_t)
+      
+                     eL => mesh % edges(edID) % f % quads(1) % e
+                     eR => NULL()
+
+                     xL = sum( sum( eL % X , dim = 1) , dim = 1 ) / ( eL % spA % N + 1.0_RP) ** 2.0_RP
+                     xR = sum( edge % X , dim = 2 ) / (edge % spA % N + 1.0_RP)
+
+                     if ( dot_product( xR - xL , edge % n(IX:IY,0) ) .lt. 0.0_RP ) then
+                        print*, "Edges normal orientation is not correct. "
+                        stop "Stopped"
+   
+                     elseif ( edge % dS(0) .lt. 0.0_RP ) then
+                        print*, "Negative surface in edge " , edID
+
+                     end if
+               
+                  type is (CurvedBdryEdge_t)
+      
+                     eL => mesh % edges(edID) % f % quads(1) % e
+                     eR => NULL()
+
+                     xL = sum( sum( eL % X , dim = 1) , dim = 1 ) / ( eL % spA % N + 1.0_RP) ** 2.0_RP
+                     xR = sum( edge % X , dim = 2 ) / (edge % spA % N + 1.0_RP)
+
+                     if ( dot_product( xR - xL , sum( edge % n , dim = 2) / (edge % spA % N + 1.0_RP)  ) .lt. 0.0_RP ) then
+                        print*, "Edges normal orientation is not correct. "
+                        stop "Stopped"
+   
+                     elseif ( minval(edge % dS) .lt. 0.0_RP ) then
+                        print*, "Negative surface in edge " , edID
+
+                     end if
+               end select
+            end do
+!
+!           Checking that the tangent vector follows the direction of the element
+!           ---------------------------------------------------------------------
+            do eID = 1 , mesh % no_of_elements
+   
+               eL => mesh % elements(eID)
+               do edID = 1 , EDGES_PER_QUAD
+
+                  dx = eL % nodes(nodesID(edID,2)) % n % x - eL % nodes(nodesID(edID,1)) % n % x 
+
+                  if (( eL % edgesDirection(edID) .eq. FORWARD ) .and. ( dot_product( dx , eL % edges(edID) % f % dX(IX:IY,0) ) .le. 0.0_RP )) then
+                     print*, "Edges tangent vector orientation is not correct."
+                     stop "Stopped"
+
+                  elseif (( eL % edgesDirection(edID) .eq. BACKWARD) .and. ( dot_product( dx , eL % edges(edID) % f % dX(IX:IY,0) ) .ge. 0.0_RP) ) then
+                     print*, "Edges tangent vector orientation is not correct."
+                     stop "Stopped"
+
+                  end if
+            
+               end do
+            end do
+            write(STD_OUT , '(30X,A,A)') "-> ", "All tests succeeded."
+
+        end subroutine CheckMesh
       
         subroutine CheckMappings( mesh )
             use QuadElementClass
             use Headers
             use QuadMeshClass
-            use QuadMeshDefinitions
             use MatrixOperations
             implicit none
             type(QuadMesh_t)           :: mesh
 !           ---------------------------------------
-            integer                    :: eID , edID
+            integer                    :: eID 
             real(kind=RP), allocatable :: dxiX(:,:,:)
             real(kind=RP), allocatable :: detaX(:,:,:)
             real(kind=RP)              :: error , localerror
@@ -97,8 +241,8 @@ module ChecksModule
                allocate(detaX ( 0 : e % spA % N , 0 : e % spA % N , NDIM) ) 
 
                associate ( N => e % spA % N )
-               dxiX         = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 1 ) 
-               detaX        = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , 2 ) 
+               dxiX         = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , IX ) 
+               detaX        = MatrixMultiplyInIndex_F ( e % X , e % spA % DT , N+1 , N+1 , NDIM , IY ) 
 
                do i = 0 , N
                   do j = 0 , N
@@ -154,19 +298,48 @@ module ChecksModule
                dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
                dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
 
-               if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
-                  dSe = e % edges(EBOTTOM) % f % dS 
+               if (( e % quadPosition(EBOTTOM) .eq. LEFT )) then
+                  select type (ed => e % edges(EBOTTOM) % f)
+                     type is (Edge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
+               elseif (( e % quadPosition(EBOTTOM) .eq. RIGHT) .and. (e % edgesDirection(EBOTTOM) .eq. FORWARD) ) then
+                  select type (ed => e % edges(EBOTTOM) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
                else
-                  dSe = - e % edges(EBOTTOM) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+                  select type (ed => e % edges(EBOTTOM) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                  end select
+
                end if
                
-               if ( maxval(abs(dSx - dSe(iX,0:e % spA % N) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,0:e % spA % N) ) )
+               if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
                   current = eID
                   location = EBOTTOM
                end if
-               if (  maxval(abs(dSy - dSe(iY,0:e % spA % N) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,0:e % spA % N) ) )
+               if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,0:e % spA % N) ) )
                   current = eID 
                   location = EBOTTOM
                end if
@@ -176,19 +349,48 @@ module ChecksModule
                dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
                dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
                
-               if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
-                  dSe = e % edges(ERIGHT) % f % dS 
+               if (( e % quadPosition(ERIGHT) .eq. LEFT )) then
+                  select type (ed => e % edges(ERIGHT) % f)
+                     type is (Edge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
+               elseif (( e % quadPosition(ERIGHT) .eq. RIGHT) .and. (e % edgesDirection(ERIGHT) .eq. FORWARD) ) then
+                  select type (ed => e % edges(ERIGHT) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
                else
-                  dSe = - e % edges(ERIGHT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+                  select type (ed => e % edges(ERIGHT) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                  end select
+
                end if
-               
-               if ( maxval(abs(dSx - dSe(iX,0:e % spA % N) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,0:e % spA % N) ) )
+ 
+               if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
                   current = eID
                   location = ERIGHT
                end if
-               if (  maxval(abs(dSy - dSe(iY,0:e % spA % N) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,e % spA % N: 0 : -1) ) )
+               if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
                   location = ERIGHT
                end if              
@@ -198,19 +400,48 @@ module ChecksModule
                dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
                dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
 
-               if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
-                  dSe(IX:IY,0:e % spA % N) = e % edges(ETOP) % f % dS(IX:IY,0 : e % spA % N) 
+               if (( e % quadPosition(ETOP) .eq. LEFT )) then
+                  select type (ed => e % edges(ETOP) % f)
+                     type is (Edge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
+               elseif (( e % quadPosition(ETOP) .eq. RIGHT) .and. (e % edgesDirection(ETOP) .eq. FORWARD) ) then
+                  select type (ed => e % edges(ETOP) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
                else
-                  dSe(IX:IY,0:e % spA % N) = - e % edges(ETOP) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+                  select type (ed => e % edges(ETOP) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                  end select
+
                end if
-               
-               if ( maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(iX,e % spA % N : 0 : -1) ) )
+ 
+               if ( maxval(abs(dSx - dSe(IX,:) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,:) ) )
                   current = eID
                   location = ETOP
                end if
-               if (  maxval(abs(dSy - dSe(iY,e % spA % N:0:-1) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,e % spA % N : 0 : -1) ) )
+               if (  maxval(abs(dSy - dSe(IY,:) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
                   location = ETOP
                end if              
@@ -220,19 +451,48 @@ module ChecksModule
                dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
                dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
 
-               if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
-                  dSe(IX:IY,0:e % spA % N) = e % edges(ELEFT) % f % dS(IX:IY , 0 : e % spA % N )
+               if (( e % quadPosition(ELEFT) .eq. LEFT )) then
+                  select type (ed => e % edges(ELEFT) % f)
+                     type is (Edge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
+               elseif (( e % quadPosition(ELEFT) .eq. RIGHT) .and. (e % edgesDirection(ELEFT) .eq. FORWARD) ) then
+                  select type (ed => e % edges(ELEFT) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                  end select
+
                else
-                  dSe(IX:IY,0:e % spA % N) = - e % edges(ELEFT) % f % dS(iX:iY , e % spA % N : 0 : -1 )
+                  select type (ed => e % edges(ELEFT) % f)
+                     type is (Edge_t)
+                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (StraightBdryEdge_t)
+                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (CurvedBdryEdge_t)
+                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                  end select
+
                end if
                
-               if ( maxval(abs(dSx - dSe(IX,e % spA % N : 0 : -1) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(IX,e % spA % N : 0 : -1) )) 
+               if ( maxval(abs(dSx - dSe(IX,:) )) .gt. error ) then
+                  error =  maxval(abs(dSx - dSe(IX,:) )) 
                   current = eID
                   location = ELEFT
                end if
-               if (  maxval(abs(dSy - dSe(iY,e % spA % N : 0 : -1) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(iY,e % spA % N : 0 : -1) ) )
+               if (  maxval(abs(dSy - dSe(IY,:) ))  .gt. error ) then
+                  error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
                   location = ELEFT
                end if              
@@ -250,7 +510,7 @@ module ChecksModule
             do zone = 1 , size(mesh % Zones) - 1
                write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % ScalarScalarSurfaceIntegral("Surface",zone) * RefValues % L ,"." 
             end do
-
+            
         end subroutine CheckMappings
 
         subroutine CheckInterpolationToBoundaries( mesh ) 
@@ -264,11 +524,12 @@ module ChecksModule
           real(kind=RP)                :: error = 0.0_RP
           real(kind=RP)                :: currentError = 0.0_RP
           integer                      :: iXi , iEta 
+          integer                      :: direction
  
           write(STD_OUT,'(/)')
           call SubSection_Header("Checking the interpolation to boundaries")
 
-          call DGSpatial_interpolateToBoundaries( mesh ,"Q")
+          call DGSpatial_interpolateSolutionToBoundaries( mesh )
 
           do eID = 1 , mesh % no_of_elements
             do iXi = 0 , mesh % elements(eID) % spA % N
@@ -291,10 +552,22 @@ module ChecksModule
           do edID = 1 , mesh % no_of_edges
             do quad = 1 , size(mesh % edges(edID) % f % quads)
                do iXi = 0 , mesh % edges(edID) % f % spA % N
+
+                  direction = mesh % edges(edID) % f % quads(quad) % e % edgesDirection( mesh % edges(edID) % f % edgeLocation(quad) )
+
                   if ( mesh % edges(edID) % f % transform(quad) ) then 
-                     currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+                     if ( direction .eq. FORWARD ) then
+                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , &
+                                                      mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+                     else
+                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
+                     end if
                   else
-                     currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+                     if ( direction .eq. FORWARD ) then
+                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+                     else
+                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
+                     end if
 
                   end if
 
@@ -325,6 +598,7 @@ module ChecksModule
          real(kind=RP)              :: error = 0.0_RP , currenterror = 0.0_RP
          real(kind=RP), allocatable :: Ja1(:,:) , Ja2(:,:)
          real(kind=RP), allocatable :: metricID(:,:)
+         integer                    :: elem = 0
 
      
          write(STD_OUT,'(/)')
@@ -350,6 +624,7 @@ module ChecksModule
                
                if ( currenterror .gt. error ) then
                   error = currenterror
+                  elem = e % ID
                end if
 
             end do
@@ -359,7 +634,7 @@ module ChecksModule
             end associate
          end do
 
-         write(STD_OUT , '(30X,A,A50,F16.10,A)') "-> ", "Maximum discrete metric identities residual: " , error,"."
+         write(STD_OUT , '(30X,A,A50,F16.10,A,I0,A)') "-> ", "Maximum discrete metric identities residual: " , error," (element " , elem, "). "
 
         end subroutine CheckMetricIdentities
    
@@ -441,11 +716,10 @@ module ChecksModule
          use DGSEM_Class
          use DGSpatialDiscretizationMethods
          use Headers
-         use QuadMeshDefinitions
          implicit none
          class(DGSem_t)          :: sem
          integer                 :: iXi , iEta
-         integer                 :: eID , elem = -1 , zoneID
+         integer                 :: eID , elem = -1
          real(kind=RP)           :: error = 0.0_RP , localerror
          real(kind=RP)           :: x(NDIM)
          real(kind=RP)           :: L 
@@ -525,6 +799,7 @@ module ChecksModule
                   if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
 
                   if ( (localerror .gt. error) .and. elementIsInterior ) then
+
                      error = localerror
                      elem = eID
                   end if
@@ -548,6 +823,7 @@ module ChecksModule
           use Physics
           use NodesAndWeights_class
           use QuadMeshClass
+          use QuadElementClass
           use MeshFileClass
           use Setup_class
           use DGSpatialDiscretizationMethods
@@ -556,34 +832,48 @@ module ChecksModule
           use Headers
           implicit none
           class(DGSem_t)         :: sem
+          class(QuadElement_t), pointer   :: e
           integer                :: eID
           real(kind=RP)          :: error = 0.0_RP , localerror = 0.0_RP
           integer                :: elem = -1
           integer                :: iXi, iEta
           real(kind=RP)          :: x(NDIM)
-          real(kind=RP)          :: dQ(NDIM , NGRAD)
+          real(kind=RP)          :: dQ(NDIM , NCONS)
           real(kind=RP)          :: L 
+          logical                :: elementIsInterior
 
          write(STD_OUT,'(/)')
          call SubSection_Header("Testing Gradients")
 !
 !        Set the polynomic initial condition
 !        -----------------------------------
+         L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
          call sem % mesh % SetInitialCondition("ChecksPolynomic")
-         call sem % mesh % ApplyInitialCondition
+         call sem % mesh % ApplyInitialCondition(L)
 
           call DGSpatial_newTimeStep( sem % mesh )
 
 
           do eID = 1 , sem % mesh % no_of_elements
+   
+            e => sem % mesh % elements(eID) 
+
             do iXi = 0 , sem % mesh % elements(eID) % spA % N
                do iEta = 0 , sem % mesh % elements(eID) % spA % N
 
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
-                  dQ = dQPolynomicFcn(x)
-                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NGRAD) - dQ ) )
+                  dQ = dQPolynomicFcn(x,L)
 
-                  if ( localerror .gt. error ) then
+                  elementIsInterior = .true.
+
+                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) )
+
+                  if ( (localerror .gt. error) .and. elementIsInterior ) then
                      error = localerror
                      elem = eID
                   end if
@@ -606,14 +896,24 @@ module ChecksModule
          elem = -1
 
           do eID = 1 , sem % mesh % no_of_elements
+
+            e => sem % mesh % elements(eID) 
             do iXi = 0 , sem % mesh % elements(eID) % spA % N
                do iEta = 0 , sem % mesh % elements(eID) % spA % N
 
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
                   dQ = dQTrigonometricFcn(x , L )
-                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NGRAD) - dQ ) ) * L
 
-                  if ( localerror .gt. error ) then
+                  elementIsInterior = .true.
+
+                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) ) * L
+
+                  if ( (localerror .gt. error) .and. elementIsInterior ) then
                      error = localerror
                      elem = eID
                   end if
@@ -639,18 +939,24 @@ module ChecksModule
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 #ifdef NAVIER_STOKES
-        function dQPolynomicFcn ( x ) result ( val )
+        function dQPolynomicFcn ( x , L) result ( val )
          use Physics
          implicit none
          real(kind=RP)        :: x(NDIM)
-         real(kind=RP)        :: val(NDIM,NGRAD)
+         real(kind=RP)        :: L 
+         real(kind=RP)        :: val(NDIM,NCONS)
          
          associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
 
-         val(IX:IY , IGU) = [sqrt(gamma)*Mach , 0.0_RP]
-         val(IX:IY , IGV) = [0.0_RP , sqrt(gamma)*Mach]
-         val(IX:IY , IGT) = 2.0_RP * gamma * Mach * Mach * [ x(IX) , x(IY) ]
+#ifdef _DIMENSIONLESS_TAU
+         val(IX:IY , IRHO ) = 0.0_RP
+         val(IX:IY , IRHOU) = sqrt(gamma) * Mach / L * [1.0_RP , 0.0_RP]
+         val(IX:IY , IRHOV) = sqrt(gamma) * Mach / L * [0.0_RP , 1.0_RP]
+         val(IX:IY , IRHOE) = (dimensionless % cv + 0.5_RP) * gamma * Mach * Mach / L**2.0_RP * [2.0_RP*x(IX) , 2.0_RP*x(IY)]
 
+#else
+
+#endif        
          end associate
 
         end function dQPolynomicFcn
@@ -660,13 +966,23 @@ module ChecksModule
          implicit none
          real(kind=RP)        :: x(NDIM)
          real(kind=RP)        :: L 
-         real(kind=RP)        :: val(NDIM,NGRAD)
+         real(kind=RP)        :: val(NDIM,NCONS)
+         real(kind=RP)        :: u , v
          
-         associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+         associate ( gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach , cv => dimensionless % cv)
 
-         val(IX:IY , IGU) = sqrt(gamma)*Mach*PI * [ cos(PI*x(IX)/L)*cos(PI*x(IY)/L) , -sin(PI*x(IX)/L)*sin(PI*x(IY)/L)] / L
-         val(IX:IY , IGV) = sqrt(gamma)*Mach*PI * [ sin(PI*x(IX)/L)*sin(PI*x(IY)/L) , -cos(PI*x(IX)/L)*cos(PI*x(IY)/L)] / L
-         val(IX:IY , IGT) = -0.25_RP * gamma * Mach * Mach * PI * [ sin(2.0_RP * PI * x(IX)/L) , sin(2.0_RP * PI * x(IY)/L) ] / L 
+#ifdef _DIMENSIONLESS_TAU
+
+         u = sqrt(gamma) * Mach * sin(PI*x(IX)/L) * cos(PI*x(IY)/L)
+         v = -sqrt(gamma) * Mach * cos(PI*x(IX)/L) * sin(PI*x(IY)/L)
+
+         val(IX:IY , IRHO ) = 0.0_RP
+         val(IX:IY , IRHOU) = PI * sqrt(gamma) * Mach / L * [ cos(PI*x(IX)/L)*cos(PI*x(IY)/L) , -sin(PI*x(IX)/L)*sin(PI*x(IY)/L)]
+         val(IX:IY , IRHOV) = PI * sqrt(gamma) * Mach / L * [ sin(PI*x(IX)/L)*sin(PI*x(IY)/L) , -cos(PI*x(IX)/L)*cos(PI*x(IY)/L)]
+         val(IX:IY , IRHOE) = - cv * 0.25_RP * PI * gamma * Mach * Mach / L * [ sin(2.0_RP*PI*x(IX)/L) , sin(2.0_RP*PI*x(IY)/L) ] & 
+                              +  u * val(IX:IY,IRHOU) + v * val(IX:IY,IRHOV) 
+
+#endif
 
          end associate
 
@@ -680,26 +996,41 @@ module ChecksModule
          real(kind=RP)           :: val(NCONS)
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
-         real(kind=RP)           :: tauxx , tauxy , tauyy , tauxx_x , tauyy_y
-         real(kind=RP)           :: T_xx  , T_yy
 
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
+#ifdef _DIMENSIONLESS_TAU
          u = sqrt(gamma) * Mach * sin(PI * x(IX) / L ) * cos(PI * x(IY) / L)
-         v = -sqrt(gamma)* Mach * cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
-         p = 1.0_RP + (gamma * Mach**2.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
+         v = -sqrt(gamma) * Mach * cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
+         p = 1.0_RP + gamma * Mach * Mach * (1.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
          H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
 
 
          ux = sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-         uy = -sqrt(gamma)* Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
+         uy = -sqrt(gamma) * Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
 
          vx = sqrt(gamma) * Mach * PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L 
          vy = -sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L 
 
-         px = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
-         py = -0.25_RP * gamma * Mach**2.0_RP * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
+         px = -0.25_RP * gamma * Mach * Mach * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
+         py = -0.25_RP * gamma * Mach * Mach * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
+#else
+         u = sin(PI * x(IX) / L ) * cos(PI * x(IY) / L)
+         v = -cos(PI * x(IX) / L ) * sin(PI * x(IY) / L)
+         p = 1.0_RP + (1.0_RP / 8.0_RP) * ( cos(2.0_RP * PI * x(IX) / L ) + cos(2.0_RP * PI * x(IY) / L) )
+         H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
+
+
+         ux = PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+         uy = -PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L
+
+         vx = PI * sin(PI * x(IX) / L) * sin(PI * x(IY) / L ) / L 
+         vy = -PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L 
+
+         px = -0.25_RP * PI * sin(2.0_RP * PI * x(IX) / L ) / L 
+         py = -0.25_RP * PI * sin(2.0_RP * PI * x(IY) / L ) / L 
+#endif
 
          Hx = cp * px + u * ux + v * vx
          Hy = cp * py + u * uy + v * vy
@@ -710,27 +1041,31 @@ module ChecksModule
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE) = H * (ux + vy) + Hx * u + Hy * v
-!
-         val = -val / (sqrt(gamma) * Mach)
+
+#ifdef _DIMENSIONLESS_TAU
+         val = -val * dimensionless % invSqrtGammaMach
+#else
+         val = -val
+#endif
          
 #ifdef NAVIER_STOKES
          associate ( mu => dimensionless % mu , kappa => dimensionless % kappa )
-
-         tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-         tauyy = -2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-         tauxy = 0.0_RP
-
-         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
-         tauyy_y = 2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
-
-         T_xx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
-         T_yy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
-
-         val(IRHOU) = val(IRHOU) + tauxx_x
-         val(IRHOV) = val(IRHOV) + tauyy_y
-         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * T_xx + kappa * T_yy
-
-
+!
+!         tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+!         tauyy = -2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
+!         tauxy = 0.0_RP
+!
+!         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
+!         tauyy_y = 2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
+!
+!         T_xx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
+!         T_yy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
+!
+!         val(IRHOU) = val(IRHOU) + tauxx_x
+!         val(IRHOV) = val(IRHOV) + tauyy_y
+!         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * T_xx + kappa * T_yy
+!
+!
          end associate
 #endif
          end associate
@@ -748,19 +1083,35 @@ module ChecksModule
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
+#ifdef _DIMENSIONLESS_TAU
          u = sqrt(gamma) * Mach * x(IX) / L
          v = sqrt(gamma) * Mach * x(IY) / L
          p = 1.0_RP + gamma * Mach * Mach * ( x(IX) * x(IX) + x(IY) * x(IY)) / (L **2.0_RP)
          H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
 
-         ux = sqrt(gamma) * Mach / L
+         ux = sqrt(gamma) * Mach * 1.0_RP/ L
          uy = 0.0_RP
 
          vx = 0.0_RP
-         vy = sqrt(gamma) * Mach / L 
+         vy = sqrt(gamma) * Mach * 1.0_RP / L 
 
-         px = gamma * Mach * Mach * 2 * x(IX) / L**2.0_RP
-         py = gamma * Mach * Mach * 2 * x(IY) / L**2.0_RP
+         px = 2.0_RP * gamma * Mach * Mach * x(IX) / L**2.0_RP
+         py = 2.0_RP * gamma * Mach * Mach * x(IY) / L**2.0_RP
+#else
+         u = x(IX) / L
+         v = x(IY) / L
+         p = 1.0_RP + ( x(IX) * x(IX) + x(IY) * x(IY)) / (L **2.0_RP)
+         H = cp * p + 0.5_RP * u**2.0_RP + 0.5_RP * v**2.0_RP
+
+         ux = 1.0_RP/ L
+         uy = 0.0_RP
+
+         vx = 0.0_RP
+         vy = 1.0_RP / L 
+
+         px = 2.0_RP * x(IX) / L**2.0_RP
+         py = 2.0_RP * x(IY) / L**2.0_RP
+#endif
 
          Hx = cp * px + u * ux + v * vx
          Hy = cp * py + u * uy + v * vy
@@ -769,18 +1120,23 @@ module ChecksModule
          val(IRHOU)     = 2.0_RP * u * ux + u*vy + uy * v + px
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE)     = H * (ux + vy) + Hx * u + Hy * v
-!
-         val = -val / (sqrt(gamma) * Mach)
 
          end associate
 #ifdef NAVIER_STOKES
          associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
-
-         val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
-
+!
+!         val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
+!
 
          end associate
 #endif
+
+#ifdef _DIMENSIONLESS_TAU
+         val = -val * dimensionless % invSqrtGammaMach
+#else
+         val = -val
+#endif
+
         end function QDotPolynomicFCN        
       
 end module

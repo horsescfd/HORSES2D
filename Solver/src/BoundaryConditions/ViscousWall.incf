@@ -1,0 +1,231 @@
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              VISCOUS WALL BC
+!              ---------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine ViscousWall_Construct ( self , marker , in_label) 
+         use Setup_class
+         use Physics
+         use Utilities
+         implicit none
+         class(ViscousWall_t)       :: self
+         integer                    :: marker
+         character(len=*)           :: in_label
+!        ----------------------------------------------         
+         character(len=STR_LEN_BC)  :: wall_type
+         character(len=STR_LEN_BC)  :: velocity_direction
+         real(kind=RP), allocatable :: Tw
+         real(kind=RP), allocatable :: Mach_number
+         real(kind=RP), allocatable :: vel_dir(:)
+
+         call readValueInRegion( trim(Setup % bdry_file) , "Wall type" , wall_type , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Wall temperature" , Tw , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Mach number" , Mach_number , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Velocity direction" , velocity_direction , in_label , "# end")
+         
+
+         if ( trim(wall_type) .eq. "Isothermal" ) then
+            self % wall_type = ISOTHERMAL_WALL
+
+         elseif ( trim(wall_type) .eq. "Adiabatic" ) then  
+            self % wall_type = ADIABATIC_WALL
+
+         else
+               if ( len_trim (wall_type) .eq. 0 ) then
+                  print*, "Viscous wall type was not specified for marker " , marker , "."
+
+               else
+                  print*, 'Viscous wall type "',trim(wall_type),'" in marker ', marker, ' not implemented yet.'
+                  print*, "Options available are:"
+                  print*, "   * Isothermal"
+                  print*, "   * Adiabatic"
+                  stop "Stopped."
+
+               end if
+         end if
+
+         if ( allocated ( Tw ) ) then
+            self % Tw = Tw / refValues % T
+
+         else
+            self % Tw = 1.0_RP
+
+         end if
+
+         if ( allocated( Mach_number ) ) then
+#ifdef _DIMENSIONLESS_TAU
+            self % v = sqrt(thermodynamics % gamma) * Mach_number
+#else
+            self % v = Mach_number * sqrt( thermodynamics % gamma * setup % pressure_ref / refValues % p )
+#endif
+         else
+            self % v = 0.0_RP
+         end if
+
+         if ( len_trim(velocity_direction) .eq. 0 ) then
+!
+!           Set horizontal velocity by default
+!           ----------------------------------            
+            self % v = self % v * [1.0_RP , 0.0_RP]
+         
+         else
+            vel_dir = getArrayFromString( velocity_direction ) 
+            self % v = self % v * vel_dir(1:NDIM)
+
+         end if
+
+
+      end subroutine ViscousWall_Construct
+
+      subroutine ViscousWall_Associate(self , edge)
+         implicit none
+         class(ViscousWall_t)          :: self
+         class(Edge_t)                 :: edge
+
+         associate ( N => edge % spA % N )
+
+         select type ( edge )
+         
+            type is (Edge_t)
+               print*, "Only boundary edges are expected."
+               stop "Stopped"
+      
+            type is (StraightBdryEdge_t)
+               allocate( edge % uB(0:N,NCONS) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+#ifdef NAVIER_STOKES
+               allocate( edge % uSB(0:N,1:NCONS) )
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % ViscousBCType = DIRICHLET
+
+               else if ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % ViscousBCType = ADIABATIC
+
+               end if
+#endif
+   
+            type is (CurvedBdryEdge_t)
+               allocate( edge % uB(0:N,NCONS) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+#ifdef NAVIER_STOKES
+               allocate( edge % uSB(0:N,1:NCONS) )
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % ViscousBCType = DIRICHLET
+
+               else if ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % ViscousBCType = ADIABATIC
+
+               end if
+#endif
+
+         end select
+         end associate
+      end subroutine ViscousWall_Associate
+
+      subroutine ViscousWall_UpdateSolution( self , edge )
+!
+!        ***************************************************
+!           For each edge the ghost cell state is computed as
+!              UB(IRHO) = Q(IRHO)
+!              UB(IRHOU) = -Q(IRHOU)
+!              UB(IRHOV) = -Q(IRHOV)
+!              UB(IRHOE) = Q(IRHOE)
+!        ***************************************************
+!
+
+         implicit none  
+         class(ViscousWall_t)                  :: self
+         class(Edge_t)                       :: edge
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)        :: stateConstant
+         real(kind=RP)        :: Ek(0:edge % spA % N ) 
+
+         associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
+
+#ifdef _DIMENSIONLESS_TAU
+         stateConstant = 1.0_RP
+#else
+         stateConstant = 1.0_RP / dimensionless % gammaMach2
+#endif
+   
+         select type ( edge ) 
+            type is (StraightBdryEdge_t)
+
+               edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
+               edge % uB(0 : N , IRHOU) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IX) - edge % storage(1) % Q(0 : N , IRHOU)
+               edge % uB(0 : N , IRHOV) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IY) - edge % storage(1) % Q(0 : N , IRHOV) 
+               Ek = 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % uB(0:N,IRHOU) + edge % uB(0:N,IRHOV) * edge % uB(0:N,IRHOV) ) / edge % uB(0:N,IRHO)
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % uB(0:N,IRHOE) = dimensionless % cv * edge % uB(0:N,IRHO) * stateConstant * self % Tw + Ek
+
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+
+               end if
+
+#ifdef NAVIER_STOKES
+               edge % uSB(0:N,IRHO) = edge % storage(1) % Q(0:N,IRHO)
+               edge % uSB(0:N,IRHOU) = edge % uSB(0:N,IRHO) * self % v(IX)
+               edge % uSB(0:N,IRHOV) = edge % uSB(0:N,IRHO) * self % v(IY)
+   
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % uSB(0:N,IRHOE) = dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw 
+   
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % uSB(0:N,IRHOE) =   edge % storage(1) % Q(0:N,IRHOE)  - Ek &
+                                          + 0.5_RP * edge % uSB(0:N,IRHO) * ( self % v(IX) * self % v(IX) + self % v(IY) * self % v(IY) ) 
+               endif
+#endif
+
+            type is (CurvedBdryEdge_t)
+
+               edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
+               edge % uB(0 : N , IRHOU) = -edge % storage(1) % Q(0 : N , IRHOU)
+               edge % uB(0 : N , IRHOV) = -edge % storage(1) % Q(0 : N , IRHOV)
+               Ek = 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % uB(0:N,IRHOU) + edge % uB(0:N,IRHOV) * edge % uB(0:N,IRHOV) ) / edge % uB(0:N,IRHO)
+
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % uB(0:N,IRHOE) = dimensionless % cv * edge % uB(0:N,IRHO) * stateConstant * self % Tw + Ek
+
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N, IRHOE)
+
+               end if
+
+#ifdef NAVIER_STOKES
+               edge % uSB(0:N,IRHO) = edge % storage(1) % Q(0:N,IRHO)
+               edge % uSB(0:N,IRHOU) = 0.0_RP
+               edge % uSB(0:N,IRHOV) = 0.0_RP
+   
+               if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+                  edge % uSB(0:N,IRHOE) = dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw 
+   
+               elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
+                  edge % uSB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE) - Ek
+
+               endif
+#endif
+
+            class default
+         end select
+
+         end associate
+
+      end subroutine ViscousWall_UpdateSolution

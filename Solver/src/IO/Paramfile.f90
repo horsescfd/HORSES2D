@@ -64,37 +64,45 @@ module ParamfileIO
                stop "Stopped."
          
             else
-               
+                  
 !              Removed commented part of the string
 !              ------------------------------------
                position = index(trim(auxstr) , comment)
                if ( position .gt. 0 ) then
                   auxstr = auxstr(1:position-1)
                end if
-!
+!   
 !              Look for the label
 !              ------------------
                position = index(trim(auxstr) , trim(label) )
                if ( position .eq. 0) then
                   cycle
                end if
-
-!
-!              The label is present. The value will be everything from the equal
-!              -----------------------------------------------------------------
-               position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2) ) )
-               if ( position .eq. 0) then
+!   
+!              The label is present. Check whether the equal is present
+!              --------------------------------------------------------
+               position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2)) )
+               if ( position .eq. 0 ) then
                   cycle
-               else
-                  auxstr = auxstr(position+1:)
                end if
-!
+   
+               if ( getSquashedLine(auxstr(1:position-1)) .eq. getSquashedLine(trim(label)) ) then
+!   
+!                 The label matches the one present in the string
+!                 -----------------------------------------------
+                  auxstr = auxstr(position+1:)
+               else
+                  cycle
+               end if
+!   
 !              Get the value
 !              -------------
                var = trim(adjustl(auxstr))
+   
                exit
 
             end if
+   
          end do
 
 !
@@ -225,22 +233,27 @@ module ParamfileIO
                   if ( position .eq. 0) then
                      cycle
                   end if
-
-   
 !   
-!                 The label is present. The value will be everything from the equal
-!                 -----------------------------------------------------------------
-                  auxstr = trim(auxstr(position + len_trim(label) :))
-                  position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2) ) )
-                  if ( position .eq. 0) then
+!                 The label is present. Check whether the equal is present
+!                 --------------------------------------------------------
+                  position = max(index(trim(auxstr) , equal(1)) , index(trim(auxstr) , equal(2)) )
+                  if ( position .eq. 0 ) then
                      cycle
-                  else
+                  end if
+
+                  if ( getSquashedLine(auxstr(1:position-1)) .eq. getSquashedLine(label) ) then
+!
+!                    The label matches the one present in the string
+!                    -----------------------------------------------
                      auxstr = auxstr(position+1:)
+                  else
+                     cycle
                   end if
 !   
 !                 Get the value
 !                 -------------
                   var = trim(adjustl(auxstr))
+
                   exit
                end if
 
@@ -332,7 +345,7 @@ module ParamfileIO
 !        ---------------------
          pos = index(trim(line) , comment)
          if ( pos .gt. 0 ) then
-            squashed = line(1:pos-1)
+            squashed = trim(adjustl(line(1:pos-1)))
 
          else
             squashed = trim(adjustl(line))
@@ -357,6 +370,7 @@ module ParamfileIO
             end if
          end do
             
+         write(squashed,'(A)')  trim(adjustl(squashed))
 
       end function getSquashedLine
 

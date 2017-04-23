@@ -23,13 +23,13 @@
 		           Default polynomial order : 6
 
 !------------------------------------: Initialization
-		             Initial condition : Restart
+		             Initial condition : Uniform
 		             Restart file      : ./RESULTS/Blasius_10000.HiORst
 
 !------------------------------------: Inviscid discretization
 	            Inviscid strategy     : Standard
 	            Inviscid formulation  : Form I
-	            Inviscid Riemann Flux : Roe
+	            Inviscid Riemann Flux : HLL
 
 !------------------------------------: Viscous discretization
                      Viscous strategy: BR1
@@ -62,42 +62,42 @@
 
 
 # define p-Refinement
-   1: 2
-   2: 8
-   3: 6
-   4: 4
+   1: 3
+   2: 3
+   3: 3
+   4: 3
 # end
 
 # define zone 1
 	Name      = Bottom
 	Type      = Viscous wall
    Wall type = Adiabatic
-   Riemann solver = Exact
+!   Riemann solver = Exact
 # end 
 
 # define zone 2
 	Name      = Top
    Type      = Dirichlet
-   Riemann solver = Exact
+!   Riemann solver = Exact
 # end 
 
 # define zone 3
-	Name      = Right
-   Type      = Pressure outlet
+	Name         = Right
+   Type         = Pressure outlet
    Outflow type = Reflective
-   Riemann solver = Exact
+!   Riemann solver = Exact
 # end
 
 # define zone 4
 	Name      = Left
 	Type      = Dirichlet
-   Riemann solver = Exact
+!   Riemann solver = Exact
 # end
 
 # define zone 5
    Name     = Entry
    Type     = Euler wall
-   Riemann solver = Exact
+!   Riemann solver = Exact
 # end
 
 # define surface monitor 1

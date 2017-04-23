@@ -22,7 +22,7 @@ module MatrixOperations
 
       end function vectorOuterProduct
 
-      subroutine MatrixTimesVector( A , X , Y , trA , reset )
+      pure subroutine MatrixTimesVector( A , X , Y , trA , reset )
 !
 !     -------------------------------------------------------------
 !        Computes the product
@@ -71,8 +71,8 @@ module MatrixOperations
             end if
 
             if ( size(Y) .ne. K ) then
-               print*, "Matrices sizes are not consistent"
-               stop "Stopped."
+!               print*, "Matrices sizes are not consistent"
+!               stop "Stopped."
             end if
 
 
@@ -108,7 +108,7 @@ module MatrixOperations
 
       end subroutine MatrixTimesVector
 
-      function MatrixTimesVector_F( A , X , Nout , trA ) result( Y )
+      pure function MatrixTimesVector_F( A , X , Nout , trA ) result( Y )
 !
 !     -------------------------------------------------------------
 !        Computes the product
@@ -161,7 +161,7 @@ module MatrixOperations
 
       end function MatrixByVectorInIndex_F
 
-      subroutine BilinearForm( A , X , Y , B , trA )
+      pure subroutine BilinearForm( A , X , Y , B , trA )
 !     -----------------------------
 !        Computes the product
 !           B = X^T A Y
@@ -170,7 +170,7 @@ module MatrixOperations
          real(kind=RP), intent(in)           :: A(:,:)
          real(kind=RP), intent(in)           :: X(:)
          real(kind=RP), intent(in)           :: Y(:)
-         real(kind=RP)                       :: B
+         real(kind=RP), intent(out)          :: B
          logical,       intent(in), optional :: trA
          logical                             :: tA
 
@@ -187,7 +187,7 @@ module MatrixOperations
          end if
       end subroutine BilinearForm
 
-      function BilinearForm_F( A , X , Y , trA ) result( B )
+      pure function BilinearForm_F( A , X , Y , trA ) result( B )
 !     -----------------------------
 !        Computes the product
 !           B = X^T A Y
@@ -200,26 +200,30 @@ module MatrixOperations
          logical,       intent(in), optional :: trA
          logical                             :: tA
 
-         if (present(trA) ) then
-            call BilinearForm(A , X , Y , B , trA )
+         if ( present(trA) ) then
+            tA = trA
+
          else
-            call BilinearForm(A , X , Y , B )
+            tA = .false.
+
          end if
+
+         call BilinearForm(A , X , Y , B , tA)
 
       end function BilinearForm_F
        
-      subroutine Mat_x_Mat( A , B , C , trA , trB , reset )
+      pure subroutine Mat_x_Mat( A , B , C , trA , trB , reset )
 !     -------------------------------------------------------
 !        Computes the product
 !           C = op(A) * op(B), in which op(A) = A or A^T
 !     -------------------------------------------------------
          implicit none
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP), intent(out)       :: C(:,:)
-         logical      , optional          :: trA
-         logical      , optional          :: trB
-         logical      , optional          :: reset
+         real(kind=RP), intent(in)           :: A(:,:)
+         real(kind=RP), intent(in)           :: B(:,:)
+         real(kind=RP), intent(out)          :: C(:,:)
+         logical      , intent(in), optional :: trA
+         logical      , intent(in), optional :: trB
+         logical      , intent(in), optional :: reset
 !        -----------------------------------------------
          logical                          :: rst
          logical                          :: tA
@@ -332,19 +336,19 @@ module MatrixOperations
 
       end subroutine Mat_x_Mat
 
-      function Mat_x_Mat_F( A , B , rowC , colC ,  trA , trB) result ( C )
+      pure function Mat_x_Mat_F( A , B , rowC , colC ,  trA , trB) result ( C )
 !     -----------------------------
 !        Computes the product
 !           C = op(A) * op(B)
 !     -----------------------------
          implicit none
-         logical      , optional          :: trA
-         logical      , optional          :: trB
-         integer, intent(in)              :: rowC
-         integer, intent(in)              :: colC
-         real(kind=RP), intent(in)        :: A(:,:)
-         real(kind=RP), intent(in)        :: B(:,:)
-         real(kind=RP)                    :: C(rowC,colC)
+         logical      , intent (in), optional :: trA
+         logical      , intent (in), optional :: trB
+         integer,       intent (in)           :: rowC
+         integer,       intent (in)           :: colC
+         real(kind=RP), intent (in)           :: A(:,:)
+         real(kind=RP), intent (in)           :: B(:,:)
+         real(kind=RP)                        :: C(rowC,colC)
 !        ---------------------------------------------------------------
          logical                 :: tA , tB
          integer                 :: N , M 
@@ -451,11 +455,16 @@ module MatrixOperations
 !     ----------------------------------------------------
 !
          implicit none
-         integer, intent(in)                :: d1C , d2C , d3C
-         real(kind=RP), target, intent(in)  :: A(:,:,:)
-         real(kind=RP), target, intent(in)  :: B(:,:)
-         integer                            :: index
+         integer,               intent (in) :: index
+         integer,               intent (in) :: d1C , d2C , d3C
+         real(kind=RP), target, intent (in) :: A(:,:,:)
+         real(kind=RP), target, intent (in) :: B(:,:)
          real(kind=RP), target              :: C(d1C,d2C,d3C)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          real(kind=RP), pointer             :: PC(:,:)
          real(kind=RP), pointer             :: P1C(:)
          real(kind=RP), pointer             :: PA(:,:)

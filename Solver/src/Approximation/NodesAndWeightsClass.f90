@@ -1,7 +1,11 @@
 module nodesAndWeights_class
+    use Physics
     use SMConstants
     use InterpolationAndDerivatives
     use LegendreAlgorithms
+    implicit none
+
+#include "Defines.h" 
 
     private
     public NodalStorage , newNodalStorage
@@ -24,9 +28,13 @@ module nodesAndWeights_class
         real(kind=RP), pointer    :: D(:,:)
         real(kind=RP), pointer    :: DT(:,:)
         real(kind=RP), pointer    :: MD(:,:)
+        real(kind=RP), pointer    :: hatD(:,:)
         real(kind=RP), pointer    :: trMD(:,:)
         real(kind=RP), pointer    :: tildeMTD(:,:)
         real(kind=RP), pointer    :: lb(:,:)
+        real(kind=RP), pointer    :: lbw(:,:)
+        real(kind=RP), pointer    :: dlb(:,:)
+        real(kind=RP), pointer    :: dlbw(:,:)
         real(kind=RP), pointer    :: T(:,:)     ! Interpolation matrix to the TAIL of the linked list 
 !                                                  (integration points are placed there)
         class(NodesAndWeights_t), pointer :: next => NULL()
@@ -161,9 +169,13 @@ module nodesAndWeights_class
             allocate ( self % invM2D ( 0:N,0:N )  ) 
             allocate ( self % D      ( 0:N,0:N )  ) 
             allocate ( self % DT     ( 0:N,0:N )  ) 
+            allocate ( self % hatD   ( 0:N,0:N )  ) 
             allocate ( self % MD     ( 0:N,0:N )  ) 
             allocate ( self % trMD   ( 0:N,0:N )  ) 
             allocate ( self % lb     ( 0:N,2   )  ) 
+            allocate ( self % lbw    ( 0:N,2   )  ) 
+            allocate ( self % dlb    ( 0:N,2   )  ) 
+            allocate ( self % dlbw   ( 0:N,2   )  ) 
 
             self % T => NULL()
             self % tildeMTD => NULL()
@@ -216,11 +228,11 @@ module nodesAndWeights_class
 !       *********************
 !
         subroutine computeNodesAndWeights(self)
+            use MatrixOperations
             implicit none
             class(NodesAndWeights_t)        :: self
             integer                         :: N
             integer                         :: i
-            integer                         :: j
         
             N = self % N
 
@@ -276,6 +288,7 @@ module nodesAndWeights_class
             self % DT   = transpose( self % D )
             self % MD   = matmul( self % M , self % D )
             self % trMD = transpose( self % MD )
+            self % hatD = matmul( self % MD , self % Minv )
 
 !       
 !           --------------------------------------------
@@ -284,25 +297,34 @@ module nodesAndWeights_class
 !
             call LagrangeInterpolatingPolynomialBarycentric(  0.0_RP, N, self % xi, self % wb, self % lb(: ,LEFT) )
             call LagrangeInterpolatingPolynomialBarycentric(  1.0_RP, N, self % xi, self % wb, self % lb(:,RIGHT) )
+   
+            self % lbw ( :,LEFT  ) = self % lb ( :,LEFT  ) / self % w
+            self % lbw ( :,RIGHT ) = self % lb ( :,RIGHT ) / self % w
+
+            self % dlb ( : , LEFT  ) = MatrixTimesVector_F ( self % DT , self % lb ( : , LEFT  )  , self % N + 1 ) 
+            self % dlb ( : , RIGHT ) = MatrixTimesVector_F ( self % DT , self % lb ( : , RIGHT )  , self % N + 1 ) 
+
+            self % dlbw ( :,LEFT  ) = self % dlb ( :,LEFT  ) / self % w
+            self % dlbw ( :,RIGHT ) = self % dlb ( :,RIGHT ) / self % w
             
 
         end subroutine computeNodesAndWeights
             
-        function polyevaluation(self,x)   result(val)
+        pure function polyevaluation(self,x)   result(val)
             implicit none
-            class(NodesAndWeights_t)   :: self
-            real(kind=RP)              :: x
-            real(kind=RP)              :: val( 0 : self % N )
+            class(NodesAndWeights_t), intent(in)   :: self
+            real(kind=RP)           , intent(in)   :: x
+            real(kind=RP)                          :: val( 0 : self % N )
     
             call LagrangeInterpolatingPolynomialBarycentric(x , self % N , self % xi , self % wb , val)
 
         end function polyevaluation
 
-        function polyDerivativeEvaluation( self , x ) result(val)
+        pure function polyDerivativeEvaluation( self , x ) result(val)
             implicit none
-            class(NodesAndWeights_t)         :: self
-            real(kind=RP), intent(in)        :: x
-            real(kind=RP)                    :: val( 0 : self % N )
+            class(NodesAndWeights_t), intent(in) :: self
+            real(kind=RP), intent(in)            :: x
+            real(kind=RP)                        :: val( 0 : self % N )
 !           -------------------------------------------------------------
             integer                          :: i
 

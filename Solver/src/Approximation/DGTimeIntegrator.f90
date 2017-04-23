@@ -3,6 +3,8 @@ module DGTimeIntegrator
    use DGSpatialDiscretizationMethods
    use QuadMeshClass
    use MonitorsClass
+!
+#include "Defines.h"
 
    private
    public TimeIntegrator_t , NewTimeIntegrator
@@ -78,15 +80,14 @@ module DGTimeIntegrator
             Integrator % dt                = Setup % dt
    
          elseif ( trim(Setup % IntegrationMode) .eq. "Transient") then
-            print*, "Do not use this mode."
-            stop "Stopped"
             Integrator % mode = TRANSIENT
-            Integrator % no_of_iterations  = 0
+            Integrator % no_of_iterations  = Setup % no_of_iterations
             Integrator % output_interval   = Setup % output_interval
             Integrator % autosave_interval = Setup % autosaveInterval
             Integrator % Ccfl              = Setup % Ccfl
             Integrator % t_end             = Setup % simulationTime
             Integrator % initial_iteration = Setup % initialIteration
+            Integrator % dt                = Setup % dt
             
          else
             write(STD_OUT , '(/,/)') 
@@ -134,6 +135,7 @@ module DGTimeIntegrator
       subroutine TimeIntegrator_Integrate( self , mesh , Storage )
          use Storage_module
          use Setup_class
+         use Utilities
          implicit none
          class(TimeIntegrator_t)          :: self
          class(QuadMesh_t)                  :: mesh
@@ -144,11 +146,34 @@ module DGTimeIntegrator
          NDOF = size( Storage % QDot )
 
          do iter = self % initial_iteration + 1 , self % initial_iteration + self % no_of_iterations
-
+!
+!           Get current iteration
+!           ---------------------
             self % iter = iter
-
+!
+!           Check whether the time is the final time
+!           ----------------------------------------
+            if ( self % mode .eq. TRANSIENT ) then
+               if ( self % t + self % dt .ge. self % t_end ) then
+                  self % dt = self % t_end - self % t
+               end if
+            end if
+!
+!           Perform a time-step
+!           -------------------
             call self % TimeStep( mesh , NDOF , self % dt , Storage)
+!
+!           Compute new time 
+!           ----------------
             self % t    = self % t + self % dt
+            
+            if ( self % mode .eq. TRANSIENT ) then
+               if ( almostEqual( self % t , self % t_end ) ) then
+                  call Monitors % UpdateValues ( mesh , self % t , self % iter)
+                  call self % Display( mesh ) 
+                  exit
+               end if
+            end if
 
             call Monitors % UpdateValues ( mesh , self % t , self % iter)
 
@@ -169,11 +194,10 @@ module DGTimeIntegrator
             call Monitors % WriteToFile()
 
          end do
-!
+
 !        Save solution file
 !        ------------------
          call sleep(2)
-         self % iter = self % initial_iteration + self % no_of_iterations
          call self % Autosave( Storage , mesh , trim(Setup % solution_file) ) 
 
          if ( self % no_of_iterations .ne. 0 ) then
@@ -199,7 +223,7 @@ module DGTimeIntegrator
 !        Compute the time derivative
 !  
          call DGSpatial_computeTimeDerivative( mesh )
-!
+
 !        Perform a step in the explicit Euler method
 !
          Storage % Q = Storage % Q + dt * Storage % QDot
@@ -222,7 +246,7 @@ module DGTimeIntegrator
          real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
          
          do m = 1 , N_STAGES
-!
+
 !           Compute time derivative
 !           -----------------------
             call DGSpatial_ComputeTimeDerivative( mesh )
@@ -267,11 +291,11 @@ module DGTimeIntegrator
 !                                                      -2.0_RP ** (1.0_RP / 3.0_RP) - 2.0_RP ** (2.0_RP / 3.0_RP) - 2.0_RP , &
 !                                                      -1.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) ]
 !         real(kind=RP), parameter   :: gm(N_STAGES) = [2.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP , &
- !                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
- !                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
- !                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
- !                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
- !        
+!                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
+!                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
+!                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
+!                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
+        
          do m = 1 , N_STAGES
 !
 !           Compute time derivative
@@ -307,7 +331,6 @@ module DGTimeIntegrator
          class(QuadMesh_t)                  :: mesh
          integer, parameter               :: ShowLabels = 50
          integer, save                    :: shown = 0
-         real(kind=RP)                    :: residuals(NCONS)
 
          if ( mod( shown , ShowLabels) .eq. 0 ) then     ! Show labels
             write(STD_OUT , '(/)')
@@ -425,7 +448,12 @@ module DGTimeIntegrator
 
    
             dx = min( norm2(nodes(1) % n % X-nodes(2) % n % X) , norm2(nodes(2) % n % X - nodes(3) % n % X) , norm2(nodes(3) % n % X -nodes(4) % n % X) , norm2(nodes(1) % n % X - nodes(4) % n % X))
+
+#ifdef _DIMENSIONLESS_TAU
             dt = min( dt , Dimensionless % Mach * sqrt(Thermodynamics % gamma) * self % Ccfl * dx / (umax + amax) / (mesh % elements(eID) % spA % N+1) )
+#else
+            dt = min( dt , self % Ccfl * dx / (umax + amax) / (mesh % elements(eID) % spA % N+1) )
+#endif
 
             end associate
 

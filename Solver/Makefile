@@ -1,4 +1,4 @@
-$(info High-Order Discontinuous Galerkin 2D Solver Compilation. Madrid TU.)
+
 $(info )
 $(info )
 
@@ -13,7 +13,7 @@ MODE ?=DEBUG
 BLAS_LIB = 
 LAPACK_LIB = 
 LIBS=
-GLOB_MACROS :=
+GLOB_MACROS := -D_DIMENSIONLESS_TAU
 
 # --------------- MACROS ---------------------------------------------------
 
@@ -24,14 +24,21 @@ GLOB_MACROS :=
 
 Physics: PhysicsNS Headers
 PhysicsNS: Setup SMConstants Headers MatrixOperations
-DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Tecplot
-NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations
+VariableConversion: PhysicsNS
+RiemannSolvers: PhysicsNS SMConstants InviscidFluxes
+InviscidFluxes: PhysicsNS SMConstants
+ViscousFluxes: PhysicsNS SMConstants
+DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter
+Plotter: SMConstants
+Tecplot: Plotter
+NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
 InterpolationAndDerivatives: SMConstants Utilities
+Utilities: RealDataLinkedList SMConstants
+RealDataLinkedList: SMConstants
 LegendreAlgorithms: SMConstants
-QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage QuadDefinitions DGBoundaryConditions Utilities
+QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage DGBoundaryConditions Utilities
 MeshFile: Setup SMConstants NetCDF_Interface Headers
-QuadElement: src/Mesh/QuadAuxiliar.incf src/Mesh/QuadMappings.incf NodeClass SMConstants Physics NodesAndWeightsClass Storage QuadDefinitions InterpolationAndDerivatives MatrixOperations MetricMatrix
-QuadDefinitions: SMConstants
+QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage InterpolationAndDerivatives MatrixOperations MetricMatrix
 NodeClass: SMConstants Physics
 MetricMatrix: SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
@@ -40,13 +47,25 @@ NetCDF_Interface: SMConstants
 ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
-DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods
-DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers
+DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
+DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals
+DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers DGWeakIntegrals
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
+DGInviscid_StandardDG: DGInviscidMethods
+DGViscous_BR1: DGViscousMethods
+DGViscous_IP: DGViscousMethods
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
+DirichletBC: DGBoundaryConditions
+EulerWallBC: DGBoundaryConditions
+FarfieldBC: DGBoundaryConditions
+PeriodicBC: DGBoundaryConditions
+PressureInletBC: DGBoundaryConditions
+PressureOutletBC: DGBoundaryConditions
+RiemannBC: DGBoundaryConditions
+ViscousWallBC: DGBoundaryConditions
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants
-DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Tecplot Monitors
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Plotter Monitors
 Monitors: SMConstants Setup Paramfile Physics QuadMesh
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
@@ -55,7 +74,7 @@ main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 # --------------- DO NOT EDIT ----------------------------------------------------
 
 F90_REMOVE=
-F90_INCLUDE=$(SRC_DIR)/Mesh/
+F90_INCLUDE=-I$(SRC_DIR)/Mesh/ -I$(SRC_DIR)/Generic/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
 OBJS_F90:= $(filter-out $(F90_REMOVE),$(OBJS_F90))
@@ -105,7 +124,7 @@ endif
 $(info )
 $(info )
 # ------------- LIBRARIES ------------------------
-INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) -I$(F90_INCLUDE)
+INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 
 # ------------- Main rules -----------------------
 	

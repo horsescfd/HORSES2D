@@ -11,6 +11,8 @@ module MonitorsClass
    use QuadMeshClass
    implicit none
 !
+#include "Defines.h"
+
    private
    public      Monitor_t , ConstructMonitors
 !
@@ -174,7 +176,7 @@ readloop:do
 !
 !              Error
 !              -----
-               print*, "Error reading case file, in line 96 of Monitors.f90"
+               errorMessage(STD_OUT)
                stop "Stopped."
 
             else
@@ -295,7 +297,9 @@ readloop:do
 !        Print dashes for probes
 !        -----------------------
          do i = 1 , self % no_of_probes
-            write(STD_OUT , '(3X,A10)' , advance = "no" ) dashes(1 : min(10 , len_trim( self % probes(i) % monitorName ) + 2 ) )
+            if ( self % probes(i) % active ) then
+               write(STD_OUT , '(3X,A10)' , advance = "no" ) dashes(1 : min(10 , len_trim( self % probes(i) % monitorName ) + 2 ) )
+            end if
          end do
 !
 !        Print dashes for surface monitors
@@ -726,91 +730,94 @@ readloop:do
          real(kind=RP)           :: rho  , rhou  , rhov  , rhoe
          real(kind=RP)           :: rhot , rhout , rhovt , rhoet
       
-         N = mesh % elements( self % eID ) % spA % N 
-!
-!        Select the variable
-!        -------------------
-         select case ( trim( self % variable ) )
-
-            case ("rho")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-               self % values(bufferPosition) = rho * refValues % rho
- 
-            case ("rhou")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
-               self % values(bufferPosition) = rhou * refValues % rho * refValues % a
- 
-            case ("rhov")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
-               self % values(bufferPosition) = rhov * refValues % rho * refValues % a
- 
-            case ("rhoe")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoe  ) 
-               self % values(bufferPosition) = rhoe * refValues % rho * refValues % p
- 
-            case ("rhot")
-               call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rhot  ) 
-               self % values(bufferPosition) = rhot * refValues % rho / refValues % tc
- 
-            case ("rhout")
-               call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhout ) 
-               self % values(bufferPosition) = rhout * refValues % rho * refValues % a / refValues % tc
- 
-            case ("rhovt")
-               call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhovt ) 
-               self % values(bufferPosition) = rhovt * refValues % rho * refValues % a / refValues % tc
- 
-            case ("rhoet")
-               call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoet ) 
-               self % values(bufferPosition) = rhoet * refValues % rho * refValues % p / refValues % tc
- 
-            case ("u")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
-               self % values(bufferPosition) = rhou / rho * refValues % a
- 
-            case ("v")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
-               self % values(bufferPosition) = rhov / rho * refValues % a
+         if ( self % active ) then
+            N = mesh % elements( self % eID ) % spA % N 
+!   
+!           Select the variable
+!           -------------------
+            select case ( trim( self % variable ) )
+   
+               case ("rho")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
+                  self % values(bufferPosition) = rho * refValues % rho
     
-            case ("p")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoe  ) 
-               self % values(bufferPosition) = Thermodynamics % gm1 * ( rhoe - 0.5_RP * ( rhou * rhou + rhov * rhov ) / rho ) * refValues % p
+               case ("rhou")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
+                  self % values(bufferPosition) = rhou * refValues % rho * refValues % a
+    
+               case ("rhov")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  self % values(bufferPosition) = rhov * refValues % rho * refValues % a
+    
+               case ("rhoe")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoe  ) 
+                  self % values(bufferPosition) = rhoe * refValues % rho * refValues % p
+    
+               case ("rhot")
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rhot  ) 
+                  self % values(bufferPosition) = rhot * refValues % rho / refValues % tc
+    
+               case ("rhout")
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhout ) 
+                  self % values(bufferPosition) = rhout * refValues % rho * refValues % a / refValues % tc
+    
+               case ("rhovt")
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhovt ) 
+                  self % values(bufferPosition) = rhovt * refValues % rho * refValues % a / refValues % tc
+    
+               case ("rhoet")
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoet ) 
+                  self % values(bufferPosition) = rhoet * refValues % rho * refValues % p / refValues % tc
+    
+               case ("u")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
+                  self % values(bufferPosition) = rhou / rho * refValues % a
+    
+               case ("v")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  self % values(bufferPosition) = rhov / rho * refValues % a
        
-            case ("Mach")
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
-               call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
-               self % values(bufferPosition) = sqrt(rhou * rhou + rhov * rhov) / rho / sqrt(Thermodynamics % gamma)
- 
-            case default
-
-               if ( len_trim (self % variable) .eq. 0 ) then
-                  print*, "Variable was not specified for probe " , self % ID , "."
-               else
-                  print*, 'Variable "',trim(self % variable),'" in probe ', self % ID, ' not implemented yet.'
-                  print*, "Options available are:"
-                  print*, "   * rho"
-                  print*, "   * rhou"
-                  print*, "   * rhov"
-                  print*, "   * rhoe"
-                  print*, "   * rhot"
-                  print*, "   * rhout"
-                  print*, "   * rhovt"
-                  print*, "   * rhoet"
-                  print*, "   * u"
-                  print*, "   * v"
-                  print*, "   * p"
-                  print*, "   * Mach"
-                  stop "Stopped."
-
-               end if
-
-         end select                        
+               case ("p")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoe  ) 
+                  self % values(bufferPosition) = Thermodynamics % gm1 * ( rhoe - 0.5_RP * ( rhou * rhou + rhov * rhov ) / rho ) * refValues % p
+          
+               case ("Mach")
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  self % values(bufferPosition) = sqrt(rhou * rhou + rhov * rhov) / rho / sqrt(Thermodynamics % gamma)
+    
+               case default
+   
+                  if ( len_trim (self % variable) .eq. 0 ) then
+                     print*, "Variable was not specified for probe " , self % ID , "."
+                  else
+                     print*, 'Variable "',trim(self % variable),'" in probe ', self % ID, ' not implemented yet.'
+                     print*, "Options available are:"
+                     print*, "   * rho"
+                     print*, "   * rhou"
+                     print*, "   * rhov"
+                     print*, "   * rhoe"
+                     print*, "   * rhot"
+                     print*, "   * rhout"
+                     print*, "   * rhovt"
+                     print*, "   * rhoet"
+                     print*, "   * u"
+                     print*, "   * v"
+                     print*, "   * p"
+                     print*, "   * Mach"
+                     stop "Stopped."
+   
+                  end if
+   
+            end select                        
+   
+         end if
 
       end subroutine Probe_Update
 
@@ -823,8 +830,10 @@ readloop:do
 !
          implicit none
          class(Probe_t)             :: self
-
-         write(STD_OUT , '(3X,A10)' , advance = "no") trim(self % monitorName(1 : MONITOR_LENGTH))
+      
+         if ( self % active ) then
+            write(STD_OUT , '(3X,A10)' , advance = "no") trim(self % monitorName(1 : MONITOR_LENGTH))
+         end if
 
       end subroutine Probe_WriteLabel
    
@@ -839,7 +848,9 @@ readloop:do
          class(Probe_t)             :: self
          integer                    :: bufferLine
 
-         write(STD_OUT , '(1X,A,1X,ES10.3)' , advance = "no") "|" , self % values ( bufferLine ) 
+         if ( self % active ) then
+            write(STD_OUT , '(1X,A,1X,ES10.3)' , advance = "no") "|" , self % values ( bufferLine ) 
+         end if
 
       end subroutine Probe_WriteValue 
 
@@ -859,14 +870,16 @@ readloop:do
          integer                    :: i
          integer                    :: fID
 
-         open( newunit = fID , file = trim ( self % fileName ) , action = "write" , access = "append" , status = "old" )
-         
-         do i = 1 , no_of_lines
-            write( fID , '(I10,2X,ES24.16,2X,ES24.16)' ) iter(i) , t(i) , self % values(i)
-
-         end do
-        
-         close ( fID )
+         if ( self % active ) then
+            open( newunit = fID , file = trim ( self % fileName ) , action = "write" , access = "append" , status = "old" )
+            
+            do i = 1 , no_of_lines
+               write( fID , '(I10,2X,ES24.16,2X,ES24.16)' ) iter(i) , t(i) , self % values(i)
+   
+            end do
+           
+            close ( fID )
+         end if
       
       end subroutine Probe_WriteToFile
 !
@@ -898,7 +911,6 @@ readloop:do
 !        ----------------------------------------------
          character(len=STR_LEN_MONITORS)  :: in_label
          character(len=STR_LEN_MONITORS)  :: fileName
-         character(len=STR_LEN_MONITORS)  :: mode
          integer, allocatable             :: marker
          integer                          :: pos
          integer                          :: fID

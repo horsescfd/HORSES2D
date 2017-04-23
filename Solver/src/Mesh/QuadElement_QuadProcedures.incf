@@ -1,0 +1,57 @@
+        subroutine QuadElement_SetStorage( self , storage )
+            use SMConstants
+            use Storage_module
+            use Setup_class
+            use Physics
+            implicit none
+            class(QuadElement_t)      :: self
+            class(Storage_t)        :: storage
+        
+
+            associate ( N => self % spA % N )
+             self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
+             self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
+#ifdef NAVIER_STOKES
+             self % dQ   ( 0:N , 0:N , 1:NDIM , 1:NCONS ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
+#endif
+            end associate
+
+        end subroutine QuadElement_SetStorage
+#ifdef NAVIER_STOKES
+        subroutine QuadElement_ComputeInteriorGradient( self ) 
+            use MatrixOperations
+!   
+!           **********************************************************************
+!                 This subroutine computes the contravariant components of the element
+!              gradients as:
+!                    F <- F * Ja(1,1) + G * Ja(2,1)
+!                    G <- F * Ja(1,2) + G * Ja(2,2)
+!           **********************************************************************
+!   
+            implicit none  
+            class(QuadElement_t)   :: self
+!           -------------------------------------------------------------
+            real(kind=RP)              :: dxiQ (0:self % spA % N,0:self % spA % N, 1:NCONS)
+            real(kind=RP)              :: detaQ(0:self % spA % N,0:self % spA % N, 1:NCONS)
+            integer                    :: var
+   
+            associate( N => self % spA % N )
+            
+            dxiQ  = MatrixMultiplyInIndex_F( self % Q , self % spA % DT , N+1 , N+1 , NCONS , IX)
+            detaQ = MatrixMultiplyInIndex_F( self % Q , self % spA % DT , N+1 , N+1 , NCONS , IY)
+
+            do var = 1 , NCONS
+!              
+!              x-direction gradient
+!              --------------------
+               self % dQ(0:N,0:N,IX,var) = (dxiQ(0:N,0:N,var) * self % Ja(0:N,0:N,1,1) + detaQ(0:N,0:N,var) * self % Ja(0:N,0:N,1,2)) / self % jac(0:N,0:N)
+!              
+!              y-direction gradient
+!              --------------------
+               self % dQ(0:N,0:N,IY,var) = (dxiQ(0:N,0:N,var) * self % Ja(0:N,0:N,2,1) + detaQ(0:N,0:N,var) * self % Ja(0:N,0:N,2,2)) / self % jac(0:N,0:N)
+
+            end do
+            end associate
+            
+      end subroutine QuadElement_ComputeInteriorGradient
+#endif

@@ -1,0 +1,251 @@
+        subroutine Edge_LinkWithElements( self , el1 , el2 , elb)
+            use InterpolationAndDerivatives
+            use MatrixOperations
+            implicit none
+            class(Edge_p)                          :: self
+            class(QuadElement_t), target, optional :: el1
+            class(QuadElement_t), target, optional :: el2
+            class(QuadElement_t), target, optional :: elb
+!           ----------------------------------------------------------------------
+            integer                        :: nodesID(POINTS_PER_EDGE)
+            integer                        :: nodesEl1(POINTS_PER_QUAD)
+            integer                        :: nodesEl2(POINTS_PER_QUAD)
+            integer                        :: nodesElb(POINTS_PER_QUAD)
+            integer                        :: node
+            integer(kind=1)                :: edgePosition
+            integer(kind=1)                :: edgeDirection
+            logical                        :: needsInversion
+
+            do node = 1 , POINTS_PER_EDGE
+               nodesID(node) = self % f % nodes(node) % n %ID
+            end do
+
+            if (present(el1) .and. present(el2) .and. (.not. present(elb)) ) then             ! Interior edge            
+
+               allocate ( self % f % storage ( QUADS_PER_EDGE ) ) 
+
+!              Gather all four nodes in both elements
+!              --------------------------------------
+               do node = 1 , POINTS_PER_QUAD 
+                  nodesEl1(node)  = el1 % nodes(node) % n % ID 
+                  nodesEl2(node)  = el2 % nodes(node) % n % ID
+               end do
+
+!              Search for the edge in element1: forced to be always the LEFT element, and FORWARD
+!              ----------------------------------------------------------------------------------
+               call searchEdge( nodesEl = nodesEl1 , nodesEdge = nodesID , needsInversion = needsInversion , edgePosition = edgePosition , edgeDirection = edgeDirection)
+!
+!              Link the items
+!              --------------
+               el1  % edges     ( edgePosition ) % f => self % f
+               self % f % quads ( LEFT         ) % e => el1
+
+               el1  % edgesDirection   ( edgePosition )  = FORWARD
+               el1  % quadPosition     ( edgePosition )  = LEFT
+               self % f % edgeLocation ( LEFT         )  = edgePosition
+!
+!              Adapt the edge to the LEFT element
+!              ----------------------------------
+               if ( needsInversion ) then
+                  if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
+                     call self % f % Invert ( changeSigndS = .true. )
+                     nodesID = nodesID(2:1:-1)         
+
+                  else
+                     call self % f % Invert ( changeSigndS = .false. )
+                     nodesID = nodesID(2:1:-1)         
+
+                  end if
+
+               else     ! Change the sign of the normal if is TOP or LEFT
+                  if ( ( edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
+                     self % f % n = -self % f % n
+
+                  end if
+
+               end if
+
+               call self % f % storage (LEFT) % Initialize ( el1 % spA )
+!
+!              State whether a polynomial transformation is needed or not.
+!              -----------------------------------------------------------
+               if ( el1 % spA % N .eq. self % f % spA % N ) then
+                  self % f % transform (LEFT) = .false.
+            
+               else
+                  self % f % transform (LEFT) = .true.
+                  self % f % Nlow  = el1 % spA % N
+!
+!                 Computing the forward matrix: From the element degree to the edge
+!                 -----------------------------------------------------------------
+                  allocate ( self % f % T_forward   ( 0:self % f % spA % N , 0:el1 % spA % N )  ) 
+                  call PolynomialInterpolationMatrix( el1 % spA % N , self % f % spA % N , el1 % spA % xi , el1 % spA % wb , self % f % spA % xi , self % f % T_forward)
+
+                  allocate ( self % f % T_backward ( 0:el1 % spA % N , 0:self % f % spA % N )  ) 
+                  call TripleMatrixProduct( A = el1 % spA % Minv , B = self % f % T_forward , C = self % f % spA % M , val = self % f % T_backward , trB = .true. )
+               end if
+!
+!              Search for the edge in element2: This is forced to be the RIGHT element, and can be either FORWARD, or BACKWARD
+!              ---------------------------------------------------------------------------------------------------------------
+               call searchEdge( nodesEl = nodesEl2 , nodesEdge = nodesID , needsInversion = needsInversion , edgePosition = edgePosition  , edgeDirection = edgeDirection)
+!
+!              Link the items
+!              --------------
+               el2  % edges     ( edgePosition ) % f => self % f
+               self % f % quads ( RIGHT        ) % e => el2
+
+               el2  % quadPosition     ( edgePosition )  = RIGHT
+               el2  % edgesDirection   ( edgePosition )  = edgeDirection
+               self % f % edgeLocation ( RIGHT        )  = edgePosition
+               
+               if ( edgeDirection .eq. FORWARD ) then
+                  self % f % inverse = .false.
+
+               else
+                  self % f % inverse = .true.
+
+               end if
+               
+               call self % f % storage (RIGHT) % Initialize ( el2 % spA )
+!
+!              State whether a transformation is needed or not.
+!              -----------------------------------------------
+               if ( el2 % spA % N .eq. self % f % spA % N ) then
+                  self % f % transform (RIGHT) = .false.
+            
+               else
+                  self % f % transform (RIGHT) = .true.
+                  self % f % Nlow  = el2 % spA % N
+!
+!                 Computing the forward matrix: From the element degree to the edge
+!                 -----------------------------------------------------------------
+                  allocate ( self % f % T_forward   ( 0:self % f % spA % N , 0:el2 % spA % N )  ) 
+                  call PolynomialInterpolationMatrix( el2 % spA % N , self % f % spA % N , el2 % spA % xi , el2 % spA % wb , self % f % spA % xi , self % f % T_forward)
+
+                  allocate ( self % f % T_backward ( 0:el2 % spA % N , 0:self % f % spA % N )  ) 
+                  call TripleMatrixProduct( A = el2 % spA % Minv , B = self % f % T_forward , C = self % f % spA % M , val = self % f % T_backward , trB = .true. )
+
+               end if
+
+            elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
+
+               allocate ( self % f % storage ( 1 ) ) 
+
+               do node = 1 , POINTS_PER_QUAD 
+                  nodesElb(node)  = elb % nodes(node) % n % ID 
+               end do
+
+!              Search for the edge in element1
+!              -------------------------------
+               call searchEdge( nodesEl = nodesElb , nodesEdge = nodesID , needsInversion = needsInversion , edgePosition = edgePosition , edgeDirection = edgeDirection)
+!
+!              Link the items: Now always the direction is FORWARD. This may be later reverted ONLY in the case Periodic BCs are enforced
+!              --------------------------------------------------------------------------------------------------------------------------
+               elb  % boundaryElement = .true.
+               elb  % edges            ( edgePosition ) % f  => self % f
+               self % f % quads        ( 1            ) % e  => elb
+
+               elb % edgesDirection    ( edgePosition ) =  FORWARD
+               elb % quadPosition      ( edgePosition ) = 1
+               self % f % edgeLocation ( 1            ) =  edgePosition
+!
+!              Adapt the edge to the  element
+!              ------------------------------
+               if ( needsInversion ) then
+                  if ( (edgePosition .eq. EBOTTOM) .or. (edgePosition .eq. ERIGHT) ) then
+                     call self % f % Invert ( changeSigndS = .true. )
+         
+                  else
+                     call self % f % Invert ( changeSigndS = .false. )
+
+                  end if
+
+               else     ! Change the sign of dS if is TOP or LEFT
+                  if ( ( edgePosition .eq. ETOP) .or. (edgePosition .eq. ELEFT) ) then
+                     self % f % n = -self % f % n
+
+                  end if
+
+               end if
+
+               call self % f % storage (1) % Initialize ( elb % spA )
+!
+!              Boundary edges never need a transformation
+!              ------------------------------------------
+               self % f % transform = .false.
+
+            end if
+
+         end subroutine Edge_LinkWithElements
+
+         subroutine Edge_Invert ( self , changeSigndS)
+            implicit none
+            class(Edge_t)           :: self
+            logical, optional       :: changeSigndS
+!           --------------------------------------
+            logical                 :: changeSigndS_val
+            class(Node_t), pointer  :: auxnode
+
+            if ( present(changeSigndS) ) then
+               changeSigndS_val = changeSigndS
+
+            else
+               changeSigndS_val = .true.
+
+            end if
+
+!           Invert nodes
+            auxnode => self % nodes(1) % n
+            self % nodes(1) % n => self % nodes(2) % n
+            self % nodes(2) % n => auxnode
+
+!           Invert coordinates
+            self % X  ( 1:NDIM , 0:self % spA % N ) = self % X  ( 1:NDIM , self % spA % N : 0 : -1 ) 
+
+            select type ( self )
+
+               type is (Edge_t)
+                  self % dX ( 1:NDIM , 0 ) = -self % dX ( 1:NDIM , 0 ) 
+      
+                  if ( changeSigndS_val ) then
+                     self % n ( 1:NDIM , 0 ) = -self % n ( 1:NDIM , 0) 
+      
+                  end if
+         
+               type is (StraightBdryEdge_t)
+                  self % dX ( 1:NDIM , 0 ) = -self % dX ( 1:NDIM , 0 ) 
+      
+                  if ( changeSigndS_val ) then
+                     self % n ( 1:NDIM , 0 ) = -self % n ( 1:NDIM , 0) 
+      
+                  end if
+ 
+               type is (CurvedBdryEdge_t)
+                  self % dX ( 1:NDIM , 0:self % spA % N ) = -self % dX ( 1:NDIM , self % spA % N : 0 : -1 ) 
+                  self % dS (          0:self % spA % N ) =  self % dS (          self % spA % N : 0 : -1 ) 
+      
+                  if ( changeSigndS_val ) then
+                     self % n ( 1:NDIM , 0:self % spA % N ) = -self % n ( 1:NDIM , self % spA % N : 0 : -1 ) 
+      
+                  else
+                     self % n ( 1:NDIM , 0:self % spA % N ) = self % n ( 1:NDIM , self % spA % N : 0 : -1 ) 
+         
+                  end if
+         
+            end select
+ 
+         end subroutine Edge_Invert
+
+         subroutine BoundaryData_Initialize( self , spA  ) 
+            implicit none
+            class(BoundaryData_t)             :: self
+            class(NodesAndWeights_t), pointer :: spA
+
+            self % spA => spA
+
+            allocate ( self % Q  ( 0 : self % spA % N , NCONS )  ) 
+#ifdef NAVIER_STOKES
+            allocate ( self % dQ ( 0 : self % spA % N , NDIM  , NCONS ) ) 
+#endif
+
+         end subroutine BoundaryData_Initialize

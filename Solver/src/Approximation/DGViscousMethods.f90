@@ -1,72 +1,298 @@
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           DGViscous procedures
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 #ifdef NAVIER_STOKES
-
+#include "Defines.h"
+!
 module DGViscousMethods
    use SMConstants
    use QuadMeshClass
    use QuadElementClass
    use Physics
    use Setup_class
-   use QuadMeshDefinitions
    implicit none
 !
-!  *******************************************************************
+!  *******
    private
-   public ViscousMethod_t , IPMethod_t , BR1Method_t , LDGMethod_t
-   public ViscousMethod_Initialization
-!  *******************************************************************
+   public  ViscousMethod_t , IPMethod_t , BR1Method_t , LDGMethod_t
+   public  ViscousMethod_Initialization
+!  *******
 !
 !                                *************************
    integer, parameter         :: STR_LEN_VISCOUS = 128
 !                                *************************
 !
-!  *******************************************************************
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!                --------------------
+!                | TYPE DEFINITIONS |
+!                --------------------
+!
+!  ---------------------------------------------------------------
+!        VISCOUS METHOD GENERIC TYPE 
+!  ---------------------------------------------------------------
+!
    type ViscousMethod_t
+      logical                            :: computeRiemannGradientFluxes
       character(len=STR_LEN_VISCOUS)     :: method
       contains
-         procedure ::   IntercellFlux      => BaseClass_IntercellFlux
-         procedure ::   QDotFaceLoop       => BaseClass_QDotFaceLoop
-         procedure ::   dQFaceLoop         => BaseClass_dQFaceLoop
-         procedure ::   QDotVolumeLoop     => BaseClass_QDotVolumeLoop
-         procedure ::   dQVolumeLoop       => BaseClass_dQVolumeLoop
-         procedure ::   ComputeInnerFluxes => BaseClass_ComputeInnerFluxes
-         procedure ::   ComputeFaceFluxes  => BaseClass_ComputeFaceFluxes
-         procedure ::   Describe           => ViscousMethod_describe
+!
+!                                ***************************************
+!                                   GRADIENTS PROCEDURE
+!                                ***************************************
+!
+         procedure          ::   ComputeGradient                        => BaseClass_ComputeGradient
+!
+!                                ***************************************
+!                                   INNER FLUXES PROCEDURE
+!                                ***************************************
+!
+         procedure          ::   ComputeInnerFluxes                     => BaseClass_ComputeInnerFluxes
+!
+!                                ***************************************
+!                                   SOLUTION RIEMANN PROCEDURE
+!                                ***************************************
+!
+         generic, public    ::   ComputeSolutionRiemann                  => ComputeSolutionRiemann_Interior     , &
+                                                                            ComputeSolutionRiemann_StraightBdry , &
+                                                                            ComputeSolutionRiemann_CurvedBdry   
+         procedure, private ::   ComputeSolutionRiemann_Interior         => BaseClass_ComputeSolutionRiemann_Interior
+         procedure, private ::   ComputeSolutionRiemann_StraightBdry     => BaseClass_ComputeSolutionRiemann_StraightBdry
+         procedure, private ::   ComputeSolutionRiemann_CurvedBdry       => BaseClass_ComputeSolutionRiemann_CurvedBdry
+         procedure, private ::   SolutionRiemannSolver                   => BaseClass_SolutionRiemannSolver
+!
+!                                ***************************************
+!                                    RIEMANN SOLVER PROCEDURE
+!                                ***************************************
+!
+         procedure, private ::   RiemannSolver                           => BaseClass_RiemannSolver
+         procedure, private ::   RiemannSolver_Dirichlet                 => BaseClass_RiemannSolver_Dirichlet
+         procedure, private ::   RiemannSolver_Adiabatic                 => BaseClass_RiemannSolver_Adiabatic
+         generic, public    ::   ComputeRiemannFluxes                    => ComputeRiemannFluxes_Interior     , &
+                                                                            ComputeRiemannFluxes_StraightBdry , &
+                                                                            ComputeRiemannFluxes_CurvedBdry   
+         procedure, private ::   ComputeRiemannFluxes_Interior           => BaseClass_ComputeRiemannFluxes_Interior
+         procedure, private ::   ComputeRiemannFluxes_StraightBdry       => BaseClass_ComputeRiemannFluxes_StraightBdry
+         procedure, private ::   ComputeRiemannFluxes_CurvedBdry         => BaseClass_ComputeRiemannFluxes_CurvedBdry
+!
+!                                ***************************************
+!                                    GRADIENT RIEMANN SOLVER PROCEDURE
+!                                ***************************************
+!
+         procedure, private ::   GradientRiemannSolver                   => BaseClass_GradientRiemannSolver
+         procedure, private ::   GradientRiemannSolver_BoundaryCondition => BaseClass_GradientRiemannSolver_BoundaryCondition
+         procedure, private ::   GradientRiemannSolver_Adiabatic         => BaseClass_GradientRiemannSolver_Adiabatic
+         procedure          ::   Describe                                => ViscousMethod_describe
    end type ViscousMethod_t
-!  *******************************************************
-!  ---------------- Interior penalty method --------------
-!  *******************************************************
+!
+!  ---------------------------------------------------------------
+!        INTERIOR PENALTY METHOD
+!  ---------------------------------------------------------------
+!
    type, extends(ViscousMethod_t) :: IPMethod_t
       character(len=STR_LEN_VISCOUS) :: subType
       real(kind=RP)                  :: sigma0
       real(kind=RP)                  :: sigma1
       real(kind=RP)                  :: epsilon
       contains
-         procedure :: QDotFaceLoop   => IP_QDotFaceLoop
-         procedure :: QDotVolumeLoop => IP_QDotVolumeLoop
-         procedure :: dQFaceLoop     => IP_dQFaceLoop
-         procedure :: dQVolumeLoop   => IP_dQVolumeLoop
+         procedure   :: ComputeGradient                         => IP_ComputeGradient
+         procedure   :: ComputeInnerFluxes                      => IP_ComputeInnerFluxes
+         procedure   :: RiemannSolver                           => IP_RiemannSolver
+         procedure   :: RiemannSolver_Dirichlet                 => IP_RiemannSolver_Dirichlet
+         procedure   :: RiemannSolver_Adiabatic                 => IP_RiemannSolver_Adiabatic
+         procedure   :: GradientRiemannSolver                   => IP_GradientRiemannSolver
+         procedure   :: GradientRiemannSolver_BoundaryCondition => IP_GradientRiemannSolver_BoundaryCondition
+         procedure   :: GradientRiemannSolver_Adiabatic         => IP_GradientRiemannSolver_Adiabatic
    end type IPMethod_t
-!  *******************************************************
-!  ---------------- Bassy-Rebay 1 method -----------------
-!  *******************************************************
+!
+!  ---------------------------------------------------------------
+!        BASSI-REBAY I METHOD
+!  ---------------------------------------------------------------
+!
    type, extends(ViscousMethod_t) ::  BR1Method_t
       contains
-         procedure ::  QDotFaceLoop   => BR1_QDotFaceLoop
-         procedure ::  QDotVolumeLoop => BR1_QDotVolumeLoop
-         procedure ::  dQFaceLoop     => BR1_dQFaceLoop
-         procedure ::  dQVolumeLoop   => BR1_dQVolumeLoop
+         procedure          :: ComputeGradient         => BR1_ComputeGradient
+         procedure          :: ComputeInnerFluxes      => BR1_ComputeInnerFluxes
+         procedure, private :: SolutionRiemannSolver   => BR1_SolutionRiemannSolver
+         procedure, private :: RiemannSolver           => BR1_RiemannSolver
+         procedure, private :: RiemannSolver_Dirichlet => BR1_RiemannSolver_Dirichlet
+         procedure, private :: RiemannSolver_Adiabatic => BR1_RiemannSolver_Adiabatic
    end type BR1Method_t
-!  *******************************************************
-!  -------------------------------------------------------
-!  *******************************************************
+!
+!  ---------------------------------------------------------------
+!        LOCAL DISCONTINUOUS GALERKIN (LDG) METHOD
+!  ---------------------------------------------------------------
+!
    type, extends(ViscousMethod_t) ::  LDGMethod_t
 
    end type LDGMethod_t
-!  *******************************************************
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!        
+!
+!  --------------
+!  BR1 Interfaces
+!  --------------
+!
+   interface
+      module subroutine BR1_ComputeGradient( self , mesh ) 
+         implicit none
+         class(BR1Method_t),    intent(in)     :: self
+         class(QuadMesh_t)     ,    intent(inout)  :: mesh
+      end subroutine BR1_ComputeGradient
+
+      module pure function BR1_ComputeInnerFluxes( self , e ) result (Fv)
+         use QuadElementClass
+         implicit none
+         class(BR1Method_t),   intent(in)   :: self
+         class(QuadElement_t), intent(in)   :: e
+         real(kind=RP)                      :: Fv(0 : e % spA % N , 0 : e % spA % N , 1:NCONS , 1:NDIM)
+      end function BR1_ComputeInnerFluxes
+
+      module pure function BR1_SolutionRiemannSolver( self , N , UL , UR ) result ( uStar )
+         implicit none
+         class(BR1Method_t), intent(in) :: self
+         integer, intent(in)            :: N
+         real(kind=RP), intent(in)      :: uL(0:N , 1:NCONS)
+         real(kind=RP), intent(in)      :: uR(0:N , 1:NCONS)
+         real(kind=RP)                  :: uStar(0:N,1:NCONS)
+      end function BR1_SolutionRiemannSolver
+
+      module pure function BR1_RiemannSolver( self , N , invh_edge , UL , UR , dUL , dUR , normal ) result ( FStar )
+         implicit none
+         class(BR1Method_t), intent(in)   :: self
+         integer, intent(in)              :: N
+         real(kind=RP), intent(in)        :: invh_edge
+         real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: dUL(0:N, 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in)        :: dUR(0:N, 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
+         real(kind=RP)                    :: Fstar(0:N , 1:NCONS)
+      end function BR1_RiemannSolver
+
+      module pure function BR1_RiemannSolver_Dirichlet( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+         implicit none
+         class(BR1Method_t), intent(in)     :: self
+         integer      ,          intent(in)     :: N
+         real(kind=RP),          intent(in)     :: invh_edge
+         real(kind=RP),          intent(in)     :: u(NCONS)
+         real(kind=RP),          intent(in)     :: g(NDIM,NCONS)
+         real(kind=RP),          intent(in)     :: uB(NCONS)
+         real(kind=RP),          intent(in)     :: normal(NDIM)
+         real(kind=RP)                          :: Fstar(1:NCONS)
+      end function BR1_RiemannSolver_Dirichlet
+
+      module pure function BR1_RiemannSolver_Adiabatic( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+         implicit none
+         class(BR1Method_t), intent(in)     :: self
+         integer      ,          intent(in)     :: N 
+         real(kind=RP),          intent(in)     :: invh_edge
+         real(kind=RP),          intent(in)     :: u(0:N , NCONS)
+         real(kind=RP),          intent(in)     :: g(0:N , NDIM,NCONS)
+         real(kind=RP),          intent(in)     :: uB(0:N , NCONS)
+         real(kind=RP),          intent(in)     :: normal(NDIM , 0:N)
+         real(kind=RP)                          :: Fstar(0:N , 1:NCONS)
+      end function BR1_RiemannSolver_Adiabatic
+   end interface
+!
+!  -------------
+!  IP Interfaces
+!  -------------
+!
+   interface
+      module subroutine IP_ComputeGradient( self , mesh ) 
+         use DGWeakIntegrals
+         implicit none
+         class(IPMethod_t)   ,  intent (in)    :: self
+         class(QuadMesh_t)    , intent (inout) :: mesh
+      end subroutine IP_ComputeGradient
+
+      module pure function IP_ComputeInnerFluxes( self , e ) result (Fv)
+         use QuadElementClass
+         implicit none
+         class(IPMethod_t),   intent(in)   :: self
+         class(QuadElement_t), intent(in)   :: e
+         real(kind=RP)                      :: Fv(0 : e % spA % N , 0 : e % spA % N , 1:NCONS , 1:NDIM)
+      end function IP_ComputeInnerFluxes
+
+      module pure function IP_RiemannSolver( self , N , invh_edge , UL , UR , dUL , dUR , normal ) result ( FStar )
+         implicit none
+         class(IPMethod_t), intent(in)   :: self
+         integer, intent(in)              :: N
+         real(kind=RP), intent(in)        :: invh_edge
+         real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: dUL(0:N, 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in)        :: dUR(0:N, 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
+         real(kind=RP)                    :: Fstar(0:N , 1:NCONS)
+      end function IP_RiemannSolver
+
+      module pure function IP_RiemannSolver_Dirichlet( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+         implicit none
+         class(IPMethod_t), intent(in)     :: self
+         integer      ,          intent(in)     :: N 
+         real(kind=RP),          intent(in)     :: invh_edge
+         real(kind=RP),          intent(in)     :: u(NCONS)
+         real(kind=RP),          intent(in)     :: g(NDIM,NCONS)
+         real(kind=RP),          intent(in)     :: uB(NCONS)
+         real(kind=RP),          intent(in)     :: normal(NDIM)
+         real(kind=RP)                          :: Fstar(1:NCONS)
+      end function IP_RiemannSolver_Dirichlet
+
+      module pure function IP_RiemannSolver_Adiabatic( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+         implicit none
+         class(IPMethod_t), intent (in) :: self
+         integer      ,      intent (in) :: N
+         real(kind=RP),      intent (in) :: invh_edge
+         real(kind=RP),      intent (in) :: u      ( 0:N  , NCONS      )
+         real(kind=RP),      intent (in) :: g      ( 0:N  , NDIM,NCONS )
+         real(kind=RP),      intent (in) :: uB     ( 0:N  , NCONS      )
+         real(kind=RP),      intent (in) :: normal ( NDIM , 0:N        )
+         real(kind=RP)                   :: Fstar  ( 0:N  , 1:NCONS    )
+      end function IP_RiemannSolver_Adiabatic
+
+      module pure subroutine IP_GradientRiemannSolver( self , N , UL , UR , normal , GstarL , GstarR ) 
+         implicit none
+         class(IPMethod_t), intent(in)   :: self
+         integer, intent(in)              :: N
+         real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
+         real(kind=RP), intent(out)       :: GstarL(0:N , 1:NCONS , 1:NDIM)
+         real(kind=RP), intent(out)       :: GstarR(0:N , 1:NCONS , 1:NDIM)
+      end subroutine IP_GradientRiemannSolver
+
+      module pure function IP_GradientRiemannSolver_BoundaryCondition( self , u , uB , normal ) result ( Gstar ) 
+         implicit none
+         class(IPMethod_t), intent(in)   :: self
+         real(kind=RP), intent(in)        :: u(1:NCONS)
+         real(kind=RP), intent(in)        :: uB(1:NCONS)
+         real(kind=RP), intent(in)        :: normal(IX:IY)
+         real(kind=RP)                    :: Gstar(1:NCONS , 1:NDIM)
+      end function IP_GradientRiemannSolver_BoundaryCondition
+
+      module pure function IP_GradientRiemannSolver_Adiabatic( self , N , u , uB , normal )  result ( Gstar )
+         implicit none
+         class(IPMethod_t), intent(in)   :: self
+         integer, intent(in)              :: N
+         real(kind=RP), intent(in)        :: u (0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: uB(0:N , 1:NCONS)
+         real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
+         real(kind=RP)                    :: Gstar(0:N , 1:NCONS , 1:NDIM)
+      end function IP_GradientRiemannSolver_Adiabatic
+   end interface
 !
 !  ========
    contains
 !  ========
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
       function ViscousMethod_Initialization() result( ViscousMethod )
          implicit none
@@ -83,10 +309,12 @@ module DGViscousMethods
          elseif ( trim( Setup % viscous_discretization ) .eq. "BR1" ) then
 
             allocate(BR1Method_t :: ViscousMethod)
+            ViscousMethod % computeRiemannGradientFluxes = .false.      ! No gradient fluxes are needed
 
          else
 
             write(STD_OUT , * ) "Method ",trim(Setup % viscous_discretization)," not implemented yet."
+            errorMessage(STD_OUT)
             STOP "Stopped."
 
          end if
@@ -105,20 +333,24 @@ module DGViscousMethods
 
                   ViscousMethod % subType = "SIPG"
                   ViscousMethod % epsilon = -1.0_RP
+                  ViscousMethod % computeRiemannGradientFluxes = .true.
 
               else if ( trim ( Setup % IPMethod ) .eq. "NIPG") then
       
                   ViscousMethod % subType = "NIPG"
                   ViscousMethod % epsilon = 1.0_RP
+                  ViscousMethod % computeRiemannGradientFluxes = .true.
 
               else if ( trim ( Setup % IPMethod ) .eq. "IIPG") then
 
                   ViscousMethod % subType = "IIPG"
                   ViscousMethod % epsilon = 0.0_RP
+                  ViscousMethod % computeRiemannGradientFluxes = .false.
 
               else
 
                   write(STD_OUT , *) "Method ",trim(Setup % IPMethod)," not implemented yet."
+                  errorMessage(STD_OUT)
                   stop "Stopped."
 
               end if
@@ -128,6 +360,7 @@ module DGViscousMethods
             class default
 
                 write(STD_OUT , *) "Second order method allocation went wrong."
+                errorMessage(STD_OUT)
                 stop "Stopped."
 
          end select
@@ -141,1153 +374,1045 @@ module DGViscousMethods
 !           ------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine BaseClass_QDotFaceLoop( self , edge ) 
+      subroutine BaseClass_ComputeGradient( self , mesh ) 
          implicit none
-         class(ViscousMethod_t)          :: self
-         class(Edge_t)                       :: edge
+         class(ViscousMethod_t),    intent(in)     :: self
+         class(QuadMesh_t)     ,    intent(inout)  :: mesh
 !
-!        ------------------------------------
-!           The base class does nothing.
-!        ------------------------------------
+!        ---------------------------
+!        The base class does nothing
+!        ---------------------------
 !
-      end subroutine BaseClass_QDotFaceLoop
+      end subroutine BaseClass_ComputeGradient
 
-      subroutine BaseClass_dQFaceLoop( self , edge )  
+      pure function BaseClass_ComputeInnerFluxes( self , e  ) result (Fv)
+         use QuadElementClass
          implicit none
-         class(ViscousMethod_t)          :: self
-         class(Edge_t)                       :: edge
+         class(ViscousMethod_t), intent(in)   :: self
+         class(QuadElement_t),   intent(in)   :: e
+         real(kind=RP)                        :: Fv(0 : e % spA % N , 0 : e % spA % N , 1:NCONS , 1:NDIM)
 !
-!        ------------------------------------
-!           The base class does nothing.
-!        ------------------------------------
+!        ---------------------------
+!        The base class does nothing
+!        ---------------------------
 !
-      end subroutine BaseClass_dQFaceLoop
-      
-      subroutine BaseClass_QDotVolumeLoop( self , element ) 
+      end function BaseClass_ComputeInnerFluxes
+
+      pure function BaseClass_SolutionRiemannSolver( self , N , uL , uR ) result ( uStar )
          implicit none
-         class(ViscousMethod_t)          :: self
-         class(QuadElement_t)                       :: element
+         class(ViscousMethod_t), intent(in)        :: self
+         integer,                intent(in)        :: N 
+         real(kind=RP),          intent(in)        :: uL(0:N , 1:NCONS)
+         real(kind=RP),          intent(in)        :: uR(0:N , 1:NCONS)
+         real(kind=RP)                             :: uStar(0:N , 1:NCONS)
 !
-!        ------------------------------------
-!           The base class does nothing.
-!        ------------------------------------
+!        ---------------------------
+!        The base class does nothing
+!        ---------------------------
 !
-      end subroutine BaseClass_QDotVolumeLoop
+      end function BaseClass_SolutionRiemannSolver
 
-      subroutine BaseClass_dQVolumeLoop( self , element )  
-         use MatrixOperations
+      pure function BaseClass_RiemannSolver( self , N , invh_edge , uL , uR , duL , duR , normal ) result ( FStar )
          implicit none
-         class(ViscousMethod_t)          :: self
-         class(QuadElement_t)                       :: element
+         class(ViscousMethod_t), intent(in)        :: self
+         integer,                intent(in)        :: N 
+         real(kind=RP),          intent(in)        :: invh_edge
+         real(kind=RP),          intent(in)        :: uL(0:N , 1:NCONS)
+         real(kind=RP),          intent(in)        :: uR(0:N , 1:NCONS)
+         real(kind=RP),          intent(in)        :: duL(0:N , 1:NDIM , 1:NCONS)
+         real(kind=RP),          intent(in)        :: duR(0:N , 1:NDIM , 1:NCONS)
+         real(kind=RP),          intent(in)        :: normal(1:NDIM,0:N)
+         real(kind=RP)                             :: FStar(0:N , 1:NCONS)
 !
-!        ------------------------------------
-!           The base class does nothing.
-!        ------------------------------------
+!        ---------------------------
+!        The base class does nothing
+!        ---------------------------
 !
-      end subroutine BaseClass_dQVolumeLoop
+      end function BaseClass_RiemannSolver
 
-      subroutine BaseClass_ComputeInnerFluxes( self , element ) 
+      pure function BaseClass_RiemannSolver_Dirichlet( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+         implicit none
+         class(ViscousMethod_t), intent(in)     :: self
+         integer      ,          intent(in)     :: N 
+         real(kind=RP),          intent(in)     :: invh_edge
+         real(kind=RP),          intent(in)     :: u(NCONS)
+         real(kind=RP),          intent(in)     :: g(NDIM,NCONS)
+         real(kind=RP),          intent(in)     :: uB(NCONS)
+         real(kind=RP),          intent(in)     :: normal(NDIM)
+         real(kind=RP)                          :: Fstar(1:NCONS)
 !
-!        **********************************************************************
-!              This subroutine computes the contravariant fluxes of the element
-!           The fluxes read:
-!                 F <- F * Ja(1,1) + G * Ja(2,1)
-!                 G <- F * Ja(1,2) + G * Ja(2,2)
-!        **********************************************************************
+!        ---------------------------
+!        The base class does nothing
+!        ---------------------------
 !
-         implicit none  
-         class(ViscousMethod_t)    :: self
-         class(QuadElement_t)       :: element
-!        -------------------------------------------------------------
-         real(kind=RP)              :: F(0:element % spA % N,0:element % spA % N,1:NCONS,1:NDIM)
-         integer                    :: eq
+      end function BaseClass_RiemannSolver_Dirichlet
 
-         associate( N => element % spA % N )
+      pure function BaseClass_RiemannSolver_Adiabatic( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+         implicit none
+         class(ViscousMethod_t), intent(in)     :: self
+         integer      ,          intent(in)     :: N 
+         real(kind=RP),          intent(in)     :: invh_edge
+         real(kind=RP),          intent(in)     :: u(0:N , NCONS)
+         real(kind=RP),          intent(in)     :: g(0:N , NDIM,NCONS)
+         real(kind=RP),          intent(in)     :: uB(0:N , NCONS)
+         real(kind=RP),          intent(in)     :: normal(NDIM , 0:N)
+         real(kind=RP)                          :: Fstar(0:N , 1:NCONS)
+!
+!        ---------------------------
+!        The base class does nothing
+!        ---------------------------
+!
+      end function BaseClass_RiemannSolver_Adiabatic
 
-         F = ViscousFlux( N , element % W , element % dQ )
+      pure subroutine BaseClass_GradientRiemannSolver( self , N , UL , UR , normal , GstarL , GstarR ) 
+!
+!        *****************************************************************************************
+!        *****************************************************************************************
+!
+         implicit none
+         class(ViscousMethod_t), intent(in) :: self
+         integer, intent(in)                :: N
+         real(kind=RP), intent(in)          :: uL(0:N , 1:NCONS)
+         real(kind=RP), intent(in)          :: uR(0:N , 1:NCONS)
+         real(kind=RP), intent(in)          :: normal(IX:IY,0:N)
+         real(kind=RP), intent(out)         :: GstarL(0:N , 1:NCONS , 1:NDIM)
+         real(kind=RP), intent(out)         :: GstarR(0:N , 1:NCONS , 1:NDIM)
+      end subroutine BaseClass_GradientRiemannSolver
 
-         do eq = 1 , NCONS
-!        
-!           F flux (contravariant)
-!           ----------------------
-            element % F(0:N,0:N,eq,IX) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,1)
-!        
-!           G flux (contravariant)
-!           ----------------------
-            element % F(0:N,0:N,eq,IY) = F(0:N,0:N,eq,IX) * element % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * element % Ja(0:N,0:N,2,2)
+      pure function BaseClass_GradientRiemannSolver_BoundaryCondition( self , u , uB , normal ) result ( Gstar )
+         implicit none
+         class(ViscousMethod_t), intent(in)  :: self
+         real(kind=RP), intent(in)           :: u(1:NCONS)
+         real(kind=RP), intent(in)           :: uB(1:NCONS)
+         real(kind=RP), intent(in)           :: normal(1:NDIM)
+         real(kind=RP)                       :: Gstar(1:NCONS , 1:NDIM)
+      end function BaseClass_GradientRiemannSolver_BoundaryCondition
 
-         end do
-
-         end associate
+      pure function BaseClass_GradientRiemannSolver_Adiabatic( self , N , u , uB , normal ) result ( Gstar )
+         implicit none
+         class(ViscousMethod_t), intent(in)  :: self
+         integer      , intent(in)           :: N 
+         real(kind=RP), intent(in)           :: u(0:N,1:NCONS)
+         real(kind=RP), intent(in)           :: uB(0:N,1:NCONS)
+         real(kind=RP), intent(in)           :: normal(1:NDIM,0:N)
+         real(kind=RP)                       :: Gstar(0:N , 1:NCONS , 1:NDIM)
+      end function BaseClass_GradientRiemannSolver_Adiabatic
          
-      end subroutine BaseClass_ComputeInnerFluxes
-
-      subroutine BaseClass_ComputeFaceFluxes ( self , edge )
+      subroutine BaseClass_ComputeSolutionRiemann_Interior( self ,  ed , uStarL , uStarR )
 !
-!        **********************************************************************
-!              This subroutine computes the viscous normal fluxes at both
-!           sides of the face
-!        **********************************************************************
+!        *****************************************************************************
+!           This routine computes the Solution Riemann problem in the "ed" edge.
+!              -> The result is uStarL and uStarR
+!           This procedure is common to all ViscousMethods, since it just provides
+!           a framework to deal with the data sharing across the interface. Then,
+!           each method considers its own SolutionRiemann solver procedure
+!                                     -------------------
+!        >> Therefore, it considers several possibilities:
 !
-         use QuadMeshDefinitions
-         implicit none
-         class(ViscousMethod_t)        :: self
-         class(Edge_t)          :: edge
-!        ------------------------------------------------
-         integer                       :: side
-
-         associate ( N => edge % spA % N )
-
-         select type ( edge )
-
-            type is (Edge_t)
-
-               do side = 1 , QUADS_PER_EDGE
-                  associate ( Ni => edge % storage(side) % spA % N )
-                  edge % storage(side) % F ( 0:Ni , 1:NCONS ) = ViscousNormalFlux( Ni , edge % storage(side) % w(0:Ni , 1:NPRIM) , edge % storage(side) % dQ(0:Ni , 1:NDIM , 1:NGRAD ) , edge % dS(IX:IY,0:Ni) )
-                  end associate
-               end do
-
-            type is (StraightBdryEdge_t)
-               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS )
-
-            type is (CurvedBdryEdge_t)
-               edge % storage(1) % F ( 0:N , 1:NCONS ) = ViscousNormalFlux( N , edge % storage(1) % w(0:N , 1:NPRIM) , edge % storage(1) % dQ(0:N , 1:NDIM , 1:NGRAD) , edge % dS)
-
-         end select
-
-         end associate
-
-      end subroutine BaseClass_ComputeFaceFluxes
-
-      function BaseClass_IntercellFlux ( self , edge ) result ( Fstar )
+!              1/ LEFT edge needs a p-Transformation and RIGHT edge is reversed.
+!              2/ LEFT edge needs a p-Transformation
+!              3/ RIGHT edge needs a p-Transformation and RIGHT edge is reversed.
+!              4/ RIGHT edge needs a p-Transformation
+!              5/ RIGHT edge is reversed.
+!              6/ No transformations are needed.
+!
+!           The solution Riemann solver is computed with the 
+!>                self % SolutionRiemannSolver( N , QL , QR )
+!           procedure.
+!
+!        *****************************************************************************
+!
+         use QuadElementClass
          use MatrixOperations
+         implicit none
+         class(ViscousMethod_t)              :: self
+         type(Edge_t)            :: ed
+         real(kind=RP)           :: uStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
+         real(kind=RP)           :: uStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real ( kind=RP ), target :: QL ( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP ), target :: QR ( 0 : ed % spA % N , 1 : NCONS )
+
+         if ( ed % transform(LEFT) .and. ed % inverse ) then
+! 
+!        ---------------------------------------------------------
+!>       First case: LEFT needs p-Adaption, and RIGHT is reversed.
+!        ---------------------------------------------------------
+!
+!           Transform the LEFT edge
+!           -----------------------            
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarR = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the LEFT edge 
+!           -----------------------
+            call Mat_x_Mat( ed % T_backward , uStarR , uStarL )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            uStarR(0:ed % spA % N , 1:NCONS) = uStarR(ed % spA % N : 0 : -1 , 1:NCONS) 
+
+         elseif ( ed % transform(LEFT) ) then
+! 
+!        ----------------------------------
+!>       Second case: LEFT needs p-Adaption.
+!        ----------------------------------
+!
+!           Transform the LEFT 
+!           -----------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!
+!           Get the RIGHT edge state
+!           ------------------------
+            QR = ed % storage(RIGHT) % Q
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarR = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the LEFT edge 
+!           -----------------------
+            call Mat_x_Mat( ed % T_backward , uStarR , uStarL )
+
+
+         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+! 
+!        ---------------------------------------------------------
+!>       Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
+!        ---------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------
+            QL = ed % storage(LEFT) % Q
+!
+!           Transform the RIGHT edge 
+!           ------------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+!
+!           Invert the RIGHT edge 
+!           ---------------------
+            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the RIGHT edge
+!           ------------------------ 
+            call Mat_x_Mat( ed % T_backward , uStarL , uStarR )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            uStarR(0:ed % Nlow,1:NCONS) = uStarR(ed % Nlow:0:-1 , 1:NCONS)
+
+         elseif ( ed % transform(RIGHT) ) then
+! 
+!        -----------------------------------
+!>       Fourth case: RIGHT needs p-Adaption.
+!        -----------------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(LEFT) % Q
+!
+!           Transform the RIGHT edge
+!           ------------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the RIGHT edge
+!           ------------------------
+            call Mat_x_Mat( ed % T_backward , uStarL , uStarR )
+         
+         elseif ( ed % inverse ) then
+! 
+!        -----------------------------
+!>       Fifth case: RIGHT is reversed.
+!        -----------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(LEFT) % Q
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR(0:ed % spA % N , 1:NCONS ) = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS)
+!
+!           Compute the Riemann solver
+!           --------------------------         
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            uStarR( 0 : ed % spA % N , 1:NCONS ) = uStarL ( ed % spA % N : 0 : -1 , 1:NCONS )
+
+         else
+! 
+!        -----------------------------------------------------------------------
+!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
+!        -----------------------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------   
+            QL = ed % storage(LEFT) % Q
+!
+!           Get the RIGHT edge
+!           ------------------
+            QR = ed % storage(RIGHT) % Q
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Assign the value to the RIGHT edge
+!           ----------------------------------
+            uStarR = uStarL
+         
+         end if
+
+      end subroutine BaseClass_ComputeSolutionRiemann_Interior
+
+      subroutine BaseClass_ComputeSolutionRiemann_StraightBdry( self ,  ed , uStar)
+!
+!        ****************************************************************************
+!              This subroutine computes the Solution Riemann problem for a straight
+!           edge "ed" -> uStar.
+!
+!              The solution at the boundaries is prescribed by the value uSB. 
+!           However, if periodic boundary conditions are considered, an interior
+!           boundary treatment is considered within the edge and the prescribed
+!           value.
+!        ****************************************************************************
+!
+         use QuadElementClass
+         implicit none
+         class(ViscousMethod_t)   :: self
+         type(StraightBdryEdge_t) :: ed
+         real(kind=RP)            :: uStar( 0 : ed % spA % N , 1:NCONS )
+!     
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)                 :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
+         integer                       :: N
+
+         N = ed % spA % N
+
+         if ( ed % associated ) then     
+!
+!           ----------------------------
+!>          Periodic boundary conditions
+!           ----------------------------
+!
+            if ( .not. ed % inverse ) then
+               QL = ed % storage(1) % Q
+               QR = ed % uB
+               uStar = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+
+            else
+               QL = ed % storage(1) % Q
+               QR = ed % uB(N : 0 : -1 , 1:NCONS)
+               uStar = self % SolutionRiemannSolver( ed % spA % N , QL , QR ) 
+
+            end if
+
+         else
+!
+!           -------------------------------------
+!>          Dirichlet/Neumann boundary conditions
+!           -------------------------------------
+!
+            uStar = ed % uSB
+   
+         end if
+
+      end subroutine BaseClass_ComputeSolutionRiemann_StraightBdry
+
+      subroutine BaseClass_ComputeSolutionRiemann_CurvedBdry( self ,  ed , uStar)
+!
+!        ****************************************************************************
+!              This subroutine computes the Solution Riemann problem for a straight
+!           edge "ed" -> uStar.
+!
+!              The solution at the boundaries is prescribed by the value uSB. 
+!           However, if periodic boundary conditions are considered, an interior
+!           boundary treatment is considered within the edge and the prescribed
+!           value.
+!        ****************************************************************************
+!
+
+         use QuadElementClass
          implicit none
          class(ViscousMethod_t) :: self
-         class(Edge_t)      :: edge
-         real(kind=RP)      :: Fstar(0:edge % spA % N,1:NCONS)
+         type(CurvedBdryEdge_t) :: ed
+         real(kind=RP)          :: uStar( 0 : ed % spA % N , 1:NCONS )
+!     
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)                 :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
+         integer                       :: N
+
+         N = ed % spA % N
+
+         if ( ed % associated ) then     
+!
+!           ----------------------------
+!>          Periodic boundary conditions
+!           ----------------------------
+!
+            if ( .not. ed % inverse ) then
+               QL = ed % storage(1) % Q
+               QR = ed % uB
+               uStar = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+
+            else
+               QL = ed % storage(1) % Q
+               QR = ed % uB(N : 0 : -1 , 1:NCONS)
+               uStar = self % SolutionRiemannSolver( ed % spA % N , QL , QR ) 
+
+            end if
+
+         else
+!
+!           -------------------------------------
+!>          Dirichlet/Neumann boundary conditions
+!           -------------------------------------
+!
+            uStar = ed % uSB
+   
+         end if
+
+      end subroutine BaseClass_ComputeSolutionRiemann_CurvedBdry
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           VISCOUS FLUXES SUBROUTINES
+!           --------------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!TODO Pure
+      subroutine BaseClass_ComputeRiemannFluxes_Interior( self ,  ed , FStarL , FStarR , GStarL , GStarR )
+!
+!        *****************************************************************************
+!           This routine computes the Viscous Riemann problem in the "ed" edge.
+!              -> The result is FStarL and FStarR
+!       >>  Recall that viscous fluxes are defined just for RHOU,RHOV, and RHOE 
+!           states. 
+!
+!           This procedure is common to all ViscousMethods, since it just provides
+!           a framework to deal with the data sharing across the interface. Then,
+!           each method considers its own Riemann Solver procedure
+!                                     ------------------
+!        >> Therefore, it considers several possibilities:
+!
+!              1/ LEFT edge needs a p-Transformation and RIGHT edge is reversed.
+!              2/ LEFT edge needs a p-Transformation
+!              3/ RIGHT edge needs a p-Transformation and RIGHT edge is reversed.
+!              4/ RIGHT edge needs a p-Transformation
+!              5/ RIGHT edge is reversed.
+!              6/ No transformations are needed.
+!
+!           The Riemann solver is computed with the 
+!>                self % RiemannSolver( N , QL , QR , dQL , dQR , normal )
+!           procedure.
+!
+!        *****************************************************************************
+!
+
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         class(ViscousMethod_t), intent(in)  :: self
+         type(Edge_t),           intent(in)  :: ed
+         real(kind=RP),          intent(out) :: FStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
+         real(kind=RP),          intent(out) :: FStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
+         real(kind=RP),          intent(out) :: GStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP),          intent(out) :: GStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real ( kind=RP ), target   :: QL ( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP ), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP ), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real ( kind=RP ), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real ( kind=RP )           :: GStarL_aux( 0 : ed % spA % N , 1 : NCONS , 1:NDIM)
+         real ( kind=RP )           :: GStarR_aux( 0 : ed % spA % N , 1 : NCONS , 1:NDIM)
+         real ( kind=RP )           :: normal(1:NDIM , 0 : ed % spA % N )
+         integer                    :: iXi , eq , iDim
+!
+!        ----------------------------------------------------------------------------------------------
+!>       Straight boundaries are considered, so replicate the normal in the set of interpolation points
+!        ----------------------------------------------------------------------------------------------
+!
+         do iXi = 0 , ed % spA % N
+            normal(IX:IY,iXi)  = ed % n(IX:IY,0) !spread( ed % n(IX:IY,0) , ncopies = ed % spA % N+1 , dim = 2 ) 
+         end do
+
+         if ( ed % transform(LEFT) .and. ed % inverse ) then
+! 
+!        -------------------------------------------------------
+!>       First case: LEFT needs p-Adaption and RIGHT is reversed
 !        -------------------------------------------------------
 !
-!        ********************
-         select type ( edge )
-!        ********************
-!
-!           -----------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS) ) 
-
-               end associate
-!               
-!           -----------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate( N => edge % spA % N )
-
-               Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(1) % F(0:N , 1:NCONS ) + viscousNormalFlux( N , edge % wB( 0:N , 1:NPRIM ) , edge % gB( 0:N , 1:NDIM , 1:NGRAD ) , edge % dS ) ) 
-
-               end associate
-!
-!           -----------------------------------------------------------------
-            type is (Edge_t)
-      
-               associate( N => edge % spA % N )
-
-               if ( edge % transform(LEFT) ) then
-                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS ) ) 
-
-               elseif ( edge % transform(RIGHT) ) then
-                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % F(0:edge % Nlow , 1:NCONS ) ,N+1,NCONS) + edge % storage(LEFT) % F( 0:N , 1:NCONS ) ) 
-
-               else
-                  Fstar ( 0:N , 1:NCONS ) = 0.5_RP * ( edge % storage(LEFT) % F(0:N , 1:NCONS) + edge % storage(RIGHT) % F( 0:N , 1:NCONS) ) 
-
-               end if
-
-               end associate
-!
-!           ------------------------------------------------------------------
-            class default
-!
-!        **********
-         end select
-!        **********
-!
-   end function BaseClass_IntercellFlux
-
-!
-!//////////////////////////////////////////////////////////////////////////////////////////////////
-!
-!           INTERIOR PENALTY PROCEDURES
-!           ---------------------------
-!//////////////////////////////////////////////////////////////////////////////////////////////////
-!
-     subroutine IP_dQFaceLoop( self , edge ) 
-         use MatrixOperations
-         implicit none
-         class(IPMethod_t)  :: self
-         class(Edge_t)      :: edge
-         real(kind=RP)      :: ustar(0:edge % spA % N,1:NGRAD)
-         real(kind=RP)      :: uStarLow(0:edge % Nlow , 1:NGRAD)
-         
-         associate ( N => edge % spA % N ) 
-        
-         select type ( edge ) 
-
-            type is ( Edge_t ) 
-      
-               if ( edge % transform(LEFT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
-                  end associate
-
-               else
-                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
-                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               end if
-               
-
-            type is ( StraightBdryEdge_t )
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-         
-               associate ( dQ => edge % quads(1) % e % dQ ) 
-
-               if ( .not. edge % inverted ) then
-!
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
-!
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
-               
-               end associate
-!
-   
-            type is ( CurvedBdryEdge_t )
-
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-
-               associate ( dQ => edge % quads(1) % e % dQ )
-
-               if ( .not. edge % inverted ) then
-!
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
-!
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
- 
-               end associate
-
-            class default
-
-         end select
-
-         end associate
- 
-     end subroutine IP_dQFaceLoop
-
-     subroutine IP_dQVolumeLoop( self , element )
-         use MatrixOperations
-         implicit none
-         class(IPMethod_t)   :: self
-         class(QuadElement_t) :: element
-         integer              :: iDim
-         integer              :: iVar
-         integer              :: which(NDIM)
-         integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
-         real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
-
-         associate( N => element % spA % N , &
-                    W => element % W , &
-                   dQ => element % dQ , &
-                   MD => element % spA % MD , &
-                 trMD => element % spA % trMD , &
-              weights => element % spA % w , &
-                    M => element % spA % M , &
-                  gm1 => Thermodynamics % gm1)
-
-
-         do iDim = 1 , NDIM
-   
-            do iVar = 1 , NGRAD
-               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = -trMD , &
-                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
-                     C = dQ(0:N,0:N,iDim,iVar) , & 
-                     reset = .false. )
-
-               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
-                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
-                     reset = .false. )
-
+!           Transform the LEFT edge
+!           -----------------------            
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
             end do
-         end do
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR  = ed % storage(RIGHT) % Q (ed % spA % N : 0 : -1 , 1:NCONS )
+            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
+!
+!           Compute the Riemann solver
+!           --------------------------
+            FStarR = self % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal ) *  ed % dS(0)
+   
+!
+!           Transform the LEFT edge
+!           -----------------------
+            call Mat_x_Mat( ed % T_backward , FStarR , FStarL )
+!
+!           Invert the RIGHT edge 
+!           ---------------------
+            FStarR(0:ed % spA % N , 1:NCONS) = FStarR(ed % spA % N : 0 : -1 , 1:NCONS) 
+!
+!           Compute the Gradient Riemann solver if proceeds
+!           -----------------------------------------------
+            if ( self % computeRiemannGradientFluxes ) then
+               call self % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GstarL_aux , GstarR_aux ) 
 
-         end associate
+               do iDim = 1 , NDIM
+                  call Mat_x_Mat( ed % T_backward , GstarL_aux(:,:,iDim) , GstarL(:,:,iDim) )
+               end do
+               GstarL   = GstarL * ed % dS(0)
+               GStarR   = GStarR_aux(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM)  * ed % dS(0)
+            end if
 
-     end subroutine IP_dQVolumeLoop
-
-     subroutine IP_QDotFaceLoop( self , edge ) 
+         elseif ( ed % transform(LEFT) ) then
+! 
+!        ----------------------------------
+!>       Second case: LEFT needs p-Adaption.
+!        ----------------------------------
 !
-!        **************************************************************
-!              This routine computes the edge loop according to the
-!           "Form I" formulation:
-!                 QDot +-= \int_e F^* l_j l_i ds
-!           in where F^* represents the F·n product, that is, the 
-!           result is added to the LEFT element, and substracted to 
-!           the RIGHT element. 
-!        **************************************************************
+!           Transform the LEFT edge
+!           -----------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
+            end do
 !
-         use MatrixOperations
-         implicit none
-         class(IPMethod_t)    :: self
-         class(Edge_t)     :: edge
-!        -------------------------------------------------------
-         real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
-         real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
-
-         associate ( N => edge % spA % N , NLow => edge % NLow)
-!
-!        Compute face fluxes
-!        -------------------
-         call self % ComputeFaceFluxes ( edge )
-!
-!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
-!        -------------------------------------------------------------------------------
-         Fstar = self % IntercellFlux( edge )
-!
-!        Perform the loop in both elements
-!        ---------------------------------
-!
-!        ********************
-         select type ( edge )
-!        ********************
-!
-!           --------------------------------------------------------------------------
-            type is (Edge_t)
-!
-!              Compute the penalty term
-!              ------------------------
-               if ( edge % transform(LEFT) ) then
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( Mat_x_Mat_F( edge % T_forward , edge % storage(LEFT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) - edge % storage(RIGHT) % Q(0:N,1:NCONS))
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - Mat_x_Mat_F( edge % T_forward , edge % storage(RIGHT) % Q(0:edge % NLow,1:NCONS) , N+1 , NCONS ) )
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
-                  end associate
-
-               else
-                  Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * ( edge % storage(LEFT) % Q(0:N,1:NCONS) - edge % storage(RIGHT) % Q(0:N,1:NCONS) )
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               end if
-!
-!           --------------------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-!
-!              Compute the penalty term
-!              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-
-                  if ( .not. edge % inverted ) then
-!
-!                    If the normal points towards the domain exterior
-!                    ------------------------------------------------
-                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
-                  else
-!
-!                    If the normal points towards the domain interior
-!                    ------------------------------------------------
-                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
-                  end if
-               
-               end associate
-!
-!           --------------------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-!
-!              Compute the penalty term
-!              ------------------------
-               Fstar = Fstar - self % sigma0 * dimensionless % mu * (NLow * NLow) / edge % Area * (edge % storage(1) % Q(0:N,1:NCONS) - edge % uB(0:N,1:NCONS))
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-!
-!                 The normal for curved elements always points towards the domain exterior
-!                 ------------------------------------------------------------------------
-                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
-               end associate
-!
-!           --------------------------------------------------------------------------
-            class default
-               STOP "Stopped."
-!
-!        **********
-         end select
-!        **********
-!
-        end associate
-
-     end subroutine IP_QDotFaceLoop
-
-     subroutine IP_QDotVolumeLoop( self , element ) 
-!
-!        *******************************************************************************
-!           This routine computes the standard DG volumetric terms according to:
-!                 QDot -= tr(D) M F M + M G M D         
-!           The details about this matricial form is shown in the doc HiODG2DTech.pdf
-!        *******************************************************************************
-!
-         use MatrixOperations
-         implicit none
-         class(IPMethod_t) :: self
-         class(QuadElement_t)    :: element
-         integer                 :: eq
-
-         call self % computeInnerFluxes ( element )
-!
-!        Perform the matrix multiplication
-!        ---------------------------------
-         associate( QDot => element % QDot     , &
-                    MD   => element % spA % MD , &
-                  trMD   => element % spA % trMD , &
-                    M    => element % spA % M  , &
-                    w    => element % spA % w  , &
-                    N    => element % spA % N      )
-
-         do eq = 1 , NCONS
-!
-!           F Loop
-!           ------
-            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                      reset = .false. )
-
-!
-!           G Loop
-!           ------
-            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
-                         reset = .false. )
-
-         end do
-
-         end associate
-
-     end subroutine IP_QDotVolumeLoop
-!
-!//////////////////////////////////////////////////////////////////////////////////////////////////
-!
-!           BASSY-REBAY 1 PROCEDURES
+!           Get the RIGHT edge state
 !           ------------------------
-!//////////////////////////////////////////////////////////////////////////////////////////////////
+            QR  = ed % storage(RIGHT) % Q
+            dQR = ed % storage(RIGHT) % dQ
 !
-     subroutine BR1_dQFaceLoop( self , edge ) 
-         use MatrixOperations
-         implicit none
-         class(BR1Method_t)             :: self
-         class(Edge_t)                  :: edge
-         real(kind=RP)                  :: ustar(0:edge % spA % N,1:NGRAD)
-         real(kind=RP)                  :: uStarLow(0:edge % NLow,1:NGRAD)
-         integer, parameter             :: dimensions(3) = [IU,IV,IT]
-
-         associate ( N => edge % spA % N ) 
-        
-         select type ( edge ) 
-
-            type is ( Edge_t ) 
-      
-               if ( edge % transform(LEFT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(LEFT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStarLow )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-                  uStar(0:N,IGU) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IU) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IV) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IV) )
-                  uStar(0:N,IGT) = 0.5_RP * ( MatrixTimesVector_F( A = edge % T_forward , X = edge % storage(RIGHT) % W(0:edge % NLow,IT) , Nout = N+1 ) + edge % storage(LEFT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-               
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     call Mat_x_Mat( A = edge % T_backward , B = uStar , C = uStarLow ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStarLow )
-                  end associate
-
-               else
-                  uStar(0:N,IGU) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IU) + edge % storage(RIGHT) % W(0:N,IU) )
-                  uStar(0:N,IGV) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IV) + edge % storage(RIGHT) % W(0:N,IV) )    
-                  uStar(0:N,IGT) = 0.5_RP * ( edge % storage(LEFT) % W(0:N,IT) + edge % storage(RIGHT) % W(0:N,IT) )
-
-                  associate ( dQ => edge % quads(LEFT) % e % dQ )
-                     dQ = dQ + dQFaceContribution( edge , LEFT , uStar )
-                  end associate
-
-                  associate ( dQ => edge % quads(RIGHT) % e % dQ ) 
-                     dQ = dQ - dQFaceContribution( edge , RIGHT , uStar )
-                  end associate
-
-               end if
-               
-
-            type is ( StraightBdryEdge_t )
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-         
-               associate ( dQ => edge % quads(1) % e % dQ ) 
-
-               if ( .not. edge % inverted ) then
+!           Compute the Riemann solver
+!           --------------------------
+            FStarR = self % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal ) * ed % dS(0)
 !
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
+!           Transform the LEFT edge 
+!           -----------------------
+            call Mat_x_Mat( ed % T_backward , FStarR , FStarL )
 !
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
+!           Compute the Gradient Riemann solver if proceeds
+!           -----------------------------------------------
+            if ( self % computeRiemannGradientFluxes ) then
+               call self % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GstarL_aux , GstarR )
 
-               end if
-               
-               end associate
+               do iDim = 1 , NDIM
+                  call Mat_x_Mat( ed % T_backward , GstarL_aux(:,:,iDim) , GstarL(:,:,iDim) )
+               end do
+
+               GstarL = GstarL * ed % dS(0)
+               GstarR = GstarR * ed % dS(0)
+            end if
+
+
+         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+! 
+!        ----------------------------------------------------
+!>       Third case: RIGHT needs p-Adaption, and its reversed.
+!        ----------------------------------------------------
 !
-   
-            type is ( CurvedBdryEdge_t )
-
-               uStar(0:N,IGU) = 0.5_RP * ( edge % storage(1) % W(0:N,IU) + edge % wB(0:N,IU) )
-               uStar(0:N,IGV) = 0.5_RP * ( edge % storage(1) % W(0:N,IV) + edge % wB(0:N,IV) )    
-               uStar(0:N,IGT) = 0.5_RP * ( edge % storage(1) % W(0:N,IT) + edge % wB(0:N,IT) )
-
-               associate ( dQ => edge % quads(1) % e % dQ )
-
-               if ( .not. edge % inverted ) then
+!           Get the LEFT edge
+!           -----------------
+            QL  = ed % storage(LEFT) % Q
+            dQL = ed % storage(LEFT) % dQ
 !
-!                 If the normal points towards the domain exterior
-!                 ------------------------------------------------
-                  dQ = dQ + dQFaceContribution( edge , 1 , uStar )
-
-               else
-!
-!                 If the normal points towards the domain interior
-!                 ------------------------------------------------
-                  dQ = dQ - dQFaceContribution( edge , 1 , uStar )
-
-               end if
- 
-               end associate
-
-            class default
-
-         end select
-
-         end associate
-         
-     end subroutine BR1_dQFaceLoop
-
-     subroutine BR1_dQVolumeLoop( self , element ) 
-         use MatrixOperations
-         implicit none
-         class(BR1Method_t)   :: self
-         class(QuadElement_t) :: element
-         integer              :: iDim
-         integer              :: iVar
-         integer              :: which(NDIM)
-         integer, parameter   :: PrimVariable(3) = [IU,IV,IT]
-         real(kind=RP)        :: JaTimesW(0:element % spA % N , 0:element % spA % N)
-
-         associate( N => element % spA % N , &
-                    W => element % W , &
-                   dQ => element % dQ , &
-                   MD => element % spA % MD , &
-                 trMD => element % spA % trMD , &
-              weights => element % spA % w , &
-                    M => element % spA % M , &
-                  gm1 => Thermodynamics % gm1)
-
-
-         do iDim = 1 , NDIM
-   
-            do iVar = 1 , NGRAD
-               JaTimesW = element % Ja(0:N,0:N,iDim,1) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = -trMD , &
-                     B = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 2 ) , & 
-                     C = dQ(0:N,0:N,iDim,iVar) , & 
-                                 reset = .false. )
-
-               JaTimesW = element % Ja(0:N,0:N,iDim,2) * W(0:N,0:N,PrimVariable(iVar))
-               call Mat_x_Mat(A = MatrixByVectorInIndex_F( JaTimesW , weights , N+1 , N+1 , 1) , &
-                     B = -MD , C = dQ(0:N,0:N,iDim,iVar) , &
-                     reset = .false. )
-
+!           Transform the RIGHT edge 
+!           ------------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
             end do
-         end do
-
-         end associate
-
-
-     end subroutine BR1_dQVolumeLoop
-
-     subroutine BR1_QDotFaceLoop( self , edge )
 !
-!        **************************************************************
-!              This routine computes the edge loop according to the
-!           "Form I" formulation:
-!                 QDot +-= \int_e F^* l_j l_i ds
-!           in where F^* represents the F·n product, that is, the 
-!           result is added to the LEFT element, and substracted to 
-!           the RIGHT element. 
-!        **************************************************************
+!           Invert the RIGHT edge
+!           ---------------------
+            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
+            dQR = dQR(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
 !
-         use MatrixOperations
-         implicit none
-         class(BR1Method_t)    :: self
-         class(Edge_t)     :: edge
-!        -------------------------------------------------------
-         real(kind=RP)        :: Fstar(0:edge % spA % N,1:NCONS)
-         real(kind=RP)        :: FstarLow(0:edge % NLow , 1:NCONS)
-
-         associate ( N => edge % spA % N )
+!           Compute the Riemann solver
+!           --------------------------
+            FStarL = self % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal ) * ed % dS(0)
 !
-!        Compute face fluxes
-!        -------------------
-         call self % ComputeFaceFluxes ( edge )
+!           Undo the transformation for the RIGHT edge 
+!           ------------------------------------------ 
+            call Mat_x_Mat( ed % T_backward , FStarL , FStarR )
 !
-!        Compute the edge Riemann Flux is proceeds, or uses the prescribed boundary flux
-!        -------------------------------------------------------------------------------
-         Fstar = self % IntercellFlux( edge )
+!           Invert the RIGHT edge
+!           ---------------------
+            FStarR(0:ed % NLow,1:NCONS) = FStarR(ed % NLow:0:-1 , 1:NCONS)
 !
-!        Perform the loop in both elements
-!        ---------------------------------
+!           Compute the Gradient Riemann solver if proceeds
+!           -----------------------------------------------
+            if ( self % computeRiemannGradientFluxes ) then
+               call self % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GstarL , GstarR_aux ) 
+
+               do iDim = 1 , NDIM
+                  call Mat_x_Mat( ed % T_backward , GstarR_aux(:,:,iDim) , GstarR(:,:,iDim) )
+               end do
+               GstarL   = GstarL * ed % dS(0)
+               GStarR   = GStarR(ed % spA % N : 0 : -1 , 1:NCONS, 1:NDIM) * ed % dS(0)
+            end if
+
+
+         elseif ( ed % transform(RIGHT) ) then
+! 
+!        -----------------------------------
+!>       Fourth case: RIGHT needs p-Adaption.
+!        -----------------------------------
 !
-!        ********************
-         select type ( edge )
-!        ********************
+!           Get the LEFT edge
+!           -----------------
+            QL  = ed % storage(LEFT) % Q
+            dQL = ed % storage(LEFT) % dQ
 !
-!           --------------------------------------------------------------------------
-            type is (Edge_t)
-
-               if ( edge % transform(LEFT) ) then
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , FstarLow )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               elseif ( edge % transform(RIGHT) ) then
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  call Mat_x_Mat( A = edge % T_backward , B = Fstar , C = FstarLow ) 
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , FstarLow )
-                  end associate
-
-               else
-
-                  associate ( QDot => edge % quads(LEFT) % e % QDot )
-                  QDot = QDot + QDotFaceContribution( edge , LEFT , Fstar )
-                  end associate
-
-                  associate ( QDot => edge % quads(RIGHT) % e % QDot )
-                  QDot = QDot - QDotFaceContribution( edge , RIGHT , Fstar )
-                  end associate
-
-               end if
+!           Transform the RIGHT edge
+!           ------------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
+            end do
 !
-!           --------------------------------------------------------------------------
-            type is (StraightBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-
-                  if ( .not. edge % inverted ) then
+!           Compute the Riemann solver
+!           --------------------------
+            FStarL = self % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal ) * ed % dS(0)
 !
-!                    If the normal points towards the domain exterior
-!                    ------------------------------------------------
-                     QDot = QDot + QDotFaceContribution( edge , 1 , Fstar )
-                  else
+!           Undo the transformation for the RIGHT edge
+!           ------------------------------------------
+            call Mat_x_Mat( ed % T_backward , FStarL , FStarR )
 !
-!                    If the normal points towards the domain interior
-!                    ------------------------------------------------
-                     QDot = QDot - QDotFaceContribution( edge , 1 , Fstar )
-                  end if
-               
-               end associate
-!
-!           --------------------------------------------------------------------------
-            type is (CurvedBdryEdge_t)
-
-               associate ( QDot => edge % quads(1) % e % QDot )
-!
-!                 The normal for curved elements always points towards the domain exterior
-!                 ------------------------------------------------------------------------
-                  QDot = QDot + QDotFaceContribution( edge , 1 , Fstar ) 
-               end associate
-!
-!           --------------------------------------------------------------------------
-            class default
-               STOP "Stopped."
-!
-!        **********
-         end select
-!        **********
-!
-        end associate
- 
-     end subroutine BR1_QDotFaceLoop
-
-     subroutine BR1_QDotVolumeLoop( self , element ) 
-!
-!        *******************************************************************************
-!           This routine computes the standard DG volumetric terms according to:
-!                 QDot -= tr(D) M F M + M G M D         
-!           The details about this matricial form is shown in the doc HiODG2DTech.pdf
-!        *******************************************************************************
-!
-         use MatrixOperations
-         implicit none
-         class(BR1Method_t) :: self
-         class(QuadElement_t)    :: element
-         integer                 :: eq
-
-         call self % computeInnerFluxes ( element )
-!
-!        Perform the matrix multiplication
-!        ---------------------------------
-         associate( QDot => element % QDot     , &
-                    MD   => element % spA % MD , &
-                  trMD   => element % spA % trMD , &
-                    M    => element % spA % M  , &
-                    w    => element % spA % w  , &
-                    N    => element % spA % N      )
-
-         do eq = 1 , NCONS
-!
-!           F Loop
-!           ------
-            call Mat_x_Mat(A = -trMD ,B = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IX) , w , N+1 , N+1 , 2 ) , C=QDot(0:N,0:N,eq) , &
-                         reset = .false. )
-
-!
-!           G Loop
-!           ------
-            call Mat_x_Mat(A = MatrixByVectorInIndex_F( element % F(0:N,0:N,eq,IY) , w , N+1 , N+1 , 1) , B = -MD , C=QDot(0:N,0:N,eq) , &
-                         reset = .false. )
-
-         end do
-
-         end associate
-
-     end subroutine BR1_QDotVolumeLoop
-
-!
-!//////////////////////////////////////////////////////////////////////////////////////////////////
-!
-!           AUXILIAR SUBROUTINES
-!           --------------------
-!//////////////////////////////////////////////////////////////////////////////////////////////////
-!
-      function dQFaceContribution( edge , loc , ustar ) result ( duF )
-         use MatrixOperations
-         implicit none
-         class(Edge_t)              :: edge
-         integer                    :: loc
-         real(kind=RP)              :: ustar(0:edge % storage(loc) % spA % N,1:NGRAD)
-         real(kind=RP)              :: duF(0:edge % storage(loc) % spA % N,0:edge % storage(loc) % spA % N,1:NDIM,1:NGRAD)
-!        ---------------------------------------------------------------------
-         real(kind=RP)          :: uTimesW(0:edge % storage(loc) % spA % N,1:NGRAD)
-         real(kind=RP)          :: auxdS(1:NDIM,0:edge % storage(loc) % spA % N)
-         real(kind=RP), pointer :: lj(:)
-         integer                :: direction
-         integer                :: pos
-         integer                :: index
-         integer                :: i , j , var , iDim
-!
-         associate( N=> edge % quads(loc) % e % spA % N, &
-             e=> edge % quads(loc) % e)
- 
-         select case (edge % edgeLocation(loc))
-
-            case (ERIGHT)
-   
-               direction = e % edgesDirection( edge % edgeLocation(loc) )
-               pos = RIGHT                    ! Where to interpolate the test function
-               index = iX                     ! The coordinate (xi/eta) in which the boundary is located
-               
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 )
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
-
-            case (ETOP)
+!           Compute the Gradient Riemann solver if proceeds
+!           -----------------------------------------------
+            if ( self % computeRiemannGradientFluxes ) then
+               call self % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GstarL , GstarR_aux ) 
       
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) ) 
-               pos = RIGHT
-               index = iY
-   
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1) 
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
+               do iDim = 1 , NDIM
+                  call Mat_x_Mat( ed % T_backward , GstarR_aux(:,:,iDim) , GstarR(:,:,iDim) )
+               end do
 
-            case (ELEFT)
-   
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
-               pos = LEFT
-               index = iX
-   
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) =  MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1 ) 
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
+               GstarL   = GstarL * ed % dS(0)
+               GStarR   = GStarR * ed % dS(0)
+            end if
 
-            case (EBOTTOM)
 
-               direction = e % edgesDirection ( edge % edgeLocation(loc) ) 
-               pos = LEFT
-               index = iY
-   
-               if ( direction .eq. FORWARD ) then
-                  uTimesW(0:N,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
-                  auxdS(1:NDIM,0:N)      = edge % dS(1:NDIM,0:N)
-               elseif ( direction .eq. BACKWARD ) then
-                  uTimesW(N:0:-1,1:NGRAD) = MatrixByVectorInIndex_F ( ustar(0:N,1:NGRAD) , e % spA % w , N+1 , NGRAD , 1)  
-                  auxdS(1:NDIM,N:0:-1)      = edge % dS(1:NDIM,0:N)
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-               end if
-
-            end select
-
-             lj(0:N) => e % spA % lb(0:N,pos)
-
-            select case (index)
-            
-               case (IY)
-   
-                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
-                     duF(i,j,iDim,var) = uTimesW(i,var) * lj(j) * auxdS(iDim , i)
-                  end forall
-
-               case (IX)
-   
-                  forall (var=1:NGRAD,iDim=1:NDIM,j=0:N,i=0:N)
-                     duF(i,j,iDim,var) = uTimesW(j,var) * lj(i) * auxdS(iDim , j)
-                  end forall
-            end select
-
-            lj=>NULL()
-   
-         end associate
-
-      end function dQFaceContribution
-
-      function QDotFaceContribution( edge , loc , Fstar ) result ( dFJ )
+         elseif ( ed % inverse ) then
+! 
+!        -----------------------------
+!>       Fifth case: RIGHT is reversed.
+!        -----------------------------
 !
-!        *************************************************************************************
-!           This subroutine computes the following integral
+!           Get the LEFT edge 
+!           -----------------
+            QL  = ed % storage(LEFT) % Q
+            dQL = ed % storage(LEFT) % dQ
 !
-!                 ---------------------------------
-!                 | dFJ = \int_e Fstar l_j l_i ds |
-!                 ---------------------------------
+!           Invert the RIGHT edge 
+!           ---------------------
+            QR  = ed % storage(RIGHT) %  Q(ed % spA % N : 0 : -1 , 1:NCONS)
+            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
 !
-!           For a given edge, and for its neighbouring element "loc" (LEFT/RIGHT)
-!           The following quantities are used:
-!              * direction: the edge direction in the element in its local system
+!           Compute the Riemann solver
+!           --------------------------         
+            FStarL = self % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal  ) * ed % dS(0)
 !
-!                    \\ Direction is FORWARD if the edge is oriented such that:
+!           Invert the RIGHT edge 
+!           ---------------------
+            FStarR( 0 : ed % spA % N , 1:NCONS ) = FStarL ( ed % spA % N : 0 : -1 , 1:NCONS )
 !
-!                                  --------->
-!                                --------------
-!                             ^  |            | ^
-!                             |  |            | |
-!                             |  |            | |
-!                             |  |            | |
-!                                --------------
-!                                  --------->
+!           Compute the Gradient Riemann solver if proceeds
+!           -----------------------------------------------
+            if ( self % computeRiemannGradientFluxes ) then
+               call self % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GstarL , GstarR ) 
+
+               GstarL   = GstarL * ed % dS(0)
+               GStarR   = GStarR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM) * ed % dS(0)
+            end if
+
+         else
+! 
+!        -----------------------------------------------------------------------
+!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
+!        -----------------------------------------------------------------------
 !
-!              * pos: where the lagrange polynomials are interpolated.
-!                    \\ pos is RIGHT for RIGHT and TOP edges
-!                    \\ pos is LEFT  for LEFT and BOTTOM edges 
+!           Get the LEFT edge
+!           -----------------   
+            QL  = ed % storage(LEFT) % Q
+            dQL = ed % storage(LEFT) % dQ
 !
-!              * index: where the boundary is located referred to the element local system 
-!                    \\ IX for  xi = const boundaries
-!                    \\ IY for eta = const boundaries
+!           Get the RIGHT edge
+!           ------------------
+            QR  = ed % storage(RIGHT) % Q
+            dQR = ed % storage(RIGHT) % dQ
 !
-!        *************************************************************************************
+!           Compute the Riemann solver
+!           --------------------------
+            FStarL = self % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal ) * ed % dS(0)
+            FStarR = FStarL
 !
-         use MatrixOperations
+!           Compute the Gradient Riemann solver if proceeds
+!           -----------------------------------------------
+            if ( self % computeRiemannGradientFluxes ) then
+               call self % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GstarL , GstarR ) 
+
+               GstarL   = GstarL * ed % dS(0)
+               GStarR   = GStarR * ed % dS(0)
+            end if
+        
+         end if
+!
+!        -------------------------------------------------------------------
+!>       Change the sign of FR so that it points towards the element outside
+!        -------------------------------------------------------------------
+!
+         FStarR = -1.0_RP * FStarR
+
+      end subroutine BaseClass_ComputeRiemannFluxes_Interior
+
+      subroutine BaseClass_ComputeRiemannFluxes_StraightBdry( self ,  ed , FStar , GStar)
+!
+!        *****************************************************************************
+!           This routine computes the Viscous Riemann problem in the "ed" edge, which
+!           is a Straight boundary.
+!              -> The result is FStar
+
+!       >>  Recall that viscous fluxes are defined just for RHOU,RHOV, and RHOE 
+!           states. 
+!
+!       >>  The Riemann solver depends on the Boundary condition type:
+!
+!              1/ Periodic BCs:  self % RiemannSolver (Same than interior edges)
+!              2/ Dirichlet BCs: self % RiemannSolver_Dirichlet
+!              3/ Neumann BCs:   FStar = 0.0_RP
+!              4/ Adiabatic BCs: self % RiemannSolver_Adiabatic
+!
+!        *****************************************************************************
+!
+
+         use QuadElementClass
          implicit none
-         class(Edge_t)              :: edge
-         integer                    :: loc
-         real(kind=RP)              :: Fstar(0:edge % storage(loc) % spA % N,1:NCONS)
-         real(kind=RP)              :: dFJ(0:edge % storage(loc) % spA % N,0:edge % storage(loc) % spA % N,1:NCONS)
-!        ---------------------------------------------------------------------
-         real(kind=RP), pointer             :: Fstar2D(:,:,:)
-         real(kind=RP), target              :: Fstar2D_x(1,0:edge % storage(loc) % spA % N , 1:NCONS)
-         real(kind=RP), target              :: Fstar2D_y(0:edge % storage(loc) % spA % N , 1 , 1:NCONS)
-         real(kind=RP), pointer             :: lj2D(:,:)
-         integer                            :: direction
-         integer                            :: pos
-         integer                            :: index
+         class(ViscousMethod_t)  , intent(in)    :: self
+         type(StraightBdryEdge_t), intent(in)    :: ed
+         real(kind=RP)           , intent(out)   :: FStar( 0 : ed % spA % N , 1:NCONS )
+         real(kind=RP)           , intent(out)   :: GStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
+!     
+!        ---------------
+!        Local variables
+!        ---------------
 !
+         real ( kind=RP ) :: Q      ( 0 : ed % spA % N , 1:NCONS          )
+         real ( kind=RP ) :: dQ     ( 0 : ed % spA % N , 1:NDIM , 1:NCONS )
+         real ( kind=RP ) :: Qb     ( 0 : ed % spa % N , 1:NCONS          )
+         real ( kind=RP ) :: dQb    ( 0 : ed % spA % N , 1:NDIM,1:NCONS   )
+         real ( kind=RP ) :: normal ( 1 : NDIM         , 0 : ed % spA % N )
+         real ( kind=RP ) :: Q1D    ( 1 : NCONS            )
+         real ( kind=RP ) :: dQ1D   ( 1 : NDIM , 1 : NCONS )
+         real ( kind=RP ) :: Qb1D   ( 1 : NCONS            )
+         real(kind=RP)    :: Gaux( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
+         integer          :: N
+         integer          :: iXi
 
-         associate( N => edge % quads(loc) % e % spA % N, &
-                    e => edge % quads(loc) % e)
+         N = ed % spA % N
 !
-!        **************************************
-         select case (edge % edgeLocation(loc))
-!        **************************************
+!        -----------------------------------------
+!>       Select the appropriate boundary condition
+!        -----------------------------------------
 !
-!           ------------------------------------------------------------------------------------------------
-            case (ERIGHT)
+         if ( ed % viscousBCType(0) .eq. PERIODIC ) then
 !
-!              Set the three parameters
-!              ------------------------ 
-               direction = e % edgesDirection( edge % edgeLocation(loc) )
-               pos       = RIGHT                  
-               index     = IX                     
+!           Periodic boundary conditions
+!           ----------------------------
+            if ( ed % inverse ) then
+               Q  = ed % storage(1) % Q
+               dQ = ed % storage(1) % dQ
 
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_x(1 , 0:N    , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS )
+               Qb  = ed % uB(N:0:-1,1:NCONS)
+               dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
 
-               elseif ( direction .eq. BACKWARD ) then
+               normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
+               Fstar = self % RiemannSolver( N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+
+               if ( self % computeRiemannGradientFluxes ) then
+                  call self % GradientRiemannSolver ( ed % spA % N , Q , Qb , normal , GStar , Gaux ) 
+                  Gstar = GStar * ed % dS(0)
+
+!                  do iXi = 0 , ed % spA % N
+!                     Q1D   = Q(iXi,:)
+!                     Qb1D  = Qb(iXi,:)
+!                     Gstar(iXi,:,:) = 0.5_RP * self % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
 !
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_x(1 , N:0:-1 , 1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS ), rowC = N+1 , colC = NCONS )
+!                  end do
+               end if
+            else
 
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
+               Q  = ed % storage(1) % Q
+               dQ = ed % storage(1) % dQ
 
+               Qb  = ed % uB
+               dQb = ed % gB
+
+               normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
+               Fstar = self % RiemannSolver( N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+
+               if ( self % computeRiemannGradientFluxes ) then
+
+                   call self % GradientRiemannSolver ( ed % spA % N , Q , Qb , normal , GStar , Gaux )
+                   Gstar = GStar * ed % dS(0)
+!                  do iXi = 0 , ed % spA % N
+!                     Q1D   = Q(iXi,:)
+!                     Qb1D  = Qb(iXi,:)
+!                     Gstar(iXi,:,:) = 0.5_RP * self % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
+!
+!                  end do
                end if
 
-               Fstar2D(1:,0:,1:) => Fstar2D_x
+            end if
+
+         elseif ( ed % viscousBCType(0) .eq. ADIABATIC ) then
 !
-!           ------------------------------------------------------------------------------------------------
-            case (ETOP)
+!           Adiabatic Dirichlet boundary conditions
+!           ---------------------------------------
+            Q  = ed % storage(1) % Q
+            dQ = ed % storage(1) % dQ
+            Qb = ed % uSB
+
+            normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 )
+            
+            Fstar = self % RiemannSolver_Adiabatic( N , ed % invh , Q , dQ , Qb , normal ) * ed % dS(0) 
+
+            if ( self % computeRiemannGradientFluxes ) then
+               Gstar = self % GradientRiemannSolver_Adiabatic( N , Q , Qb , normal ) * ed % dS(0)
+            end if
+
+         else
 !
-!              Set the three parameters
-!              ------------------------      
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
-               pos       = RIGHT
-               index     = IY
+!           Dirichlet/Neumann boundary conditions
+!           -------------------------------------
+            do iXi = 0 , ed % spA % N
+               select case ( ed % viscousBCType(iXi) )
+   
+                  case ( DIRICHLET )
+   
+                     Q1D  = ed % storage(1) % Q(iXi,:)
+                     dQ1D = ed % storage(1) % dQ(iXi,:,:)
+                     Qb1D  = ed % uSB(iXi,:)
+                     Fstar(iXi,:) = self % RiemannSolver_Dirichlet ( ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
 
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                     if ( self % computeRiemannGradientFluxes ) then
+                        Gstar(iXi,:,:) = self % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
+                     end if
 
-               elseif ( direction .eq. BACKWARD ) then
-!        
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+                  case ( NEUMANN )
 
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
+                     Fstar(iXi,:)   = 0.0_RP
+                     Gstar(iXi,:,:) = 0.0_RP
+         
+                end select
 
+
+             end do
+
+         end if
+
+      end subroutine BaseClass_ComputeRiemannFluxes_StraightBdry
+
+      pure subroutine BaseClass_ComputeRiemannFluxes_CurvedBdry( self ,  ed , Fstar , Gstar)
+!
+!        *****************************************************************************
+!           This routine computes the Viscous Riemann problem in the "ed" edge, which
+!           is a Curved boundary.
+!              -> The result is FStar
+
+!       >>  Recall that viscous fluxes are defined just for RHOU,RHOV, and RHOE 
+!           states. 
+!
+!       >>  The Riemann solver depends on the Boundary condition type:
+!
+!              1/ Periodic BCs:  self % RiemannSolver (Same than interior edges)
+!              2/ Dirichlet BCs: self % RiemannSolver_Dirichlet
+!              3/ Neumann BCs:   FStar = 0.0_RP
+!              4/ Adiabatic BCs: self % RiemannSolver_Adiabatic
+!
+!        *****************************************************************************
+!
+         use QuadElementClass
+         implicit none
+         class(ViscousMethod_t)  , intent (in)  :: self
+         type(CurvedBdryEdge_t),   intent (in)  :: ed
+         real(kind=RP)           , intent (out) :: FStar( 0 : ed % spA % N , 1:NCONS )
+         real(kind=RP)           , intent (out) :: GStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
+
+!     
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real ( kind=RP ) :: Q      ( 0 : ed % spA % N , 1:NCONS          )
+         real ( kind=RP ) :: dQ     ( 0 : ed % spA % N , 1:NDIM , 1:NCONS )
+         real ( kind=RP ) :: Qb     ( 0 : ed % spa % N , 1:NCONS          )
+         real ( kind=RP ) :: dQb    ( 0 : ed % spA % N , 1:NDIM,1:NCONS   )
+         real ( kind=RP ) :: Q1D    ( 1 : NCONS            )
+         real ( kind=RP ) :: dQ1D   ( 1 : NDIM , 1 : NCONS )
+         real ( kind=RP ) :: Qb1D   ( 1 : NCONS            )
+         integer          :: N
+         integer          :: iXi
+         integer(kind=1)  :: eq
+
+         N = ed % spA % N
+!
+!        -----------------------------------------
+!>       Select the appropriate boundary condition
+!        -----------------------------------------
+!
+         if ( ed % viscousBCType(0) .eq. PERIODIC ) then
+!
+!           Periodic boundary conditions
+!           ----------------------------
+            if ( ed % inverse ) then
+               Q  = ed % storage(1) % Q
+               dQ = ed % storage(1) % dQ
+
+               Qb  = ed % uSB(N:0:-1,1:NCONS)
+               dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
+
+               Fstar = self % RiemannSolver( N , ed % invh , Q , Qb , dQ , dQb , ed % n ) 
+
+               do eq = 1 , NCONS
+                  Fstar(:,eq) = Fstar(:,eq) * ed % dS
+               end do
+
+               if ( self % computeRiemannGradientFluxes ) then
+                  do iXi = 0 , ed % spA % N
+                     Q1D   = Q(iXi,:)
+                     Qb1D  = Qb(iXi,:)
+                     Gstar(iXi,:,:) = self % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+
+                  end do
                end if
 
-               Fstar2D(0:,1:,1:) => Fstar2D_y
-!
-!           ------------------------------------------------------------------------------------------------
-            case (ELEFT)
-!
-!              Set the three parameters
-!              ------------------------   
-               direction = - e % edgesDirection ( edge % edgeLocation(loc) )
-               pos       = LEFT
-               index     = IX
+            else
+               Q  = ed % storage(1) % Q
+               dQ = ed % storage(1) % dQ
 
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_x(1,0:N,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+               Qb  = ed % uSB
+               dQb = ed % gB
 
-               elseif ( direction .eq. BACKWARD ) then
-!        
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_x(1,N:0:-1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+               Fstar = self % RiemannSolver( N , ed % invh , Q , Qb , dQ , dQb , ed % n ) 
 
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
+               do eq = 1 , NCONS
+                  Fstar(:,eq) = Fstar(:,eq) * ed % dS
+               end do
 
+               if ( self % computeRiemannGradientFluxes ) then
+                  do iXi = 0 , ed % spA % N
+                     Q1D   = Q(iXi,:)
+                     Qb1D  = Qb(iXi,:)
+                     Gstar(iXi,:,:) = self % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+
+                  end do
                end if
 
-               Fstar2D(1:,0:,1:) => Fstar2D_x
+
+            end if
+
+         elseif ( ed % viscousBCType(0) .eq. ADIABATIC ) then
 !
-!           ------------------------------------------------------------------------------------------------
-            case (EBOTTOM)
+!           Adiabatic Dirichlet boundary conditions
+!           ---------------------------------------
+            Q  = ed % storage(1) % Q
+            dQ = ed % storage(1) % dQ
+            Qb = ed % uSB
 
-               direction = e % edgesDirection ( edge % edgeLocation(loc) )
-               pos       = LEFT
-               index     = iY
+            Fstar = self % RiemannSolver_Adiabatic( N , ed % invh , Q , dQ , Qb , ed % n ) 
 
-               if ( direction .eq. FORWARD ) then
-!        
-!                 Introduce the result in the same order
-!                 --------------------------------------
-                  Fstar2D_y(0:N,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+            do eq = 1 , NCONS
+               Fstar(:,eq)    = Fstar(:,eq) * ed % dS
+            end do
 
-               elseif ( direction .eq. BACKWARD ) then
-!        
-!                 Introduce the result in the opposite order
-!                 ------------------------------------------
-                  Fstar2D_y(N:0:-1,1,1:NCONS) = Mat_x_Mat_F( e % spA % M , Fstar(0:N,1:NCONS), rowC = N+1 , colC = NCONS ) 
+            if ( self % computeRiemannGradientFluxes ) then
+               Gstar = self % GradientRiemannSolver_Adiabatic( N , Q , Qb , ed % n )
+               do iXi = 0 , N
+                  Gstar(iXi,:,:) = Gstar(iXi,:,:) * ed % dS(iXi)
+               end do
+            end if
 
-               else
-                  print*, "Direction not forward nor backward"
-                  stop "Stopped."
-
-               end if
-
-               Fstar2D(0:,1:,1:) => Fstar2D_y
+         else
 !
-!        **********
-         end select
-!        **********
+!           Dirichlet/Neumann boundary conditions
+!           -------------------------------------
+            do iXi = 0 , ed % spA % N
+               select case ( ed % viscousBCType(iXi) )
+   
+                  case ( DIRICHLET )
+   
+                     Q1D  = ed % storage(1) % Q(iXi,:)
+                     dQ1D = ed % storage(1) % dQ(iXi,:,:)
+                     Qb1D = ed % uSB(iXi,:)
+                     Fstar(iXi,:) = self % RiemannSolver_Dirichlet ( ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+
+                     if ( self % computeRiemannGradientFluxes ) then
+                        Gstar(iXi,:,:) = self % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+                     end if
+
+                  case ( NEUMANN )
+
+                     Fstar(iXi,:) = 0.0_RP
+                     Gstar(iXi,:,:)    = 0.0_RP
+         
+                end select
+             end do
+         end if
+
+      end subroutine BaseClass_ComputeRiemannFluxes_CurvedBdry
 !
-!        Get the interpolated lagrange polynomials
-!        ----------------------------------------- 
-         lj2D(1:1,0:N) => e % spA % lb(0:N,pos)
+!//////////////////////////////////////////////////////////////////////////////////////////////////
 !
-!        Obtain the result             
-!        -----------------
-         dFJ =  MatrixMultiplyInIndex_F( Fstar2D , lj2D , N+1 , N+1 , NCONS , index ) 
+!           AUXILIAR PROCEDURES
+!           -------------------
+!//////////////////////////////////////////////////////////////////////////////////////////////////
 !
-!        Free the variables
-!        ------------------
-         lj2D=>NULL()
-         Fstar2D => NULL()
-
-         end associate
-
-      end function QDotFaceContribution
-
-
       subroutine ViscousMethod_describe( self )
          use Headers
          implicit none
@@ -1315,5 +1440,8 @@ module DGViscousMethods
       end subroutine ViscousMethod_describe
 
 end module DGViscousMethods
-
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////
+!
 #endif
+!

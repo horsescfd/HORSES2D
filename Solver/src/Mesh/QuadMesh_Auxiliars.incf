@@ -1,0 +1,92 @@
+         pure function Mesh_ComputeResiduals( self ) result ( residuals )
+            use Physics
+            implicit none
+            class(QuadMesh_t ), intent(in)   :: self
+            real(kind=RP)                    :: residuals(NCONS)
+            integer                          :: eID
+
+            residuals = 0.0_RP
+         
+            do eID = 1 , self % no_of_elements
+               residuals(IRHO)  = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
+               residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOU))) )
+               residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOV))) )
+               residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOE))) )
+            end do   
+
+         end function Mesh_ComputeResiduals
+
+         subroutine Mesh_FindElementWithCoords( self , x , elemID , xi , eta )
+            use Physics
+            implicit none
+            class(QuadMesh_t) ,  intent (in)  :: self
+            real(kind=RP)     ,  intent (in)  :: x(NDIM)
+            integer           ,  intent (out) :: elemID
+            real(kind=RP)     ,  intent (out)  :: xi
+            real(kind=RP)     ,  intent (out)  :: eta
+!           ------------------------------------------------------------------
+            integer                           :: eID
+            logical                           :: isInside
+
+elloop:     do eID = 1 , self % no_of_elements
+
+               call self % elements(eID) % FindPointWithCoords( x , xi , eta , isInside)
+
+               if ( isInside ) then
+                  elemID = eID
+                  exit elloop
+      
+               end if
+
+            end do elloop
+
+            if ( .not. isInside ) then
+               write(STD_OUT,'(/)') 
+               print*, "** Warning, the point probe was not found in the mesh."
+               print*, "   -------------------------------------------------- "
+               write(STD_OUT,'(/)') 
+               elemID = -1
+               xi = huge(0.0_RP)
+               eta = huge(0.0_RP)
+
+            end if
+
+         end subroutine Mesh_FindElementWithCoords
+
+         pure function Mesh_ComputeMaxJumps( self ) result ( val ) 
+            use Physics
+            implicit none
+            class(QuadMesh_t), intent(in) :: self
+            real(kind=RP)                 :: val
+!           --------------------------------------------------------------
+            integer                    :: edID
+            real(kind=RP)              :: localJumps
+
+            val = 0.0_RP 
+
+            do edID = 1 , self % no_of_edges
+
+               associate ( N => self % edges(edID) % f % spA % N )
+               select type ( f => self % edges(edID) % f )
+
+
+                  type is (Edge_t)
+                     localJumps = maxval( abs ( f % storage(LEFT) % Q(0:N,1:NCONS) - f % storage(RIGHT) % Q(0:N,1:NCONS) ) )
+   
+                  type is (StraightBdryEdge_t)
+                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
+
+                  type is (CurvedBdryEdge_t)
+                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
+   
+               end select
+               end associate
+
+
+               if ( localJumps .gt. val ) then
+                  val = localJumps
+      
+               end if
+            end do
+
+         end function Mesh_ComputeMaxJumps

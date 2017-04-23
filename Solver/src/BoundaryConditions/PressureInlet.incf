@@ -1,0 +1,353 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////
+!
+!           PRESSURE INLET BC
+!           -----------------
+!///////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine PressureInletBC_Construct( self , marker , in_label)
+         use Setup_class
+         implicit none
+         class(PressureInletBC_t)      :: self
+         integer                   :: marker
+         character(len=*)          :: in_label
+         real(kind=RP), allocatable             :: pressure
+         real(kind=RP), allocatable         :: Temperature
+         real(kind=RP), allocatable         :: Mach
+         real(kind=RP), allocatable         :: AngleOfAttack
+         real(kind=RP)                          :: rho
+         real(kind=RP)                       :: V
+
+         call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
+         
+         if ( allocated(pressure) ) then
+            pressure = pressure / refValues % p
+         else
+            allocate(pressure)
+            pressure = Setup % pressure_ref / refValues % p
+         end if
+
+         if ( allocated(Temperature) ) then
+            Temperature = Temperature / refValues % T
+         else
+            allocate(Temperature)
+            Temperature = 1.0_RP
+         end if
+
+         if ( .not. allocated(Mach) ) then
+            allocate(Mach)
+            Mach = Dimensionless % Mach
+         end if
+
+         if ( allocated(AngleOfAttack) ) then
+            AngleOfAttack = AngleOfAttack * PI / 180.0_RP
+         else
+            allocate(AngleOfAttack)
+            AngleOfAttack = 0.0_RP
+         end if
+!
+!        Construct the state vector
+!        --------------------------
+#ifdef _DIMENSIONLESS_TAU
+         rho = pressure / Temperature
+         V = sqrt(thermodynamics % gamma) * Mach
+#else
+         rho = dimensionless % gammaMach2 * pressure / Temperature
+         V = Mach * sqrt(thermodynamics % gamma * pressure / Temperature )
+#endif
+
+
+         associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv , gm1 => Thermodynamics % gm1 , gogm1 => Thermodynamics % gogm1 )
+         self % q(IRHO) = rho
+         self % q(IRHOU) = rho * V * cos(AngleOfAttack)
+         self % q(IRHOV) = rho * V * sin(AngleOfAttack)
+         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
+         self % AngleOfAttack = AngleOfAttack
+         self % p             = pressure
+         self % Tt            = Temperature * ( 1.0_RP + 0.5_RP * gm1 * Mach * Mach)
+         self % pt            = pressure * ( self % Tt / Temperature ) ** gogm1 
+         self % rhot          = rho * ( self % pt / pressure ) ** (1.0_RP / gamma)
+         self % at            = sqrt(gamma * self % pt / self % rhot)
+         self % st            = self % pt / (self % rhot) ** gamma
+         self % Ht            = Temperature * Dimensionless % cp + 0.5_RP * gamma * Mach * Mach
+         end associate
+
+      end subroutine PressureInletBC_Construct
+
+      subroutine PressureInletBC_Associate(self , edge)
+         implicit none
+         class(PressureInletBC_t)          :: self
+         class(Edge_t)                 :: edge
+
+         associate ( N=> edge % spA % N )
+         select type ( edge )
+            type is (StraightBdryEdge_t)
+               allocate ( edge % FB ( 0:N , 1:NCONS ) )
+               allocate ( edge % uB ( 0:N , 1:NCONS ) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+#ifdef NAVIER_STOKES
+               allocate( edge % uSB(0:N,1:NCONS) )
+#endif
+
+            type is (CurvedBdryEdge_t)
+               allocate ( edge % FB ( 0:N , 1:NCONS ) )
+               allocate ( edge % uB ( 0:N , 1:NCONS ) )
+
+               edge % BCWeakType = self % WeakType
+
+               edge % RiemannSolver => self % RiemannSolver
+
+#ifdef NAVIER_STOKES
+               allocate( edge % uSB(0:N,1:NCONS) )
+#endif
+
+        end select
+        end associate
+
+      end subroutine PressureInletBC_Associate
+
+      subroutine PressureInletBC_UpdateSolution( self , edge )
+         implicit none
+         class(PressureInletBC_t) :: self
+         class(Edge_t)            :: edge
+         integer                  :: iXi
+         integer                  :: N
+         real(kind=RP)            :: rhoL , vnL , uL , vL , pL , ML , aL 
+         real(kind=RP)            :: rhoR , vnR , uR , vR , pR , aR 
+         real(kind=RP)            :: a , b , c
+         real(kind=RP)            :: Rplus
+         real(kind=RP)            :: q(NCONS) , F(NCONS,NDIM)
+!
+         associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp , cv => Dimensionless % cv)
+
+
+         N = edge % spA % N
+
+         select type ( edge )
+            type is (StraightBdryEdge_t) 
+               do ixi = 0 , N
+!
+!                 first stage: determine the boundary flow character
+!                 --------------------------------------------------
+                  rhoL = edge % storage(1) % q(iXi , IRHO)
+                  uL  = edge % storage(1) % q(iXi , IRHOU) / rhoL
+                  vL  = edge % storage(1) % q(iXi , IRHOV) / rhoL
+                  vnL = uL * edge % n (IX , 0) + vL * edge % n(IY, 0)
+                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
+                        ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
+                  aL  = sqrt( gamma * pL / rhoL ) 
+                  ML  = sqrt(uL * uL + vL * vL) / aL
+                  Rplus = vnL + 2.0_RP * dimensionless % cv * aL
+!
+!                 second stage: compute the "right" state depending on the result
+!                 ---------------------------------------------------------------
+                  if ( vnL .le. 0.0_RP ) then
+!
+!                    Entering fluid
+!                    --------------
+                     if ( ML .gt. 1.0_RP ) then
+!
+!                       Supersonic
+!                       ----------
+                        q = self % q
+                        F = inviscidflux( q )
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
+      
+                     else
+!  
+!                       Subsonic
+!                       --------
+                        a = (gamma+1.0_RP) / gm1
+                        b = -2*Rplus
+                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - self % at * self % at
+
+                        aR = (-b + sqrt(b*b - 4.0_RP * a * c) ) / (2.0_RP * a)
+
+                        rhoR = ( aR * aR / ( gamma * self % st ) ) ** (cv)
+                        pR  = aR * aR * rhoR / gamma
+                        vnR = Rplus - 2.0_RP * cv * aR
+                        uR  = vnR * edge % n(IX,0) 
+                        vR  = vnR * edge % n(IY,0) 
+
+                        q(IRHO) = rhoR
+                        q(IRHOU) = rhoR * uR
+                        q(IRHOV) = rhoR * vR
+                        q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR ) 
+   
+                        F = InviscidFlux( q )
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, IRHO ) = rhoR
+                        edge % uSB(iXi, IRHOU) = rhoR * uR
+                        edge % uSB(iXi, IRHOV) = rhoR * vR
+                        edge % uSB(iXi, IRHOE) = cv * pL + 0.5_RP * rhoR * ( uR * uR + vR * vR ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
+   
+                     end if
+    
+                  else
+!
+!                    Leaving flow
+!                    ------------
+                     if ( ML .gt. 1.0_RP ) then
+!
+!                       Supersonic
+!                       ----------
+                        q = edge % storage(1) % Q(iXi, 1:NCONS)
+                        F = inviscidFlux(q)
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, : ) = q
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
+
+                     else
+!
+!                       Subsonic
+!                       --------
+                        q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
+                        q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
+                        q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
+                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
+
+                        F = inviscidFlux(q)
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi , IRHO ) = q(IRHO)
+                        edge % uSB(iXi , IRHOU) = q(IRHOU)
+                        edge % uSB(iXi , IRHOV) = q(IRHOV)
+                        edge % uSB(iXi , IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
+                     end if
+                  end if
+
+                  edge % uB(iXi,1:NCONS) = q
+      
+               end do 
+
+            type is (CurvedBdryEdge_t) 
+               do ixi = 0 , N
+!
+!                 first stage: determine the boundary flow character
+!                 --------------------------------------------------
+                  rhoL = edge % storage(1) % q(iXi , IRHO)
+                  uL  = edge % storage(1) % q(iXi , IRHOU) / rhoL
+                  vL  = edge % storage(1) % q(iXi , IRHOV) / rhoL
+                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
+                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
+                        ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
+                  aL  = sqrt( gamma * pL / rhoL ) 
+                  ML  = sqrt(uL * uL + vL * vL) / aL
+                  Rplus = vnL + 2.0_RP * dimensionless % cv * aL
+!
+!                 second stage: compute the "right" state depending on the result
+!                 ---------------------------------------------------------------
+                  if ( vnL .le. 0.0_RP ) then
+!
+!                    Entering fluid
+!                    --------------
+                     if ( ML .gt. 1.0_RP ) then
+!
+!                       Supersonic
+!                       ----------
+                        q = self % q
+                        F = inviscidflux( q )
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,1:NCONS) = q
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
+      
+                     else
+!  
+!                       Subsonic
+!                       --------
+                        a = (gamma+1.0_RP) / gm1
+                        b = -2*Rplus
+                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - self % at * self % at
+
+                        aR = (-b + sqrt(b*b - 4.0_RP * a * c) ) / (2.0_RP * a)
+
+                        rhoR = ( aR * aR / ( gamma * self % st ) ) ** (cv)
+                        pR  = aR * aR * rhoR / gamma
+                        vnR = Rplus - 2.0_RP * cv * aR
+                        uR  = vnR * edge % n(IX,iXi) 
+                        vR  = vnR * edge % n(IY,iXi) 
+
+                        q(IRHO) = rhoR
+                        q(IRHOU) = rhoR * uR
+                        q(IRHOV) = rhoR * vR
+                        q(IRHOE) = cv * pR + 0.5_RP * ( q(IRHOU) * uR + q(IRHOV) * vR ) 
+   
+                        F = InviscidFlux( q )
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, IRHO ) = rhoR
+                        edge % uSB(iXi, IRHOU) = rhoR * uR
+                        edge % uSB(iXi, IRHOV) = rhoR * vR
+                        edge % uSB(iXi, IRHOE) = cv * pL + 0.5_RP * rhoR * ( uR * uR + vR * vR ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
+   
+                     end if
+    
+                  else
+!
+!                    Leaving flow
+!                    ------------
+                     if ( ML .gt. 1.0_RP ) then
+!
+!                       Supersonic
+!                       ----------
+                        q = edge % storage(1) % Q(iXi, 1:NCONS)
+                        F = inviscidFlux(q)
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, : ) = q
+                        edge % viscousBCType(iXi) = NEUMANN
+#endif
+
+                     else
+!
+!                       Subsonic
+!                       --------
+                        q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
+                        q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
+                        q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
+                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
+
+                        F = inviscidFlux(q)
+                        edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi , IRHO ) = q(IRHO)
+                        edge % uSB(iXi , IRHOU) = q(IRHOU)
+                        edge % uSB(iXi , IRHOV) = q(IRHOV)
+                        edge % uSB(iXi , IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
+                        edge % viscousBCType(iXi) = DIRICHLET
+#endif
+                     end if
+                  end if
+
+                  edge % uB(iXi,1:NCONS) = q
+      
+               end do 
+
+            class default
+         end select
+
+         end associate
+
+      end subroutine PressureInletBC_UpdateSolution

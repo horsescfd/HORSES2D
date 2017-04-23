@@ -16,6 +16,7 @@
          real(kind=RP), allocatable         :: Mach
          real(kind=RP), allocatable         :: AngleOfAttack
          real(kind=RP)                          :: rho
+         real(kind=RP)                       :: V
 
          call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
@@ -26,7 +27,7 @@
             pressure = pressure / refValues % p
          else
             allocate(pressure)
-            pressure = 1.0_RP
+            pressure = Setup % pressure_ref
          end if
 
          if ( allocated(Temperature) ) then
@@ -47,15 +48,25 @@
             allocate(AngleOfAttack)
             AngleOfAttack = 0.0_RP
          end if
+
+#ifdef _DIMENSIONLESS_TAU
+         V = sqrt(thermodynamics % gamma) * Mach
+         rho = pressure / Temperature
+#else
+         rho = dimensionless % gammaMach2 * pressure / Temperature
+         V = Mach * sqrt( thermodynamics % gamma * pressure / rho ) 
+#endif
+
+
 !
 !        Construct the state vector
 !        --------------------------
          associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv , gm1 => Thermodynamics % gm1 , gogm1 => Thermodynamics % gogm1 )
          rho = pressure / Temperature
          self % q(IRHO) = rho
-         self % q(IRHOU) = rho * sqrt(gamma) * Mach * cos(AngleOfAttack)
-         self % q(IRHOV) = rho * sqrt(gamma) * Mach * sin(AngleOfAttack)
-         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * gamma * Mach * Mach
+         self % q(IRHOU) = rho * V * cos(AngleOfAttack)
+         self % q(IRHOV) = rho * V * sin(AngleOfAttack)
+         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
          self % AngleOfAttack = AngleOfAttack
          self % Tt            = Temperature * ( 1.0_RP + 0.5_RP * gm1 * Mach * Mach)
          self % pt            = pressure * ( self % Tt / Temperature ) ** gogm1 
@@ -67,7 +78,6 @@
          implicit none
          class(FarfieldBC_t)          :: self
          class(Edge_t)                 :: edge
-         integer                       :: i
 
          associate ( N => edge % spA % N )
 
@@ -84,9 +94,8 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate ( edge % uSB  ( 0:N , NCONS )  ) 
 #endif
                
    
@@ -97,9 +106,8 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               edge % wB(0:,1:) => edge % storage(1) % W(0:,1:)
 #ifdef NAVIER_STOKES
-               edge % gB(0:,1:,1:) => edge % storage(1) % dQ(0:,1:,1:)
+               allocate ( edge % uSB  ( 0:N , NCONS )  ) 
 #endif
          end select
          end associate
@@ -112,11 +120,9 @@
          integer                       :: iXi
          integer                    :: N 
          real(kind=RP)              :: rhoL , vnL , uL , vL , pL , ML , aL 
-         real(kind=RP)              :: rhoR , uR , vR , pR , VtR , TR , aR , MR
-         real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty , ptInfty , TtInfty
-         real(kind=RP)              :: acoef , bcoef , ccoef , Ht
+         real(kind=RP)              :: rhoR , uR , vR , pR 
+         real(kind=RP)              :: rhoInfty, uInfty, vInfty , pInfty
          real(kind=RP)              :: nInfty(NDIM)
-         real(kind=RP)              :: Rminus
 !
 !        *********************************************************************
 !           This routine computes the "Right" state of a Farfield boundary
@@ -149,51 +155,79 @@
                   rhoL = edge % storage(1) % Q(iXi , IRHO)
                   uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
                   vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
-                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
+                  vnL = uL * edge % n (IX , 0) + vL * edge % n(IY, 0)
                   pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * edge % storage(1) % Q(iXi,IRHOU) * uL - 0.5_RP * edge % storage(1) % Q(iXi,IRHOV) * vL )
                   aL  = sqrt( gamma * pL / rhoL ) 
-                  ML  = vnL / aL
+                  ML  = sqrt(uL*uL + vL*vL) / aL
 !
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
-                  if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     edge % uB(iXi , 1:NCONS)  = self % q
-               
-                  elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
-                     pR = 0.5_RP * ( pL + pInfty - rhoL * aL * ( edge % n(IX,iXi) * (uL-uInfty) + edge % n(IY,iXi) * (vL - vInfty) ) )
-                     rhoR = rhoInfty + (pR - pInfty) / (aL * aL)
-                     uR = uInfty + edge % n(IX,iXi) * (pR-pInfty) / (aL * rhoL)
-                     vR = vInfty + edge % n(IY,iXi) * (pR-pInfty) / (aL * rhoL) 
-
-                     edge % uB(iXi , IRHO) = rhoR
-                     edge % uB(iXi , IRHOU) = rhoR * uR
-                     edge % uB(iXi , IRHOV) = rhoR * vR
-                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
-                     
-                  elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
+                  if ( vnL .lt. 0.0_RP ) then
 !
-!                 ****************************************************************************************************
-!                    According to TAU Technical Doc.
-!                 ****************************************************************************************************
+!                    Entering fluid
+!                    --------------   
+                     if ( ML .gt. 1.0_RP ) then
+!           
+!                       Supersonic
+!                       ----------
+                        edge % uB(iXi , 1:NCONS)  = self % q
+
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi, 1:NCONS)  = self % q
+#endif
+                  
+                     else
 !
-                     pR = pInfty
-                     rhoR = rhoL + (pInfty - pL) / (aL * aL)
-                     uR = uL - edge % n(IX , iXi) * (pInfty - pL) / (rhoL * aL)
-                     vR = vL - edge % n(IY , iXi) * (pInfty - pL) / (rhoL * aL)
+!                       Subsonic
+!                       --------
+                        pR = 0.5_RP * ( pL + pInfty - rhoL * aL * ( edge % n(IX,0) * (uL-uInfty) + edge % n(IY,0) * (vL - vInfty) ) )
+                        rhoR = rhoInfty + (pR - pInfty) / (aL * aL)
+                        uR = uInfty + edge % n(IX,0) * (pR-pInfty) / (aL * rhoL)
+                        vR = vInfty + edge % n(IY,0) * (pR-pInfty) / (aL * rhoL) 
+   
+                        edge % uB(iXi , IRHO) = rhoR
+                        edge % uB(iXi , IRHOU) = rhoR * uR
+                        edge % uB(iXi , IRHOV) = rhoR * vR
+                        edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
 
-                     edge % uB(iXi , IRHO) = rhoR
-                     edge % uB(iXi , IRHOU) = rhoR * uR
-                     edge % uB(iXi , IRHOV) = rhoR * vR
-                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
-
-
-                  elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
-      
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+                     end if
+   
+                  else
+!
+!                    Leaving fluid
+!                    -------------
+                     if ( ML .gt. 1.0_RP ) then
+!
+!                       Supersonic
+!                       ----------
+                        edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+   
+                     else
+!
+!                       Subsonic
+!                       --------
+                        pR = pInfty
+                        rhoR = rhoL + (pInfty - pL) / (aL * aL)
+                        uR = uL - edge % n(IX , 0) * (pInfty - pL) / (rhoL * aL)
+                        vR = vL - edge % n(IY , 0) * (pInfty - pL) / (rhoL * aL)
+   
+                        edge % uB(iXi , IRHO) = rhoR
+                        edge % uB(iXi , IRHOU) = rhoR * uR
+                        edge % uB(iXi , IRHOV) = rhoR * vR
+                        edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+                  
+                     end if
                   end if
-               
-      
-               end do 
+               end do
 
             type is (CurvedBdryEdge_t) 
                do iXi = 0 , N
@@ -206,47 +240,75 @@
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
                   pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * edge % storage(1) % Q(iXi,IRHOU) * uL - 0.5_RP * edge % storage(1) % Q(iXi,IRHOV) * vL )
                   aL  = sqrt( gamma * pL / rhoL ) 
-                  ML  = vnL / aL
+                  ML  = sqrt(uL*uL + vL*vL) / aL
 !
 !                 Second stage: Compute the "Right" state depending on the result
 !                 ---------------------------------------------------------------
-                  if ( ML .lt. -1.0_RP ) then      ! Supersonic inflow
-                     edge % uB(iXi , 1:NCONS)  = self % q
-               
-                  elseif ( ML .lt. 0.0_RP ) then   ! Subsonic inflow
-                     pR = 0.5_RP * ( pL + pInfty - rhoL * aL * ( edge % n(IX,iXi) * (uL-uInfty) + edge % n(IY,iXi) * (vL - vInfty) ) )
-                     rhoR = rhoInfty + (pR - pInfty) / (aL * aL)
-                     uR = uInfty + edge % n(IX,iXi) * (pR-pInfty) / (aL * rhoL)
-                     vR = vInfty + edge % n(IY,iXi) * (pR-pInfty) / (aL * rhoL) 
-
-                     edge % uB(iXi , IRHO) = rhoR
-                     edge % uB(iXi , IRHOU) = rhoR * uR
-                     edge % uB(iXi , IRHOV) = rhoR * vR
-                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
-                     
-                  elseif ( ML .lt. 1.0_RP ) then   ! Subsonic outflow
+                  if ( vnL .lt. 0.0_RP ) then
 !
-!                 ****************************************************************************************************
-!                    According to TAU Technical Doc.
-!                 ****************************************************************************************************
+!                    Entering fluid
+!                    --------------   
+                     if ( ML .gt. 1.0_RP ) then
+!           
+!                       Supersonic
+!                       ----------
+                        edge % uB(iXi , 1:NCONS)  = self % q
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+                  
+                     else
 !
-                     pR = pInfty
-                     rhoR = rhoL + (pInfty - pL) / (aL * aL)
-                     uR = uL - edge % n(IX , iXi) * (pInfty - pL) / (rhoL * aL)
-                     vR = vL - edge % n(IY , iXi) * (pInfty - pL) / (rhoL * aL)
+!                       Subsonic
+!                       --------
+                        pR = 0.5_RP * ( pL + pInfty - rhoL * aL * ( edge % n(IX,iXi) * (uL-uInfty) + edge % n(IY,iXi) * (vL - vInfty) ) )
+                        rhoR = rhoInfty + (pR - pInfty) / (aL * aL)
+                        uR = uInfty + edge % n(IX,iXi) * (pR-pInfty) / (aL * rhoL)
+                        vR = vInfty + edge % n(IY,iXi) * (pR-pInfty) / (aL * rhoL) 
+   
+                        edge % uB(iXi , IRHO) = rhoR
+                        edge % uB(iXi , IRHOU) = rhoR * uR
+                        edge % uB(iXi , IRHOV) = rhoR * vR
+                        edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+   
+                     end if
+   
+                  else
+!
+!                    Leaving fluid
+!                    -------------
+                     if ( ML .gt. 1.0_RP ) then
+!
+!                       Supersonic
+!                       ----------
+                        edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
 
-                     edge % uB(iXi , IRHO) = rhoR
-                     edge % uB(iXi , IRHOU) = rhoR * uR
-                     edge % uB(iXi , IRHOV) = rhoR * vR
-                     edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
-
-
-                  elseif ( ML .ge. 1.0_RP ) then   ! Supersonic outflow
-                     edge % uB(iXi , 1:NCONS) = edge % storage(1) % Q(iXi, 1:NCONS)
-      
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+   
+                     else
+!
+!                       Subsonic
+!                       --------
+                        pR = pInfty
+                        rhoR = rhoL + (pInfty - pL) / (aL * aL)
+                        uR = uL - edge % n(IX , iXi) * (pInfty - pL) / (rhoL * aL)
+                        vR = vL - edge % n(IY , iXi) * (pInfty - pL) / (rhoL * aL)
+   
+                        edge % uB(iXi , IRHO) = rhoR
+                        edge % uB(iXi , IRHOU) = rhoR * uR
+                        edge % uB(iXi , IRHOV) = rhoR * vR
+                        edge % uB(iXi , IRHOE) = cv * pR + 0.5_RP * (edge % uB(iXi,IRHOU) * uR + edge % uB(iXi,IRHOV) * vR )
+#ifdef NAVIER_STOKES
+                        edge % uSB(iXi,:) = edge % uB(iXi,:) 
+#endif
+                  
+                     end if
                   end if
-               
-      
                end do 
 
             class default
@@ -255,4 +317,3 @@
          end associate
          
       end subroutine FarfieldBC_UpdateSolution
-

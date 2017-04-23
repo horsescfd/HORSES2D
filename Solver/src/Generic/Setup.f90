@@ -3,6 +3,8 @@ module Setup_class
     use ParamfileIO
     implicit none
 
+#include "Defines.h"
+
     private
     public  :: setup
   
@@ -86,18 +88,24 @@ module Setup_class
         character(len=STR_LEN_SETUP) :: outputType
 
         contains
-            procedure :: Initialization => Setup_Initialization
-            procedure :: Default        => Setup_DefaultValues
+            procedure, nopass  :: Initialization => Setup_Initialization
             procedure :: SetInitialTime => Setup_SetInitialTime
     end type Setup_t
 
     type(Setup_t), protected, target       :: setup
 
+    interface Setup_CheckWithError
+      module procedure Setup_CheckWithError_Character , Setup_CheckWithError_Integer , Setup_CheckWithError_Real
+    end interface Setup_CheckWithError
+
+    interface Setup_CheckWithDefault
+      module procedure Setup_CheckWithDefault_Character , Setup_CheckWithDefault_Integer , Setup_CheckWithDefault_Real
+    end interface Setup_CheckWithDefault
+
     contains
     
-      subroutine Setup_Initialization( self )
+      subroutine Setup_Initialization
          implicit none
-         class(Setup_t)               :: self
          integer                      :: nArgs
          character(len=STR_LEN_SETUP) :: arg
          integer                      :: iArg
@@ -132,91 +140,231 @@ module Setup_class
             end if
            
           end do
-
-
 !
 !         Read from case file
 !         -------------------
           Setup % case_file = trim(case_name)
+!
+!         Request mesh file
+!         -----------------
           call readValue(trim(case_name) , "Mesh file" , Setup % mesh_file )
+          call Setup_CheckWithError( Setup % mesh_file , "Mesh file" )
+!
+!         Request boundary file
+!         ---------------------
           call readValue(trim(case_name) , "Boundary file" , Setup % bdry_file )
-
+          call Setup_CheckWithError( Setup % mesh_file , "Boundary file" )
           if ( trim(Setup % bdry_file) .eq. "_this_" ) Setup % bdry_file = case_name
-
+!
+!         Request gas
+!         -----------
           call readValue ( trim ( case_name )  , "Gas"                   , Setup % Gas             ) 
+          call Setup_CheckWithDefault( Setup % Gas , "Air" , "Gas" )
+!
+!         Request reference pressure          
+!         --------------------------
           call readValue ( trim ( case_name )  , "Reference pressure"    , Setup % pressure_ref    ) 
+          call Setup_CheckWithDefault( Setup % pressure_ref , 101325.0_RP , "Reference pressure" )
+!
+!         Request reference temperature
+!         -----------------------------
           call readValue ( trim ( case_name )  , "Reference Temperature" , Setup % Temperature_ref ) 
+          call Setup_CheckWithDefault( Setup % Temperature_ref , 273.15_RP , "Reference Temperature" )
+!
+!         Request Reynolds length
+!         -----------------------
           call readValue ( trim ( case_name )  , "Reynolds length"       , Setup % reynolds_length ) 
+          call Setup_CheckWithDefault( Setup % reynolds_length , 1.0_RP , "Reynolds length" )
+!
+!         Request Reynolds number
+!         -----------------------
           call readValue ( trim ( case_name )  , "Reynolds number"       , Setup % reynolds_number ) 
+          call Setup_CheckWithError( Setup % reynolds_number , "Reynolds number" )
+!
+!         Request Prandtl number
+!         ----------------------
           call readValue ( trim ( case_name )  , "Prandtl number"        , Setup % prandtl_number  ) 
+          call Setup_CheckWithDefault( Setup % prandtl_number , 0.72_RP , "Prandtl number" )
+!
+!         Request Mach number
+!         -------------------
           call readValue ( trim ( case_name )  , "Mach number"           , Setup % Mach_number     ) 
-
+          call Setup_CheckWithError( Setup % mach_number , "Mach number" )
+!
+!         Request Interpolation nodes
+!         --------------------------- 
           call readValue ( trim ( case_name )  , "Interpolation nodes"   , interp_nodes ) 
+          call Setup_CheckWithDefault( interp_nodes , "Legendre-Gauss" , "Interpolation nodes" )
           
           if ( trim(interp_nodes) .eq. "Legendre-Gauss" ) then
             Setup % nodes = LG
           elseif ( trim(interp_nodes) .eq. "Legendre-Gauss-Lobatto" ) then
             Setup % nodes = LGL
+          else
+            print*, "Unknown option for the interpolation nodes."
+            print*, "Options available are:"
+            print*, "   * Legendre-Gauss"
+            print*, "   * Legendre-Gauss-Lobatto"
+            errorMessage(STD_OUT)
+            stop 
           end if
-
+!
+!         Request polynomial order
+!         ------------------------
           call readValue ( trim ( case_name )  , "Default polynomial order" , Setup % N ) 
+          call Setup_CheckWithError( Setup % N , "Default polynomial order" )
+!
+!         Request initial condition
+!         -------------------------
           call readValue ( trim ( case_name )  , "Initial condition" , Setup % IC ) 
-          call readValue ( trim ( case_name )  , "Inviscid strategy" , Setup % inviscid_discretization ) 
+          call Setup_CheckWithError( Setup % IC , "Initial condition" )
+!
+!         Request inviscid formulation
+!         ----------------------------
+          call readValue ( trim ( case_name )  , "Inviscid discretization" , Setup % inviscid_discretization ) 
+          call Setup_CheckWithDefault( Setup % inviscid_discretization , "Standard" , "Inviscid discretization" )
+!
+!         Request inviscid formulation
+!         ----------------------------
           call readValue ( trim ( case_name )  , "Inviscid formulation" , inviscid_form ) 
+          call Setup_CheckWithDefault( inviscid_form , "Green form" , "Inviscid formulation" )
       
-          if ( trim(inviscid_form) .eq. "Form I" ) then
-            Setup % inviscid_formulation = FormI
-          elseif ( trim(inviscid_form) .eq. "Form II" ) then
-            Setup % inviscid_formulation = FormII
+          if ( trim(inviscid_form) .eq. "Green form" ) then
+            Setup % inviscid_formulation = FORMI
+          elseif ( trim(inviscid_form) .eq. "Divergence form" ) then
+            Setup % inviscid_formulation = FORMII
+          else
+            print*, "Unknown option for the inviscid formulation."
+            print*, "Options available are:"
+            print*, "   * Green form"
+            print*, "   * Divergence form"
+            errorMessage(STD_OUT)
+            stop 
           end if
-
-          call readValue ( trim ( case_name )  , "Inviscid Riemann Flux"        , Setup % inviscid_flux          ) 
+!
+!         Request Riemann flux
+!         --------------------
+          call readValue ( trim ( case_name )  , "Inviscid Riemann solver"        , Setup % inviscid_flux          ) 
+          call Setup_CheckWithDefault( Setup % inviscid_flux , "Roe" , "Inviscid Riemann solver" )
+!
+!         Number of integration points
+!         ----------------------------
           call readValue ( trim ( case_name )  , "Number of integration points" , Setup % integration_points     ) 
-          call readValue ( trim ( case_name )  , "Viscous strategy"             , Setup % viscous_discretization ) 
+          
+          if ( trim(Setup % inviscid_discretization) .eq. "Over-integration" ) then
+            call Setup_CheckWithError( Setup % integration_points , "Number of integration points" ) 
+          else
+            call Setup_CheckWithDefault( Setup % integration_points , Setup % N , "Number of integration points" ,  .false. ) 
+          end if
+!
+!         Viscous discretization
+!         ----------------------
+          call readValue ( trim ( case_name )  , "Viscous discretization"             , Setup % viscous_discretization ) 
+          call Setup_CheckWithDefault( Setup % viscous_discretization , "BR1" , "Viscous discretization" )
          
           if ( Setup % viscous_discretization .eq. "Interior-penalty" ) then
             Setup % viscous_discretization = "IP"
           end if
-
+!
+!         Select the interior penalty method type
+!         ---------------------------------------
           call readValue ( trim ( case_name )  , "Interior penalty method"          , Setup % IPMethod          ) 
-          call readValue ( trim ( case_name )  , "Jumps penalty parameter"          , Setup % sigma0IP          ) 
-          call readValue ( trim ( case_name )  , "Gradient jumps penalty parameter" , Setup % sigma1IP          ) 
-          call readValue ( trim ( case_name )  , "Integration mode"                 , Setup % integrationMode   ) 
-          call readValue ( trim ( case_name )  , "Integration scheme"               , Setup % integrationMethod ) 
-          call readValue ( trim ( case_name )  , "CFL Number"                       , Setup % Ccfl              ) 
-          call readValue ( trim ( case_name )  , "Time step"                        , Setup % dt                ) 
-          call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
-          call readValue ( trim ( case_name )  , "Number of iterations"             , Setup % no_of_iterations  ) 
-          call readValue ( trim ( case_name )  , "Autosave interval"                , Setup % AutosaveInterval  ) 
-          call readValue ( trim ( case_name )  , "Output interval"                  , Setup % Output_Interval   ) 
-          call readValue ( trim ( case_name )  , "Save variables"                   , Setup % saveVariables     ) 
-          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % restart_file      ) 
-          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % solution_file     ) 
-          call readValue ( trim ( case_name )  , "Number of representation points"  , Setup % no_of_plotPoints  ) 
-          call readValue ( trim ( case_name )  , "Output file type"                 , Setup % outputType        ) 
 
+          if ( Setup % viscous_discretization .eq. "IP" ) then
+            call Setup_CheckWithDefault( Setup % IPMethod , "SIPG" , "Interior penalty method" )
+          end if
+!
+!         Request the Jumps penalty parameter
+!         -----------------------------------
+          call readValue ( trim ( case_name )  , "Jumps penalty parameter"          , Setup % sigma0IP          ) 
+
+          if ( Setup % viscous_discretization .eq. "IP" ) then
+            call Setup_CheckWithDefault( Setup % sigma0IP , 1.0_RP , "Jumps penalty parameter" )
+          end if
+!
+!         Request the Gradients jumps penalty parameter
+!         ---------------------------------------------
+          call readValue ( trim ( case_name )  , "Gradient jumps penalty parameter" , Setup % sigma1IP          ) 
+
+          if ( Setup % viscous_discretization .eq. "IP" ) then
+            call Setup_CheckWithDefault( Setup % sigma1IP , 0.0_RP , "Gradient jumps penalty parameter" )
+          end if
+!
+!         Request the integration mode
+!         ----------------------------
+          call readValue ( trim ( case_name )  , "Integration mode"                 , Setup % integrationMode   ) 
+          call Setup_CheckWithDefault( Setup % integrationMode , "Steady" , "Integration mode" )
+!
+!         Request the integration scheme          
+!         ------------------------------
+          call readValue ( trim ( case_name )  , "Integration scheme"               , Setup % integrationMethod ) 
+          call Setup_CheckWithDefault( Setup % integrationMethod , "Williamson RK3" , "Integration scheme" )
+!
+!         Request the CFL number
+!         ----------------------
+          call readValue ( trim ( case_name )  , "CFL Number"                       , Setup % Ccfl              ) 
+          call Setup_CheckWithDefault( Setup % Ccfl , 0.1_RP , "CFL Number" )
+!
+!         Request the time step
+!         ---------------------
+          call readValue ( trim ( case_name )  , "Time step"                        , Setup % dt                ) 
+          call Setup_CheckWithDefault( Setup % dt , 0.01_RP , "Time step" ) 
+!
+!         Request the simulation time
+!         ---------------------------
+          call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
+          call Setup_CheckWithDefault( Setup % simulationTime , 1.0_RP , "Simulation time" ) 
+!
+!         Request the number of iterations
+!         --------------------------------
+          call readValue ( trim ( case_name )  , "Number of iterations"             , Setup % no_of_iterations  ) 
+          call Setup_CheckWithDefault( Setup % no_of_iterations , 1000 , "Number of iterations" ) 
+!
+!         Autosave interval
+!         -----------------
+          call readValue ( trim ( case_name )  , "Autosave interval"                , Setup % AutosaveInterval  ) 
+          call Setup_CheckWithDefault( Setup % AutosaveInterval , 0 , "Autosave interval" ) 
+!
+!         Output interval
+!         ---------------         
+          call readValue ( trim ( case_name )  , "Output interval"                  , Setup % Output_Interval   ) 
+          call Setup_CheckWithDefault( Setup % Output_Interval , 1 , "Output interval" ) 
+!
+!         Save variables
+!         --------------
+          call readValue ( trim ( case_name )  , "Save variables"                   , Setup % saveVariables     ) 
+          call Setup_CheckWithDefault( Setup % saveVariables , "rho_u_v_p" , "Save variables" ) 
+!
+!         Restart file
+!         ------------
+          call readValue ( trim ( case_name )  , "Restart file"                     , Setup % restart_file      ) 
+
+          if ( Setup % IC .eq. "Restart" ) then
+            call Setup_CheckWithError( Setup % restart_file , "Restart file" ) 
+          end if
+!
+!         Solution file
+!         -------------
+          call readValue ( trim ( case_name )  , "Solution file"                    , Setup % solution_file     ) 
+          call Setup_CheckWithDefault( Setup % solution_file , "Solution.HiORst" , "Solution file" ) 
 
           pos = index( trim(Setup % solution_file) , ".HiORst" )  
 
           if (pos .eq. 0) then
             Setup % solution_file = trim(Setup % solution_file) // ".HiORst"
           end if
-         
-          call Setup % Default
+!
+!         Output file type
+!         ----------------
+          call readValue ( trim ( case_name )  , "Output file type"                 , Setup % outputType        ) 
+          call Setup_CheckWithDefault( Setup % outputType , "DGSEM" , "Output file type" ) 
+!
+!         Number of representation points
+!         -------------------------------
+          call readValue ( trim ( case_name )  , "Number of representation points"  , Setup % no_of_plotPoints  ) 
+          call Setup_CheckWithDefault( Setup % no_of_plotPoints , 2 * Setup % N , "Number of representation points" ) 
 
       end subroutine Setup_Initialization
-
-      subroutine Setup_DefaultValues( self )
-         implicit none
-         class(Setup_t)             :: self
-
-
-          if ( .not. allocated ( Setup % integration_points ) ) then
-            allocate( Setup % integration_points ) 
-            Setup % integration_points = Setup % N 
-          end if
-
-      end subroutine Setup_DefaultValues
 
       subroutine Setup_SetInitialTime( self , t , iter ) 
          implicit none
@@ -228,5 +376,103 @@ module Setup_class
          self % initialIteration = iter
 
       end subroutine Setup_SetInitialTime
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!                 CHECK SUBROUTINES
+!                 -----------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+      subroutine Setup_CheckWithError_Character( variable , label )
+         implicit none
+         character(len=*),    intent(in)     :: variable
+         character(len=*),    intent(in)     :: label
 
+         if ( len_trim(variable) .eq. 0 ) then
+            print*, 'Variable "',trim(adjustl(label)),'" was not found in the case file.'
+            stop "Fatal error"
+         end if
+
+       end subroutine Setup_CheckWithError_Character
+
+      subroutine Setup_CheckWithError_Integer( variable , label )
+         implicit none
+         integer,          allocatable,  intent(in)     :: variable
+         character(len=*),               intent(in)     :: label
+
+         if ( .not. allocated(variable) ) then
+            print*, 'Variable "',trim(adjustl(label)),'" was not found in the case file.'
+            stop "Fatal error"
+         end if
+
+       end subroutine Setup_CheckWithError_Integer
+
+      subroutine Setup_CheckWithError_Real( variable , label )
+         implicit none
+         real(kind=RP),    allocatable,  intent(in)     :: variable
+         character(len=*),               intent(in)     :: label
+
+         if ( .not. allocated(variable) ) then
+            print*, 'Variable "',trim(adjustl(label)),'" was not found in the case file.'
+            stop "Fatal error"
+         end if
+
+       end subroutine Setup_CheckWithError_Real
+
+      subroutine Setup_CheckWithDefault_Character( variable , default_value , label )
+         implicit none
+         character(len=*),    intent(inout)  :: variable
+         character(len=*),    intent(in)     :: default_value
+         character(len=*),    intent(in)     :: label
+
+         if ( len_trim(variable) .eq. 0 ) then
+            print*, 'Variable "',trim(adjustl(label)),'" was not found in the case file.'
+            print*, '      >> Assigned default value: ' , trim(adjustl(default_value))
+            variable = trim(adjustl(default_value))
+         end if
+
+       end subroutine Setup_CheckWithDefault_Character
+
+      subroutine Setup_CheckWithDefault_Integer( variable , default_value , label  , verbose)
+         implicit none
+         integer, allocatable,   intent(inout)  :: variable
+         integer,                intent(in)     :: default_value
+         character(len=*),       intent(in)     :: label
+         logical, optional    ,  intent(in)     :: verbose
+         logical                                :: verb
+
+         if ( present(verbose) ) then
+            verb = verbose
+         else
+            verb = .true.
+         end if
+
+         if ( .not. allocated(variable) ) then
+            if ( verb ) then
+               print*, 'Variable "',trim(adjustl(label)),'" was not found in the case file.'
+               print*, '      >> Assigned default value: ' , default_value
+            end if
+            allocate( variable )
+            variable = default_value
+         end if
+
+       end subroutine Setup_CheckWithDefault_Integer
+
+      subroutine Setup_CheckWithDefault_Real( variable , default_value , label )
+         implicit none
+         real(kind=RP), allocatable,   intent(inout)  :: variable
+         real(kind=RP),                intent(in)     :: default_value
+         character(len=*),       intent(in)     :: label
+
+         if ( .not. allocated(variable) ) then
+            print*, 'Variable "',trim(adjustl(label)),'" was not found in the case file.'
+            print*, '      >> Assigned default value: ' , default_value
+            allocate( variable )
+            variable = default_value
+         end if
+
+       end subroutine Setup_CheckWithDefault_Real
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 end module Setup_class

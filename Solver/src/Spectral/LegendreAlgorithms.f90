@@ -18,6 +18,8 @@
       MODULE LegendreAlgorithms
       USE SMConstants
       IMPLICIT NONE
+
+#include "Defines.h"
       
       PUBLIC  :: GaussLegendreNodesAndWeights
       PRIVATE :: LegendrePolyAndDerivative
@@ -66,8 +68,8 @@
          L_NM1 = x
          LPrime_NM1 = 1.0_rp
          DO k = 2, N
-            L_N        = ((2*k-1)*x*L_NM1 - (k-1)*L_NM2)/k
-            LPrime_N   = LPrime_NM2 + (2*k-1)*L_NM1
+            L_N        = ((2.0_RP*k-1.0_RP)*x*L_NM1 - (k-1.0_RP)*L_NM2)/k
+            LPrime_N   = LPrime_NM2 + (2.0_RP*k-1.0_RP)*L_NM1
             L_NM2      = L_NM1
             L_NM1      = L_N
             LPrime_NM2 = LPrime_NM1
@@ -109,7 +111,7 @@
 !     Constants:
 !     ----------
 !
-      INTEGER, PARAMETER       :: noNewtonIterations = 10
+      INTEGER, PARAMETER       :: noNewtonIterations = 100
       REAL(KIND=RP), PARAMETER :: toleranceFactor    = 4.0_RP
       
       tolerance = toleranceFactor*EPSILON(L_NP1)
@@ -139,7 +141,7 @@
             END DO
             CALL LegendrePolyAndDerivative( N+1, xj, L_NP1, LPrime_NP1 )
             x(j)   = xj
-            w(j)   = 2.0_RP/( (1.0_RP - xj**2)*LPrime_NP1**2 )
+            w(j)   = 2.0_RP/( (1.0_RP - xj*xj)*LPrime_NP1*LPrime_NP1 )
             x(N-j) = -xj
             w(N-j) = w(j)
          END DO
@@ -152,7 +154,7 @@
       IF( MOD(N,2) == 0 )     THEN
          CALL LegendrePolyAndDerivative( N+1, 0.0_RP, L_NP1, LPrime_NP1 )
          x(N/2) = 0.0_RP
-         w(N/2) = 2.0_RP/LPrime_NP1**2
+         w(N/2) = 2.0_RP/(LPrime_NP1*LPrime_NP1)
       END IF
       
       END SUBROUTINE GaussLegendreNodesAndWeights
@@ -205,18 +207,18 @@
         implicit none
         ! Combined algorithm to compute q=L_{N+1}-L_{N-1}, q', and L_N
         integer,intent(IN)::N
-        double precision,intent(IN)::x
-        double precision,intent(OUT)::q,dq,LN
+        real(kind=RP),intent(IN)::x
+        real(kind=RP),intent(OUT)::q,dq,LN
         integer::k=2
-        double precision::dLN=0d0,LNm2=0d0,LNm1=0d0,dLNm2=0d0,dLNm1=0d0,LNp1=0d0,dLNp1=0d0
-        LNm2=1d0
+        real(kind=RP)         ::dLN=0.0_RP ,LNm2=0.0_RP ,LNm1=0.0_RP ,dLNm2=0.0_RP ,dLNm1=0.0_RP, LNp1=0.0_RP ,dLNp1=0.0_RP
+        LNm2=1.0_RP
         LNm1=x
-        dLNm2=0d0
-        dLNm1=1d0
+        dLNm2=0.0_RP
+        dLNm1=1.0_RP
 
         do k=2,N
-            LN=(2d0*k-1d0)*x*LNm1/k-(1d0*k-1d0)*LNm2/k
-            dLN=dLNm2+(2d0*k-1d0)*LNm1
+            LN=(2.0_RP *k-1.0_RP)*x*LNm1/k-(1.0_RP*k-1.0_RP)*LNm2/k
+            dLN=dLNm2+(2.0_RP*k-1.0_RP)*LNm1
             LNm2=LNm1
             LNm1=LN
             dLNm2=dLNm1
@@ -224,8 +226,8 @@
         end do
 
         k=N+1
-        LNp1=(2d0*k-1d0)*x*LN/k-(1d0*k-1d0)*LNm2/k
-        dLNp1=dLNm2+(2d0*k-1d0)*LN
+        LNp1=(2.0_RP*k-1.0_RP)*x*LN/k-(1.0_RP*k-1.0_RP)*LNm2/k
+        dLNp1=dLNm2+(2.0_RP*k-1.0_RP)*LN
         q=LNp1-LNm2
         dq=dLNp1-dLNm2
 

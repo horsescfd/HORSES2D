@@ -2,13 +2,18 @@ module Utilities
    use SMConstants
    implicit none
 !
+#include "Defines.h"
+
+   integer, parameter   :: STR_LEN_UTIL = 512
+
+!
 !  ========
    contains
 !  ========
 !
 !////////////////////////////////////////////////////////////////////////////
 !
-      LOGICAL FUNCTION AlmostEqual( a, b ) 
+      pure LOGICAL FUNCTION AlmostEqual( a, b ) 
 !
 !        *************************************+
 !           Function by David A. Kopriva
@@ -20,7 +25,7 @@ module Utilities
 !        Arguments
 !        ---------
 !
-         REAL(KIND=RP) :: a, b
+         REAL(KIND=RP), intent(in) :: a, b
          IF ( a == 0.0_RP .OR. b == 0.0_RP )     THEN
             IF ( ABS(a-b) <= 2*EPSILON(b) )     THEN
                AlmostEqual = .TRUE.
@@ -37,7 +42,7 @@ module Utilities
    
       END FUNCTION AlmostEqual
 
-      function ThirdDegreeRoots(a,b,c) result (val)
+      pure function ThirdDegreeRoots(a,b,c) result (val)
 !
 !           ----------------------------------------------------------
 !              Solves the equation x^3 + a x^2 + b x + c = 0
@@ -45,10 +50,10 @@ module Utilities
 !           ----------------------------------------------------------
 !
             implicit none  
-            real(kind=RP)              :: a
-            real(kind=RP)              :: b
-            real(kind=RP)              :: c
-            real(kind=RP)              :: val
+            real(kind=RP), intent(in) :: a
+            real(kind=RP), intent(in) :: b
+            real(kind=RP), intent(in) :: c
+            real(kind=RP)             :: val
 !           ------------------------------------------------------
             real(kind=RP)              :: p , q
             complex(kind=CP)           :: z1
@@ -63,7 +68,7 @@ module Utilities
 
          end function ThirdDegreeRoots
 
-         function solveTwoEquationLinearSystem( A , b ) result ( x )
+         pure function solveTwoEquationLinearSystem( A , b ) result ( x )
             implicit none
             real(kind = RP),  intent(in)     :: A(2,2)
             real(kind = RP),  intent(in)     :: b(2)
@@ -77,11 +82,11 @@ module Utilities
 
          end function solveTwoEquationLinearSystem
       
-         function solveSecondDegreeEquation(a,b,c,flag) result ( x )
+         pure subroutine solveSecondDegreeEquation(a,b,c,flag , x )
             implicit none
             real(kind=RP), intent(in)            :: a, b, c
             integer,       intent(out), optional :: flag
-            real(kind=RP)                        :: x(2)
+            real(kind=RP), intent(out)           :: x(2)
 !           ---------------------------------------------------
             real(kind=RP)                    :: disc
 
@@ -115,34 +120,102 @@ module Utilities
                end if
             end if
             
-         end function solveSecondDegreeEquation
+         end subroutine solveSecondDegreeEquation
    
-         function cross ( x , y ) result ( val )
+         pure function cross ( x , y ) result ( val )
             use Physics
             implicit none
-            real(kind=RP)     :: x(NDIM)
-            real(kind=RP)     :: y(NDIM)
-            real(kind=RP)     :: val
+            real(kind=RP), intent(in) :: x(NDIM)
+            real(kind=RP), intent(in) :: y(NDIM)
+            real(kind=RP)             :: val
 !           -----------------------------------
             
             val = x(IX) * y(IY) - x(IY) * y(IX)
 
          end function cross
 
-         function newSign ( x ) result ( val ) 
+         pure function newSign ( x ) result ( val ) 
             implicit none
-            real(kind=RP)     :: x
-            integer           :: val
-!           ------------------------------------
-            integer           :: gt0 , lt0
+            real(kind=RP), intent(in) :: x
+            integer                   :: val
 
-            lt0 = (x .lt. 0)
-            gt0 = (x .gt. 0)
-
-            val = gt0 - lt0
+            if ( x .lt. 0.0_RP ) then
+               val = -1
+            elseif ( x .gt. 0.0_RP ) then
+               val = 1
+            else
+               val = 0
+            end if
 
          end function newSign
+      
+         function getArrayFromString( line ) result ( array )
+!
+!           ****************************************************
+!                    Gets an array from a string of the 
+!              form: 
+!                       line = "[a,b,c,...]"
+!           ****************************************************
+!
+            use RealDataLinkedList
+            implicit none
+            character(len=*),    intent(in)  :: line
+            real(kind=RP), allocatable       :: array(:)
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: pos1 , pos2 , pos
+            character(len=STR_LEN_UTIL)   :: auxline
+            type(RealDataLinkedList_t)    :: Data
+            real(kind=RP)                 :: value
+            integer  :: io
+           
+            pos1 = index(line,"[")
+            pos2 = index(line,"]") 
+
+            if ( (pos1 .eq. 0) .or. (pos2 .eq. 0) ) then
+!
+!              There are no brackets in the string
+!              -----------------------------------
+               return
+            end if
+            
+            auxline = line(pos1+1:pos2-1)
+!
+!           Get the elements
+!           ----------------
+            do
+               pos = index(auxline , "," ) 
+
+               if ( pos .gt. 0 ) then
+
+                  read(auxline(1:pos-1),*,iostat=io) value 
+                  if ( io .lt. 0 ) then
+                     return
+                  end if
+
+                  call Data % Append(value)
+      
+                  auxline = auxline(pos+1:)
+
+               else
+                  read(auxline ,*,iostat=io) value 
+                  if ( io .lt. 0 ) then
+                     return
+                  end if
+
+                  call Data % append(value)
+   
+                  exit
+
+               end if
+
+            end do
+
+            call Data % load(array)
+
+         end function getArrayFromString
 
 end module Utilities
-
-
