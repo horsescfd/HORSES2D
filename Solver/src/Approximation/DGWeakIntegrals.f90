@@ -127,10 +127,15 @@ module DGWeakIntegrals
 !           F flux (contravariant)
 !           ----------------------
             contravariant_F(0:N,0:N,eq) = F(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,1)
+
+         end do
+   
+         do eq = 1 , NCONS
 !           
 !           G flux (contravariant)
 !           ----------------------
             contravariant_G(0:N,0:N,eq) = F(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
+
          end do
 
   

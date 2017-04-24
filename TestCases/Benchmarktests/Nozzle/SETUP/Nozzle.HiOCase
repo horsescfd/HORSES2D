@@ -1,42 +1,47 @@
 !
 !       ***************************
-! 	     * Cylinder parameter file *
-!	     ***************************
+!       * Cylinder parameter file *
+!       ***************************
 !
 
 !-------------------------------------: Geometry
-	         		      Mesh file     : ./MESH/Nozzle.HiOMesh
-			               Boundary file : _this_
+                        Mesh file     : ./MESH/Nozzle.HiOMesh
+                        Boundary file : _this_
 
 
 !-----------------------------------------: Physics
-			           Gas                   : Air
-			           Reference pressure    : 101325.0
-			           Reference Temperature : 273.15
-			           Reynolds length       : 1.0
-			           Reynolds number       : 1600.0
-			           Prandtl number        : 0.72
-			           Mach number           : 0.01
-	
+                    Gas                   : Air
+                    Reference pressure    : 101325.0
+                    Reference Temperature : 273.15
+                    Reynolds length       : 1.0
+                    Reynolds number       : 0.0
+                    Prandtl number        : 0.72
+                    Mach number           : 0.01
+   
 !------------------------------------: DG Discretization
-	         	  Interpolation nodes : Legendre-Gauss
-         		  Default polynomial order    : 4
+                 Interpolation nodes : Legendre-Gauss
+                 Default polynomial order    : 4
 
 !------------------------------------: Initialization
-		             Initial condition : Steady
-		             Restart file      : ./RESULTS/NozzleSteady_46000000.HiORst
+                   Initial condition : Steady
+                   Restart file      : ./RESULTS/NozzleSteady_46000000.HiORst
 
 !---------------------------------------------: Inviscid discretization
-	            Inviscid strategy              : Standard
-	            Inviscid formulation           : Form I
-	            Inviscid Riemann Flux          : Roe
-	            ! Number of integration points : 6
+               Inviscid discretization        : Standard
+               Inviscid formulation           : Green form
+               Inviscid Riemann Flux          : Roe
+               ! Number of integration points : 6
 
 !---------------------------------------------: Viscous discretization
              Viscous strategy                 : Interior-penalty
              Interior penalty method          : SIPG
              Jumps penalty parameter          : 10.0
              Gradient jumps penalty parameter : 0.0
+
+!---------------------------------------------: Artificial dissipation
+            Artificial dissipation (0/1) : 1
+            Artificial dissipation type : Green volume
+            Artificial dissipation matrix : Residuals-based
 
 !----------------------------------------: Time integration
                     Integration mode     : Steady
@@ -48,40 +53,40 @@
                     Initial time         : 0.0
 
 !-----------------------------------: Output variables
-      		      Solution file     : ./RESULTS/NozzleSteady.HiORst
-	      	      Autosave interval : 10000
-		            Output interval   : 10
+                  Solution file     : ./RESULTS/NozzleSteady.HiORst
+                  Autosave interval : 10000
+                  Output interval   : 10
                   Output file type  : Interpolated
             Number of representation points : 10
-		            Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+                  Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
 
 !
 !       **********************************
-! 	     * Cylinder boundary mapping file *
-!	     **********************************
+!       * Cylinder boundary mapping file *
+!       **********************************
 !
 
 
 
 # define zone 1
-	Name = Nozzle-bottom
-	Type = Euler wall
+   Name = Nozzle-bottom
+   Type = Euler wall
    Riemann solver = Exact
 # end 
 
 # define zone 2
-	Name = Nozzle-top
-	Type = Euler wall
+   Name = Nozzle-top
+   Type = Euler wall
    Riemann solver = Exact
 # end 
 
 # define zone 3
-	Name = Outflow
-	Type = Pressure outlet
+   Name = Outflow
+   Type = Pressure outlet
    Riemann solver = Exact
 # end
 
 # define zone 4
-	Name = Inflow
-	Type = Pressure inlet
+   Name = Inflow
+   Type = Pressure inlet
 # end

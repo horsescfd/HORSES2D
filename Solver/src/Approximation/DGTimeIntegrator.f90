@@ -129,7 +129,6 @@ module DGTimeIntegrator
             Monitors = ConstructMonitors( mesh )
          end if
            
-
       end function TimeIntegrator_NewTimeIntegrator
 
       subroutine TimeIntegrator_Integrate( self , mesh , Storage )

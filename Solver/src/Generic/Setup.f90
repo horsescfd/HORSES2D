@@ -63,6 +63,14 @@ module Setup_class
         real(kind=RP), allocatable   :: sigma1IP                  
 !
 !       ------------------------------------------------------------------------------
+!              Artificial dissipation
+!       ------------------------------------------------------------------------------
+!
+        logical         :: artificialDissipation
+        real(kind=RP), allocatable   :: artificialDissipation_maxViscosity 
+        character(len=STR_LEN_SETUP)   :: artificialDissipationIndicator
+!
+!       ------------------------------------------------------------------------------
 !              Integration parameters
 !       ------------------------------------------------------------------------------
 !
@@ -113,6 +121,7 @@ module Setup_class
          character(len=STR_LEN_SETUP) :: case_name
          character(len=STR_LEN_SETUP) :: interp_nodes
          character(len=STR_LEN_SETUP) :: inviscid_form
+         integer, allocatable         :: artificialDissipation
 
 !
 !         Get case file from command line
@@ -294,6 +303,24 @@ module Setup_class
 !         ----------------------------
           call readValue ( trim ( case_name )  , "Integration mode"                 , Setup % integrationMode   ) 
           call Setup_CheckWithDefault( Setup % integrationMode , "Steady" , "Integration mode" )
+!
+!         Request the artificial dissipation
+!         ----------------------------------
+          call readValue ( trim ( case_name ) , "Artificial dissipation (0/1)" , artificialDissipation )
+          call Setup_CheckWithDefault ( artificialDissipation , 0 , "Artificial dissipation (0/1)" )
+          if ( artificialDissipation .eq. 1 ) then
+            Setup % artificialDissipation = .true.
+
+          else
+            Setup % artificialDissipation = .false.
+
+          end if 
+
+          call readValue ( trim ( case_name ) , "Artificial dissipation maximum viscosity" , Setup % artificialDissipation_maxViscosity )
+          call Setup_CheckWithDefault ( Setup % artificialDissipation_maxViscosity , 0.0_RP , "Artificial dissipation max viscosity" )
+
+          call readValue ( trim ( case_name ) , "Artificial dissipation indicator" , Setup % artificialDissipationIndicator )
+          call Setup_CheckWithDefault ( Setup % artificialDissipationIndicator , "Jumps-based" , "Artificial dissipation indicator" )
 !
 !         Request the integration scheme          
 !         ------------------------------

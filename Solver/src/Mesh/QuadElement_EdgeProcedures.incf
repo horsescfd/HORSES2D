@@ -236,6 +236,258 @@
  
          end subroutine Edge_Invert
 
+         pure function Edge_ComputeJumps ( ed , var ) result ( jumps )
+            use MatrixOperations
+            implicit none
+            class(Edge_t),    intent(in)     :: ed
+            integer      ,    intent(in)     :: var
+            real(kind=RP)                    :: jumps
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)     :: QL( 0 : ed % spA % N )
+            real(kind=RP)     :: QR( 0 : ed % spA % N )
+            real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N )
+
+         if ( ed % transform(LEFT) .and. ed % inverse ) then
+! 
+!        ---------------------------------------------------------
+!>       First case: LEFT needs p-Adaption, and RIGHT is reversed.
+!        ---------------------------------------------------------
+!
+!           Transform the LEFT edge
+!           -----------------------            
+            QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+
+
+         elseif ( ed % transform(LEFT) ) then
+! 
+!        ----------------------------------
+!>       Second case: LEFT needs p-Adaption.
+!        ----------------------------------
+!
+!           Transform the LEFT 
+!           -----------------------
+            QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
+!
+!           Get the RIGHT edge state
+!           ------------------------
+            QR = ed % storage(RIGHT) % Q(:,var)
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+
+         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+! 
+!        ---------------------------------------------------------
+!>       Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
+!        ---------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------
+            QL = ed % storage(LEFT) % Q(:,var)
+!
+!           Transform the RIGHT edge 
+!           ------------------------
+            QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
+!
+!           Invert the RIGHT edge 
+!           ---------------------
+            QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+
+         elseif ( ed % transform(RIGHT) ) then
+! 
+!        -----------------------------------
+!>       Fourth case: RIGHT needs p-Adaption.
+!        -----------------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(LEFT) % Q(:,var)
+!
+!           Transform the RIGHT edge
+!           ------------------------
+            QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+         
+         elseif ( ed % inverse ) then
+! 
+!        -----------------------------
+!>       Fifth case: RIGHT is reversed.
+!        -----------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(LEFT) % Q(:,var)
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+
+         else
+! 
+!        -----------------------------------------------------------------------
+!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
+!        -----------------------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------   
+            QL = ed % storage(LEFT) % Q(:,var)
+!
+!           Get the RIGHT edge
+!           ------------------
+            QR = ed % storage(RIGHT) % Q(:,var)
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+         
+         end if
+
+         end function Edge_ComputeJumps
+
+         pure function StraightBdryEdge_ComputeJumps ( ed , var ) result ( jumps )
+            use MatrixOperations
+            implicit none
+            class(StraightBdryEdge_t),    intent(in) :: ed
+            integer      ,    intent(in)             :: var
+            real(kind=RP)                            :: jumps
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)     :: QL( 0 : ed % spA % N )
+            real(kind=RP)     :: QR( 0 : ed % spA % N )
+            real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N ) 
+
+         if ( ed % inverse ) then
+! 
+!        -----------------------------
+!>       First case: RIGHT is reversed.
+!        -----------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(1) % Q(:,var)
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+
+         else
+! 
+!        -----------------------------------------------------------------------
+!>       Second case: Default case: neither p-Adaption nor inversion are required.
+!        -----------------------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------   
+            QL = ed % storage(1) % Q(:,var)
+!
+!           Get the RIGHT edge
+!           ------------------
+            QR = ed % uSB(:,var)
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+         
+         end if
+
+         end function StraightBdryEdge_ComputeJumps
+
+         pure function CurvedBdryEdge_ComputeJumps ( ed , var ) result ( jumps )
+            use MatrixOperations
+            implicit none
+            class(CurvedBdryEdge_t),    intent(in) :: ed
+            integer      ,    intent(in)           :: var
+            real(kind=RP)                          :: jumps
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)     :: QL( 0 : ed % spA % N )
+            real(kind=RP)     :: QR( 0 : ed % spA % N )
+            real(kind=RP)     :: nodalJumps( 0 : ed % spA % N ) 
+
+         if ( ed % inverse ) then
+! 
+!        -----------------------------
+!>       First case: RIGHT is reversed.
+!        -----------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(1) % Q(:,var)
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
+
+         else
+! 
+!        -----------------------------------------------------------------------
+!>       Second case: Default case: neither p-Adaption nor inversion are required.
+!        -----------------------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------   
+            QL = ed % storage(1) % Q(:,var)
+!
+!           Get the RIGHT edge
+!           ------------------
+            QR = ed % uSB(:,var)
+!
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = QL - QR
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
+         
+         end if
+
+         end function CurvedBdryEdge_ComputeJumps
+
          subroutine BoundaryData_Initialize( self , spA  ) 
             implicit none
             class(BoundaryData_t)             :: self

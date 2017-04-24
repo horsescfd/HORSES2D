@@ -5,6 +5,7 @@ module DGSpatialDiscretizationMethods
    use DGInviscidMethods
    use DGWeakIntegrals
 #ifdef NAVIER_STOKES
+   use DGArtificialDissipation
    use DGViscousMethods
 #endif
    implicit none
@@ -21,7 +22,8 @@ module DGSpatialDiscretizationMethods
 !
    class(InviscidMethod_t), pointer :: InviscidMethod
 #ifdef NAVIER_STOKES
-   class(ViscousMethod_t),  pointer :: ViscousMethod
+   class(ViscousMethod_t),         pointer  :: ViscousMethod
+   class(ArtificialDissipation_t), pointer  :: ArtificialDissipation
 #endif
 
    interface DGSpatial_QDotFaceLoop
@@ -53,7 +55,8 @@ module DGSpatialDiscretizationMethods
 !        Initialize Viscous method
 !        -------------------------
 #ifdef NAVIER_STOKES
-         ViscousMethod  => ViscousMethod_Initialization()
+         ViscousMethod         => ViscousMethod_Initialization()
+         ArtificialDissipation => ArtificialDissipation_Initialization()
 #endif
   
       end subroutine DGSpatial_Initialization
@@ -85,7 +88,7 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_computeTimeDerivative
       
-      subroutine DGSpatial_newTimeStep( mesh )
+         subroutine DGSpatial_newTimeStep( mesh )
 !
 !        *************************************************************
 !           This subroutine prepares the mesh struct
@@ -135,7 +138,7 @@ module DGSpatialDiscretizationMethods
          integer                   :: eID
 
          do eID = 1 , mesh % no_of_elements
-            mesh % elements(eID) % QDot = 0.0_RP
+!            mesh % elements(eID) % QDot = 0.0_RP
          end do
 
       end subroutine DGSpatial_resetQDot
@@ -211,20 +214,22 @@ module DGSpatialDiscretizationMethods
          class(QuadElement_t)          :: e 
          real ( kind=RP )       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real ( kind=RP )       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real ( kind=RP )       :: Fa ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real ( kind=RP )       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real(kind=RP), pointer :: QDot(:,:,:)
 
          Fi = InviscidMethod % ComputeInnerFluxes( e )
 #ifdef NAVIER_STOKES
          Fv = ViscousMethod  % ComputeInnerFluxes( e )
+         Fa = ArtificialDissipation % ComputeVolumeFluxes( e )
 
-         F = Fi - Fv
+         F = Fi - Fv - Fa
 #else
          F = Fi
 #endif
 
          QDot(0:,0:,1:) => e % QDot
-         QDot = QDot + ScalarWeakIntegrals % StdVolumeGreen(e , F)
+         QDot = ScalarWeakIntegrals % StdVolumeGreen(e , F)
   
       end subroutine DGSpatial_QDotVolumeLoop
 

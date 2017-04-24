@@ -34,7 +34,7 @@
 !------------------------------------: Viscous discretization
                Viscous discretization: IP
               Interior penalty method: SIPG
-              Jumps penalty parameter: 5.0
+              Jumps penalty parameter: 10.0
      Gradient jumps penalty parameter: 0.0
 
 !-----------------------------------: Time integration
@@ -61,10 +61,10 @@
 !
 
 # define p-Refinement
-   1: 2
-   2: 8
-   3: 6
-   4: 4
+   1: 6
+   2: 10
+   3: 8
+   4: 8
 # end
 
 

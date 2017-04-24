@@ -103,14 +103,15 @@ module QuadElementClass
         class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
         class(NodesAndWeights_t),   pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
         contains
-            procedure      :: SetCurve    => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
-            procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
-            procedure      :: evaluateX   => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
-            procedure      :: evaluatedX  => Edge_AnalyticaldX                ! Function to compute an edge point in a local coordinate "xi"
-            procedure      :: evaluatedS  => Edge_AnalyticaldS
-            procedure      :: getX        => Edge_getX                         
-            procedure      :: getdX       => Edge_getdX
-            procedure      :: getdS       => Edge_getdS
+            procedure      :: SetCurve     => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
+            procedure      :: Invert       => Edge_Invert                      ! Function to invert the edge orientation
+            procedure      :: evaluateX    => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedX   => Edge_AnalyticaldX                ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedS   => Edge_AnalyticaldS
+            procedure      :: getX         => Edge_getX
+            procedure      :: getdX        => Edge_getdX
+            procedure      :: getdS        => Edge_getdS
+            procedure      :: ComputeJumps => Edge_ComputeJumps
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
@@ -124,6 +125,8 @@ module QuadElementClass
         real(kind=RP), pointer            :: uSB(:,:)  => NULL()     ! Solution at the boundary (used by the solution Riemann solver)
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()     ! Solution gradient at the boundary
 #endif
+         contains
+            procedure      :: ComputeJumps => StraightBdryEdge_ComputeJumps
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
@@ -138,13 +141,14 @@ module QuadElementClass
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()    ! Solution gradient at the boundary
 #endif
         contains
-            procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
-            procedure      :: getX       => Curvilinear_getX                         
-            procedure      :: getdX      => Curvilinear_getdX
-            procedure      :: getdS      => Curvilinear_getdS
-            procedure      :: evaluateX  => Curvilinear_InterpolantX
-            procedure      :: evaluatedX => Curvilinear_InterpolantdX
-            procedure      :: evaluatedS => Curvilinear_InterpolantdS
+            procedure      :: SetCurve     => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
+            procedure      :: getX         => Curvilinear_getX
+            procedure      :: getdX        => Curvilinear_getdX
+            procedure      :: getdS        => Curvilinear_getdS
+            procedure      :: evaluateX    => Curvilinear_InterpolantX
+            procedure      :: evaluatedX   => Curvilinear_InterpolantdX
+            procedure      :: evaluatedS   => Curvilinear_InterpolantdS
+            procedure      :: ComputeJumps => CurvedBdryEdge_ComputeJumps
     end type CurvedBdryEdge_t
 
 !

@@ -423,8 +423,17 @@ module PhysicsNS
          dimensionless % sqrtGammaMach    = sqrt(thermodynamics % gamma) * dimensionless % Mach
          dimensionless % gammaMach2       = thermodynamics % gamma * dimensionless % Mach * dimensionless % Mach
          dimensionless % invSqrtGammaMach = 1.0_RP / (sqrt(thermodynamics % gamma) * dimensionless % Mach)
-         dimensionless % mu               = 1.0_RP / Setup % reynolds_number
-         dimensionless % kappa            = thermodynamics % gogm1 / (Setup % prandtl_number * Setup % reynolds_number)
+
+         if ( setup % reynolds_number .eq. 0.0_RP ) then
+            dimensionless % mu = 0.0_RP
+            dimensionless % kappa = 0.0_RP
+
+         else
+            dimensionless % mu               = 1.0_RP / Setup % reynolds_number
+            dimensionless % kappa            = thermodynamics % gogm1 / (Setup % prandtl_number * Setup % reynolds_number)
+
+         end if
+
          dimensionless % cp               = thermodynamics % gogm1
          dimensionless % cv               = thermodynamics % invgm1
          dimensionless % Re               = Setup % reynolds_number

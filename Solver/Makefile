@@ -48,7 +48,8 @@ ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
 DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
-DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals
+DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals DGArtificialDissipation
+DGArtificialDissipation: SMConstants QuadMesh QuadElement Setup
 DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers DGWeakIntegrals
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
 DGInviscid_StandardDG: DGInviscidMethods
