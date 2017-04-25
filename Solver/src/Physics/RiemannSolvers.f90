@@ -9,31 +9,40 @@ submodule (PhysicsNS)  RiemannSolvers
 !        Riemann solvers
 !     ****************************************************
 !
-      module pure function ExactRiemannSolver(qL , qR , n) result (Fstar)
+      module pure function ExactRiemannSolver(N , qL , qR , normal) result (Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS), intent(in) :: qL
-         real(kind=RP), dimension(NCONS), intent(in) :: qR
-         real(kind=RP), dimension(NDIM) , intent(in) :: n
-         real(kind=RP), dimension(NCONS) :: Fstar
-!        ---------------------------------------------------------------
+         integer                              , intent(in) :: N
+         real(kind=RP), dimension(0:N,NCONS)  , intent(in) :: qL
+         real(kind=RP), dimension(0:N,NCONS)  , intent(in) :: qR
+         real(kind=RP), dimension(NDIM,0:N )  , intent(in) :: normal
+         real(kind=RP), dimension(0:N,NCONS)               :: Fstar
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          real(kind=RP), dimension(NCONS) :: qnL , qnR
          real(kind=RP), dimension(NPRIM) :: wL , wR
          real(kind=RP)                   :: pstar , ustar
          real(kind=RP)                   :: rhostar , uFan , pFan
          real(kind=RP)                   :: Ft
+         integer                         :: i 
 
+
+         do i = 0 , N 
+!
 !        0/ Gather variables
 !           ----------------
-            qnL(IRHO)  = qL(IRHO)
-            qnL(IRHOU) = qL(IRHOU) * n(IX) + qL(IRHOV) * n(IY)
-            qnL(IRHOV) = -qL(IRHOU) * n(IY) + qL(IRHOV) * n(IX)
-            qnL(IRHOE) = qL(IRHOE) 
+            qnL(IRHO)  = qL(i,IRHO)
+            qnL(IRHOU) = qL(i,IRHOU) * normal(IX,i) + qL(i,IRHOV) * normal(IY,i)
+            qnL(IRHOV) = -qL(i,IRHOU) * normal(IY,i) + qL(i,IRHOV) * normal(IX,i)
+            qnL(IRHOE) = qL(i,IRHOE) 
 
-            qnR(IRHO)  = qR(IRHO)
-            qnR(IRHOU) = qR(IRHOU) * n(IX) + qR(IRHOV) * n(IY)
-            qnR(IRHOV) = -qR(IRHOU) * n(IY) + qR(IRHOV) * n(IX)
-            qnR(IRHOE) = qR(IRHOE) 
+            qnR(IRHO)  = qR(i,IRHO)
+            qnR(IRHOU) = qR(i,IRHOU) * normal(IX,i) + qR(i,IRHOV) * normal(IY,i)
+            qnR(IRHOV) = -qR(i,IRHOU) * normal(IY,i) + qR(i,IRHOV) * normal(IX,i)
+            qnR(IRHOE) = qR(i,IRHOE) 
 
 
             associate( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 )
@@ -49,29 +58,29 @@ submodule (PhysicsNS)  RiemannSolvers
             wR(IP)   = gm1 * (qnR(IRHOE) - 0.5_RP * (qnR(IRHOU) * wR(IU) + qnR(IRHOV) * wR(IV) ) )
             wR(IA)   = sqrt(gamma * wR(IP) / wR(IRHO))
             end associate
-
+!
 !        1/ Compute the star region
 !           -----------------------
             call ExactRiemann_ComputePStar (wL , wR , pstar , ustar )
-
+!
 !        2/ Check to which region belongs the solution
 !           ------------------------------------------
             associate ( cv => Dimensionless % cv , cp => Dimensionless % cp , gamma => Thermodynamics % gamma ) 
             if ( ustar .ge. 0.0_RP ) then
 
                if ( ( pstar .le. wL(IP) ) .and. ( wL(IU) .ge. wL(IA) ) ) then
-                  Fstar(IRHO)  = qL(IRHOU)
-                  Fstar(IRHOU) = qL(IRHOU) * wL(IU) + wL(IP)
-                  Fstar(IRHOV) = qL(IRHOV) * wL(IU)
-                  Fstar(IRHOE) = wL(IU)*( cp * wL(IP) + 0.5_RP * (qL(IRHOU)*wL(IU) + qL(IRHOV)*wL(IV)) )
+                  Fstar(i,IRHO)  = qnL(IRHOU)
+                  Fstar(i,IRHOU) = qnL(IRHOU) * wL(IU) + wL(IP)
+                  Fstar(i,IRHOV) = qnL(IRHOV) * wL(IU)
+                  Fstar(i,IRHOE) = wL(IU)*( cp * wL(IP) + 0.5_RP * (qnL(IRHOU)*wL(IU) + qnL(IRHOV)*wL(IV)) )
 
                elseif ( ( pstar .le. wL(IP) ) .and. ( wL(IU) .lt. wL(IA)) .and. (ustar .lt. wL(IA) * (pstar/wL(IP))**(0.5_RP / cp ) ) ) then
                   rhostar = wL(IRHO) * ( pstar / wL(IP) ) ** ( 1.0_RP / gamma )
 
-                  Fstar(IRHO) = rhostar * ustar 
-                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
-                  Fstar(IRHOV) = Fstar(IRHO) * wL(IV)
-                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wL(IV) * wL(IV)) ) 
+                  Fstar(i,IRHO) = rhostar * ustar 
+                  Fstar(i,IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(i,IRHOV) = Fstar(i,IRHO) * wL(IV)
+                  Fstar(i,IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wL(IV) * wL(IV)) ) 
 
                elseif ( ( pstar .le. wL(IP) ) .and. ( wL(IU) .lt. wL(IA) ) .and. ( ustar .ge. wL(IA) * (pstar / wL(IP))**(0.5_RP / cp))) then
                   
@@ -79,64 +88,64 @@ submodule (PhysicsNS)  RiemannSolvers
                   rhostar = wL(IRHO) * (uFan / wL(IA)) ** (2.0_RP * cv)
                   pFan    = wL(IP) * (rhostar / wL(IRHO)) ** (gamma)
 
-                  Fstar(IRHO) = rhostar * uFan
-                  Fstar(IRHOU) = rhostar * uFan * uFan + pFan
-                  Fstar(IRHOV) = rhostar * uFan * wL(IV)
-                  Fstar(IRHOE) = uFan * ( cp * pFan + 0.5_RP * rhostar * ( uFan*uFan + wL(IV)*wL(IV) ) )
+                  Fstar(i,IRHO) = rhostar * uFan
+                  Fstar(i,IRHOU) = rhostar * uFan * uFan + pFan
+                  Fstar(i,IRHOV) = rhostar * uFan * wL(IV)
+                  Fstar(i,IRHOE) = uFan * ( cp * pFan + 0.5_RP * rhostar * ( uFan*uFan + wL(IV)*wL(IV) ) )
  
                elseif ( ( pstar .gt. wL(IP) ) .and. ( wL(IU) .ge. wL(IA) * sqrt( (gamma+1.0_RP)/(2.0_RP * gamma)*pstar/wL(IP) + 0.5_RP/cp) ) ) then
-                  Fstar(IRHO)  = qL(IRHOU)
-                  Fstar(IRHOU) = qL(IRHOU) * wL(IU) + wL(IP)
-                  Fstar(IRHOV) = qL(IRHOV) * wL(IU)
-                  Fstar(IRHOE) = wL(IU)*( cp * wL(IP) + 0.5_RP * (qL(IRHOU)*wL(IU) + qL(IRHOV)*wL(IV)) )
+                  Fstar(i,IRHO)  = qnL(IRHOU)
+                  Fstar(i,IRHOU) = qnL(IRHOU) * wL(IU) + wL(IP)
+                  Fstar(i,IRHOV) = qnL(IRHOV) * wL(IU)
+                  Fstar(i,IRHOE) = wL(IU)*( cp * wL(IP) + 0.5_RP * (qnL(IRHOU)*wL(IU) + qnL(IRHOV)*wL(IV)) )
 
                elseif ( ( pstar .gt. wL(IP) ) .and. ( wL(IU) .lt.  wL(IA) * sqrt( (gamma+1.0_RP)/(2.0_RP * gamma)*pstar/wL(IP) + 0.5_RP/cp) ) ) then
                   rhostar = wL(IRHO) * ( (pstar/wL(IP) + (gamma-1.0_RP)/(gamma+1.0_RP))/(pstar/wL(IP)*(gamma-1.0_RP)/(gamma+1.0_RP) + 1.0_RP))
-                  Fstar(IRHO) = rhostar * ustar
-                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
-                  Fstar(IRHOV) = rhostar * ustar * wL(IV)
-                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wL(IV)*wL(IV) ) )
+                  Fstar(i,IRHO) = rhostar * ustar
+                  Fstar(i,IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(i,IRHOV) = rhostar * ustar * wL(IV)
+                  Fstar(i,IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wL(IV)*wL(IV) ) )
                
                end if
 
             else     ! ( ustar .lt. 0.0_RP )
                if ( ( pstar .le. wR(IP) ) .and. ( wR(IU) + wR(IA) .le. 0.0_RP ) ) then
-                  Fstar(IRHO)  = qR(IRHOU)
-                  Fstar(IRHOU) = qR(IRHOU) * wR(IU) + wR(IP)
-                  Fstar(IRHOV) = qR(IRHOV) * wR(IU)
-                  Fstar(IRHOE) = wR(IU)*( cp * wR(IP) + 0.5_RP * (qR(IRHOU)*wR(IU) + qR(IRHOV)*wR(IV)) )
+                  Fstar(i,IRHO)  = qnR(IRHOU)
+                  Fstar(i,IRHOU) = qnR(IRHOU) * wR(IU) + wR(IP)
+                  Fstar(i,IRHOV) = qnR(IRHOV) * wR(IU)
+                  Fstar(i,IRHOE) = wR(IU)*( cp * wR(IP) + 0.5_RP * (qnR(IRHOU)*wR(IU) + qnR(IRHOV)*wR(IV)) )
 
                elseif ( ( pstar .le. wR(IP) ) .and. (wR(IU) + wR(IA) .ge. 0.0_RP) .and. (ustar + wR(IA)*(pstar/wR(IP))**(0.5_RP / cp) .ge. 0.0_RP) ) then
                   rhostar = wR(IRHO) * ( pstar / wR(IP) ) ** ( 1.0_RP / gamma )
 
-                  Fstar(IRHO) = rhostar * ustar 
-                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
-                  Fstar(IRHOV) = Fstar(IRHO) * wR(IV)
-                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wR(IV) * wR(IV)) ) 
+                  Fstar(i,IRHO) = rhostar * ustar 
+                  Fstar(i,IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(i,IRHOV) = Fstar(i,IRHO) * wR(IV)
+                  Fstar(i,IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wR(IV) * wR(IV)) ) 
 
                elseif ( ( pstar .le. wR(IP) ) .and. (wR(IU) + wR(IA) .gt. 0.0_RP) .and. (ustar + wR(IA) * (pstar/wR(IP))**(0.5_RP / cp) .lt. 0.0_RP ) ) then
                   uFan    = -2.0_RP * wR(IA) / ( gamma + 1.0_RP)  + (gamma-1.0_RP)/(gamma+1.0_RP) * wR(IU)
                   rhostar = wR(IRHO) * (-uFan / wR(IA)) ** (2.0_RP * cv)
                   pFan    = wR(IP) * (rhostar / wR(IRHO)) ** (gamma)
 
-                  Fstar(IRHO) = rhostar * uFan
-                  Fstar(IRHOU) = rhostar * uFan * uFan + pFan
-                  Fstar(IRHOV) = rhostar * uFan * wR(IV)
-                  Fstar(IRHOE) = uFan * ( cp * pFan + 0.5_RP * rhostar * ( uFan*uFan + wR(IV)*wR(IV) ) )
+                  Fstar(i,IRHO) = rhostar * uFan
+                  Fstar(i,IRHOU) = rhostar * uFan * uFan + pFan
+                  Fstar(i,IRHOV) = rhostar * uFan * wR(IV)
+                  Fstar(i,IRHOE) = uFan * ( cp * pFan + 0.5_RP * rhostar * ( uFan*uFan + wR(IV)*wR(IV) ) )
 
                elseif ( (pstar .gt. wR(IP)) .and. (wR(IU) + wR(IA)*( 0.5_RP*(gamma+1.0_RP)/gamma*pstar/wR(IP) + 0.5_RP/cp ) .le. 0.0_RP) ) then
-                  Fstar(IRHO)  = qR(IRHOU)
-                  Fstar(IRHOU) = qR(IRHOU) * wR(IU) + wR(IP)
-                  Fstar(IRHOV) = qR(IRHOV) * wR(IU)
-                  Fstar(IRHOE) = wR(IU)*( cp * wR(IP) + 0.5_RP * (qR(IRHOU)*wR(IU) + qR(IRHOV)*wR(IV)) )
+                  Fstar(i,IRHO)  = qnR(IRHOU)
+                  Fstar(i,IRHOU) = qnR(IRHOU) * wR(IU) + wR(IP)
+                  Fstar(i,IRHOV) = qnR(IRHOV) * wR(IU)
+                  Fstar(i,IRHOE) = wR(IU)*( cp * wR(IP) + 0.5_RP * (qnR(IRHOU)*wR(IU) + qnR(IRHOV)*wR(IV)) )
 
                elseif ( (pstar .gt. wR(IP)) .and. (wR(IU) + wR(IA)*( (gamma+1.0_RP)/(2.0_RP*gamma)*pstar/wR(IP) + 0.5_RP/cp) .gt. 0.0_RP) ) then
 
                   rhostar = wR(IRHO) * ( (pstar/wR(IP) + (gamma-1.0_RP)/(gamma+1.0_RP))/(pstar/wR(IP)*(gamma-1.0_RP)/(gamma+1.0_RP) + 1.0_RP))
-                  Fstar(IRHO) = rhostar * ustar
-                  Fstar(IRHOU) = rhostar * ustar * ustar + pstar
-                  Fstar(IRHOV) = rhostar * ustar * wR(IV)
-                  Fstar(IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wR(IV)*wR(IV) ) )
+                  Fstar(i,IRHO) = rhostar * ustar
+                  Fstar(i,IRHOU) = rhostar * ustar * ustar + pstar
+                  Fstar(i,IRHOV) = rhostar * ustar * wR(IV)
+                  Fstar(i,IRHOE) = ustar * ( cp * pstar + 0.5_RP * rhostar * (ustar * ustar + wR(IV)*wR(IV) ) )
                end if
 
             end if
@@ -144,26 +153,33 @@ submodule (PhysicsNS)  RiemannSolvers
 
 !        3/ Return to the 3D Space
 !           ----------------------
-            Ft = Fstar(IRHOU) * n(IX) - Fstar(IRHOV) * n(IY)
-            Fstar(IRHOV) = Fstar(IRHOU) * n(IY) + Fstar(IRHOV) * n(IX)
-            Fstar(IRHOU) = Ft
+            Ft = Fstar(i,IRHOU) * normal(IX,i) - Fstar(i,IRHOV) * normal(IY,i)
+            Fstar(i,IRHOV) = Fstar(i,IRHOU) * normal(IY,i) + Fstar(i,IRHOV) * normal(IX,i)
+            Fstar(i,IRHOU) = Ft
+
+         end do
 
 #ifdef _DIMENSIONLESS_TAU
-            Fstar = Fstar * dimensionless % invSqrtGammaMach
+         Fstar = Fstar * dimensionless % invSqrtGammaMach
 #endif
 
       end function ExactRiemannSolver
          
-      module pure function RoeFlux(qL, qR , n) result(Fstar)
+      module pure function RoeFlux(N , qL, qR , normal) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS), intent(in)     :: qL
-         real(kind=RP), dimension(NCONS), intent(in)     :: qR
-         real(kind=RP), dimension(NDIM) , intent(in)     :: n
-         real(kind=RP), dimension(NCONS)     :: Fstar
-!        ---------------------------------------------------------------
-         real(kind=RP)                 :: sqrtRhoL , invRhoL , rhoL , uL , vL , HL , TL , pL
-         real(kind=RP)                 :: sqrtRhoR , invRhoR , rhoR , uR , vR , HR , TR , pR
+         integer                            , intent(in)     :: N
+         real(kind=RP), dimension(0:N,NCONS), intent(in)     :: qL
+         real(kind=RP), dimension(0:N,NCONS), intent(in)     :: qR
+         real(kind=RP), dimension(NDIM,0:N ), intent(in)     :: normal
+         real(kind=RP), dimension(0:N,NCONS)                 :: Fstar
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)                 :: sqrtRhoL , invRhoL , rhoL , uL , vL , HL , pL
+         real(kind=RP)                 :: sqrtRhoR , invRhoR , rhoR , uR , vR , HR , pR
          real(kind=RP)                 :: invrho , u , v , H , a
          real(kind=RP)                 :: dq(NCONS)
          real(kind=RP)                 :: lambda(NCONS)
@@ -172,26 +188,27 @@ submodule (PhysicsNS)  RiemannSolvers
          real(kind=RP)                 :: Ft
          integer                       :: negativeWaves
          integer                       :: wave
+         integer                       :: i
         
 
+         do i = 0 , N 
+!
 !        0/ Gather variables
 !           ----------------
-            rhoL = qL(IRHO)
+            rhoL = qL(i,IRHO)
             invRhoL = 1.0_RP / rhoL
             sqrtRhoL = sqrt(rhoL)
-            uL   = (  qL(IRHOU) * n(IX) + qL(IRHOV) * n(IY) ) * invRhoL
-            vL   = ( -qL(IRHOU) * n(IY) + qL(IRHOV) * n(IX) ) * invRhoL
-            pL   = thermodynamics % gm1 * (qL(IRHOE) - 0.5_RP * rhoL * (uL * uL + vL * vL) )
-            TL   = dimensionless % gammaMach2 * pL * invRhoL
+            uL   = (  qL(i,IRHOU) * normal(IX,i) + qL(i,IRHOV) * normal(IY,i) ) * invRhoL
+            vL   = ( -qL(i,IRHOU) * normal(IY,i) + qL(i,IRHOV) * normal(IX,i) ) * invRhoL
+            pL   = thermodynamics % gm1 * (qL(i,IRHOE) - 0.5_RP * rhoL * (uL * uL + vL * vL) )
             HL   = dimensionless % cp * pL * invRhoL + 0.5_RP * ( uL*uL + vL*vL )
 
-            rhoR = qR(IRHO)
+            rhoR = qR(i,IRHO)
             invRhoR = 1.0_RP / rhoR
             sqrtRhoR = sqrt(rhoR)
-            uR   = (  qR(IRHOU) * n(IX) + qR(IRHOV) * n(IY) ) * invRhoR
-            vR   = ( -qR(IRHOU) * n(IY) + qR(IRHOV) * n(IX) ) * invRhoR
-            pR   = thermodynamics % gm1 * (qR(IRHOE) - 0.5_RP * rhoR * (uR * uR + vR * vR) )
-            TR   = dimensionless % gammaMach2 * pR * invRhoR
+            uR   = (  qR(i,IRHOU) * normal(IX,i) + qR(i,IRHOV) * normal(IY,i) ) * invRhoR
+            vR   = ( -qR(i,IRHOU) * normal(IY,i) + qR(i,IRHOV) * normal(IX,i) ) * invRhoR
+            pR   = thermodynamics % gm1 * (qR(i,IRHOE) - 0.5_RP * rhoR * (uR * uR + vR * vR) )
             HR   = dimensionless % cp * pR * invRhoR + 0.5_RP * ( uR*uR + vR*vR )
 !
 !        1/ Compute Roe averages
@@ -236,7 +253,7 @@ submodule (PhysicsNS)  RiemannSolvers
             dq(IRHO) = rhoR - rhoL
             dq(IRHOU) = rhoR*uR - rhoL*uL
             dq(IRHOV) = rhoR*vR - rhoL*vL
-            dq(IRHOE) = qR(IRHOE) - qL(IRHOE)
+            dq(IRHOE) = qR(i,IRHOE) - qL(i,IRHOE)
 
             alpha(3) = dq(IRHOV) - v*dq(IRHO)
             alpha(2) = gm1 * (dq(IRHO) * (H - u*u) + u*dq(IRHOU) - dq(IRHOE) + (dq(IRHOV) - v*dq(IRHO))*v) / ( a*a )
@@ -246,60 +263,69 @@ submodule (PhysicsNS)  RiemannSolvers
 !
 !        5/ Compute the flux
 !           ----------------
-            Fstar = F_inviscidFlux(rhoL,uL,vL,pL,HL)
+            Fstar(i,:) = F_inviscidFlux(rhoL,uL,vL,pL,HL)
                
             do wave = 1 , negativeWaves
-               Fstar = Fstar + alpha(wave) * lambda(wave) * K(1:NCONS , wave)
+               Fstar(i,:) = Fstar(i,:) + alpha(wave) * lambda(wave) * K(1:NCONS , wave)
             end do
 !
 !        6/ Return to the 3D space
 !           ----------------------
-            Ft = Fstar(IRHOU) * n(IX) - Fstar(IRHOV) * n(IY)
-            Fstar(IRHOV) = Fstar(IRHOU) * n(IY) + Fstar(IRHOV) * n(IX)
-            Fstar(IRHOU) = Ft
+            Ft = Fstar(i,IRHOU) * normal(IX,i) - Fstar(i,IRHOV) * normal(IY,i)
+            Fstar(i,IRHOV) = Fstar(i,IRHOU) * normal(IY,i) + Fstar(i,IRHOV) * normal(IX,i)
+            Fstar(i,IRHOU) = Ft
+
+         end do
 
 #ifdef _DIMENSIONLESS_TAU
-            Fstar = Fstar * dimensionless % invSqrtGammaMach
+         Fstar = Fstar * dimensionless % invSqrtGammaMach
 #endif
   
       end function RoeFlux
 
-      module pure function HLLFlux(qL , qR , n) result(Fstar)
+      module pure function HLLFlux(N , qL , qR , normal) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS), intent(in)     :: qL
-         real(kind=RP), dimension(NCONS), intent(in)     :: qR
-         real(kind=RP), dimension(NDIM) , intent(in)     :: n
-         real(kind=RP), dimension(NCONS)     :: Fstar
-!        ---------------------------------------------------------------
+         integer                            , intent(in)     :: N
+         real(kind=RP), dimension(0:N,NCONS), intent(in)     :: qL
+         real(kind=RP), dimension(0:N,NCONS), intent(in)     :: qR
+         real(kind=RP), dimension(NDIM,0:N) , intent(in)     :: normal
+         real(kind=RP), dimension(0:N,NCONS)                 :: Fstar
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          real(kind=RP)                 :: rhoL , invRhoL , uL , vL , HL , aL , pL , rhoeL , sqrtRhoL
          real(kind=RP)                 :: rhoR , invRhoR , uR , vR , HR , aR , pR , rhoeR , sqrtRhoR
          real(kind=RP)                 :: invrho , u , v , H , a
          real(kind=RP)                 :: SL , SR , invdS
          real(kind=RP)                 :: Ft
+         integer                       :: i
         
-
+         do i = 0 , N
+!
 !        0/ Gather variables
 !           ----------------
-            rhoL     = qL(IRHO)
+            rhoL     = qL(i,IRHO)
             invRhoL  = 1.0_RP / rhoL
             sqrtRhoL = sqrt(rhoL)
-            uL       = (  qL(IRHOU) * n(IX) + qL(IRHOV) * n(IY) ) * invRhoL
-            vL       = ( -qL(IRHOU) * n(IY) + qL(IRHOV) * n(IX) ) * invRhoL
-            pL       = thermodynamics % gm1 * (qL(IRHOE) - 0.5_RP * rhoL * (uL * uL + vL * vL) )
+            uL       = (  qL(i,IRHOU) * normal(IX,i) + qL(i,IRHOV) * normal(IY,i) ) * invRhoL
+            vL       = ( -qL(i,IRHOU) * normal(IY,i) + qL(i,IRHOV) * normal(IX,i) ) * invRhoL
+            pL       = thermodynamics % gm1 * (qL(i,IRHOE) - 0.5_RP * rhoL * (uL * uL + vL * vL) )
             HL       = dimensionless % cp * pL * invRhoL + 0.5_RP * ( uL*uL + vL*vL )
             aL       = sqrt( thermodynamics % gamma * pL * invRhoL )
-            rhoeL    = qL(IRHOE)
+            rhoeL    = qL(i,IRHOE)
 
-            rhoR     = qR(IRHO)
+            rhoR     = qR(i,IRHO)
             invRhoR  = 1.0_RP / rhoR
             sqrtRhoR = sqrt(rhoR)
-            uR       = (  qR(IRHOU) * n(IX) + qR(IRHOV) * n(IY) ) * invRhoR
-            vR       = ( -qR(IRHOU) * n(IY) + qR(IRHOV) * n(IX) ) * invRhoR
-            pR       = thermodynamics % gm1 * (qR(IRHOE) - 0.5_RP * rhoR * (uR * uR + vR * vR) )
+            uR       = (  qR(i,IRHOU) * normal(IX,i) + qR(i,IRHOV) * normal(IY,i) ) * invRhoR
+            vR       = ( -qR(i,IRHOU) * normal(IY,i) + qR(i,IRHOV) * normal(IX,i) ) * invRhoR
+            pR       = thermodynamics % gm1 * (qR(i,IRHOE) - 0.5_RP * rhoR * (uR * uR + vR * vR) )
             HR       = dimensionless % cp * pR * invRhoR + 0.5_RP * ( uR*uR + vR*vR )
             aR       = sqrt( thermodynamics % gamma * pR * invRhoR )
-            rhoeR    = qR(IRHOE)
+            rhoeR    = qR(i,IRHOE)
 
 !        1/ Compute Roe averages
 !           --------------------
@@ -323,28 +349,30 @@ submodule (PhysicsNS)  RiemannSolvers
 !        3/ Compute the fluxes depending on the speeds 
 !           ------------------------------------------
             if ( SL .ge. 0.0_RP ) then
-               Fstar = F_inviscidFlux(rhoL,uL,vL,pL,HL)
+               Fstar(i,:) = F_inviscidFlux(rhoL,uL,vL,pL,HL)
 
             elseif ( SR .le. 0.0_RP ) then
-               Fstar = F_inviscidFlux(rhoR,uR,vR,pR,HR)
+               Fstar(i,:) = F_inviscidFlux(rhoR,uR,vR,pR,HR)
 
             elseif ( (SL .lt. 0.0_RP) .or. (SR .gt. 0.0_RP) ) then
                invdS = 1.0_RP / (SR - SL)
-               Fstar(IRHO) = (SR*rhoL*uL - SL*rhoR*uR + SL*SR*(rhoR-rhoL)) * invdS
-               Fstar(IRHOU) = (SR*(rhoL*uL*uL+pL) - SL*(rhoR*uR*uR+pR) + SL*SR*(rhoR*uR-rhoL*uL)) * invdS
-               Fstar(IRHOV) = (SR*rhoL*uL*vL - SL*rhoR*uR*vR + SR*SL*(rhoR*vR-rhoL*vL)) * invdS
-               Fstar(IRHOE) = (SR*uL*rhoL*HL - SL*uR*rhoR*HR + SR*SL*(rhoeR-rhoeL)) * invdS
+               Fstar(i,IRHO) = (SR*rhoL*uL - SL*rhoR*uR + SL*SR*(rhoR-rhoL)) * invdS
+               Fstar(i,IRHOU) = (SR*(rhoL*uL*uL+pL) - SL*(rhoR*uR*uR+pR) + SL*SR*(rhoR*uR-rhoL*uL)) * invdS
+               Fstar(i,IRHOV) = (SR*rhoL*uL*vL - SL*rhoR*uR*vR + SR*SL*(rhoR*vR-rhoL*vL)) * invdS
+               Fstar(i,IRHOE) = (SR*uL*rhoL*HL - SL*uR*rhoR*HR + SR*SL*(rhoeR-rhoeL)) * invdS
 
             end if
 !         
 !        6/ Return to the 3D space
 !           ----------------------
-            Ft = Fstar(IRHOU) * n(IX) - Fstar(IRHOV) * n(IY)
-            Fstar(IRHOV) = Fstar(IRHOU) * n(IY) + Fstar(IRHOV) * n(IX)
-            Fstar(IRHOU) = Ft
+            Ft = Fstar(i,IRHOU) * normal(IX,i) - Fstar(i,IRHOV) * normal(IY,i)
+            Fstar(i,IRHOV) = Fstar(i,IRHOU) * normal(IY,i) + Fstar(i,IRHOV) * normal(IX,i)
+            Fstar(i,IRHOU) = Ft
+
+         end do
 
 #ifdef _DIMENSIONLESS_TAU
-            Fstar = Fstar * dimensionless % invSqrtGammaMach
+         Fstar = Fstar * dimensionless % invSqrtGammaMach
 #endif
 
       end function HLLFlux

@@ -115,7 +115,7 @@ module QuadElementClass
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
-        integer(kind=1)                   :: BCWeakType
+        integer(kind=1)                   :: inviscidBCType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)  => NULL()      ! Solution at the boundary (used by the inviscid Riemann solver)
@@ -130,7 +130,7 @@ module QuadElementClass
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
-        integer(kind=1)                   :: BCWeakType
+        integer(kind=1)                   :: inviscidBCType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)  => NULL()     ! Solution at the boundary (used by the Riemann solver)

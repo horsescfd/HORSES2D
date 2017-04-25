@@ -95,7 +95,7 @@
             type is (StraightBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
 
-               edge % BCWeakType = self % WeakType
+               edge % inviscidBCType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
@@ -114,7 +114,7 @@
             type is (CurvedBdryEdge_t)
                allocate( edge % uB(0:N,NCONS) )
 
-               edge % BCWeakType = self % WeakType
+               edge % inviscidBCType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 

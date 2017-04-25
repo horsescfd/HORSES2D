@@ -69,23 +69,17 @@ module DGViscousMethods
 !                                    RIEMANN SOLVER PROCEDURE
 !                                ***************************************
 !
-         procedure, private ::   RiemannSolver                           => BaseClass_RiemannSolver
-         procedure, private ::   RiemannSolver_Dirichlet                 => BaseClass_RiemannSolver_Dirichlet
-         procedure, private ::   RiemannSolver_Adiabatic                 => BaseClass_RiemannSolver_Adiabatic
-         generic, public    ::   ComputeRiemannFluxes                    => ComputeRiemannFluxes_Interior     , &
-                                                                            ComputeRiemannFluxes_StraightBdry , &
-                                                                            ComputeRiemannFluxes_CurvedBdry   
-         procedure, private ::   ComputeRiemannFluxes_Interior           => BaseClass_ComputeRiemannFluxes_Interior
-         procedure, private ::   ComputeRiemannFluxes_StraightBdry       => BaseClass_ComputeRiemannFluxes_StraightBdry
-         procedure, private ::   ComputeRiemannFluxes_CurvedBdry         => BaseClass_ComputeRiemannFluxes_CurvedBdry
+         procedure          ::   RiemannSolver                           => BaseClass_RiemannSolver
+         procedure          ::   RiemannSolver_Dirichlet                 => BaseClass_RiemannSolver_Dirichlet
+         procedure          ::   RiemannSolver_Adiabatic                 => BaseClass_RiemannSolver_Adiabatic
 !
 !                                ***************************************
 !                                    GRADIENT RIEMANN SOLVER PROCEDURE
 !                                ***************************************
 !
-         procedure, private ::   GradientRiemannSolver                   => BaseClass_GradientRiemannSolver
-         procedure, private ::   GradientRiemannSolver_BoundaryCondition => BaseClass_GradientRiemannSolver_BoundaryCondition
-         procedure, private ::   GradientRiemannSolver_Adiabatic         => BaseClass_GradientRiemannSolver_Adiabatic
+         procedure          ::   GradientRiemannSolver                   => BaseClass_GradientRiemannSolver
+         procedure          ::   GradientRiemannSolver_BoundaryCondition => BaseClass_GradientRiemannSolver_BoundaryCondition
+         procedure          ::   GradientRiemannSolver_Adiabatic         => BaseClass_GradientRiemannSolver_Adiabatic
          procedure          ::   Describe                                => ViscousMethod_describe
    end type ViscousMethod_t
 !
@@ -118,9 +112,9 @@ module DGViscousMethods
          procedure          :: ComputeGradient         => BR1_ComputeGradient
          procedure          :: ComputeInnerFluxes      => BR1_ComputeInnerFluxes
          procedure, private :: SolutionRiemannSolver   => BR1_SolutionRiemannSolver
-         procedure, private :: RiemannSolver           => BR1_RiemannSolver
-         procedure, private :: RiemannSolver_Dirichlet => BR1_RiemannSolver_Dirichlet
-         procedure, private :: RiemannSolver_Adiabatic => BR1_RiemannSolver_Adiabatic
+         procedure          :: RiemannSolver           => BR1_RiemannSolver
+         procedure          :: RiemannSolver_Dirichlet => BR1_RiemannSolver_Dirichlet
+         procedure          :: RiemannSolver_Adiabatic => BR1_RiemannSolver_Adiabatic
    end type BR1Method_t
 !
 !  ---------------------------------------------------------------

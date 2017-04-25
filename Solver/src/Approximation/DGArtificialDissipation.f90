@@ -189,20 +189,29 @@ module DGArtificialDissipation
          real(kind=RP)     :: capitalGk
          real(kind=RP)     :: jumpsIntegral
          integer           :: ed
-         real(kind=RP)     :: xiL = 1.0e-5_RP
-         real(kind=RP)     :: xiR = 1.0e-4_RP
+         real(kind=RP)     :: xiL  
+         real(kind=RP)     :: xiR 
+         real(kind=RP)     :: maxVisc 
+         real(kind=RP)     :: s0 
+         real(kind=RP)     :: k = 1.0_RP
 !
 !        The jumps indicator is computed squaring all interface jumps
 !        ------------------------------------------------------------
-         gk =   e % edges(EBOTTOM) % f % computeJumps(IRHO) * e % edges(EBOTTOM) % f % invh   &
-              + e % edges(ERIGHT ) % f % computeJumps(IRHO) * e % edges(ERIGHT ) % f % invh   & 
-              + e % edges(ETOP   ) % f % computeJumps(IRHO) * e % edges(ETOP   ) % f % invh   & 
-              + e % edges(ELEFT  ) % f % computeJumps(IRHO) * e % edges(ELEFT  ) % f % invh  
+         gk =   e % edges(EBOTTOM) % f % computeJumps(IRHO)    &
+              + e % edges(ERIGHT ) % f % computeJumps(IRHO)    & 
+              + e % edges(ETOP   ) % f % computeJumps(IRHO)    & 
+              + e % edges(ELEFT  ) % f % computeJumps(IRHO)   
 
-         gk = gk / e % Volume
+         gk = log10(gk / ( e % edges(EBOTTOM) % f % Area + e % edges(ERIGHT) % f % Area &
+                    +e % edges(ETOP) % f % Area + e % edges(ELEFT) % f % Area ))
 !
 !        Compute the smooth discrete jumps indicator
 !        -------------------------------------------
+         maxVisc = 10.0_RP * sqrt(e % Volume)  / ( e % spA % N + 1 )
+         s0 = log10( 1.0_RP / ( e % spA % N + 1) ** 4.0_RP )
+
+         xiL = s0 - k
+         xiR = s0 + k
          if ( gk .lt. xiL ) then
             capitalGk = 0.0_RP
 
@@ -214,11 +223,7 @@ module DGArtificialDissipation
 
          end if
 
-         eps = self % maxViscosity * capitalGk
-
-   if ( e % ID .eq. 426 ) then
-      print*, gk , capitalGk
-end if
+         eps = maxVisc * capitalGk
 
       end function JumpsBasedDM_Compute
 

@@ -59,12 +59,13 @@ module PhysicsNS
     end type Dimensionless_t
 
     abstract interface
-      pure function RiemannSolverFunction( QL , QR , n ) result ( val )
+      pure function RiemannSolverFunction( N , QL , QR , normal ) result ( Fstar )
          use SMConstants
-         real(kind=RP), dimension(NCONS), intent(in) :: QL
-         real(kind=RP), dimension(NCONS), intent(in) :: QR
-         real(kind=RP), dimension(NDIM) , intent(in) :: n
-         real(kind=RP), dimension(NCONS)             :: val
+         integer                            , intent(in) :: N
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: QL
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: QR
+         real(kind=RP), dimension(NDIM,0:N) , intent(in) :: normal
+         real(kind=RP), dimension(0:N,NCONS)             :: Fstar
       end function RiemannSolverFunction
     end interface
 
@@ -227,31 +228,34 @@ module PhysicsNS
     end interface
 
     interface
-      module pure function ExactRiemannSolver(qL , qR , n) result (Fstar)
+      module pure function ExactRiemannSolver( N , qL , qR , normal) result (Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS), intent(in) :: qL
-         real(kind=RP), dimension(NCONS), intent(in) :: qR
-         real(kind=RP), dimension(NDIM) , intent(in) :: n
-         real(kind=RP), dimension(NCONS) :: Fstar
+         integer                            , intent(in) :: N
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: qL
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: qR
+         real(kind=RP), dimension(NDIM,0:N ), intent(in) :: normal
+         real(kind=RP), dimension(0:N,NCONS)             :: Fstar
       end function ExactRiemannSolver
          
-      module pure function RoeFlux(qL, qR , n) result(Fstar)
+      module pure function RoeFlux(N , qL , qR , normal) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS), intent(in)     :: qL
-         real(kind=RP), dimension(NCONS), intent(in)     :: qR
-         real(kind=RP), dimension(NDIM) , intent(in)     :: n
-         real(kind=RP), dimension(NCONS)     :: Fstar
+         integer                            , intent(in) :: N
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: qL
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: qR
+         real(kind=RP), dimension(NDIM,0:N ), intent(in) :: normal
+         real(kind=RP), dimension(0:N,NCONS)             :: Fstar
       end function RoeFlux
 
-      module pure function HLLFlux(qL , qR , n) result(Fstar)
+      module pure function HLLFlux(N , qL , qR , normal) result(Fstar)
          use MatrixOperations
          implicit none
-         real(kind=RP), dimension(NCONS), intent(in)     :: qL
-         real(kind=RP), dimension(NCONS), intent(in)     :: qR
-         real(kind=RP), dimension(NDIM) , intent(in)     :: n
-         real(kind=RP), dimension(NCONS)     :: Fstar
+         integer                            , intent(in) :: N
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: qL
+         real(kind=RP), dimension(0:N,NCONS), intent(in) :: qR
+         real(kind=RP), dimension(NDIM,0:N ), intent(in) :: normal
+         real(kind=RP), dimension(0:N,NCONS)             :: Fstar
       end function HLLFlux
     end interface
 
