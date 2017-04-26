@@ -264,12 +264,6 @@
 !           Invert the RIGHT edge
 !           ---------------------
             QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
-
 
          elseif ( ed % transform(LEFT) ) then
 ! 
@@ -284,11 +278,6 @@
 !           Get the RIGHT edge state
 !           ------------------------
             QR = ed % storage(RIGHT) % Q(:,var)
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
 ! 
@@ -307,11 +296,6 @@
 !           Invert the RIGHT edge 
 !           ---------------------
             QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          elseif ( ed % transform(RIGHT) ) then
 ! 
@@ -326,11 +310,6 @@
 !           Transform the RIGHT edge
 !           ------------------------
             QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
          
          elseif ( ed % inverse ) then
 ! 
@@ -345,11 +324,6 @@
 !           Invert the RIGHT edge
 !           ---------------------
             QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          else
 ! 
@@ -364,13 +338,13 @@
 !           Get the RIGHT edge
 !           ------------------
             QR = ed % storage(RIGHT) % Q(:,var)
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
          
          end if
+!
+!        Compute the Jumps
+!        -----------------
+         nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+         jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          end function Edge_ComputeJumps
 
@@ -402,11 +376,6 @@
 !           Invert the RIGHT edge
 !           ---------------------
             QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          else
 ! 
@@ -421,13 +390,13 @@
 !           Get the RIGHT edge
 !           ------------------
             QR = ed % uSB(:,var)
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
          
          end if
+!
+!        Compute the Jumps
+!        -----------------
+         nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+         jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          end function StraightBdryEdge_ComputeJumps
 
@@ -459,11 +428,6 @@
 !           Invert the RIGHT edge
 !           ---------------------
             QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
 
          else
 ! 
@@ -478,13 +442,13 @@
 !           Get the RIGHT edge
 !           ------------------
             QR = ed % uSB(:,var)
-!
-!           Compute the Jumps
-!           -----------------
-            nodalJumps = QL - QR
-            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
          
          end if
+!
+!        Compute the Jumps
+!        -----------------
+         nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+         jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
 
          end function CurvedBdryEdge_ComputeJumps
 

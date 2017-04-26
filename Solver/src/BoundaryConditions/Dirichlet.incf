@@ -59,11 +59,10 @@
 
 #ifdef _DIMENSIONLESS_TAU
          rho = pressure / Temperature
-         V = sqrt(thermodynamics % gamma) * Mach
 #else
          rho = dimensionless % gammaMach2 * pressure / Temperature
-         V = Mach * sqrt( thermodynamics % Gamma * pressure / rho )
 #endif
+         V = Mach * sqrt( thermodynamics % Gamma * pressure / rho )
 !
 !        Construct the state vector
 !        --------------------------

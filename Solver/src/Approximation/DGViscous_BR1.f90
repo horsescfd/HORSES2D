@@ -127,7 +127,13 @@ submodule (DGViscousMethods)  DGViscous_BR1
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , ed % uSB )
 !
       end subroutine BR1_dQFaceLoop_CurvedBdry         
-
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!           TIME DERIVATIVE PROCEDURES
+!           --------------------------
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       module pure function BR1_ComputeInnerFluxes( self , e ) result (Fv)
 !
 !        ***************************************************************************************
@@ -147,7 +153,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
 !        Compute the cartesian flux
 !        --------------------------
-         Fv = ViscousFlux( e % spA % N , e % Q , e % dQ)
+         Fv = (dimensionless % mu + e % mu_a) * ViscousFlux( e % spA % N , e % Q , e % dQ)
 
       end function BR1_ComputeInnerFluxes
 
@@ -170,7 +176,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 
       end function BR1_SolutionRiemannSolver
 
-      module pure function BR1_RiemannSolver( self , N , invh_edge , UL , UR , dUL , dUR , normal ) result ( FStar )
+      module pure function BR1_RiemannSolver( self , edge , N , invh_edge , UL , UR , dUL , dUR , normal ) result ( FStar )
 !
 !        *****************************************************************************************
 !              The BR1 Viscous Riemann Solver averages the fluxes obtained from both sides.
@@ -181,6 +187,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
          implicit none
          class(BR1Method_t), intent(in)   :: self
+         class(Edge_t)     , intent(in)   :: edge
          integer, intent(in)              :: N
          real(kind=RP), intent(in)        :: invh_edge
          real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
@@ -200,8 +207,8 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
 !        Compute the LEFT and RIGHT viscous fluxes
 !        -----------------------------------------
-         FL = ViscousFlux( N , uL , duL )
-         FR = ViscousFlux( N , uR , duR )
+         FL = ( dimensionless % mu + edge % mu_a ) * ViscousFlux( N , uL , duL )
+         FR = ( dimensionless % mu + edge % mu_a ) * ViscousFlux( N , uR , duR )
 !
 !        Perform the average and the projection along the edge normal
 !        ------------------------------------------------------------
@@ -211,7 +218,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 
       end function BR1_RiemannSolver
 
-      module pure function BR1_RiemannSolver_Dirichlet( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+      module pure function BR1_RiemannSolver_Dirichlet( self , edge , N , invh_edge , u , g , uB , normal ) result ( Fstar )
 !
 !        *****************************************************************************************
 !              For the Dirichlet boundary conditions, the BR1 scheme uses the interior values
@@ -219,6 +226,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
          implicit none
          class(BR1Method_t), intent(in)     :: self
+         class(Edge_t)    , intent(in)          :: edge
          integer      ,          intent(in)     :: N 
          real(kind=RP),          intent(in)     :: invh_edge
          real(kind=RP),          intent(in)     :: u(NCONS)
@@ -235,7 +243,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
 !        Compute the two dimensional flux
 !        --------------------------------
-         F = ViscousFlux( u , g ) 
+         F = (dimensionless % mu + edge % mu_a ) * ViscousFlux( u , g ) 
 !
 !        Projection along the boundary normal
 !        ------------------------------------
@@ -243,7 +251,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 
       end function BR1_RiemannSolver_Dirichlet
 
-      module pure function BR1_RiemannSolver_Adiabatic( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+      module pure function BR1_RiemannSolver_Adiabatic( self , edge , N , invh_edge , u , g , uB , normal ) result ( Fstar )
 !
 !        ************************************************************************************************
 !              For the Adiabatic dirichlet boundary conditions, the BR1 scheme uses the interior values
@@ -251,6 +259,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
          implicit none
          class(BR1Method_t), intent (in) :: self
+         class(Edge_t)     , intent(in)  :: edge
          integer      ,      intent (in) :: N
          real(kind=RP),      intent (in) :: invh_edge
          real(kind=RP),      intent (in) :: u      ( 0:N  , NCONS      )
@@ -268,7 +277,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
 !        Compute the Adiabatic viscous flux based on the interior points
 !        ---------------------------------------------------------------
-         F = AdiabaticViscousFlux( N , u , u , g)
+         F = ( dimensionless % mu + edge % mu_a ) * AdiabaticViscousFlux( N , u , u , g)
 !
 !        Perform the projection along the boundary normal
 !        ------------------------------------------------

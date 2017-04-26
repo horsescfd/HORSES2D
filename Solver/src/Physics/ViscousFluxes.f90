@@ -33,7 +33,7 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
@@ -42,19 +42,19 @@ submodule (PhysicsNS)   ViscousFluxes
          dyT = gm1 * invRho * ( -q(IRHOE) * invRho * dq(IY,IRHO) + dq(IY,IRHOE) + u * ( u * dq(IY,IRHO) - dq(IY,IRHOU)) + v * (v * dq(IY,IRHO) - dq(IY,IRHOV)) ) 
    
          F(IRHO,:) = 0.0_RP
-         F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
-         F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
+         F(IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * divV
+         F(IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * divV
 
-         F(IRHOU,IY) = - mu * vDivRho * dq(IX,IRHO)  &
-                       - mu * uDivRho * dq(IY,IRHO)  &
-                       + mu * invRho  * dq(IY,IRHOU) &
-                       + mu * invRho  * dq(IX,IRHOV) 
+         F(IRHOU,IY) = - vDivRho * dq(IX,IRHO)  &
+                       - uDivRho * dq(IY,IRHO)  &
+                       + invRho  * dq(IY,IRHOU) &
+                       + invRho  * dq(IX,IRHOV) 
 
 
          F(IRHOV,IX) = F(IRHOU,IY)
 
-         F(IRHOE,IX) = u * F(IRHOU,IX) + v * F(IRHOU,IY) + kappa * dxT
-         F(IRHOE,IY) = u * F(IRHOV,IX) + v * F(IRHOV,IY) + kappa * dyT
+         F(IRHOE,IX) = u * F(IRHOU,IX) + v * F(IRHOU,IY) + ( dimensionless % cp / dimensionless % Pr ) * dxT
+         F(IRHOE,IY) = u * F(IRHOV,IX) + v * F(IRHOV,IY) + ( dimensionless % cp / dimensionless % Pr ) * dyT
 
          end associate
 
@@ -79,7 +79,7 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
@@ -89,19 +89,19 @@ submodule (PhysicsNS)   ViscousFluxes
          dyT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IY,IRHO) + dq(:,IY,IRHOE) + u * ( u * dq(:,IY,IRHO) - dq(:,IY,IRHOU)) + v * (v * dq(:,IY,IRHO) - dq(:,IY,IRHOV)) ) 
    
          F(:,IRHO,:)   = 0.0_RP
-         F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
-         F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
+         F(:,IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * divV
+         F(:,IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * divV
 
-         F(:,IRHOU,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
-                         - mu * uDivRho * dq(:,IY,IRHO)  &
-                         + mu * invRho  * dq(:,IY,IRHOU) &
-                         + mu * invRho  * dq(:,IX,IRHOV) 
+         F(:,IRHOU,IY) = - vDivRho * dq(:,IX,IRHO)  &
+                         - uDivRho * dq(:,IY,IRHO)  &
+                         + invRho  * dq(:,IY,IRHOU) &
+                         + invRho  * dq(:,IX,IRHOV) 
 
 
          F(:,IRHOV,IX) = F(:,IRHOU,IY)
 
-         F(:,IRHOE,IX) = u * F(:,IRHOU,IX) + v * F(:,IRHOU,IY) + kappa * dxT
-         F(:,IRHOE,IY) = u * F(:,IRHOV,IX) + v * F(:,IRHOV,IY) + kappa * dyT
+         F(:,IRHOE,IX) = u * F(:,IRHOU,IX) + v * F(:,IRHOU,IY) + ( dimensionless % cp / dimensionless % Pr ) * dxT
+         F(:,IRHOE,IY) = u * F(:,IRHOV,IX) + v * F(:,IRHOV,IY) + ( dimensionless % cp / dimensionless % Pr ) * dyT
 
          end associate
 
@@ -126,7 +126,7 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU) - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)
@@ -135,19 +135,19 @@ submodule (PhysicsNS)   ViscousFluxes
          dyT = gm1 * invRho * ( -q(:,:,IRHOE) * invRho * dq(:,:,IY,IRHO) + dq(:,:,IY,IRHOE) + u * ( u * dq(:,:,IY,IRHO) - dq(:,:,IY,IRHOU)) + v * (v * dq(:,:,IY,IRHO) - dq(:,:,IY,IRHOV)) ) 
 
          F(:,:,IRHO,:)   = 0.0_RP
-         F(:,:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * mu * divV
-         F(:,:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * mu * divV
+         F(:,:,IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * divV
+         F(:,:,IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * divV
 
-         F(:,:,IRHOU,IY) = - mu * vDivRho * dq(:,:,IX,IRHO)  &
-                           - mu * uDivRho * dq(:,:,IY,IRHO)  &
-                           + mu * invRho  * dq(:,:,IY,IRHOU) &
-                           + mu * invRho  * dq(:,:,IX,IRHOV) 
+         F(:,:,IRHOU,IY) = - vDivRho * dq(:,:,IX,IRHO)  &
+                           - uDivRho * dq(:,:,IY,IRHO)  &
+                           + invRho  * dq(:,:,IY,IRHOU) &
+                           + invRho  * dq(:,:,IX,IRHOV) 
  
 
          F(:,:,IRHOV,IX) = F(:,:,IRHOU,IY)
 
-         F(:,:,IRHOE,IX) = u * F(:,:,IRHOU,IX) + v * F(:,:,IRHOU,IY) + kappa * dxT
-         F(:,:,IRHOE,IY) = u * F(:,:,IRHOV,IX) + v * F(:,:,IRHOV,IY) + kappa * dyT
+         F(:,:,IRHOE,IX) = u * F(:,:,IRHOU,IX) + v * F(:,:,IRHOU,IY) + ( dimensionless % cp / dimensionless % Pr ) * dxT
+         F(:,:,IRHOE,IY) = u * F(:,:,IRHOV,IX) + v * F(:,:,IRHOV,IY) + ( dimensionless % cp / dimensionless % Pr ) * dyT
 
          end associate
 
@@ -172,7 +172,7 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
@@ -182,19 +182,19 @@ submodule (PhysicsNS)   ViscousFluxes
    
 
          F(IRHO,:)   = 0.0_RP
-         F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
-         F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
+         F(IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * divV
+         F(IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * divV
 
-         F(IRHOU,IY) = - mu * vDivRho * dq(IX,IRHO)  &
-                       - mu * uDivRho * dq(IY,IRHO)  &
-                       + mu * invRho  * dq(IY,IRHOU) &
-                       + mu * invRho  * dq(IX,IRHOV) 
+         F(IRHOU,IY) = - vDivRho * dq(IX,IRHO)  &
+                       - uDivRho * dq(IY,IRHO)  &
+                       + invRho  * dq(IY,IRHOU) &
+                       + invRho  * dq(IX,IRHOV) 
 
 
          F(IRHOV,IX) = F(IRHOU,IY)
 
-         F(IRHOE,IX) = ( qB(IRHOU) * F(IRHOU,IX) + qB(IRHOV) * F(IRHOU,IY) ) / qB(IRHO) + kappa * dxT
-         F(IRHOE,IY) = ( qB(IRHOU) * F(IRHOV,IX) + qB(IRHOV) * F(IRHOV,IY) ) / qB(IRHO) + kappa * dyT
+         F(IRHOE,IX) = ( qB(IRHOU) * F(IRHOU,IX) + qB(IRHOV) * F(IRHOU,IY) ) / qB(IRHO) + ( dimensionless % cp / dimensionless % Pr ) * dxT
+         F(IRHOE,IY) = ( qB(IRHOU) * F(IRHOV,IX) + qB(IRHOV) * F(IRHOV,IY) ) / qB(IRHO) + ( dimensionless % cp / dimensionless % Pr )  * dyT
 
          end associate
 
@@ -220,7 +220,7 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
@@ -230,19 +230,19 @@ submodule (PhysicsNS)   ViscousFluxes
          dyT = gm1 * invRho * ( -q(:,IRHOE) * invRho * dq(:,IY,IRHO) + dq(:,IY,IRHOE) + u * ( u * dq(:,IY,IRHO) - dq(:,IY,IRHOU)) + v * (v * dq(:,IY,IRHO) - dq(:,IY,IRHOV)) ) 
    
          F(:,IRHO,:)   = 0.0_RP
-         F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
-         F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
+         F(:,IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * divV
+         F(:,IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * divV
 
-         F(:,IRHOU,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
-                         - mu * uDivRho * dq(:,IY,IRHO)  &
-                         + mu * invRho  * dq(:,IY,IRHOU) &
-                         + mu * invRho  * dq(:,IX,IRHOV) 
+         F(:,IRHOU,IY) = - vDivRho * dq(:,IX,IRHO)  &
+                         - uDivRho * dq(:,IY,IRHO)  &
+                         + invRho  * dq(:,IY,IRHOU) &
+                         + invRho  * dq(:,IX,IRHOV) 
 
 
          F(:,IRHOV,IX) = F(:,IRHOU,IY)
 
-         F(:,IRHOE,IX) = (qB(:,IRHOU) * F(:,IRHOU,IX) + qB(:,IRHOV) * F(:,IRHOU,IY)) / qB(:,IRHO) + kappa * dxT
-         F(:,IRHOE,IY) = (qB(:,IRHOU) * F(:,IRHOV,IX) + qB(:,IRHOV) * F(:,IRHOV,IY)) / qB(:,IRHO) + kappa * dyT
+         F(:,IRHOE,IX) = (qB(:,IRHOU) * F(:,IRHOU,IX) + qB(:,IRHOV) * F(:,IRHOU,IY)) / qB(:,IRHO) + ( dimensionless % cp / dimensionless % Pr ) * dxT
+         F(:,IRHOE,IY) = (qB(:,IRHOU) * F(:,IRHOV,IX) + qB(:,IRHOV) * F(:,IRHOV,IY)) / qB(:,IRHO) + ( dimensionless % cp / dimensionless % Pr ) * dyT
 
          end associate
 
@@ -267,20 +267,20 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU) - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)
 
          F(IRHO,:)   = 0.0_RP
-         F(IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * mu * divV
-         F(IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * mu * divV
+         F(IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * divV
+         F(IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * divV
 
                                                                !                      -                                             -
-         F(IRHOU,IY) = - mu * vDivRho * dq(IX,IRHO)  &         !        du   dv      |    u  drho    1  drhou    v  drho    1  drhov |
-                       - mu * uDivRho * dq(IY,IRHO)  &         !     mu -- + -- = mu | - --- ---- + --- ----- - --- ---- + --- ----- |
-                       + mu * invRho  * dq(IY,IRHOU) &         !        dy   dx      |   rho  dy    rho  dy     rho  dx    rho  dx   |
-                       + mu * invRho  * dq(IX,IRHOV)           !                      -                                             -
+         F(IRHOU,IY) = - vDivRho * dq(IX,IRHO)  &         !        du   dv      |    u  drho    1  drhou    v  drho    1  drhov |
+                       - uDivRho * dq(IY,IRHO)  &         !     mu -- + -- = mu | - --- ---- + --- ----- - --- ---- + --- ----- |
+                       + invRho  * dq(IY,IRHOU) &         !        dy   dx      |   rho  dy    rho  dy     rho  dx    rho  dx   |
+                       + invRho  * dq(IX,IRHOV)           !                      -                                             -
 
 
          F(IRHOV,IX) = F(IRHOU,IY)
@@ -312,19 +312,19 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)
 
          F(:,IRHO ,: ) = 0.0_RP
-         F(:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * mu * divV
-         F(:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * mu * divV
+         F(:,IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU)) + lambda * divV
+         F(:,IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)) + lambda * divV
 
-         F(:,IRHOU,IY) = - mu * vDivRho * dq(:,IX,IRHO)  &
-                         - mu * uDivRho * dq(:,IY,IRHO)  &
-                         + mu * invRho  * dq(:,IY,IRHOU) &
-                         + mu * invRho  * dq(:,IX,IRHOV) 
+         F(:,IRHOU,IY) = - vDivRho * dq(:,IX,IRHO)  &
+                         - uDivRho * dq(:,IY,IRHO)  &
+                         + invRho  * dq(:,IY,IRHOU) &
+                         + invRho  * dq(:,IX,IRHOV) 
 
 
          F(:,IRHOV,IX) = F(:,IRHOU,IY)
@@ -356,19 +356,19 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU) - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)
 
          F(:,:,IRHO , :) = 0.0_RP
-         F(:,:,IRHOU,IX) = 2.0_RP * mu * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * mu * divV
-         F(:,:,IRHOV,IY) = 2.0_RP * mu * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * mu * divV
+         F(:,:,IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(:,:,IX,IRHO) + invRho * dq(:,:,IX,IRHOU)) + lambda * divV
+         F(:,:,IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(:,:,IY,IRHO) + invRho * dq(:,:,IY,IRHOV)) + lambda * divV
 
-         F(:,:,IRHOU,IY) = - mu * vDivRho * dq(:,:,IX,IRHO)  &
-                           - mu * uDivRho * dq(:,:,IY,IRHO)  &
-                           + mu * invRho  * dq(:,:,IY,IRHOU) &
-                           + mu * invRho  * dq(:,:,IX,IRHOV) 
+         F(:,:,IRHOU,IY) = - vDivRho * dq(:,:,IX,IRHO)  &
+                           - uDivRho * dq(:,:,IY,IRHO)  &
+                           + invRho  * dq(:,:,IY,IRHOU) &
+                           + invRho  * dq(:,:,IX,IRHOV) 
 
 
          F(:,:,IRHOV,IX) = F(:,:,IRHOU,IY)
@@ -399,7 +399,7 @@ submodule (PhysicsNS)   ViscousFluxes
          uDivRho = u * invRho
          vDivRho = v * invRho
 
-         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , kappa => dimensionless % kappa , gm1 => thermodynamics % gm1 ) 
+         associate ( mu => dimensionless % mu , lambda => thermodynamics % lambda , gm1 => thermodynamics % gm1 ) 
 
 
          divV = - uDivRho * dq(:,IX,IRHO) + invRho * dq(:,IX,IRHOU) - vDivRho * dq(:,IY,IRHO) + invRho * dq(:,IY,IRHOV)

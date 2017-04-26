@@ -61,11 +61,11 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Compute the cartesian flux
 !        --------------------------
-         Fv = ViscousFlux( e % spA % N , e % Q , e % dQ)
+         Fv = (dimensionless % mu + e % mu_a) * ViscousFlux( e % spA % N , e % Q , e % dQ)
 
       end function IP_ComputeInnerFluxes
 
-      module pure function IP_RiemannSolver( self , N , invh_edge , UL , UR , dUL , dUR , normal ) result ( FStar )
+      module pure function IP_RiemannSolver( self , edge , N , invh_edge , UL , UR , dUL , dUR , normal ) result ( FStar )
 !
 !        *****************************************************************************************
 !              The IP Viscous Riemann Solver averages the fluxes obtained from both sides.
@@ -76,6 +76,7 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
          implicit none
          class(IPMethod_t), intent(in)   :: self
+         class(Edge_t)    , intent(in)    :: edge
          integer, intent(in)              :: N
          real(kind=RP), intent(in)        :: invh_edge
          real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
@@ -96,13 +97,13 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Compute the penalty parameter
 !        -----------------------------
-         penalty = self % sigma0 * dimensionless % mu * N * N * invh_edge
+         penalty = self % sigma0 * (dimensionless % mu + edge % mu_a) * N * N * invh_edge
          
 !
 !        Compute the LEFT and RIGHT viscous fluxes
 !        -----------------------------------------
-         FL = ViscousFlux( N , uL , duL )
-         FR = ViscousFlux( N , uR , duR )
+         FL = (dimensionless % mu + edge % mu_a) * ViscousFlux( N , uL , duL )
+         FR = (dimensionless % mu + edge % mu_a) * ViscousFlux( N , uR , duR )
 !
 !        Perform the average and the projection along the edge normal
 !        ------------------------------------------------------------
@@ -115,7 +116,7 @@ submodule (DGViscousMethods)  DGViscous_IP
 
       end function IP_RiemannSolver
 
-      module pure function IP_RiemannSolver_Dirichlet( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+      module pure function IP_RiemannSolver_Dirichlet( self , edge , N , invh_edge , u , g , uB , normal ) result ( Fstar )
 !
 !        *****************************************************************************************
 !              For the Dirichlet boundary conditions, the IP scheme uses the interior values
@@ -123,6 +124,7 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
          implicit none
          class(IPMethod_t), intent(in)     :: self
+         class(Edge_t)    , intent(in)          :: edge
          integer,                intent(in)     :: N
          real(kind=RP),          intent(in)     :: invh_edge
          real(kind=RP),          intent(in)     :: u(NCONS)
@@ -136,22 +138,22 @@ submodule (DGViscousMethods)  DGViscous_IP
 !        ---------------
 !
          real(kind=RP)  :: F(1:NCONS,1:NDIM)
-         real(kind=RP)  :: penalty
+         real(kind=RP)  :: penalty 
 !
 !        Compute the two dimensional flux
 !        --------------------------------
-         F = ViscousFlux( u , g ) 
+         F = (dimensionless % mu + edge % mu_a) * ViscousFlux( u , g ) 
 !
 !        Projection along the boundary normal
 !        ------------------------------------
          FStar =  F(:,IX) * normal(IX) + F(:,IY) * normal(IY) 
 
-         penalty = self % sigma0 * dimensionless % mu * N * N * invh_edge
+         penalty = self % sigma0 * (dimensionless % mu + edge % mu_a) * N * N * invh_edge
          Fstar = Fstar - penalty * ( u - uB )
 
       end function IP_RiemannSolver_Dirichlet
 
-      module pure function IP_RiemannSolver_Adiabatic( self , N , invh_edge , u , g , uB , normal ) result ( Fstar )
+      module pure function IP_RiemannSolver_Adiabatic( self , edge , N , invh_edge , u , g , uB , normal ) result ( Fstar )
 !
 !        ************************************************************************************************
 !              For the Adiabatic dirichlet boundary conditions, the IP scheme uses the interior values
@@ -159,6 +161,7 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
          implicit none
          class(IPMethod_t), intent (in) :: self
+         class(Edge_t)    ,  intent(in)  :: edge
          integer      ,      intent (in) :: N
          real(kind=RP),      intent (in) :: invh_edge
          real(kind=RP),      intent (in) :: u      ( 0:N  , NCONS      )
@@ -172,12 +175,12 @@ submodule (DGViscousMethods)  DGViscous_IP
 !        ---------------
 !
          real(kind=RP)     :: F(0:N , 1:NCONS , 1:NDIM)
-         real(kind=RP)     :: penalty
+         real(kind=RP)     :: penalty 
          integer           :: eq
 !
 !        Compute the Adiabatic viscous flux based on the interior points
 !        ---------------------------------------------------------------
-         F = AdiabaticViscousFlux( N , u , u , g)
+         F = (dimensionless % mu + edge % mu_a) * AdiabaticViscousFlux( N , u , u , g)
 !
 !        Perform the projection along the boundary normal
 !        ------------------------------------------------
@@ -185,18 +188,19 @@ submodule (DGViscousMethods)  DGViscous_IP
             FStar(:,eq) = F(:,eq,IX) * normal(IX,:) + F(:,eq,IY) * normal(IY,:)
          end do
 
-         penalty = self % sigma0 * dimensionless % mu * N * N * invh_edge
+         penalty = self % sigma0 * (dimensionless % mu + edge % mu_a) * N * N * invh_edge
          Fstar = Fstar - penalty * ( u - uB )
  
       end function IP_RiemannSolver_Adiabatic
 
-      module pure subroutine IP_GradientRiemannSolver( self , N , UL , UR , normal , GstarL , GstarR ) 
+      module pure subroutine IP_GradientRiemannSolver( self , edge , N , UL , UR , normal , GstarL , GstarR ) 
 !
 !        *****************************************************************************************
 !        *****************************************************************************************
 !
          implicit none
          class(IPMethod_t), intent(in)   :: self
+         class(Edge_t)    , intent(in)    :: edge
          integer, intent(in)              :: N
          real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
          real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
@@ -220,18 +224,19 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Compute the fluxes
 !        ------------------
-         GStarL =  0.5_RP * self % epsilon * ViscousFlux( N , uL , falseGradient )
-         GStarR = -0.5_RP * self % epsilon * ViscousFlux( N , uR , falseGradient )
+         GStarL =  0.5_RP * self % epsilon * (dimensionless % mu + edge % mu_a) * ViscousFlux( N , uL , falseGradient )
+         GStarR = -0.5_RP * self % epsilon * (dimensionless % mu + edge % mu_a) * ViscousFlux( N , uR , falseGradient )
 
       end subroutine IP_GradientRiemannSolver
 
-      module pure function IP_GradientRiemannSolver_BoundaryCondition( self , u , uB , normal ) result ( Gstar ) 
+      module pure function IP_GradientRiemannSolver_BoundaryCondition( self , edge , u , uB , normal ) result ( Gstar ) 
 !
 !        *****************************************************************************************
 !        *****************************************************************************************
 !
          implicit none
          class(IPMethod_t), intent(in)   :: self
+         class(Edge_t)    , intent(in)    :: edge
          real(kind=RP), intent(in)        :: u(1:NCONS)
          real(kind=RP), intent(in)        :: uB(1:NCONS)
          real(kind=RP), intent(in)        :: normal(IX:IY)
@@ -251,17 +256,18 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Compute the fluxes
 !        ------------------
-         GStar = 1.0_RP * self % epsilon * ViscousFlux( u , falseGradient )
+         GStar = 1.0_RP * self % epsilon * (dimensionless % mu + edge % mu_a) * ViscousFlux( u , falseGradient )
 
       end function IP_GradientRiemannSolver_BoundaryCondition
 
-      module pure function IP_GradientRiemannSolver_Adiabatic( self , N , u , uB , normal )  result ( Gstar )
+      module pure function IP_GradientRiemannSolver_Adiabatic( self , edge , N , u , uB , normal )  result ( Gstar )
 !
 !        *****************************************************************************************
 !        *****************************************************************************************
 !
          implicit none
          class(IPMethod_t), intent(in)   :: self
+         class(Edge_t)    , intent(in)    :: edge
          integer, intent(in)              :: N
          real(kind=RP), intent(in)        :: u(0:N , 1:NCONS)
          real(kind=RP), intent(in)        :: uB(0:N , 1:NCONS)
@@ -284,9 +290,7 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Compute the fluxes
 !        ------------------
-!         GStar =  self % epsilon * AdiabaticViscousFlux( N , u , u , falseGradient )
-         !GStar =  self % epsilon * ViscousFlux( N , u , falseGradient )
-         Gstar = 0.0_RP
+         GStar =  self % epsilon * (dimensionless % mu + edge % mu_a) * AdiabaticViscousFlux( N , u , u , falseGradient )
 
       end function IP_GradientRiemannSolver_Adiabatic
 end submodule DGViscous_IP

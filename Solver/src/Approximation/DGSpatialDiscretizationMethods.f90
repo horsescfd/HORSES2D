@@ -204,6 +204,8 @@ module DGSpatialDiscretizationMethods
 
          Fi = InviscidMethod % ComputeInnerFluxes( e )
 #ifdef NAVIER_STOKES
+         e % mu_a = ArtificialDissipation % ComputeElementViscosity ( e )
+
          Fv = ViscousMethod  % ComputeInnerFluxes( e )
          Fa = ArtificialDissipation % ComputeVolumeFluxes( e )
 
@@ -356,6 +358,7 @@ module DGSpatialDiscretizationMethods
          real ( kind=RP ), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
 #ifdef NAVIER_STOKES
          real ( kind=RP)            :: Fv( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP)            :: Fa( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP ), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
          real ( kind=RP ), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
          real ( kind=RP )           :: GauxL( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
@@ -363,8 +366,16 @@ module DGSpatialDiscretizationMethods
 #endif
          real ( kind=RP )           :: normal(NDIM , 0 : ed % spA % N )
          integer                    :: eq , iDim
-
+!
+!        Compute the normal
+!        ------------------
          normal = spread( ed % n(IX:IY,0) , ncopies = ed % spA % N + 1 , dim = 2 )
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
 
          if ( ed % transform(LEFT) .and. ed % inverse ) then
 ! 
@@ -392,8 +403,10 @@ module DGSpatialDiscretizationMethods
 !           --------------------------
             Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            FR = ( Fi - Fv ) * ed % dS(0)
+            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+
+            FR = ( Fi - Fv - Fa) * ed % dS(0)
 #else
             FR = Fi * ed % dS(0)
 #endif
@@ -411,7 +424,7 @@ module DGSpatialDiscretizationMethods
 !           Compute the Gradient Riemann solver if proceeds
 !           -----------------------------------------------
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
 
                do iDim = 1 , NDIM
                   call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
@@ -449,8 +462,9 @@ module DGSpatialDiscretizationMethods
 !           --------------------------
             Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            FR = ( Fi - Fv ) * ed % dS(0)
+            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+            FR = ( Fi - Fv - Fa) * ed % dS(0)
 #else
             FR = Fi * ed % dS(0)
 #endif
@@ -465,7 +479,7 @@ module DGSpatialDiscretizationMethods
 !           Compute the Gradient Riemann solver if proceeds
 !           -----------------------------------------------
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GauxL , GR )
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GR )
 
                do iDim = 1 , NDIM
                   call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
@@ -510,8 +524,9 @@ module DGSpatialDiscretizationMethods
 !           --------------------------
             Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            FL = ( Fi - Fv ) * ed % dS(0)
+            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+            FL = ( Fi - Fv - Fa) * ed % dS(0)
 #else
             FL = Fi * ed % dS(0)
 #endif
@@ -529,7 +544,7 @@ module DGSpatialDiscretizationMethods
 !           Compute the Gradient Riemann solver if proceeds
 !           -----------------------------------------------
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GL , GauxR ) 
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
 
                do iDim = 1 , NDIM
                   call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
@@ -566,8 +581,9 @@ module DGSpatialDiscretizationMethods
 !           --------------------------
             Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            FL = ( Fi - Fv ) * ed % dS(0)
+            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+            FL = ( Fi - Fv - Fa) * ed % dS(0)
 #else
             FL = Fi * ed % dS(0)
 #endif
@@ -581,7 +597,7 @@ module DGSpatialDiscretizationMethods
 !           Compute the Gradient Riemann solver if proceeds
 !           -----------------------------------------------
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GL , GauxR ) 
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
       
                do iDim = 1 , NDIM
                   call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
@@ -616,8 +632,10 @@ module DGSpatialDiscretizationMethods
 !           --------------------------
             Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            FL = ( Fi - Fv ) * ed % dS(0)
+            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+
+            FL = ( Fi - Fv - Fa) * ed % dS(0)
 #else
             FL = Fi * ed % dS(0)
 #endif
@@ -631,7 +649,7 @@ module DGSpatialDiscretizationMethods
 !           Compute the Gradient Riemann solver if proceeds
 !           -----------------------------------------------
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GL , GR ) 
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
 
                GL = GL * ed % dS(0)
                GR = GR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM) * ed % dS(0)
@@ -662,8 +680,10 @@ module DGSpatialDiscretizationMethods
 !           --------------------------
             Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            FL = ( Fi - Fv ) * ed % dS(0)
+            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+
+            FL = ( Fi - Fv - Fa ) * ed % dS(0)
             FR = FL
 #else
             FL = Fi * ed % dS(0)
@@ -675,7 +695,7 @@ module DGSpatialDiscretizationMethods
 !           Compute the Gradient Riemann solver if proceeds
 !           -----------------------------------------------
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed % spA % N , QL , QR , normal , GL , GR ) 
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
 
                GL = GL * ed % dS(0)
                GR = GR * ed % dS(0)
@@ -702,11 +722,12 @@ module DGSpatialDiscretizationMethods
 !        ---------------
 !
          real(kind=RP)                 :: Fi( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Fv( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Gv( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
          real(kind=RP)                 :: Q (0 : ed % spA % N , 1:NCONS) 
          real(kind=RP)                 :: Qb(0 : ed % spA % N , 1:NCONS)
 #ifdef NAVIER_STOKES
+         real(kind=RP)                 :: Fv( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP)                 :: Fa( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP)                 :: Gv( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
          real(kind=RP)                 :: Gaux( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
          real(kind=RP)                 :: dQ (0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
          real(kind=RP)                 :: dQb(0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
@@ -723,6 +744,13 @@ module DGSpatialDiscretizationMethods
          N => ed % spA % N
 
          normal = spread( ed % n(IX:IY,0) , ncopies = ed % spA % N + 1 , dim = 2 )
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
+
 !
 !        ===============
 !>       INVISCID FLUXES
@@ -774,6 +802,7 @@ module DGSpatialDiscretizationMethods
 !>       Select the appropriate boundary condition
 !        -----------------------------------------
 !
+
          if ( ed % viscousBCType(0) .eq. PERIODIC ) then
 !
 !           Periodic boundary conditions
@@ -786,10 +815,11 @@ module DGSpatialDiscretizationMethods
                dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
 
                normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
-               Fv = ViscousMethod % RiemannSolver( N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
                if ( ViscousMethod % computeRiemannGradientFluxes ) then
-                  call ViscousMethod % GradientRiemannSolver ( ed % spA % N , Q , Qb , normal , Gv , Gaux ) 
+                  call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , Q , Qb , normal , Gv , Gaux ) 
                   Gv = Gv * ed % dS(0)
 
                end if
@@ -802,10 +832,11 @@ module DGSpatialDiscretizationMethods
                dQb = ed % gB
 
                normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
-               Fv = ViscousMethod % RiemannSolver( N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
                if ( ViscousMethod % computeRiemannGradientFluxes ) then
-                   call ViscousMethod % GradientRiemannSolver ( ed % spA % N , Q , Qb , normal , Gv , Gaux )
+                   call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , Q , Qb , normal , Gv , Gaux )
                    Gv = Gv * ed % dS(0)
 
                end if
@@ -822,10 +853,11 @@ module DGSpatialDiscretizationMethods
 
             normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 )
             
-            Fv = ViscousMethod % RiemannSolver_Adiabatic( N , ed % invh , Q , dQ , Qb , normal ) * ed % dS(0) 
+            Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , normal ) * ed % dS(0) 
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , normal ) * ed % dS(0)
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( N , Q , Qb , normal ) * ed % dS(0)
+               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , normal ) * ed % dS(0)
 
             end if
 
@@ -833,6 +865,7 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , normal ) * ed % dS(0)
             do iXi = 0 , ed % spA % N
                select case ( ed % viscousBCType(iXi) )
    
@@ -841,27 +874,28 @@ module DGSpatialDiscretizationMethods
                      Q1D  = ed % storage(1) % Q(iXi,:)
                      dQ1D = ed % storage(1) % dQ(iXi,:,:)
                      Qb1D  = ed % uSB(iXi,:)
-                     Fv(iXi,:) = ViscousMethod % RiemannSolver_Dirichlet ( ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
+                     Fv(iXi,:) = ViscousMethod % RiemannSolver_Dirichlet ( ed , ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
 
                      if ( ViscousMethod % computeRiemannGradientFluxes ) then
-                        Gv(iXi,:,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
+                        Gv(iXi,:,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( ed , Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
                      end if
 
                   case ( NEUMANN )
 
                      Fv(iXi,:)   = 0.0_RP
+                     Fa(iXi,:)   = 0.0_RP
                      Gv(iXi,:,:) = 0.0_RP
          
                 end select
-
-
              end do
+
 
          end if
 #endif
 
 #ifdef NAVIER_STOKES
-         F = Fi - Fv
+         !Fa = 0.0_RP
+         F = Fi - Fv - Fa
          G = Gv
 #else
          F = Fi
@@ -882,11 +916,12 @@ module DGSpatialDiscretizationMethods
 !        ---------------
 !
          real(kind=RP)                 :: Fi( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Fv( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Gv( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
          real(kind=RP)                 :: Q(0 : ed % spA % N , 1:NCONS) 
          real(kind=RP)                 :: Qb(0 : ed % spA % N , 1:NCONS)
 #ifdef NAVIER_STOKES
+         real(kind=RP)                 :: Fv( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP)                 :: Fa( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP)                 :: Gv( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
          real(kind=RP)                 :: Gaux( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
          real(kind=RP)                 :: dQ (0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
          real(kind=RP)                 :: dQb(0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
@@ -900,7 +935,12 @@ module DGSpatialDiscretizationMethods
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 
          N => ed % spA % N
-
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
 !
 !        ===============
 !>       INVISCID FLUXES
@@ -960,10 +1000,11 @@ module DGSpatialDiscretizationMethods
             dQ = ed % storage(1) % dQ
             Qb = ed % uSB
 
-            Fv = ViscousMethod % RiemannSolver_Adiabatic( N , ed % invh , Q , dQ , Qb , ed % n ) * spread ( ed % dS , ncopies = NCONS , dim = 2 )  
+            Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) * spread ( ed % dS , ncopies = NCONS , dim = 2 )  
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 ) 
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( N , Q , Qb , ed % n ) * spread( spread ( ed % dS , ncopies = NCONS , dim = 2 ) , ncopies = NDIM , dim = 3)
+               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , ed % n ) * spread( spread ( ed % dS , ncopies = NCONS , dim = 2 ) , ncopies = NDIM , dim = 3)
 
             end if
 
@@ -971,6 +1012,7 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 ) 
             do iXi = 0 , ed % spA % N
                select case ( ed % viscousBCType(iXi) )
    
@@ -979,15 +1021,16 @@ module DGSpatialDiscretizationMethods
                      Q1D  = ed % storage(1) % Q(iXi,:)
                      dQ1D = ed % storage(1) % dQ(iXi,:,:)
                      Qb1D  = ed % uSB(iXi,:)
-                     Fv(iXi,:) = ViscousMethod % RiemannSolver_Dirichlet ( ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+                     Fv(iXi,:) = ViscousMethod % RiemannSolver_Dirichlet ( ed , ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
 
                      if ( ViscousMethod % computeRiemannGradientFluxes ) then
-                        Gv(iXi,:,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+                        Gv(iXi,:,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( ed , Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
                      end if
 
                   case ( NEUMANN )
 
                      Fv(iXi,:)   = 0.0_RP
+                     Fa(iXi,:)   = 0.0_RP
                      Gv(iXi,:,:) = 0.0_RP
          
                 end select
@@ -999,7 +1042,8 @@ module DGSpatialDiscretizationMethods
 #endif
 
 #ifdef NAVIER_STOKES
-         F = Fi - Fv
+         !Fa = 0.0_RP
+         F = Fi - Fv - Fa
          G = Gv
 #else
          F = Fi

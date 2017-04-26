@@ -67,8 +67,9 @@ module Setup_class
 !       ------------------------------------------------------------------------------
 !
         logical         :: artificialDissipation
-        real(kind=RP), allocatable   :: artificialDissipation_maxViscosity 
+        real(kind=RP), allocatable   :: artificialDissipationIntensity
         character(len=STR_LEN_SETUP)   :: artificialDissipationIndicator
+        character(len=STR_LEN_SETUP)   :: artificialDissipationType
 !
 !       ------------------------------------------------------------------------------
 !              Integration parameters
@@ -316,11 +317,14 @@ module Setup_class
 
           end if 
 
-          call readValue ( trim ( case_name ) , "Artificial dissipation maximum viscosity" , Setup % artificialDissipation_maxViscosity )
-          call Setup_CheckWithDefault ( Setup % artificialDissipation_maxViscosity , 0.0_RP , "Artificial dissipation max viscosity" )
+          call readValue ( trim ( case_name ) , "Artificial dissipation intensity" , Setup % artificialDissipationIntensity )
+          call Setup_CheckWithDefault ( Setup % artificialDissipationIntensity , 1.0_RP , "Artificial dissipation intensity" )
 
           call readValue ( trim ( case_name ) , "Artificial dissipation indicator" , Setup % artificialDissipationIndicator )
           call Setup_CheckWithDefault ( Setup % artificialDissipationIndicator , "Jumps-based" , "Artificial dissipation indicator" )
+
+          call readValue ( trim ( case_name ) , "Artificial dissipation type" , Setup % artificialDissipationType )
+          call Setup_CheckWithDefault ( Setup % artificialDissipationType , "Physical" , "Artificial dissipation type" )
 !
 !         Request the integration scheme          
 !         ------------------------------

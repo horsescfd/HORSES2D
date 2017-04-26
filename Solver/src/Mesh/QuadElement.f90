@@ -24,6 +24,7 @@ module QuadElementClass
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
         real(kind=RP), allocatable         :: Volume                         ! Volume of the element
+        real(kind=RP)                      :: mu_a
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( xi , eta , X/Y )
         real(kind=RP), allocatable         :: Ja(:,:,:,:)                    ! Contravariant system metric matrix ( xi , eta , IROW , ICOL)
         real(kind=RP), allocatable         :: Jac(:,:)                       ! Mapping jacobian ( xi , eta )
@@ -83,25 +84,28 @@ module QuadElementClass
 !   *********************************************************************************
 !
     type Edge_t
-        integer                             :: ID                         ! Edge ID
-        integer(kind=1)                     :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
-        logical                             :: inverse                    ! Whether both edge projections are in the same or different direction
-        logical                             :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree 
-        integer                             :: Nlow                       ! Lower polynomial degree
-        integer(kind=1),            pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
-        real(kind=RP)                       :: Area                       ! Area of the edge
-        real(kind=RP)                       :: invh                       ! Normal minimum distance approximation (inversed)
-        real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
-        real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
-        real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
-        real(kind=RP),              pointer :: dS(:)                      ! Surface differential vector (X/Y, xi)
-        real(kind=RP),          allocatable :: T_forward(:,:)             ! Interpolation matrix from the low order to high order
-        real(kind=RP),          allocatable :: T_backward(:,:)            ! Interpolation matrix from the high order to low order
-        type(BoundaryData_t),  allocatable  :: storage(:)                 ! Solution interpolation to boundaries ( LEFT/RIGHT )
-        type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
-        class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
-        class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
-        class(NodesAndWeights_t),   pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
+        integer                               :: ID                         ! Edge ID
+        integer(kind=1)                       :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
+        logical                               :: inverse                    ! Whether both edge projections are in the same or different direction
+        logical                               :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree
+        integer                               :: Nlow                       ! Lower polynomial degree
+        integer(kind=1),            pointer   :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        real(kind=RP)                         :: Area                       ! Area of the edge
+        real(kind=RP)                         :: mu_a
+        real(kind=RP)                         :: invh                       ! Normal minimum distance approximation (inversed)
+        real(kind=RP),              pointer   :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
+        real(kind=RP),              pointer   :: X(:,:)                     ! Coordinates: (X/Y, xi)
+        real(kind=RP),              pointer   :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
+        real(kind=RP),              pointer   :: dS(:)                      ! Surface differential vector (X/Y, xi)
+        real(kind=RP),          allocatable   :: T_forward(:,:)             ! Interpolation matrix from the low order to high order
+        real(kind=RP),          allocatable   :: T_backward(:,:)            ! Interpolation matrix from the high order to low order
+        type(BoundaryData_t),  allocatable    :: storage(:)                 ! Solution interpolation to boundaries ( LEFT/RIGHT )
+        type(Node_p)                          :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
+        class(QuadElement_p),       pointer   :: quads(:)                   ! Pointers to the two (or one) shared quads
+        class(NodesAndWeights_t),     pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
+        class(NodesAndWeights_t),     pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
+!        procedure(ProjectSolution_F), pointer :: ProjectSolution
+!        procedure(ProjectFluxes_F),   pointer :: ProjectFluxes
         contains
             procedure      :: SetCurve     => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
             procedure      :: Invert       => Edge_Invert                      ! Function to invert the edge orientation
@@ -162,6 +166,26 @@ module QuadElementClass
             procedure      :: Construct => Edge_ConstructEdge
             procedure      :: LinkWithElements => Edge_linkWithElements
     end type Edge_p
+!
+!  ************************
+!  Projection operator base
+!  ************************
+!
+!   abstract interface
+!      pure function ProjectSolution_F( self ) result ( Q )
+!         implicit none
+!         class(Edge_t), intent(in)     :: self
+!         real(kind=RP)                 :: Q( 0 : self % spA % N , 1:NCONS , QUADS_PER_EDGE )
+!      end function ProjectSolution_F
+!   abstract interface
+!
+!   abstract interface
+!      pure function ProjectFluxes_F( self , F ) result ( F_out )
+!         implicit none
+!         class(Edge_t), intent(in)     :: self
+!         real(kind=RP)                 :: Q( 0 : self % spA % N , 1:NCONS , QUADS_PER_EDGE )
+!      end function ProjectFluxes_F
+!   abstract interface
 !
 !  ========
    contains

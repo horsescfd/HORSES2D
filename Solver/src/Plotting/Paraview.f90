@@ -14,6 +14,8 @@ submodule (Plotter) Paraview
       character(len=STR_LEN_PLOTTER)      :: str
       class(Charlist), pointer            :: next => NULL()
    end type Charlist
+
+   integer     :: point_position = 0 
 !
 !
 !  ========
@@ -42,11 +44,12 @@ submodule (Plotter) Paraview
          self % Name = trim(auxname)
 
          call Paraview_OpenFile ( self , isMesh = .true. ) 
-      
-         do eID = 1 , mesh % no_of_elements
-            call Paraview_NewMeshZone( self , mesh , eID ) 
-         end do
-   
+         
+         write ( self % fID , '(A)') "DATASET UNSTRUCTURED_GRID"
+
+         call Paraview_WriteMesh( self , mesh )
+
+  
          close ( self % fID )
 
       end subroutine Paraview_ExportMesh
@@ -160,55 +163,76 @@ submodule (Plotter) Paraview
 
       end subroutine Paraview_OpenFile
 
-      subroutine Paraview_NewMeshZone(self , mesh , eID ) 
+      subroutine Paraview_WriteMesh(self , mesh ) 
          use QuadMeshClass
          use Physics
          implicit none
          class(Paraview_t)        :: self
          class(QuadMesh_t)       :: mesh
-         integer                 :: eID 
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
+         integer                 :: eID  , npoints , ncells
          integer                 :: iXi , iEta
          integer                 :: var
          real(kind=RP)              :: Q(1:NCONS)
 
-         associate ( N => mesh % elements(eID) % spA % N )
-!         
-!        New header
-!        ----------
-         write( self % fID , '(A)' ) "DATASET UNSTRUCTURED_GRID"
-         write( self % fID , '(A,I0,A)') "POINTS ",(N+1)*(N+1)," float"
 
-         do iEta = 0 , N
-            do iXi = 0 , N
-               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)') mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
-                                                                              , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
-                                                                              , 0.0_RP  
+         npoints = 0
+         do eID = 1 , mesh % no_of_elements
+            npoints = npoints + (mesh % elements(eID) % spA % N + 1)**2
+         end do
+
+         write ( self % fID , '(A,I0,A)') "POINTS " , npoints , " float"
+        
+         do eID = 1 , mesh % no_of_elements
+            associate ( N => mesh % elements(eID) % spA % N )
+            do iEta = 0 , N
+               do iXi = 0 , N
+                  write( self % fID , '(F17.10,1X,F17.10,1X,F17.10)') mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
+                                                                                 , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
+                                                                                 , 0.0_RP  
+               end do
             end do
+            end associate
          end do
 
          write( self % fID , * )    ! One blank line
-         write( self % fID , '(A,I0,1X,I0)' ) "CELLS ", N*N , 5*N*N
-         do iEta = 1 , N
-            do iXi = 1 , N
-               write(self % fID , '(I0,1X,I0,1X,I0,1X,I0,1X,I0)')  4,pointPosition(iXi,iEta,N)
+   
+         ncells = 0
+         do eID = 1 , mesh % no_of_elements
+            ncells = ncells + (mesh % elements(eID) % spA % N)**2
+         end do
+
+         write( self % fID , '(A,I0,1X,I0)' ) "CELLS ", ncells,5*ncells
+
+         point_position = -1
+         do eID = 1 , mesh % no_of_elements
+            associate ( N => mesh % elements(eID) % spA % N )
+            do iEta = 1 , N
+               do iXi = 1 , N
+                  write(self % fID , '(I0,1X,I0,1X,I0,1X,I0,1X,I0)')  4,pointPosition(iXi,iEta,N) + point_position
+               end do
             end do
+            point_position = point_position + (N+1)*(N+1)
+            end associate
          end do
 
          write( self % fID , * )    ! One blank line
-         write( self % fID , '(A,I0)' ) "CELL_TYPES ", N*N
-         do iEta = 1 , N
-            do iXi = 1 , N
-               write(self % fID , '(I0)')  9
+         write( self % fID , '(A,I0)' ) "CELL_TYPES ", ncells
+         do eID = 1 , mesh % no_of_elements
+            associate ( N => mesh % elements(eID) % spA % N )
+            do iEta = 1 , N
+               do iXi = 1 , N
+                  write(self % fID , '(I0)')  9
+               end do
             end do
+            end associate
          end do
-         end associate
 
-      end subroutine Paraview_NewMeshZone
+      end subroutine Paraview_WriteMesh
 
       subroutine Paraview_NewZone( self , mesh , eID , zoneType) 
          use QuadMeshClass
@@ -576,10 +600,10 @@ submodule (Plotter) Paraview
          integer        :: N
          integer        :: val(POINTS_PER_QUAD)
 
-         val(1) = (N+1)*(iEta-1) + iXi 
-         val(2) = (N+1)*(iEta-1) + iXi -1
-         val(3) = (N+1)*iEta + iXi -1 
-         val(4) = (N+1)*iEta + iXi 
+         val(1) = (N+1)*(iEta-1) + iXi + 1
+         val(2) = (N+1)*(iEta-1) + iXi 
+         val(3) = (N+1)*iEta + iXi
+         val(4) = (N+1)*iEta + iXi + 1
       end function pointPosition
 
       subroutine LinkedList_Destruct( self ) 

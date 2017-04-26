@@ -319,7 +319,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhoe")
-                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % p
 
                      case ("rhot")
                         write(self % fID,'(1X,ES17.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
@@ -331,7 +331,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhoet")
-                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % p / refValues % tc
 
                      case ("u")
                         write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
@@ -366,6 +366,9 @@ submodule (Plotter) Tecplot
 
                      case ("vort")
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
+            
+                     case ("muart")
+                        write(self % fID,'(1X,ES17.10)',advance="no") mesh % elements(eID) % mu_a 
 #endif
 
                   end select                        
@@ -501,7 +504,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
 
                      case ("rhoe")
-                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % p
 
                      case ("rhot")
                         write(self % fID,'(1X,ES17.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
@@ -513,7 +516,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
 
                      case ("rhoet")
-                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
+                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % p / refValues % tc
 
                      case ("u")
                         write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
@@ -548,6 +551,9 @@ submodule (Plotter) Tecplot
 
                      case ("vort")
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
+
+                     case ("muart")
+                        write(self % fID,'(1X,ES17.10)',advance="no") mesh % elements(eID) % mu_a 
 #endif
 
                   end select                        

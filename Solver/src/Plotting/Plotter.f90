@@ -101,7 +101,7 @@ module Plotter
 !        TODO: Select format in case file
 !        --------------------------------
          allocate ( Tecplot_t    :: self )
-         !allocate ( Paraview_t    :: self )
+!         allocate ( Paraview_t    :: self )
 
          call self % Construct
 
