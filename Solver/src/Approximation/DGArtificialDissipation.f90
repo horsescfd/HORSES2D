@@ -193,10 +193,10 @@ module DGArtificialDissipation
 !        Local variables
 !        ---------------
 !  
-         real(kind=RP)         :: dQ( 0 : e % spA % N , 0 : e % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)         :: dQ( 0 : e % spA % N , 0 : e % spA % N , 1 : NDIM , 1 : NCONS )
          real(kind=RP)         :: mu
 
-         dQ = e % ComputeInteriorGradient
+         dQ = e % ComputeInteriorGradient()
          mu = self % ElementViscosity(self,e)
 
          F(:,:,:,IX) = mu * dQ(:,:,IX,:) 

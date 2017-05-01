@@ -10,6 +10,7 @@ module QuadElementClass
 
     private
     public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
+    public  Edge_ProjectSolutionType1
 
 !////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -104,8 +105,9 @@ module QuadElementClass
         class(QuadElement_p),       pointer   :: quads(:)                   ! Pointers to the two (or one) shared quads
         class(NodesAndWeights_t),     pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
         class(NodesAndWeights_t),     pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
-!        procedure(ProjectSolution_F), pointer :: ProjectSolution
-!        procedure(ProjectFluxes_F),   pointer :: ProjectFluxes
+        procedure(ProjectSolutionFCN), nopass,  pointer :: ProjectSolution       => NULL()
+        procedure(ProjectFluxesFCN), nopass,  pointer :: ProjectFluxes         => NULL()
+        procedure(ProjectGradientFluxesFCN), nopass,  pointer :: ProjectGradientFluxes => NULL()
         contains
             procedure      :: SetCurve     => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
             procedure      :: Invert       => Edge_Invert                      ! Function to invert the edge orientation
@@ -167,25 +169,45 @@ module QuadElementClass
             procedure      :: LinkWithElements => Edge_linkWithElements
     end type Edge_p
 !
-!  ************************
-!  Projection operator base
-!  ************************
+!   
+    abstract interface
+         pure subroutine ProjectSolutionFCN( ed , QL , QR , dQL , dQR )
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         end subroutine ProjectSolutionFCN
+    end interface
+
+    abstract interface
+         pure subroutine ProjectFluxesFCN( ed , F , FL , FR )
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+         end subroutine ProjectFluxesFCN
+    end interface
+
+    abstract interface
+         pure subroutine ProjectGradientFluxesFCN( ed , GL_edge , GR_edge , GL , GR)
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+         end subroutine ProjectGradientFluxesFCN
+    end interface
 !
-!   abstract interface
-!      pure function ProjectSolution_F( self ) result ( Q )
-!         implicit none
-!         class(Edge_t), intent(in)     :: self
-!         real(kind=RP)                 :: Q( 0 : self % spA % N , 1:NCONS , QUADS_PER_EDGE )
-!      end function ProjectSolution_F
-!   abstract interface
-!
-!   abstract interface
-!      pure function ProjectFluxes_F( self , F ) result ( F_out )
-!         implicit none
-!         class(Edge_t), intent(in)     :: self
-!         real(kind=RP)                 :: Q( 0 : self % spA % N , 1:NCONS , QUADS_PER_EDGE )
-!      end function ProjectFluxes_F
-!   abstract interface
 !
 !  ========
    contains

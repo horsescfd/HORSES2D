@@ -354,13 +354,14 @@ module DGSpatialDiscretizationMethods
 !        ---------------
 !
          real ( kind=RP)            :: Fi( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP)            :: Fstar( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP ), target   :: QL ( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP ), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP ), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real ( kind=RP ), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
 #ifdef NAVIER_STOKES
          real ( kind=RP)            :: Fv( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP)            :: Fa( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real ( kind=RP ), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
          real ( kind=RP )           :: GauxL( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
          real ( kind=RP )           :: GauxR( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
 #endif
@@ -376,337 +377,378 @@ module DGSpatialDiscretizationMethods
 #ifdef NAVIER_STOKES
          ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
 #endif
-
-         if ( ed % transform(LEFT) .and. ed % inverse ) then
-! 
-!        -------------------------------------------------------
-!>       First case: LEFT needs p-Adaption and RIGHT is reversed
-!        -------------------------------------------------------
 !
-!           Transform the LEFT edge
-!           -----------------------            
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-#ifdef NAVIER_STOKES
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
-            end do
-#endif
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call ed % ProjectSolution(ed , QL , QR , dQL , dQR )
 !
-!           Invert the RIGHT edge 
-!           ---------------------
-            QR  = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
+!        Compute the inviscid Riemann solver
+!        -----------------------------------
+         Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
 #ifdef NAVIER_STOKES
-            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
-#endif
 !
-!           Compute the Riemann solver
-!           --------------------------
-            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-#ifdef NAVIER_STOKES
-            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-
-            FR = ( Fi - Fv - Fa) * ed % dS(0)
+!        Compute the viscous Riemann solver
+!        ----------------------------------
+         Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!
+!        Compute the artificial dissipation Riemann solver
+!        -------------------------------------------------
+         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!
+!        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
+!        --------------------------------------------------------------------------------
+         FStar = ( Fi - Fv - Fa) * ed % dS(0)
 #else
-            FR = Fi * ed % dS(0)
+         FStar = Fi * ed % dS(0)
 #endif
 !
-!           Transform the LEFT edge
-!           -----------------------
-            call Mat_x_Mat( ed % T_backward , FR , FL )
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            FR(0:ed % spA % N , 1:NCONS) = FR(ed % spA % N : 0 : -1 , 1:NCONS)
+!        Return the resulting Riemann flux to each element frame
+!        -------------------------------------------------------
+         call ed % ProjectFluxes( ed , FStar , FL , FR )
 
 #ifdef NAVIER_STOKES
-!
-!           Compute the Gradient Riemann solver if proceeds
-!           -----------------------------------------------
-            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
                call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
 
-               do iDim = 1 , NDIM
-                  call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
-               end do
-
-               GL = GL * ed % dS(0)
-               GR = GauxR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM)  * ed % dS(0)
-
-            end if
-#endif
-
-         elseif ( ed % transform(LEFT) ) then
-! 
-!        ----------------------------------
-!>       Second case: LEFT needs p-Adaption.
-!        ----------------------------------
-!
-!           Transform the LEFT edge
-!           -----------------------
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-#ifdef NAVIER_STOKES
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
-            end do
-#endif
-!
-!           Get the RIGHT edge state
-!           ------------------------
-            QR = ed % storage(RIGHT) % Q
-#ifdef NAVIER_STOKES
-            dQR = ed % storage(RIGHT) % dQ
-#endif
-!
-!           Compute the Riemann solver
-!           --------------------------
-            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-#ifdef NAVIER_STOKES
-            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-            FR = ( Fi - Fv - Fa) * ed % dS(0)
-#else
-            FR = Fi * ed % dS(0)
-#endif
-
-!
-!           Transform the LEFT edge
-!           -----------------------
-            call Mat_x_Mat( ed % T_backward , FR , FL )
-
-#ifdef NAVIER_STOKES
-!
-!           Compute the Gradient Riemann solver if proceeds
-!           -----------------------------------------------
-            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GR )
-
-               do iDim = 1 , NDIM
-                  call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
-               end do
+               call ed % ProjectGradientFluxes( ed , GauxL , GauxR , GL , GR )
 
                GL = GL * ed % dS(0)
                GR = GR * ed % dS(0)
-            end if
 
-#endif
-
-         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
-! 
-!        ----------------------------------------------------
-!>       Third case: RIGHT needs p-Adaption, and its reversed.
-!        ----------------------------------------------------
-!
-!           Get the LEFT edge 
-!           -----------------
-            QL = ed % storage(LEFT) % Q
-#ifdef NAVIER_STOKES
-            dQL = ed % storage(LEFT) % dQ
-#endif
-!
-!           Transform the RIGHT edge 
-!           ------------------------
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-#ifdef NAVIER_STOKES
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
-            end do
-#endif
-!
-!           Invert the RIGHT edge 
-!           ---------------------
-            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
-#ifdef NAVIER_STOKES
-            dQR = dQR(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
-#endif
-!
-!           Compute the Riemann solver
-!           --------------------------
-            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-#ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-            FL = ( Fi - Fv - Fa) * ed % dS(0)
-#else
-            FL = Fi * ed % dS(0)
-#endif
-!
-!           Undo the transformation for the RIGHT edge
-!           ------------------------------------------ 
-            call Mat_x_Mat( ed % T_backward , FL , FR )
-!
-!           Invert the edge 
-!           ---------------
-            FR(0:ed % NLow,1:NCONS) = FR(ed % NLow:0:-1 , 1:NCONS)
-
-#ifdef NAVIER_STOKES
-!
-!           Compute the Gradient Riemann solver if proceeds
-!           -----------------------------------------------
-            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
-
-               do iDim = 1 , NDIM
-                  call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
-               end do
-
-               GL   = GL * ed % dS(0)
-               GR   = GR(ed % spA % N : 0 : -1 , 1:NCONS, 1:NDIM) * ed % dS(0)
-            end if
-#endif
-
-         elseif ( ed % transform(RIGHT) ) then
-! 
-!        -----------------------------------
-!>       Fourth case: RIGHT needs p-Adaption.
-!        -----------------------------------
-!
-!           Get the LEFT edge
-!           -----------------
-            QL = ed % storage(LEFT) % Q
-#ifdef NAVIER_STOKES
-            dQL = ed % storage(LEFT) % dQ
-#endif
-!
-!           Transform the RIGHT edge
-!           ------------------------
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-#ifdef NAVIER_STOKES
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
-            end do
-#endif
-!
-!           Compute the Riemann solver
-!           --------------------------
-            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-#ifdef NAVIER_STOKES
-            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-            FL = ( Fi - Fv - Fa) * ed % dS(0)
-#else
-            FL = Fi * ed % dS(0)
-#endif
-!
-!           Undo the transformation for the RIGHT 
-!           ------------------------------------------
-            call Mat_x_Mat( ed % T_backward , FL , FR )
-
-#ifdef NAVIER_STOKES
-!
-!           Compute the Gradient Riemann solver if proceeds
-!           -----------------------------------------------
-            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
-      
-               do iDim = 1 , NDIM
-                  call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
-               end do
-
-               GL = GL * ed % dS(0)
-               GR = GR * ed % dS(0)
-            end if
-#endif
-         
-         elseif ( ed % inverse ) then
-! 
-!        -----------------------------
-!>       Fifth case: RIGHT is reversed.
-!        -----------------------------
-!
-!           Get the LEFT edge
-!           -----------------
-            QL = ed % storage(LEFT) % Q
-#ifdef NAVIER_STOKES
-            dQL = ed % storage(LEFT) % dQ
-#endif
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            QR(0:ed % spA % N , 1:NCONS ) = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS)
-#ifdef NAVIER_STOKES
-            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
-#endif
-!
-!           Compute the Riemann solver
-!           --------------------------
-            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-#ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-
-            FL = ( Fi - Fv - Fa) * ed % dS(0)
-#else
-            FL = Fi * ed % dS(0)
-#endif
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            FR( 0 : ed % spA % N , 1:NCONS ) = FL ( ed % spA % N : 0 : -1 , 1:NCONS )
-
-#ifdef NAVIER_STOKES
-!
-!           Compute the Gradient Riemann solver if proceeds
-!           -----------------------------------------------
-            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
-
-               GL = GL * ed % dS(0)
-               GR = GR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM) * ed % dS(0)
-            end if
-#endif
-
-         else
-! 
-!        -----------------------------------------------------------------------
-!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
-!        -----------------------------------------------------------------------
-!
-!           Get the LEFT edge
-!           -----------------   
-            QL = ed % storage(LEFT) % Q
-#ifdef NAVIER_STOKES
-            dQL = ed % storage(LEFT) % dQ
-#endif 
-!
-!           Get the RIGHT edge
-!           ------------------
-            QR = ed % storage(RIGHT) % Q
-#ifdef NAVIER_STOKES
-            dQR = ed % storage(RIGHT) % dQ
-#endif
-!
-!           Compute the Riemann solver
-!           --------------------------
-            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-#ifdef NAVIER_STOKES
-            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-
-            FL = ( Fi - Fv - Fa ) * ed % dS(0)
-            FR = FL
-#else
-            FL = Fi * ed % dS(0)
-            FR = FL
-#endif
-
-#ifdef NAVIER_STOKES
-!
-!           Compute the Gradient Riemann solver if proceeds
-!           -----------------------------------------------
-            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
-
-               GL = GL * ed % dS(0)
-               GR = GR * ed % dS(0)
-            end if
-#endif
-         
          end if
+#endif
 !
-!        Change the sign of FR so that it points towards the element outside
-!        -------------------------------------------------------------------
-         FR = -1.0_RP * FR
+!
+!         if ( ed % transform(LEFT) .and. ed % inverse ) then
+!! 
+!!        -------------------------------------------------------
+!!>       First case: LEFT needs p-Adaption and RIGHT is reversed
+!!        -------------------------------------------------------
+!!
+!!           Transform the LEFT edge
+!!           -----------------------            
+!            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!#ifdef NAVIER_STOKES
+!            do eq = 1 , NCONS
+!               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
+!            end do
+!#endif
+!!
+!!           Invert the RIGHT edge 
+!!           ---------------------
+!            QR  = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
+!#ifdef NAVIER_STOKES
+!            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
+!#endif
+!!
+!!           Compute the Riemann solver
+!!           --------------------------
+!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
+!#ifdef NAVIER_STOKES
+!            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!
+!            FR = ( Fi - Fv - Fa) * ed % dS(0)
+!#else
+!            FR = Fi * ed % dS(0)
+!#endif
+!!
+!!           Transform the LEFT edge
+!!           -----------------------
+!            call Mat_x_Mat( ed % T_backward , FR , FL )
+!!
+!!           Invert the RIGHT edge
+!!           ---------------------
+!            FR(0:ed % spA % N , 1:NCONS) = FR(ed % spA % N : 0 : -1 , 1:NCONS)
+!
+!#ifdef NAVIER_STOKES
+!!
+!!           Compute the Gradient Riemann solver if proceeds
+!!           -----------------------------------------------
+!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
+!
+!               do iDim = 1 , NDIM
+!                  call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
+!               end do
+!
+!               GL = GL * ed % dS(0)
+!               GR = GauxR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM)  * ed % dS(0)
+!
+!            end if
+!#endif
+!
+!         elseif ( ed % transform(LEFT) ) then
+!! 
+!!        ----------------------------------
+!!>       Second case: LEFT needs p-Adaption.
+!!        ----------------------------------
+!!
+!!           Transform the LEFT edge
+!!           -----------------------
+!            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!#ifdef NAVIER_STOKES
+!            do eq = 1 , NCONS
+!               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
+!            end do
+!#endif
+!!
+!!           Get the RIGHT edge state
+!!           ------------------------
+!            QR = ed % storage(RIGHT) % Q
+!#ifdef NAVIER_STOKES
+!            dQR = ed % storage(RIGHT) % dQ
+!#endif
+!!
+!!           Compute the Riemann solver
+!!           --------------------------
+!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
+!#ifdef NAVIER_STOKES
+!            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!            FR = ( Fi - Fv - Fa) * ed % dS(0)
+!#else
+!            FR = Fi * ed % dS(0)
+!#endif
+!
+!!
+!!           Transform the LEFT edge
+!!           -----------------------
+!            call Mat_x_Mat( ed % T_backward , FR , FL )
+!
+!#ifdef NAVIER_STOKES
+!!
+!!           Compute the Gradient Riemann solver if proceeds
+!!           -----------------------------------------------
+!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GR )
+!
+!               do iDim = 1 , NDIM
+!                  call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
+!               end do
+!
+!               GL = GL * ed % dS(0)
+!               GR = GR * ed % dS(0)
+!            end if
+!
+!#endif
+!
+!         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+!! 
+!!        ----------------------------------------------------
+!!>       Third case: RIGHT needs p-Adaption, and its reversed.
+!!        ----------------------------------------------------
+!!
+!!           Get the LEFT edge 
+!!           -----------------
+!            QL = ed % storage(LEFT) % Q
+!#ifdef NAVIER_STOKES
+!            dQL = ed % storage(LEFT) % dQ
+!#endif
+!!
+!!           Transform the RIGHT edge 
+!!           ------------------------
+!            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+!#ifdef NAVIER_STOKES
+!            do eq = 1 , NCONS
+!               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
+!            end do
+!#endif
+!!
+!!           Invert the RIGHT edge 
+!!           ---------------------
+!            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
+!#ifdef NAVIER_STOKES
+!            dQR = dQR(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
+!#endif
+!!
+!!           Compute the Riemann solver
+!!           --------------------------
+!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
+!#ifdef NAVIER_STOKES
+!            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!            FL = ( Fi - Fv - Fa) * ed % dS(0)
+!#else
+!            FL = Fi * ed % dS(0)
+!#endif
+!!
+!!           Undo the transformation for the RIGHT edge
+!!           ------------------------------------------ 
+!            call Mat_x_Mat( ed % T_backward , FL , FR )
+!!
+!!           Invert the edge 
+!!           ---------------
+!            FR(0:ed % NLow,1:NCONS) = FR(ed % NLow:0:-1 , 1:NCONS)
+!
+!#ifdef NAVIER_STOKES
+!!
+!!           Compute the Gradient Riemann solver if proceeds
+!!           -----------------------------------------------
+!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
+!
+!               do iDim = 1 , NDIM
+!                  call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
+!               end do
+!
+!               GL   = GL * ed % dS(0)
+!               GR   = GR(ed % spA % N : 0 : -1 , 1:NCONS, 1:NDIM) * ed % dS(0)
+!            end if
+!#endif
+!
+!         elseif ( ed % transform(RIGHT) ) then
+!! 
+!!        -----------------------------------
+!!>       Fourth case: RIGHT needs p-Adaption.
+!!        -----------------------------------
+!!
+!!           Get the LEFT edge
+!!           -----------------
+!            QL = ed % storage(LEFT) % Q
+!#ifdef NAVIER_STOKES
+!            dQL = ed % storage(LEFT) % dQ
+!#endif
+!!
+!!           Transform the RIGHT edge
+!!           ------------------------
+!            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+!#ifdef NAVIER_STOKES
+!            do eq = 1 , NCONS
+!               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
+!            end do
+!#endif
+!!
+!!           Compute the Riemann solver
+!!           --------------------------
+!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
+!#ifdef NAVIER_STOKES
+!            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!            FL = ( Fi - Fv - Fa) * ed % dS(0)
+!#else
+!            FL = Fi * ed % dS(0)
+!#endif
+!!
+!!           Undo the transformation for the RIGHT 
+!!           ------------------------------------------
+!            call Mat_x_Mat( ed % T_backward , FL , FR )
+!
+!#ifdef NAVIER_STOKES
+!!
+!!           Compute the Gradient Riemann solver if proceeds
+!!           -----------------------------------------------
+!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
+!      
+!               do iDim = 1 , NDIM
+!                  call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
+!               end do
+!
+!               GL = GL * ed % dS(0)
+!               GR = GR * ed % dS(0)
+!            end if
+!#endif
+!         
+!         elseif ( ed % inverse ) then
+!! 
+!!        -----------------------------
+!!>       Fifth case: RIGHT is reversed.
+!!        -----------------------------
+!!
+!!           Get the LEFT edge
+!!           -----------------
+!            QL = ed % storage(LEFT) % Q
+!#ifdef NAVIER_STOKES
+!            dQL = ed % storage(LEFT) % dQ
+!#endif
+!!
+!!           Invert the RIGHT edge
+!!           ---------------------
+!            QR(0:ed % spA % N , 1:NCONS ) = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS)
+!#ifdef NAVIER_STOKES
+!            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
+!#endif
+!!
+!!           Compute the Riemann solver
+!!           --------------------------
+!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
+!#ifdef NAVIER_STOKES
+!            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!
+!            FL = ( Fi - Fv - Fa) * ed % dS(0)
+!#else
+!            FL = Fi * ed % dS(0)
+!#endif
+!!
+!!           Invert the RIGHT edge
+!!           ---------------------
+!            FR( 0 : ed % spA % N , 1:NCONS ) = FL ( ed % spA % N : 0 : -1 , 1:NCONS )
+!
+!#ifdef NAVIER_STOKES
+!!
+!!           Compute the Gradient Riemann solver if proceeds
+!!           -----------------------------------------------
+!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
+!
+!               GL = GL * ed % dS(0)
+!               GR = GR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM) * ed % dS(0)
+!            end if
+!#endif
+!
+!         else
+!! 
+!!        -----------------------------------------------------------------------
+!!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
+!!        -----------------------------------------------------------------------
+!!
+!!           Get the LEFT edge
+!!           -----------------   
+!            QL = ed % storage(LEFT) % Q
+!#ifdef NAVIER_STOKES
+!            dQL = ed % storage(LEFT) % dQ
+!#endif 
+!!
+!!           Get the RIGHT edge
+!!           ------------------
+!            QR = ed % storage(RIGHT) % Q
+!#ifdef NAVIER_STOKES
+!            dQR = ed % storage(RIGHT) % dQ
+!#endif
+!!
+!!           Compute the Riemann solver
+!!           --------------------------
+!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
+!#ifdef NAVIER_STOKES
+!            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
+!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+!
+!            FL = ( Fi - Fv - Fa ) * ed % dS(0)
+!            FR = FL
+!#else
+!            FL = Fi * ed % dS(0)
+!            FR = FL
+!#endif
+!
+!#ifdef NAVIER_STOKES
+!!
+!!           Compute the Gradient Riemann solver if proceeds
+!!           -----------------------------------------------
+!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
+!
+!               GL = GL * ed % dS(0)
+!               GR = GR * ed % dS(0)
+!            end if
+!#endif
+!         
+!         end if
+!!
+!!        Change the sign of FR so that it points towards the element outside
+!!        -------------------------------------------------------------------
+!         FR = -1.0_RP * FR
 
       end subroutine ComputeRiemannSolver_InteriorEdge
 

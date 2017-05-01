@@ -126,6 +126,41 @@
                   call TripleMatrixProduct( A = el2 % spA % Minv , B = self % f % T_forward , C = self % f % spA % M , val = self % f % T_backward , trB = .true. )
 
                end if
+!
+!              Point to the correct procedure
+!              ------------------------------
+               if ( (.not. self % f % transform(LEFT)) .and. (.not. self % f % transform(RIGHT)) .and. (.not. self % f % inverse) ) then
+                  self % f % ProjectSolution       => Edge_ProjectSolutionType1
+                  self % f % ProjectFluxes         => Edge_ProjectFluxesType1
+                  self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType1
+
+               elseif ( (.not. self % f % transform(LEFT)) .and. (.not. self % f % transform(RIGHT)) .and. (self % f % inverse) ) then
+                  self % f % ProjectSolution       => Edge_ProjectSolutionType2
+                  self % f % ProjectFluxes         => Edge_ProjectFluxesType2
+                  self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType2
+   
+               elseif ( ( self % f % transform(LEFT) ) .and. ( .not. self % f % inverse ) ) then
+                  self % f % ProjectSolution       => Edge_ProjectSolutionType3
+                  self % f % ProjectFluxes         => Edge_ProjectFluxesType3
+                  self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType3
+
+               elseif ( ( self % f % transform(LEFT) ) .and. ( self % f % inverse ) ) then
+                  self % f % ProjectSolution       => Edge_ProjectSolutionType4
+                  self % f % ProjectFluxes         => Edge_ProjectFluxesType4
+                  self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType4
+      
+               elseif ( ( self % f % transform(RIGHT) ) .and. ( .not. self % f % inverse ) ) then
+                  self % f % ProjectSolution       => Edge_ProjectSolutionType5
+                  self % f % ProjectFluxes         => Edge_ProjectFluxesType5
+                  self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType5
+
+               elseif ( ( self % f % transform(RIGHT) ) .and. ( self % f % inverse ) ) then
+                  self % f % ProjectSolution       => Edge_ProjectSolutionType6
+                  self % f % ProjectFluxes         => Edge_ProjectFluxesType6
+                  self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType6
+
+               end if
+               
 
             elseif (present(elb) .and. (.not. present(el1)) .and. (.not. present(el2))) then ! Boundary edge
 
@@ -235,6 +270,336 @@
             end select
  
          end subroutine Edge_Invert
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              PROJECTION PROCEDURES
+!              ---------------------
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+         pure subroutine Edge_ProjectSolutionType1( ed , QL , QR , dQL , dQR) 
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+
+            QL = ed % storage(LEFT) % Q
+            QR = ed % storage(RIGHT) % Q
+
+            dQL = ed % storage(LEFT) % dQ
+            dQR = ed % storage(RIGHT) % dQ
+
+         end subroutine Edge_ProjectSolutionType1
+
+         pure subroutine Edge_ProjectSolutionType2( ed , QL , QR , dQL , dQR )
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            
+            QL = ed % storage(LEFT) % Q
+            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+#ifdef NAVIER_STOKES
+            dQL = ed % storage(LEFT) % dQ
+            dQR = ed % storage(RIGHT) % dQ ( ed % spA % N : 0 : -1 , 1 : NDIM , 1 : NCONS )
+#else
+            dQL = 0.0_RP
+            dQR = 0.0_RP
+#endif
+
+         end subroutine Edge_ProjectSolutionType2
+
+         pure subroutine Edge_ProjectSolutionType3( ed , QL , QR , dQL , dQR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            QR = ed % storage(RIGHT) % Q
+
+#ifdef NAVIER_STOKES
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
+            end do
+            dQR = ed % storage(RIGHT) % dQ
+#else
+            dQL = 0.0_RP
+            dQR = 0.0_RP
+#endif
+            
+         end subroutine Edge_ProjectSolutionType3
+
+         pure subroutine Edge_ProjectSolutionType4( ed , QL , QR , dQL , dQR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+#ifdef NAVIER_STOKES
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
+            end do
+            dQR = ed % storage(RIGHT) % dQ( ed % spA % N : 0 : -1 , 1 : NDIM , 1 : NCONS )
+#else
+            dQL = 0.0_RP
+            dQR = 0.0_RP
+#endif
+            
+         end subroutine Edge_ProjectSolutionType4
+
+         pure subroutine Edge_ProjectSolutionType5( ed , QL , QR , dQL , dQR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+ 
+            QL = ed % storage(LEFT) % Q
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+
+#ifdef NAVIER_STOKES
+            dQL = ed % storage(LEFT) % dQ
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
+            end do
+#else
+            dQL = 0.0_RP
+            dQR = 0.0_RP
+#endif
+           
+         end subroutine Edge_ProjectSolutionType5
+
+         pure subroutine Edge_ProjectSolutionType6( ed , QL , QR , dQL , dQR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+  
+            QL = ed % storage(LEFT) % Q
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+            QR = QR( ed % spA % N : 0 : -1 , 1 : NCONS ) 
+
+#ifdef NAVIER_STOKES
+            dQL = ed % storage(LEFT) % dQ
+            do eq = 1 , NCONS
+               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
+            end do
+            dQR = ed % storage(RIGHT) % dQ( ed % spA % N : 0 : -1 , 1 : NDIM , 1 : NCONS )
+#else
+            dQL = 0.0_RP
+            dQR = 0.0_RP
+#endif
+            
+         end subroutine Edge_ProjectSolutionType6
+
+         pure subroutine Edge_ProjectFluxesType1( ed , F , FL , FR) 
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+
+            FL = F
+            FR = -F
+
+         end subroutine Edge_ProjectFluxesType1
+
+         pure subroutine Edge_ProjectFluxesType2( ed , F , FL , FR )
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            
+            FL = F
+            FR = -F( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+         end subroutine Edge_ProjectFluxesType2
+
+         pure subroutine Edge_ProjectFluxesType3( ed , F , FL , FR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+
+            call Mat_x_Mat( ed % T_backward , F , FL)
+            FR = -F
+            
+         end subroutine Edge_ProjectFluxesType3
+
+         pure subroutine Edge_ProjectFluxesType4( ed , F , FL , FR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+
+            call Mat_x_Mat( ed % T_backward , F , FL )
+            FR = -F( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+         end subroutine Edge_ProjectFluxesType4
+
+         pure subroutine Edge_ProjectFluxesType5( ed , F , FL , FR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+
+            FL = F
+            call Mat_x_Mat( ed % T_backward , -F , FR )
+           
+         end subroutine Edge_ProjectFluxesType5
+
+         pure subroutine Edge_ProjectFluxesType6( ed , F , FL , FR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            
+            FL = F
+            call Mat_x_Mat( ed % T_backward , F , FR )
+            FR = -FR( ed % Nlow : 0 : -1 , 1 : NCONS )
+
+         end subroutine Edge_ProjectFluxesType6
+
+         pure subroutine Edge_ProjectGradientFluxesType1( ed , GL_edge , GR_edge , GL , GR) 
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+
+            GL = GL_edge
+            GR = GR_edge
+
+         end subroutine Edge_ProjectGradientFluxesType1
+
+         pure subroutine Edge_ProjectGradientFluxesType2( ed , GL_edge , GR_edge , GL , GR)
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+            
+            GL = GL_edge
+            GR = GR_edge( ed % spA % N : 0 : -1 , 1 : NCONS , 1 : NDIM )
+
+         end subroutine Edge_ProjectGradientFluxesType2
+
+         pure subroutine Edge_ProjectGradientFluxesType3( ed , GL_edge , GR_edge , GL , GR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+               
+            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IX) , GL(:,:,IX) )
+            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IY) , GL(:,:,IY) )
+            GR = GR_edge
+            
+         end subroutine Edge_ProjectGradientFluxesType3
+
+         pure subroutine Edge_ProjectGradientFluxesType4( ed , GL_edge , GR_edge , GL , GR)
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+               
+            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IX) , GL(:,:,IX) )
+            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IY) , GL(:,:,IY) )
+            GR = GR_edge( ed % spA % N : 0 : -1 , 1 : NCONS , 1 : NDIM)
+
+         end subroutine Edge_ProjectGradientFluxesType4
+
+         pure subroutine Edge_ProjectGradientFluxesType5( ed , GL_edge , GR_edge , GL , GR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+
+            GL = GL_edge
+            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IX) , GR(:,:,IX) )
+            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IY) , GR(:,:,IY) )
+           
+         end subroutine Edge_ProjectGradientFluxesType5
+
+         pure subroutine Edge_ProjectGradientFluxesType6( ed , GL_edge , GR_edge , GL , GR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+
+            GL = GL_edge
+            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IX) , GR(:,:,IX) )
+            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IY) , GR(:,:,IY) )
+
+            GR = GR( ed % Nlow : 0 : -1 , 1 : NCONS , 1 : NDIM )
+
+         end subroutine Edge_ProjectGradientFluxesType6
 
          pure function Edge_ComputeJumps ( ed , var ) result ( jumps )
             use MatrixOperations

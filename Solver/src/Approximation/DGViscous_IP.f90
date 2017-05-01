@@ -37,7 +37,7 @@ submodule (DGViscousMethods)  DGViscous_IP
 !        Just compute the interior gradient
 !        ----------------------------------
          do eID = 1 , mesh % no_of_elements
-            call mesh % elements(eID) % ComputeInteriorGradient
+            mesh % elements(eID) % dQ = mesh % elements(eID) % ComputeInteriorGradient()
          end do
 
       end subroutine IP_ComputeGradient

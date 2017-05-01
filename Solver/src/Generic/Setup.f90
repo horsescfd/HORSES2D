@@ -95,6 +95,7 @@ module Setup_class
         character(len=STR_LEN_SETUP) :: solution_file
         character(len=STR_LEN_SETUP) :: restart_file
         character(len=STR_LEN_SETUP) :: outputType
+        character(len=STR_LEN_SETUP) :: exportFormat
 
         contains
             procedure, nopass  :: Initialization => Setup_Initialization
@@ -394,6 +395,11 @@ module Setup_class
 !         -------------------------------
           call readValue ( trim ( case_name )  , "Number of representation points"  , Setup % no_of_plotPoints  ) 
           call Setup_CheckWithDefault( Setup % no_of_plotPoints , 2 * Setup % N , "Number of representation points" ) 
+!
+!         Export format
+!         -------------
+          call readValue ( trim ( case_name )  , "Export format"  , Setup % exportFormat  ) 
+          call Setup_CheckWithDefault( Setup % exportFormat , "Tecplot" , "Export format" ) 
 
       end subroutine Setup_Initialization
 
