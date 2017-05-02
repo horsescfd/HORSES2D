@@ -414,7 +414,11 @@ module PhysicsNS
          refValues % V     = refValues % Mach * sqrt( thermodynamics % gamma * Setup % pressure_ref / refValues % rho )
          refValues % a     = refValues % V
          refValues % p     = refValues % Mach * refValues % Mach * thermodynamics % gamma * Setup % pressure_ref
-         refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         if ( setup % reynolds_number .eq. 0.0_RP ) then
+            refValues % mu = 0.0_RP
+         else
+            refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         end if
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
          refValues % tc    = refValues % L / (refValues % V )
 #endif

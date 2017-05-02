@@ -161,11 +161,11 @@
 !           ---------------------------
 !   ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 !   
-     subroutine CurvilinearEdge_SetCurve( self , points , order )
+     subroutine CurvedEdge_SetCurve( self , points , order )
         use InterpolationAndDerivatives
         use MatrixOperations
         implicit none
-        class(CurvedBdryEdge_t)                            :: self
+        class(CurvedEdge_t)                                :: self
         real(kind=RP)               , intent(in), optional :: points(:,:)
         integer                     , intent(in), optional :: order
 !       -----------------------------------------------------------------------------
@@ -178,34 +178,37 @@
         integer                                            :: iXi
    
         if ( present(points) .and. present(order) ) then
-   
+!
+!          First, there is an interpolation from "order" to "Nlow" (i.e. the curve is interpolated to the lowest order)   
+!          -------------------------------------------------------
            associate ( N => self % spA % N ) 
+           associate ( NLow => self % Nlow )
    
            allocate( CGLnodes(0 : order ) )
-           allocate( CGLintermediate(0 : N ) )
+           allocate( CGLintermediate(0 : NLow ) )
    
            CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
-           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(N - node)/(1.0_RP*N)),node = 0,N)/),(/N+1/) )
+           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(NLow - node)/(1.0_RP*NLow)),node = 0,NLow)/),(/NLow+1/) )
    
-           allocate( Xintermediate(NDIM , 0:N) )
+           allocate( Xintermediate(NDIM , 0:NLow) )
      
            allocate( wb ( 0 : order ) )
-           allocate( T ( 0 : N , 0 : order ) )
+           allocate( T ( 0 : NLow , 0 : order ) )
      
            call BarycentricWeights( N = order , x = CGLnodes , w = wb )
-           call PolynomialInterpolationMatrix( N = order , M = N , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
+           call PolynomialInterpolationMatrix( N = order , M = NLow , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
 !   
 !          Compute intermediate points
 !          ---------------------------
-           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = N+1, trB = .true. ) 
+           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = NLow+1, trB = .true. ) 
    
            deallocate( wb , T )
       
-           allocate ( wb ( 0 : N         )  ) 
-           allocate ( T  ( 0 : N , 0 : N )  ) 
+           allocate ( wb ( 0 : NLow         )  ) 
+           allocate ( T  ( 0 : N , 0 : NLow )  ) 
    
-           call BarycentricWeights( N = N , x = CGLintermediate , w = wb )
-           call PolynomialInterpolationMatrix( N = N , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
+           call BarycentricWeights( N = NLow , x = CGLintermediate , w = wb )
+           call PolynomialInterpolationMatrix( N = NLow , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
      
 !          Compute points
 !          --------------
@@ -224,6 +227,7 @@
            end do
       
            end associate
+           end associate
    
         else
    
@@ -232,11 +236,11 @@
    
         end if
    
-     end subroutine CurvilinearEdge_SetCurve
+     end subroutine CurvedEdge_SetCurve
 
-     pure function Curvilinear_getX( self , iXi , direction ) result ( X ) 
+     pure function CurvedEdge_getX( self , iXi , direction ) result ( X ) 
          implicit none
-         class(CurvedBdryEdge_t), intent(in)                 :: self
+         class(CurvedEdge_t), intent(in)                 :: self
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: X (NDIM)
@@ -263,11 +267,11 @@
    
          end if
    
-      end function Curvilinear_getX
+      end function CurvedEdge_getX
    
-      pure function Curvilinear_getdX( self , iXi , direction ) result ( dX ) 
+      pure function CurvedEdge_getdX( self , iXi , direction ) result ( dX ) 
          implicit none
-         class(CurvedBdryEdge_t), intent(in)                 :: self
+         class(CurvedEdge_t), intent(in)                 :: self
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: dX (NDIM)
@@ -294,11 +298,11 @@
     
          end if
    
-      end function Curvilinear_getdX
+      end function CurvedEdge_getdX
    
-      pure function Curvilinear_getdS( self , iXi , direction ) result ( dS ) 
+      pure function CurvedEdge_getdS( self , iXi , direction ) result ( dS ) 
          implicit none
-         class(CurvedBdryEdge_t), intent(in)                 :: self
+         class(CurvedEdge_t), intent(in)                 :: self
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: dS (NDIM)
@@ -325,12 +329,12 @@
     
          end if
    
-      end function Curvilinear_getdS
+      end function CurvedEdge_getdS
    
-     pure function Curvilinear_InterpolantX( self , xi , direction ) result( p )
+     pure function CurvedEdge_InterpolantX( self , xi , direction ) result( p )
          use MatrixOperations
          implicit none
-         class(CurvedBdryEdge_t), intent (in)           :: self
+         class(CurvedEdge_t), intent (in)           :: self
          real(kind=RP),           intent (in)           :: xi
          integer      ,           intent (in), optional :: direction
          real(kind=RP)                                  :: p(NDIM)
@@ -352,12 +356,12 @@
           
          p = MatrixTimesVector_F( self % X , self % spA % lj(correctedXi) , size(self % X ,1 ))
          
-     end function Curvilinear_InterpolantX
+     end function CurvedEdge_InterpolantX
    
-     pure function Curvilinear_InterpolantdS( self , xi , direction ) result( dS )
+     pure function CurvedEdge_InterpolantdS( self , xi , direction ) result( dS )
          use MatrixOperations
          implicit none
-         class(CurvedBdryEdge_t), intent (in)           :: self
+         class(CurvedEdge_t), intent (in)           :: self
          real(kind=RP),           intent (in)           :: xi
          integer,                 intent (in), optional :: direction
          real(kind=RP)                                  :: dS(NDIM)
@@ -381,12 +385,12 @@
          auxdS = spread( self % dS , 2 , self % spA % N + 1) * self % n
          dS = MatrixTimesVector_F( auxdS , self % spA % lj(correctedXi) , NDIM )
    
-      end function Curvilinear_InterpolantdS
+      end function CurvedEdge_InterpolantdS
    
-     pure function Curvilinear_InterpolantdX( self , xi , direction ) result( dX )
+     pure function CurvedEdge_InterpolantdX( self , xi , direction ) result( dX )
          use MatrixOperations
          implicit none
-         class(CurvedBdryEdge_t), intent (in)           :: self
+         class(CurvedEdge_t), intent (in)           :: self
          real(kind=RP),           intent (in)           :: xi
          integer      ,           intent (in), optional :: direction
          real(kind=RP)                                  :: dX(NDIM)
@@ -408,4 +412,10 @@
 
          dX = real(dir , kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) , NDIM)
    
-     end function Curvilinear_InterpolantdX
+     end function CurvedEdge_InterpolantdX
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+!
+!
+!
+

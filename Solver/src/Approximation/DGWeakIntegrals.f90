@@ -527,6 +527,11 @@ module DGWeakIntegrals
                      do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
                         faceInt(iXi,iEta,IX:IY,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IX:IY,0) * ed % dS(0)
                      end do ; end do ; end do
+
+                  type is (CurvedEdge_t)
+                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                        faceInt(iXi,iEta,IX:IY,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IX:IY,iXi) * ed % dS(iXi)
+                     end do ; end do ; end do
                   
                   type is (StraightBdryEdge_t)
                      do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
@@ -551,6 +556,12 @@ module DGWeakIntegrals
                         faceInt(iXi,iEta,IY,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IY,0) * ed % dS(0)
                      end do ; end do ; end do
                   
+                  type is (CurvedEdge_t)
+                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                        faceInt(iXi,iEta,IX,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IX,iEta) * ed % dS(iEta)
+                        faceInt(iXi,iEta,IY,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IY,iEta) * ed % dS(iEta)
+                     end do ; end do ; end do
+
                   type is (StraightBdryEdge_t)
                      do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
                         faceInt(iXi,iEta,IX,eq) = u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IX,0) * ed % dS(0)
@@ -572,6 +583,12 @@ module DGWeakIntegrals
                      do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
                         faceInt(iXi,iEta,IX,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IX,0) * ed % dS(0)
                         faceInt(iXi,iEta,IY,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IY,0) * ed % dS(0)
+                     end do ; end do ; end do
+
+                  type is (CurvedEdge_t)
+                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                        faceInt(iXi,iEta,IX,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IX,iXi) * ed % dS(iXi)
+                        faceInt(iXi,iEta,IY,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IY,iXi) * ed % dS(iXi)
                      end do ; end do ; end do
                   
                   type is (StraightBdryEdge_t)
@@ -596,6 +613,12 @@ module DGWeakIntegrals
                      do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
                         faceInt(iXi,iEta,IX,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IX,0) * ed % dS(0)
                         faceInt(iXi,iEta,IY,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IY,0) * ed % dS(0)
+                     end do ; end do ; end do
+
+                  type is (CurvedEdge_t)
+                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                        faceInt(iXi,iEta,IX,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IX,iEta) * ed % dS(iEta)
+                        faceInt(iXi,iEta,IY,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IY,iEta) * ed % dS(iEta)
                      end do ; end do ; end do
                   
                   type is (StraightBdryEdge_t)

@@ -246,6 +246,19 @@
                      self % n ( 1:NDIM , 0 ) = -self % n ( 1:NDIM , 0) 
       
                   end if
+
+               type is (CurvedEdge_t)
+                  self % dX ( 1:NDIM , 0:self % spA % N ) = -self % dX ( 1:NDIM , self % spA % N : 0 : -1 ) 
+                  self % dS (          0:self % spA % N ) =  self % dS (          self % spA % N : 0 : -1 ) 
+      
+                  if ( changeSigndS_val ) then
+                     self % n ( 1:NDIM , 0:self % spA % N ) = -self % n ( 1:NDIM , self % spA % N : 0 : -1 ) 
+      
+                  else
+                     self % n ( 1:NDIM , 0:self % spA % N ) = self % n ( 1:NDIM , self % spA % N : 0 : -1 ) 
+         
+                  end if
+ 
          
                type is (StraightBdryEdge_t)
                   self % dX ( 1:NDIM , 0 ) = -self % dX ( 1:NDIM , 0 ) 
@@ -288,8 +301,13 @@
             QL = ed % storage(LEFT) % Q
             QR = ed % storage(RIGHT) % Q
 
+#ifdef NAVIER_STOKES
             dQL = ed % storage(LEFT) % dQ
             dQR = ed % storage(RIGHT) % dQ
+#else
+            dQL = 0.0_RP
+            dQR = 0.0_RP
+#endif
 
          end subroutine Edge_ProjectSolutionType1
 
@@ -615,103 +633,217 @@
             real(kind=RP)     :: QL( 0 : ed % spA % N )
             real(kind=RP)     :: QR( 0 : ed % spA % N )
             real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N )
-
-         if ( ed % transform(LEFT) .and. ed % inverse ) then
-! 
-!        ---------------------------------------------------------
-!>       First case: LEFT needs p-Adaption, and RIGHT is reversed.
-!        ---------------------------------------------------------
-!
-!           Transform the LEFT edge
-!           -----------------------            
-            QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
-
-         elseif ( ed % transform(LEFT) ) then
-! 
-!        ----------------------------------
-!>       Second case: LEFT needs p-Adaption.
-!        ----------------------------------
-!
-!           Transform the LEFT 
-!           -----------------------
-            QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
-!
-!           Get the RIGHT edge state
-!           ------------------------
-            QR = ed % storage(RIGHT) % Q(:,var)
-
-         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
-! 
-!        ---------------------------------------------------------
-!>       Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
-!        ---------------------------------------------------------
-!
-!           Get the LEFT edge 
+   
+            if ( ed % transform(LEFT) .and. ed % inverse ) then
+!    
+!           ---------------------------------------------------------
+!>          First case: LEFT needs p-Adaption, and RIGHT is reversed.
+!           ---------------------------------------------------------
+!   
+!              Transform the LEFT edge
+!              -----------------------            
+               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
+!   
+!              Invert the RIGHT edge
+!              ---------------------
+               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
+   
+            elseif ( ed % transform(LEFT) ) then
+!    
+!           ----------------------------------
+!>          Second case: LEFT needs p-Adaption.
+!           ----------------------------------
+!   
+!              Transform the LEFT 
+!              -----------------------
+               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
+!   
+!              Get the RIGHT edge state
+!              ------------------------
+               QR = ed % storage(RIGHT) % Q(:,var)
+   
+            elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+!    
+!           ---------------------------------------------------------
+!>          Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
+!           ---------------------------------------------------------
+!   
+!              Get the LEFT edge 
+!              -----------------
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Transform the RIGHT edge 
+!              ------------------------
+               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
+!   
+!              Invert the RIGHT edge 
+!              ---------------------
+               QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
+   
+            elseif ( ed % transform(RIGHT) ) then
+!    
+!           -----------------------------------
+!>          Fourth case: RIGHT needs p-Adaption.
+!           -----------------------------------
+!   
+!              Get the LEFT edge
+!              -----------------
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Transform the RIGHT edge
+!              ------------------------
+               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
+            
+            elseif ( ed % inverse ) then
+!    
+!           -----------------------------
+!>          Fifth case: RIGHT is reversed.
+!           -----------------------------
+!   
+!              Get the LEFT edge
+!              -----------------
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Invert the RIGHT edge
+!              ---------------------
+               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
+   
+            else
+!    
+!           -----------------------------------------------------------------------
+!>          Sixth case: Default case: neither p-Adaption nor inversion are required.
+!           -----------------------------------------------------------------------
+!   
+!              Get the LEFT edge 
+!              -----------------   
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Get the RIGHT edge
+!              ------------------
+               QR = ed % storage(RIGHT) % Q(:,var)
+            
+            end if
+   
+!   
+!           Compute the Jumps
 !           -----------------
-            QL = ed % storage(LEFT) % Q(:,var)
-!
-!           Transform the RIGHT edge 
-!           ------------------------
-            QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-!
-!           Invert the RIGHT edge 
-!           ---------------------
-            QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
-
-         elseif ( ed % transform(RIGHT) ) then
-! 
-!        -----------------------------------
-!>       Fourth case: RIGHT needs p-Adaption.
-!        -----------------------------------
-!
-!           Get the LEFT edge
-!           -----------------
-            QL = ed % storage(LEFT) % Q(:,var)
-!
-!           Transform the RIGHT edge
-!           ------------------------
-            QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-         
-         elseif ( ed % inverse ) then
-! 
-!        -----------------------------
-!>       Fifth case: RIGHT is reversed.
-!        -----------------------------
-!
-!           Get the LEFT edge
-!           -----------------
-            QL = ed % storage(LEFT) % Q(:,var)
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
-
-         else
-! 
-!        -----------------------------------------------------------------------
-!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
-!        -----------------------------------------------------------------------
-!
-!           Get the LEFT edge 
-!           -----------------   
-            QL = ed % storage(LEFT) % Q(:,var)
-!
-!           Get the RIGHT edge
-!           ------------------
-            QR = ed % storage(RIGHT) % Q(:,var)
-         
-         end if
-!
-!        Compute the Jumps
-!        -----------------
-         nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
-         jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
-
+            nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
+   
          end function Edge_ComputeJumps
+
+         pure function CurvedEdge_ComputeJumps ( ed , var ) result ( jumps )
+            use MatrixOperations
+            implicit none
+            class(CurvedEdge_t),    intent(in)     :: ed
+            integer      ,    intent(in)     :: var
+            real(kind=RP)                    :: jumps
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)     :: QL( 0 : ed % spA % N )
+            real(kind=RP)     :: QR( 0 : ed % spA % N )
+            real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N )
+   
+            if ( ed % transform(LEFT) .and. ed % inverse ) then
+!    
+!           ---------------------------------------------------------
+!>          First case: LEFT needs p-Adaption, and RIGHT is reversed.
+!           ---------------------------------------------------------
+!   
+!              Transform the LEFT edge
+!              -----------------------            
+               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
+!   
+!              Invert the RIGHT edge
+!              ---------------------
+               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
+   
+            elseif ( ed % transform(LEFT) ) then
+!    
+!           ----------------------------------
+!>          Second case: LEFT needs p-Adaption.
+!           ----------------------------------
+!   
+!              Transform the LEFT 
+!              -----------------------
+               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
+!   
+!              Get the RIGHT edge state
+!              ------------------------
+               QR = ed % storage(RIGHT) % Q(:,var)
+   
+            elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+!    
+!           ---------------------------------------------------------
+!>          Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
+!           ---------------------------------------------------------
+!   
+!              Get the LEFT edge 
+!              -----------------
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Transform the RIGHT edge 
+!              ------------------------
+               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
+!   
+!              Invert the RIGHT edge 
+!              ---------------------
+               QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
+   
+            elseif ( ed % transform(RIGHT) ) then
+!    
+!           -----------------------------------
+!>          Fourth case: RIGHT needs p-Adaption.
+!           -----------------------------------
+!   
+!              Get the LEFT edge
+!              -----------------
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Transform the RIGHT edge
+!              ------------------------
+               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
+            
+            elseif ( ed % inverse ) then
+!    
+!           -----------------------------
+!>          Fifth case: RIGHT is reversed.
+!           -----------------------------
+!   
+!              Get the LEFT edge
+!              -----------------
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Invert the RIGHT edge
+!              ---------------------
+               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
+   
+            else
+!    
+!           -----------------------------------------------------------------------
+!>          Sixth case: Default case: neither p-Adaption nor inversion are required.
+!           -----------------------------------------------------------------------
+!   
+!              Get the LEFT edge 
+!              -----------------   
+               QL = ed % storage(LEFT) % Q(:,var)
+!   
+!              Get the RIGHT edge
+!              ------------------
+               QR = ed % storage(RIGHT) % Q(:,var)
+            
+            end if
+   
+!   
+!           Compute the Jumps
+!           -----------------
+            nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+            jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
+   
+         end function CurvedEdge_ComputeJumps
 
          pure function StraightBdryEdge_ComputeJumps ( ed , var ) result ( jumps )
             use MatrixOperations
@@ -740,7 +872,11 @@
 !
 !           Invert the RIGHT edge
 !           ---------------------
+#ifdef NAVIER_STOKES
             QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
+#else
+            QR(0:ed % spA % N) = ed % uB(ed % spA % N : 0 : -1 , var )
+#endif
 
          else
 ! 
@@ -754,7 +890,12 @@
 !
 !           Get the RIGHT edge
 !           ------------------
+#ifdef NAVIER_STOKES
             QR = ed % uSB(:,var)
+#else
+            QR = ed % uB(:,var)
+#endif
+      
          
          end if
 !
@@ -792,7 +933,11 @@
 !
 !           Invert the RIGHT edge
 !           ---------------------
+#ifdef NAVIER_STOKES
             QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
+#else
+            QR(0:ed % spA % N) = ed % uB(ed % spA % N : 0 : -1 , var )
+#endif
 
          else
 ! 
@@ -806,7 +951,11 @@
 !
 !           Get the RIGHT edge
 !           ------------------
+#ifdef NAVIER_STOKES
             QR = ed % uSB(:,var)
+#else
+            QR = ed % uB(:,var)
+#endif
          
          end if
 !

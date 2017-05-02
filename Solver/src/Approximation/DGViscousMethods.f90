@@ -57,10 +57,12 @@ module DGViscousMethods
 !                                   SOLUTION RIEMANN PROCEDURE
 !                                ***************************************
 !
-         generic, public    ::   ComputeSolutionRiemann                  => ComputeSolutionRiemann_Interior     , &
-                                                                            ComputeSolutionRiemann_StraightBdry , &
+         generic, public    ::   ComputeSolutionRiemann                  => ComputeSolutionRiemann_Interior       , &
+                                                                            ComputeSolutionRiemann_CurvedInterior , &
+                                                                            ComputeSolutionRiemann_StraightBdry   , &
                                                                             ComputeSolutionRiemann_CurvedBdry   
          procedure, private ::   ComputeSolutionRiemann_Interior         => BaseClass_ComputeSolutionRiemann_Interior
+         procedure, private ::   ComputeSolutionRiemann_CurvedInterior   => BaseClass_ComputeSolutionRiemann_CurvedInterior
          procedure, private ::   ComputeSolutionRiemann_StraightBdry     => BaseClass_ComputeSolutionRiemann_StraightBdry
          procedure, private ::   ComputeSolutionRiemann_CurvedBdry       => BaseClass_ComputeSolutionRiemann_CurvedBdry
          procedure, private ::   SolutionRiemannSolver                   => BaseClass_SolutionRiemannSolver
@@ -694,6 +696,194 @@ module DGViscousMethods
          end if
 
       end subroutine BaseClass_ComputeSolutionRiemann_Interior
+
+      subroutine BaseClass_ComputeSolutionRiemann_CurvedInterior( self ,  ed , uStarL , uStarR )
+!
+!        *****************************************************************************
+!           This routine computes the Solution Riemann problem in the "ed" edge.
+!              -> The result is uStarL and uStarR
+!           This procedure is common to all ViscousMethods, since it just provides
+!           a framework to deal with the data sharing across the interface. Then,
+!           each method considers its own SolutionRiemann solver procedure
+!                                     -------------------
+!        >> Therefore, it considers several possibilities:
+!
+!              1/ LEFT edge needs a p-Transformation and RIGHT edge is reversed.
+!              2/ LEFT edge needs a p-Transformation
+!              3/ RIGHT edge needs a p-Transformation and RIGHT edge is reversed.
+!              4/ RIGHT edge needs a p-Transformation
+!              5/ RIGHT edge is reversed.
+!              6/ No transformations are needed.
+!
+!           The solution Riemann solver is computed with the 
+!>                self % SolutionRiemannSolver( N , QL , QR )
+!           procedure.
+!
+!        *****************************************************************************
+!
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         class(ViscousMethod_t) :: self
+         type(CurvedEdge_t)     :: ed
+         real(kind=RP)          :: uStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
+         real(kind=RP)          :: uStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real ( kind=RP ), target :: QL ( 0 : ed % spA % N , 1 : NCONS )
+         real ( kind=RP ), target :: QR ( 0 : ed % spA % N , 1 : NCONS )
+
+         if ( ed % transform(LEFT) .and. ed % inverse ) then
+! 
+!        ---------------------------------------------------------
+!>       First case: LEFT needs p-Adaption, and RIGHT is reversed.
+!        ---------------------------------------------------------
+!
+!           Transform the LEFT edge
+!           -----------------------            
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarR = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the LEFT edge 
+!           -----------------------
+            call Mat_x_Mat( ed % T_backward , uStarR , uStarL )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            uStarR(0:ed % spA % N , 1:NCONS) = uStarR(ed % spA % N : 0 : -1 , 1:NCONS) 
+
+         elseif ( ed % transform(LEFT) ) then
+! 
+!        ----------------------------------
+!>       Second case: LEFT needs p-Adaption.
+!        ----------------------------------
+!
+!           Transform the LEFT 
+!           -----------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!
+!           Get the RIGHT edge state
+!           ------------------------
+            QR = ed % storage(RIGHT) % Q
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarR = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the LEFT edge 
+!           -----------------------
+            call Mat_x_Mat( ed % T_backward , uStarR , uStarL )
+
+
+         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
+! 
+!        ---------------------------------------------------------
+!>       Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
+!        ---------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------
+            QL = ed % storage(LEFT) % Q
+!
+!           Transform the RIGHT edge 
+!           ------------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+!
+!           Invert the RIGHT edge 
+!           ---------------------
+            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the RIGHT edge
+!           ------------------------ 
+            call Mat_x_Mat( ed % T_backward , uStarL , uStarR )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            uStarR(0:ed % Nlow,1:NCONS) = uStarR(ed % Nlow:0:-1 , 1:NCONS)
+
+         elseif ( ed % transform(RIGHT) ) then
+! 
+!        -----------------------------------
+!>       Fourth case: RIGHT needs p-Adaption.
+!        -----------------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(LEFT) % Q
+!
+!           Transform the RIGHT edge
+!           ------------------------
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Transform the RIGHT edge
+!           ------------------------
+            call Mat_x_Mat( ed % T_backward , uStarL , uStarR )
+         
+         elseif ( ed % inverse ) then
+! 
+!        -----------------------------
+!>       Fifth case: RIGHT is reversed.
+!        -----------------------------
+!
+!           Get the LEFT edge
+!           -----------------
+            QL = ed % storage(LEFT) % Q
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            QR(0:ed % spA % N , 1:NCONS ) = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS)
+!
+!           Compute the Riemann solver
+!           --------------------------         
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Invert the RIGHT edge
+!           ---------------------
+            uStarR( 0 : ed % spA % N , 1:NCONS ) = uStarL ( ed % spA % N : 0 : -1 , 1:NCONS )
+
+         else
+! 
+!        -----------------------------------------------------------------------
+!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
+!        -----------------------------------------------------------------------
+!
+!           Get the LEFT edge 
+!           -----------------   
+            QL = ed % storage(LEFT) % Q
+!
+!           Get the RIGHT edge
+!           ------------------
+            QR = ed % storage(RIGHT) % Q
+!
+!           Compute the Riemann solver
+!           --------------------------
+            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!           Assign the value to the RIGHT edge
+!           ----------------------------------
+            uStarR = uStarL
+         
+         end if
+
+      end subroutine BaseClass_ComputeSolutionRiemann_CurvedInterior
 
       subroutine BaseClass_ComputeSolutionRiemann_StraightBdry( self ,  ed , uStar)
 !

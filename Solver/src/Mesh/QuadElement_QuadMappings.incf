@@ -25,6 +25,13 @@
                      X_edges(IX:IY,iXi,0:self % spA % N,edge) = spread ( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                      dX_edges(IX:IY,iXi,0:self % spA % N ,edge) = spread( f % evaluatedX( xi(iXi) , self % edgesDirection(edge) )  , ncopies = self % spA % N +1 ,dim = 2)
                   end do
+
+               type is (CurvedEdge_t)
+
+                  do iXi = 0 , self % spA % N
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                  end do
    
                type is (StraightBdryEdge_t)
    
@@ -39,6 +46,7 @@
                      X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
                      dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
                   end do
+
             end select
          end do 
 
@@ -49,6 +57,13 @@
                   do iEta = 0 , self % spA % N
                      X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluateX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                     dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluatedX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                  end do
+
+               type is (CurvedEdge_t)
+
+                  do iEta = 0 , self % spA % N
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getdX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                   end do
    
                type is (StraightBdryEdge_t)
@@ -150,7 +165,13 @@
          end associate
    
       end function QuadElement_Compute_X
-
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!        FIND POINTS WITH COORDINATES SUBROUTINES
+!        ----------------------------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       subroutine QuadElement_FindPointWithCoords( self , x , xi , eta , isInside )
          implicit none
          class(QuadElement_t), intent(in)             :: self
@@ -167,6 +188,10 @@
 !        -----------------------------------------------------
          do edge = 1 , EDGES_PER_QUAD
             select type ( f => self % edges(edge) % f )
+
+               type is (CurvedEdge_t)
+                  curvilinear = .true.
+
                type is (CurvedBdryEdge_t)
                   curvilinear = .true.
             
@@ -318,6 +343,53 @@
                      
                   end if
     
+               type is ( CurvedEdge_t ) 
+   
+                  associate ( N => f % spA % N )
+                  allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+   
+                  edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+                  edgePoints(IX:IY,1:N+1) = f % X(IX:IY,0:N)
+                  edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+                  
+                  do j = 0 , N+1
+!   
+!                    Find if crosses the line
+!                    ------------------------
+                     if ( almostEqual ( edgePoints(IY,j) , edgePoints(IY,j+1) ) ) then  
+!                    
+!                       The edge is horizontal
+!                       ----------------------
+                        if ( almostEqual ( x(IY) , edgePoints(IY,j) ) .and. ( newSign ( edgePoints(IX,j) - x(IX)) .ne. newSign( edgePoints(IX,j+1) - x(IX) )) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+   
+                     elseif ( newSign ( edgePoints(IY,j) - x(IY) ) .ne.  newSign ( edgePoints(IY,j+1) - x(IY) ) ) then
+!   
+!                       Crosses the line. Compute the x coordinate of the intersection
+!                       --------------------------------------------------------------
+                        xc = ( edgePoints(IX,j) * ( edgePoints(IY,j+1) - x(IY) )  + &
+                            edgePoints(IX,j+1) * ( x(IY) - edgePoints(IY,j) ) ) / &
+                          ( edgePoints(IY,j+1) - edgePoints(IY,j) )
+   
+                        if ( xc .lt. x(IX) ) then
+                           no_of_intersections = no_of_intersections + 1 
+   
+                        elseif ( almostEqual ( xc , x(IX) ) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+                     
+                     end if
+                  end do
+   
+                  deallocate ( edgePoints ) 
+   
+                  end associate
+ 
    
                type is ( StraightBdryEdge_t )
 !   

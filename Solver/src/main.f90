@@ -4,8 +4,8 @@ program main
     use SMConstants
     use DGSEM_Class
     use Setup_class
-!    use QuadMeshClass
-!    use QuadElementClass
+    use QuadMeshClass
+    use QuadElementClass
     use Headers
     use ChecksModule
     implicit none
@@ -35,7 +35,9 @@ program main
 !   Perform checks on the built framework
 !   -------------------------------------
     call checks( sem )
-
+!
+!   Time integration
+!   ----------------
     call cpu_time(tstart)
     call sem % Integrate()
     call cpu_time(tend)

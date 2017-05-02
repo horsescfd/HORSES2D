@@ -48,7 +48,7 @@
                end do
 
                if (meshFile % curvilinear) then
-                  curvilinear = any(meshFile % curved_bdryedges == edge)
+                  curvilinear = any(meshFile % curved_Edges == edge)
                else
                   curvilinear = .false.
                end if
@@ -83,11 +83,15 @@
                      type is (Edge_t)
                         call self % edges(edge) % f % SetCurve()
 
+                     type is (CurvedEdge_t)
+                        curve = minloc(abs(meshFile % curved_Edges - edge) , dim = 1 ) 
+                        call self % edges(edge) % f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
+
                      type is (StraightBdryEdge_t) 
                         call self % edges(edge) % f % SetCurve()
 
                      type is (CurvedBdryEdge_t) 
-                        curve = minloc(abs(meshFile % curved_bdryedges -  edge) , 1)
+                        curve = minloc(abs(meshFile % curved_Edges -  edge) , dim = 1)
                         call self % edges(edge) % f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
 
                      class default
@@ -145,6 +149,10 @@
                         type is (Edge_t)
                            ed % Area = sum( ed % dS(0) * ed % spA % w )
                            ed % invh = ed % Area / min( ed % quads(LEFT) % e % Volume , ed % quads(RIGHT) % e % Volume )
+
+                        type is (CurvedEdge_t)
+                           ed % Area = sum( ed % dS * ed % spA % w )
+                           ed % invh = ed % Area / ed % quads(1) % e % Volume
 
                         type is (StraightBdryEdge_t)
                            ed % Area = sum( ed % dS(0) * ed % spA % w )

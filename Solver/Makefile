@@ -24,10 +24,10 @@ GLOB_MACROS := -D_DIMENSIONLESS_TAU
 
 Physics: PhysicsNS Headers
 PhysicsNS: Setup SMConstants Headers MatrixOperations
-VariableConversion: PhysicsNS
-RiemannSolvers: PhysicsNS SMConstants InviscidFluxes
-InviscidFluxes: PhysicsNS SMConstants
-ViscousFluxes: PhysicsNS SMConstants
+VariableConversion: Physics
+RiemannSolvers: Physics SMConstants InviscidFluxes
+InviscidFluxes: Physics SMConstants
+ViscousFluxes: Physics SMConstants
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter
 Plotter: SMConstants
 Tecplot: Plotter

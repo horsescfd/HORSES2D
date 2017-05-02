@@ -9,7 +9,7 @@ module QuadElementClass
 #include "Defines.h"
 
     private
-    public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
+    public  QuadElement_t , QuadElement_p , Edge_t , CurvedEdge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
     public  Edge_ProjectSolutionType1
 
 !////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,6 +120,18 @@ module QuadElementClass
             procedure      :: ComputeJumps => Edge_ComputeJumps
     end type Edge_t
 
+    type, extends(Edge_t)  :: CurvedEdge_t
+      contains
+         procedure   :: SetCurve     => CurvedEdge_SetCurve
+         procedure   :: getX         => CurvedEdge_getX
+         procedure   :: GetdX        => CurvedEdge_GetdX
+         procedure   :: GetdS        => CurvedEdge_GetdS
+         procedure   :: EvaluateX    => CurvedEdge_InterpolantX
+         procedure   :: EvaluatedX   => CurvedEdge_InterpolantdX
+         procedure   :: EvaluatedS   => CurvedEdge_InterpolantdS
+         procedure   :: ComputeJumps => CurvedEdge_ComputeJumps
+    end type CurvedEdge_t
+
     type, extends(Edge_t)  :: StraightBdryEdge_t
         integer(kind=1)                   :: inviscidBCType
         logical                           :: associated = .false.
@@ -135,7 +147,7 @@ module QuadElementClass
             procedure      :: ComputeJumps => StraightBdryEdge_ComputeJumps
     end type StraightBdryEdge_t 
 
-    type, extends(Edge_t)  :: CurvedBdryEdge_t
+    type, extends(CurvedEdge_t)  :: CurvedBdryEdge_t
         integer(kind=1)                   :: inviscidBCType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
@@ -147,13 +159,13 @@ module QuadElementClass
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()    ! Solution gradient at the boundary
 #endif
         contains
-            procedure      :: SetCurve     => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
-            procedure      :: getX         => Curvilinear_getX
-            procedure      :: getdX        => Curvilinear_getdX
-            procedure      :: getdS        => Curvilinear_getdS
-            procedure      :: evaluateX    => Curvilinear_InterpolantX
-            procedure      :: evaluatedX   => Curvilinear_InterpolantdX
-            procedure      :: evaluatedS   => Curvilinear_InterpolantdS
+!         procedure   :: SetCurve     => CurvedBdryEdge_SetCurve
+!         procedure   :: getX         => CurvedBdryEdge_getX
+!         procedure   :: GetdX        => CurvedBdryEdge_GetdX
+!         procedure   :: GetdS        => CurvedBdryEdge_GetdS
+!         procedure   :: EvaluateX    => CurvedBdryEdge_InterpolantX
+!         procedure   :: EvaluatedX   => CurvedBdryEdge_InterpolantdX
+!         procedure   :: EvaluatedS   => CurvedBdryEdge_InterpolantdS
             procedure      :: ComputeJumps => CurvedBdryEdge_ComputeJumps
     end type CurvedBdryEdge_t
 
@@ -308,8 +320,18 @@ module QuadElementClass
 !           Interior edges
 !           --------------
             if (edgeType .EQ. FACE_INTERIOR) then
+!
+!             * Straight interior edges
+!               -----------------------
+                if ( .not. curvilinear ) then
+                  allocate(Edge_t :: self % f)
+!
+!             * Curved interior edges
+!               ---------------------
+                else
+                  allocate(CurvedEdge_t   :: self % f )
 
-                allocate(Edge_t :: self % f)
+                end if
 
 !               Allocate its elements 
                 allocate ( self % f % quads        ( QUADS_PER_EDGE )  ) 
@@ -368,6 +390,11 @@ module QuadElementClass
                   allocate ( self % f % dX ( NDIM ,0:0 )  ) 
                   allocate ( self % f % dS (       0:0 )  ) 
                   allocate ( self % f % n  ( NDIM ,0:0 )  ) 
+
+               type is (CurvedEdge_t) 
+                  allocate ( self % f % dX ( NDIM , 0 : self % f % spA % N )  )
+                  allocate ( self % f % dS (        0 : self % f % spA % N )  )
+                  allocate ( self % f % n  ( NDIM , 0 : self % f % spA % N )  )
 
                type is (StraightBdryEdge_t)
                   allocate ( self % f % dX ( NDIM , 0:0 )  ) 
