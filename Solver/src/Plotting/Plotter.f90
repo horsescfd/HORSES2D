@@ -29,6 +29,8 @@ module Plotter
 
    type, extends(Plotter_t)   ::  Paraview_t
       integer        :: no_of_variables = 0
+      integer        :: npoints
+      integer        :: ncells
       integer        :: fID
       character(len=STR_LEN_PLOTTER), allocatable   :: variables(:)
       character(len=STR_LEN_PLOTTER)                :: Name
@@ -94,14 +96,25 @@ module Plotter
 !  ========  
 !
       subroutine ConstructPlotter( self )
+         use Setup_class
          implicit none
          class(Plotter_t), allocatable       :: self
 
 !
 !        TODO: Select format in case file
 !        --------------------------------
-         allocate ( Tecplot_t    :: self )
-         !allocate ( Paraview_t    :: self )
+         if ( (trim(Setup % exportFormat) .eq. "Tecplot") .or. (trim(Setup % exportFormat) .eq. "plt") ) then
+            allocate ( Tecplot_t    :: self )
+
+         elseif (( trim(Setup % exportFormat) .eq. "Paraview") .or. (trim(Setup % exportFormat) .eq. "vtk" ) ) then
+            allocate ( Paraview_t    :: self )
+
+         else
+            print*, "Plotter was not loaded"
+            errorMessage(STD_OUT)
+            stop "Stopped"
+
+         end if
 
          call self % Construct
 

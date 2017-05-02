@@ -1,4 +1,4 @@
-!
+
 !            ***************************
 ! 	     * Cylinder parameter file *
 !	     ***************************
@@ -14,45 +14,51 @@
                 Reference pressure    : 101325.0
                 Reference Temperature : 273.15
                 Reynolds length       : 1.0
-                Reynolds number       : 1000.0
+                Reynolds number       : 0.0
                 Prandtl number        : 0.72
-                Mach number           : 0.1
+                Mach number           : 2.0
 	
 !------------------------------------: DG Discretization
                  Interpolation nodes : Legendre-Gauss
          Default polynomial order    : 8
 
 !------------------------------------: Initialization
-                   Initial condition : Uniform
+                   Initial condition : Restart
                    Restart file      : ./RESULTS/Cylinder.HiORst
 
 !------------------------------------: Inviscid discretization
              Inviscid discretization : Standard
                Inviscid formulation  : Green form
-             Inviscid Riemann solver : HLL
+             Inviscid Riemann solver : Roe
 
 !------------------------------------: Viscous discretization
                Viscous discretization: IP
-              Interior penalty method: SIPG
-              Jumps penalty parameter: 10.0
+              Interior penalty method: IIPG
+              Jumps penalty parameter: 1.0
      Gradient jumps penalty parameter: 0.0
 
+!------------------------------------: Artificial dissipation
+         Artificial dissipation (0/1): 1
+         Artificial dissipation type: Laplacian
+         Artificial dissipation indicator: Jumps-based
+         Artificial dissipation intensity: 0.2
+
 !-----------------------------------: Time integration
-               Integration mode     : Transient
+               Integration mode     : Steady
                Integration scheme   : Williamson RK5
                Time step            : 1.0e-2
-               CFL Number           : 0.1
-               Simulation time      : 1000.0
-               Number of iterations : 10000000
+               CFL Number           : 0.05
+               Simulation time      : 0.01
+               Number of iterations : 1000000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
                       Solution file: ./RESULTS/Cylinder.HiORst
-                  Autosave interval: 100000
+                  Autosave interval: 10000
                     Output interval: 10
                    Output file type: Interpolated
     Number of representation points: 10
-                     Save variables: rho_rhou_rhov_rhoe_u_v_p_Mach_vort_rhot_rhout_rhovt_rhoet
+                     Save variables: rho_rhou_rhov_rhoe_u_v_p_Mach_vort_rhot_rhout_rhovt_rhoet_muart
 
 !
 !            **********************************
@@ -61,46 +67,44 @@
 !
 
 # define p-Refinement
-   1: 6
-   2: 10
-   3: 8
-   4: 8
+   1: 5
+   2: 5
+   3: 5
+   4: 5
 # end
 
 
 # define zone 1
    Name = Symmetry
 !  Type = newDirichlet
-   Type = Dirichlet
-   Riemann solver = Exact
+!   Type = Dirichlet
+   Type = Euler wall
 # end 
 
 # define zone 2
    Name = Symmetry
-!  Type = Euler wall
-   Type = Dirichlet
-   Riemann solver = Exact
+  Type = Euler wall
+!   Type = Dirichlet
 # end 
 
 # define zone 3
    Name = Inflow
    Type = Dirichlet
-   Riemann solver = Exact
 # end
 
 # define zone 4
    Name = Outflow
+!   Type = Dirichlet
    Type = Pressure outlet
-   Type = Partially non reflective
-   Riemann solver = Exact
+   Type = Reflective
 # end
 
 # define zone 5
    Name = Wall
 !   Type = Dirichlet
-   Type = Viscous wall
+!   Type = Viscous wall
+   Type = Euler wall
    Wall type = Adiabatic
-   Riemann solver = Exact
 # end
 
 # define probe 1

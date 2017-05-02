@@ -42,9 +42,12 @@ module Storage_module
 !                 dQ   -> NGRAD * NDIM * (N+1) * (N+1) * no_of_elements
 !           -------------------------------------------------------------
             allocate ( self % Q    ( NCONS *         totalPolynomialOrder  )  ) 
+            self % Q = 0.0_RP 
             allocate ( self % QDot ( NCONS *         totalPolynomialOrder  )  ) 
+            self % QDot = 0.0_RP
 #ifdef NAVIER_STOKES
             allocate ( self % dQ   ( NCONS  * NDIM * totalPolynomialOrder  )  ) 
+            self % dQ = 0.0_RP
 #endif
         end subroutine Storage_AllocateMemory
 

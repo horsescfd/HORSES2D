@@ -63,6 +63,15 @@ module Setup_class
         real(kind=RP), allocatable   :: sigma1IP                  
 !
 !       ------------------------------------------------------------------------------
+!              Artificial dissipation
+!       ------------------------------------------------------------------------------
+!
+        logical         :: artificialDissipation
+        real(kind=RP), allocatable   :: artificialDissipationIntensity
+        character(len=STR_LEN_SETUP)   :: artificialDissipationIndicator
+        character(len=STR_LEN_SETUP)   :: artificialDissipationType
+!
+!       ------------------------------------------------------------------------------
 !              Integration parameters
 !       ------------------------------------------------------------------------------
 !
@@ -86,6 +95,7 @@ module Setup_class
         character(len=STR_LEN_SETUP) :: solution_file
         character(len=STR_LEN_SETUP) :: restart_file
         character(len=STR_LEN_SETUP) :: outputType
+        character(len=STR_LEN_SETUP) :: exportFormat
 
         contains
             procedure, nopass  :: Initialization => Setup_Initialization
@@ -113,6 +123,7 @@ module Setup_class
          character(len=STR_LEN_SETUP) :: case_name
          character(len=STR_LEN_SETUP) :: interp_nodes
          character(len=STR_LEN_SETUP) :: inviscid_form
+         integer, allocatable         :: artificialDissipation
 
 !
 !         Get case file from command line
@@ -295,6 +306,27 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Integration mode"                 , Setup % integrationMode   ) 
           call Setup_CheckWithDefault( Setup % integrationMode , "Steady" , "Integration mode" )
 !
+!         Request the artificial dissipation
+!         ----------------------------------
+          call readValue ( trim ( case_name ) , "Artificial dissipation (0/1)" , artificialDissipation )
+          call Setup_CheckWithDefault ( artificialDissipation , 0 , "Artificial dissipation (0/1)" )
+          if ( artificialDissipation .eq. 1 ) then
+            Setup % artificialDissipation = .true.
+
+          else
+            Setup % artificialDissipation = .false.
+
+          end if 
+
+          call readValue ( trim ( case_name ) , "Artificial dissipation intensity" , Setup % artificialDissipationIntensity )
+          call Setup_CheckWithDefault ( Setup % artificialDissipationIntensity , 1.0_RP , "Artificial dissipation intensity" )
+
+          call readValue ( trim ( case_name ) , "Artificial dissipation indicator" , Setup % artificialDissipationIndicator )
+          call Setup_CheckWithDefault ( Setup % artificialDissipationIndicator , "Jumps-based" , "Artificial dissipation indicator" )
+
+          call readValue ( trim ( case_name ) , "Artificial dissipation type" , Setup % artificialDissipationType )
+          call Setup_CheckWithDefault ( Setup % artificialDissipationType , "Physical" , "Artificial dissipation type" )
+!
 !         Request the integration scheme          
 !         ------------------------------
           call readValue ( trim ( case_name )  , "Integration scheme"               , Setup % integrationMethod ) 
@@ -363,6 +395,11 @@ module Setup_class
 !         -------------------------------
           call readValue ( trim ( case_name )  , "Number of representation points"  , Setup % no_of_plotPoints  ) 
           call Setup_CheckWithDefault( Setup % no_of_plotPoints , 2 * Setup % N , "Number of representation points" ) 
+!
+!         Export format
+!         -------------
+          call readValue ( trim ( case_name )  , "Export format"  , Setup % exportFormat  ) 
+          call Setup_CheckWithDefault( Setup % exportFormat , "Tecplot" , "Export format" ) 
 
       end subroutine Setup_Initialization
 

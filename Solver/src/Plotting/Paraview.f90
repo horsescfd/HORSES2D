@@ -14,6 +14,8 @@ submodule (Plotter) Paraview
       character(len=STR_LEN_PLOTTER)      :: str
       class(Charlist), pointer            :: next => NULL()
    end type Charlist
+
+   integer     :: point_position = 0 
 !
 !
 !  ========
@@ -42,11 +44,21 @@ submodule (Plotter) Paraview
          self % Name = trim(auxname)
 
          call Paraview_OpenFile ( self , isMesh = .true. ) 
-      
+!
+!        Compute number of cells and points
+!        ----------------------------------
+         self % npoints = 0
+         self % ncells  = 0
          do eID = 1 , mesh % no_of_elements
-            call Paraview_NewMeshZone( self , mesh , eID ) 
+            self % npoints = self % npoints + (mesh % elements(eID) % spA % N + 1)**2
+            self % ncells = self % ncells + (mesh % elements(eID) % spA % N)**2
          end do
-   
+!
+         
+         write ( self % fID , '(A)') "DATASET UNSTRUCTURED_GRID"
+
+         call Paraview_WriteMesh( self , mesh )
+  
          close ( self % fID )
 
       end subroutine Paraview_ExportMesh
@@ -59,15 +71,34 @@ submodule (Plotter) Paraview
          character(len=*)        :: Name
          integer                 :: eID
 
-!         self % Name = trim(Name)
+         self % Name = trim(Name) // ".vtk"
+
+         call Paraview_OpenFile ( self , isMesh = .false. ) 
 !
-!         call Paraview_OpenFile ( self , isMesh = .false. )
+!        Compute number of cells and points
+!        ----------------------------------
+         self % npoints = 0
+         self % ncells  = 0
+         do eID = 1 , mesh % no_of_elements
+            self % npoints = self % npoints + (mesh % elements(eID) % spA % N + 1)**2
+            self % ncells = self % ncells + (mesh % elements(eID) % spA % N)**2
+         end do
 !
-!         do eID = 1 , mesh % no_of_elements
-!            call Paraview_NewZone( self , mesh , eID )
-!         end do
+!        Create the zone         
+!        ---------------
+         write ( self % fID , '(A)') "DATASET UNSTRUCTURED_GRID"
 !
-!         close( self % fID )
+!        Write the mesh
+!        --------------
+         call Paraview_WriteMesh( self , mesh )
+!
+!        Write the variables
+!        -------------------
+         call Paraview_WriteVariables(self , mesh)
+!
+!        Close file
+!        ----------
+         close ( self % fID )
 !
       end subroutine Paraview_Export
 
@@ -160,415 +191,320 @@ submodule (Plotter) Paraview
 
       end subroutine Paraview_OpenFile
 
-      subroutine Paraview_NewMeshZone(self , mesh , eID ) 
+      subroutine Paraview_WriteMesh(self , mesh ) 
          use QuadMeshClass
          use Physics
          implicit none
          class(Paraview_t)        :: self
          class(QuadMesh_t)       :: mesh
-         integer                 :: eID 
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         integer                 :: iXi , iEta
-         integer                 :: var
-         real(kind=RP)              :: Q(1:NCONS)
+         integer       :: eID
+         integer       :: iXi , iEta
+         integer       :: var
+         real(kind=RP) :: Q(1:NCONS)
 
-         associate ( N => mesh % elements(eID) % spA % N )
-!         
-!        New header
-!        ----------
-         write( self % fID , '(A)' ) "DATASET UNSTRUCTURED_GRID"
-         write( self % fID , '(A,I0,A)') "POINTS ",(N+1)*(N+1)," float"
-
-         do iEta = 0 , N
-            do iXi = 0 , N
-               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)') mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
-                                                                              , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
-                                                                              , 0.0_RP  
+         write ( self % fID , *)
+         write ( self % fID , '(A,I0,A)') "POINTS " , self % npoints , " float"
+   
+                  
+         do eID = 1 , mesh % no_of_elements
+            associate ( N => mesh % elements(eID) % spA % N )
+            do iEta = 0 , N
+               do iXi = 0 , N
+                  write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)') mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
+                                                                                 , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
+                                                                                 , 0.0_RP  
+               end do
             end do
+            end associate
          end do
 
          write( self % fID , * )    ! One blank line
-         write( self % fID , '(A,I0,1X,I0)' ) "CELLS ", N*N , 5*N*N
-         do iEta = 1 , N
-            do iXi = 1 , N
-               write(self % fID , '(I0,1X,I0,1X,I0,1X,I0,1X,I0)')  4,pointPosition(iXi,iEta,N)
+   
+         write( self % fID , '(A,I0,1X,I0)' ) "CELLS ", self % ncells,5*self % ncells
+
+         point_position = -1
+         do eID = 1 , mesh % no_of_elements
+            associate ( N => mesh % elements(eID) % spA % N )
+            do iEta = 1 , N
+               do iXi = 1 , N
+                  write(self % fID , '(I0,1X,I0,1X,I0,1X,I0,1X,I0)')  4,pointPosition(iXi,iEta,N) + point_position
+               end do
             end do
+            point_position = point_position + (N+1)*(N+1)
+            end associate
          end do
 
          write( self % fID , * )    ! One blank line
-         write( self % fID , '(A,I0)' ) "CELL_TYPES ", N*N
-         do iEta = 1 , N
-            do iXi = 1 , N
-               write(self % fID , '(I0)')  9
+         write( self % fID , '(A,I0)' ) "CELL_TYPES ", self % ncells
+         do eID = 1 , mesh % no_of_elements
+            associate ( N => mesh % elements(eID) % spA % N )
+            do iEta = 1 , N
+               do iXi = 1 , N
+                  write(self % fID , '(I0)')  9
+               end do
             end do
+            end associate
          end do
-         end associate
 
-      end subroutine Paraview_NewMeshZone
+      end subroutine Paraview_WriteMesh
 
-      subroutine Paraview_NewZone( self , mesh , eID , zoneType) 
-         use QuadMeshClass
-         use Physics
-         use Setup_Class
-         implicit none
-         class(Paraview_t)        :: self
-         class(QuadMesh_t)       :: mesh
-         integer                 :: eID 
-         character(len=*), optional :: zoneType
-         character(len=STR_LEN_PLOTTER)           :: zType
-!
-!         associate ( N => mesh % elements(eID) % spA % N )
-!
-!         if ( present ( zoneType ) ) then
-!            zType = zoneType
-!
-!         else
-!            zType = trim( Setup % outputType ) 
-!   
-!         end if
-!
-!         if ( trim(zType) .eq. "DGSEM" ) then
-!            call Paraview_StandardZone( self , mesh , eID )
-!         elseif ( trim(zType) .eq. "Interpolated") then
-!            call Paraview_InterpolatedZone( self , mesh , eID ) 
-!         else
-!            print*, "Unknown output type " , trim(Setup % outputType)
-!            print*, "Options available are: "
-!            print*, "   * DGSEM"
-!            print*, "   * Interpolated"
-!            stop "Stopped."
-!         end if
-!
-!         end associate
-!
-      end subroutine  Paraview_NewZone
-
-      subroutine Paraview_StandardZone(self , mesh , eID ) 
+      subroutine Paraview_WriteVariables( self , mesh )
          use QuadMeshClass
          use Physics
          implicit none
-         class(Paraview_t)        :: self
-         class(QuadMesh_t)       :: mesh
-         integer                 :: eID 
-!        --------------------------------------------------------------------------
-         real(kind=RP), pointer  :: rho (:,:) , rhou (:,:) , rhov (:,:) , rhoe (:,:)
-         real(kind=RP), pointer  :: rhot(:,:) , rhout(:,:) , rhovt(:,:) , rhoet(:,:)
+         class(Paraview_t),   intent(in)     :: self
+         class(QuadMesh_t),   intent(in)     :: mesh
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         integer        :: iVar , eID , iXi , iEta
+         real(kind=RP)  :: Q(NCONS)
+         real(kind=RP)  :: dQ(NDIM,NCONS)
+
+         write(self % fID,*)
+         write(self % fID , '(A,I0)') "POINT_DATA " , self % npoints
+         do iVar = 1 , self % no_of_variables
+
+            select case ( trim( self % variables(iVar) ) )
+
+               case ("rho")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rho float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % Q(iXi,iEta,IRHO) * refValues % rho
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("rhou")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhou float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % Q(iXi,iEta,IRHOU) * refValues % rho * refValues % a
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("rhov")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhov float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % Q(iXi,iEta,IRHOV) * refValues % rho * refValues % a
+                     end do            ; end do
+                     end associate
+                  end do
+ 
+               case ("rhoe")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhoe float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % Q(iXi,iEta,IRHOE) * refValues % p
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("rhot")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhot float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % QDot(iXi,iEta,IRHO) * refValues % rho / refValues % tc
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("rhout")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhout float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % QDot(iXi,iEta,IRHOU) * refValues % rho * refValues % a / refValues % tc
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("rhovt")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhovt float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % QDot(iXi,iEta,IRHOV) * refValues % rho * refValues % a / refValues % tc
+                     end do            ; end do
+                     end associate
+                  end do
+ 
+               case ("rhoet")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS rhoet float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % QDot(iXi,iEta,IRHOE) * refValues % p / refValues % tc
+                     end do            ; end do
+                     end associate
+                  end do
+
+                case ("u")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS u float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % Q(iXi,iEta,IRHOU) / mesh % elements(eID) % Q(iXi,iEta,IRHO) * refValues % a
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("v")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS v float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        write(self % fID , '(ES17.10)') mesh % elements(eID) % Q(iXi,iEta,IRHOV) / mesh % elements(eID) % Q(iXi,iEta,IRHO) * refValues % a
+                     end do            ; end do
+                     end associate
+                  end do
+ 
+               case ("p")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS p float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        write(self % fID , '(ES17.10)') getPressure(Q) * refValues % p
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("Mach")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS Mach float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        write(self % fID , '(ES17.10)') ( sqrt(Q(IRHOU)*Q(IRHOU)+Q(IRHOV)*Q(IRHOV))/ Q(IRHO)) / getSoundSpeed(Q)
+                     end do            ; end do
+                     end associate
+                  end do
+ 
+               case ("s")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS s float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        write(self % fID , '(ES17.10)') getPressure(Q) * refValues % p / (Q(IRHO) * refValues % rho) ** ( Thermodynamics % gamma) 
+                     end do            ; end do
+                     end associate
+                  end do
+ 
 #ifdef NAVIER_STOKES
-         real(kind=RP), target   :: du(0:mesh % elements(eID) % spA % N , 0:mesh % elements(eID) % spA % N , 1:NDIM , 1:NDIM)
-         real(kind=RP), pointer  :: ux(:,:) , uy(:,:) , vx(:,:) , vy(:,:)
+
+               case ("ux")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS ux float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        dQ = mesh % elements(eID) % dQ(iXi,iEta,:,:)
+                        write(self % fID , '(ES17.10)') (- Q(IRHOU) / Q(IRHO) * dQ(IX,IRHO) + dQ(IX,IRHOU))/Q(IRHO)
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("uy")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS uy float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        dQ = mesh % elements(eID) % dQ(iXi,iEta,:,:)
+                        write(self % fID , '(ES17.10)') (- Q(IRHOU) / Q(IRHO) * dQ(IY,IRHO) + dQ(IY,IRHOU))/Q(IRHO)
+                     end do            ; end do
+                     end associate
+                  end do
+ 
+               case ("vx")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS vx float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        dQ = mesh % elements(eID) % dQ(iXi,iEta,:,:)
+                        write(self % fID , '(ES17.10)') (- Q(IRHOV) / Q(IRHO) * dQ(IX,IRHO) + dQ(IX,IRHOV))/Q(IRHO)
+                     end do            ; end do
+                     end associate
+                  end do
+
+               case ("vy")
+                  write(self % fID,*)
+                  write(self % fID , '(A)') "SCALARS vy float"
+                  write(self % fID , '(A)') "LOOKUP_TABLE default"
+                  do eID = 1 , mesh % no_of_elements
+                     associate ( N => mesh % elements(eID) % spA % N ) 
+                     do iEta = 0 , N   ; do iXi = 0 , N
+                        Q = mesh % elements(eID) % Q(iXi,iEta,:)
+                        dQ = mesh % elements(eID) % dQ(iXi,iEta,:,:)
+                        write(self % fID , '(ES17.10)') (- Q(IRHOV) / Q(IRHO) * dQ(IY,IRHO) + dQ(IY,IRHOV))/Q(IRHO)
+                     end do            ; end do
+                     end associate
+                  end do
+
 #endif
-         integer                 :: iXi , iEta
-         integer                 :: var
-         real(kind=RP)              :: Q(1:NCONS)
 
-!         associate ( N => mesh % elements(eID) % spA % N )
-!!         
-!!        New header
-!!        ----------
-!         write( self % fID , '(A,I0,A)' , advance="no" ) "ZONE N=",(N+1)*(N+1),", "
-!         write( self % fID , '(A,I0,A)' , advance="no" ) "E=",(N)*(N),", "
-!         write( self % fID , '(A)'                     ) "DATAPACKING=POINT, ZONETYPE=FEQUADRILATERAL"
-!!
-!!        Point to the quantities
-!!        -----------------------
-!         rho(0:,0:)  => mesh % elements(eID) % Q(0:,0:,IRHO) 
-!         rhou(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOU)
-!         rhov(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOV)
-!         rhoe(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOE)
-!         rhot(0:,0:)  => mesh % elements(eID) % QDot(0:,0:,IRHO) 
-!         rhout(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
-!         rhovt(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
-!         rhoet(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
-!#ifdef NAVIER_STOKES
-!   if ( self % no_of_variables .ne. 0 ) then
-!         du = getStrainTensor( N , mesh % elements(eID) % Q , mesh % elements(eID) % dQ )
-!         ux(0:,0:) => du(0:,0:,IX,IX)
-!         uy(0:,0:) => du(0:,0:,IY,IX)
-!         vx(0:,0:) => du(0:,0:,IX,IY)
-!         vy(0:,0:) => du(0:,0:,IY,IY)
-!   end if
-!#endif
-!
-!
-!         do iEta = 0 , N
-!            do iXi = 0 , N
-!               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)',advance="no") mesh % elements(eID) % x(iXi,iEta,IX) * RefValues % L &
-!                                                                              , mesh % elements(eID) % x(iXi,iEta,IY) * RefValues % L &
-!                                                                              , 0.0_RP  
-!!
-!!              Save quantities
-!!              ---------------
-!               do var = 1 , self % no_of_variables
-!
-!                  select case ( trim( self % variables(var) ) )
-!                     case ("rho")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rho(iXi,iEta) * refValues % rho
-!
-!                     case ("rhou")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
-!
-!                     case ("rhov")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
-!
-!                     case ("rhoe")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
-!
-!                     case ("rhot")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
-!
-!                     case ("rhout")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
-!
-!                     case ("rhovt")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
-!
-!                     case ("rhoet")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
-!
-!                     case ("u")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
-!
-!                     case ("v")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
-!   
-!                     case ("p")
-!                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-!                        write(self % fID,'(1X,ES17.10)',advance="no") getPressure( Q ) * refValues % p
-!      
-!                     case ("Mach")
-!                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-!                        write(self % fID,'(1X,ES17.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
-!
-!                     case ("s")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
-!                                                  0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
-!                                                    / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
-!#ifdef NAVIER_STOKES
-!                      case ( "ux" ) 
-!                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
-!
-!                      case ( "uy" ) 
-!                        write(self % fID,'(1X,ES17.10)',advance="no") uy(iXi,iEta) * refValues % a
-!   
-!                      case ( "vx" ) 
-!                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
-!
-!                      case ( "vy" )
-!                        write(self % fID,'(1X,ES17.10)',advance="no") vy(iXi,iEta) * refValues % a
-!
-!                     case ("vort")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
-!#endif
-!
-!                  end select                        
-!
-!               end do
-!
-!!              Jump to next line
-!!              -----------------
-!               write( self % fID , *)
-!
-!            end do
-!         end do
-!
-!         write( self % fID , * )    ! One blank line
-!
-!         do iEta = 1 , N
-!            do iXi = 1 , N
-!               write(self % fID , '(I0,1X,I0,1X,I0,1X,I0)')  pointPosition(iXi,iEta,N)
-!            end do
-!         end do
-!
-!         end associate
-!
-      end subroutine Paraview_StandardZone
+                  
+               end select
+            end do
 
-      subroutine Paraview_InterpolatedZone(self , mesh , eID ) 
-         use QuadMeshClass
-         use Physics
-         use Setup_Class
-         use MatrixOperations
-         use InterpolationAndDerivatives
-         implicit none
-         class(Paraview_t)        :: self
-         class(QuadMesh_t)       :: mesh
-         integer                 :: eID 
-!        --------------------------------------------------------------------------
-         real(kind=RP), pointer     :: rhoDG  (:,:) ,  rhouDG  (:,:) ,  rhovDG  (:,:) ,  rhoeDG  (:,:) 
-         real(kind=RP), pointer     :: rhotDG (:,:) ,  rhoutDG (:,:) ,  rhovtDG (:,:) ,  rhoetDG (:,:) 
-         real(kind=RP), pointer     :: rho    (:,:) ,  rhou    (:,:) ,  rhov    (:,:) ,  rhoe    (:,:) 
-         real(kind=RP), pointer     :: rhot   (:,:) ,  rhout   (:,:) ,  rhovt   (:,:) ,  rhoet   (:,:) 
-#ifdef NAVIER_STOKES
-         real(kind=RP), target      :: du(0:mesh % elements(eID) % spA % N , 0:mesh % elements(eID) % spA % N , 1:NDIM , 1:NDIM)
-         real(kind=RP), pointer     :: uxDG   (:,:) ,  uyDG    (:,:) ,  vxDG    (:,:) ,  vyDG    (:,:)
-         real(kind=RP), pointer     :: ux     (:,:) ,  uy      (:,:) ,  vx      (:,:) ,  vy      (:,:)
-#endif
-         real(kind=RP), allocatable :: xi(:) , T(:,:) , x(:)
-         integer                    :: iXi , iEta
-         integer                    :: Nout
-         integer                    :: var
-         real(kind=RP)              :: Q(1:NCONS)
-
-!         associate ( N => mesh % elements(eID) % spA % N , spA => mesh % elements(eID) % spA)
-!!
-!!        Construct the interpolation framework
-!!        -------------------------------------
-!         Nout = Setup % no_of_plotPoints - 1
+      end subroutine Paraview_WriteVariables
 !
-!!         
-!!        New header
-!!        ----------
-!         write( self % fID , '(A,I0,A)' , advance="no" ) "ZONE N=",(Nout+1)*(Nout+1),", "
-!         write( self % fID , '(A,I0,A)' , advance="no" ) "E=",(Nout)*(Nout),", "
-!         write( self % fID , '(A)'                     ) "DATAPACKING=POINT, ZONETYPE=FEQUADRILATERAL"
+!///////////////////////////////////////////////////////////////////////////////////////////
 !
-!         allocate( xi ( 0 : Nout ) , T (0 : Nout , 0 : N ) , x(NDIM)) 
+!                 AUXILIAR SUBROUTINES
+!                 --------------------
+!///////////////////////////////////////////////////////////////////////////////////////////
 !
-!         xi = reshape( (/( (1.0_RP * iXi) / Nout , iXi = 0 , Nout )/) , (/Nout + 1/) )
-!         call PolynomialInterpolationMatrix( N , Nout , spA % xi , spA % wb , xi , T )
-!!
-!!        Point to the quantities
-!!        -----------------------
-!         rhoDG(0:,0:)  => mesh % elements(eID) % Q(0:,0:,IRHO) 
-!         rhouDG(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOU)
-!         rhovDG(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOV)
-!         rhoeDG(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOE)
-!         rhotDG(0:,0:)  => mesh % elements(eID) % QDot(0:,0:,IRHO) 
-!         rhoutDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
-!         rhovtDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
-!         rhoetDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
-!
-!#ifdef NAVIER_STOKES
-!      if ( self % no_of_variables .ne. 0 ) then
-!         du = getStrainTensor( N , mesh % elements(eID) % Q , mesh % elements(eID) % dQ )
-!         uxDG(0:,0:) => du(0:,0:,IX,IX)
-!         uyDG(0:,0:) => du(0:,0:,IY,IX)
-!         vxDG(0:,0:) => du(0:,0:,IX,IY)
-!         vyDG(0:,0:) => du(0:,0:,IY,IY)
-!      end if
-!#endif
-!!
-!!        Obtain the interpolation to a new set of equispaced points
-!!        ----------------------------------------------------------
-!         allocate  (  rho(0:Nout  , 0:Nout) , rhou(0:Nout  , 0:Nout) , rhov(0:Nout  , 0:Nout) , rhoe(0:Nout  , 0:Nout) )
-!         allocate  (  rhot(0:Nout , 0:Nout) , rhout(0:Nout , 0:Nout) , rhovt(0:Nout , 0:Nout) , rhoet(0:Nout , 0:Nout) )
-!#ifdef NAVIER_STOKES
-!         allocate  (  ux(0:Nout , 0:Nout) , uy(0:Nout , 0:Nout) , vx(0:Nout , 0:Nout) , vy(0:Nout,0:Nout) )
-!#endif
-!         call TripleMatrixProduct ( T , rhoDG   , T , rho   , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhouDG  , T , rhou  , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhovDG  , T , rhov  , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhoeDG  , T , rhoe  , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhotDG  , T , rhot  , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhoutDG , T , rhout , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhovtDG , T , rhovt , trC = .true. ) 
-!         call TripleMatrixProduct ( T , rhoetDG , T , rhoet , trC = .true. ) 
-!#ifdef NAVIER_STOKES
-!         call TripleMatrixProduct ( T , uxDG    , T , ux    , trC = .true. ) 
-!         call TripleMatrixProduct ( T , uyDG    , T , uy    , trC = .true. ) 
-!         call TripleMatrixProduct ( T , vxDG    , T , vx    , trC = .true. ) 
-!         call TripleMatrixProduct ( T , vyDG    , T , vy    , trC = .true. ) 
-!#endif
-!
-!         do iEta = 0 , Nout
-!            do iXi = 0 , Nout
-!
-!               x = mesh % elements(eID) % compute_X ( xi(iXi) , xi(iEta) )
-!               write( self % fID , '(ES17.10,1X,ES17.10,1X,ES17.10)',advance="no") x(IX)  * RefValues % L &
-!                                                                              , x(IY) * RefValues % L &
-!                                                                              , 0.0_RP  
-!!
-!!              Save quantities
-!!              ---------------
-!               do var = 1 , self % no_of_variables
-!
-!                  select case ( trim( self % variables(var) ) )
-!                     case ("rho")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rho(iXi,iEta) * refValues % rho
-!
-!                     case ("rhou")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta) * refValues % rho * refValues % a
-!
-!                     case ("rhov")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta) * refValues % rho * refValues % a
-!
-!                     case ("rhoe")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhoe(iXi,iEta) * refValues % rho * refValues % p
-!
-!                     case ("rhot")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhot(iXi,iEta) * refValues % rho / refValues % tc
-!
-!                     case ("rhout")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhout(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
-!
-!                     case ("rhovt")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhovt(iXi,iEta) * refValues % rho * refValues % a / refValues % tc
-!
-!                     case ("rhoet")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhoet(iXi,iEta) * refValues % rho * refValues % p / refValues % tc
-!
-!                     case ("u")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhou(iXi,iEta)/rho(iXi,iEta) * refValues % a
-!
-!                     case ("v")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") rhov(iXi,iEta)/rho(iXi,iEta) * refValues % a
-!   
-!                     case ("p")
-!                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-!                        write(self % fID,'(1X,ES17.10)',advance="no") getPressure( Q ) * refValues % p
-!      
-!                     case ("Mach")
-!                        Q = [rho(iXi,iEta) , rhou(iXi,iEta) , rhov(iXi,iEta) , rhoe(iXi,iEta) ]
-!                        write(self % fID,'(1X,ES17.10)',advance="no") sqrt(rhou(iXi,iEta)*rhou(iXi,iEta)+rhov(iXi,iEta)*rhov(iXi,iEta))/rho(iXi,iEta)/ getSoundSpeed( Q )
-!
-!                     case ("s")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") Thermodynamics % gm1 * ( rhoe(iXi,iEta) - &
-!                                                  0.5*rhou(iXi,iEta)*rhou(iXi,iEta)/rho(iXi,iEta) - 0.5*rhov(iXi,iEta)*rhov(iXi,iEta)/rho(iXi,iEta) ) &
-!                                                    / (rho(iXi,iEta) * refValues % rho)**(Thermodynamics % gamma) * refValues % p
-!#ifdef NAVIER_STOKES
-!                      case ( "ux" ) 
-!                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
-!
-!                      case ( "uy" ) 
-!                        write(self % fID,'(1X,ES17.10)',advance="no") uy(iXi,iEta) * refValues % a
-!   
-!                      case ( "vx" ) 
-!                        write(self % fID,'(1X,ES17.10)',advance="no") ux(iXi,iEta) * refValues % a
-!
-!                      case ( "vy" )
-!                        write(self % fID,'(1X,ES17.10)',advance="no") vy(iXi,iEta) * refValues % a
-!
-!                     case ("vort")
-!                        write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
-!#endif
-!
-!                  end select                        
-!
-!               end do
-!
-!!              Jump to next line
-!!              -----------------
-!               write( self % fID , *)
-!
-!            end do
-!         end do
-!
-!         write( self % fID , * )    ! One blank line
-!
-!         do iEta = 1 , Nout
-!            do iXi = 1 , Nout
-!               write(self % fID , '(I0,1X,I0,1X,I0,1X,I0)')  pointPosition(iXi,iEta,Nout)
-!            end do
-!         end do
-!
-!         end associate
-!
-      end subroutine Paraview_InterpolatedZone
-
       function pointPosition(iXi , iEta , N) result( val )
          implicit none
          integer        :: iXi
@@ -576,10 +512,10 @@ submodule (Plotter) Paraview
          integer        :: N
          integer        :: val(POINTS_PER_QUAD)
 
-         val(1) = (N+1)*(iEta-1) + iXi 
-         val(2) = (N+1)*(iEta-1) + iXi -1
-         val(3) = (N+1)*iEta + iXi -1 
-         val(4) = (N+1)*iEta + iXi 
+         val(1) = (N+1)*(iEta-1) + iXi + 1
+         val(2) = (N+1)*(iEta-1) + iXi 
+         val(3) = (N+1)*iEta + iXi
+         val(4) = (N+1)*iEta + iXi + 1
       end function pointPosition
 
       subroutine LinkedList_Destruct( self ) 

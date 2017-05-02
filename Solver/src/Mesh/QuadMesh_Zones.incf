@@ -84,8 +84,8 @@
                         edge1 % inverse = areInverted
                         edge2 % associated = .true.
                         edge1 % associated = .true.
-                        edge1 % BCWeakType = WEAK_RIEMANN
-                        edge2 % BCWeakType = WEAK_RIEMANN
+                        edge1 % inviscidBCType = WEAK_RIEMANN
+                        edge2 % inviscidBCType = WEAK_RIEMANN
 
                         edge1 % uB(0:,1:)    => edge2 % storage(1) % Q(0:,1:)
                         edge2 % uB(0:,1:)    => edge1 % storage(1) % Q(0:,1:)

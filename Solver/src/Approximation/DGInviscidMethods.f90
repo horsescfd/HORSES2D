@@ -23,10 +23,6 @@ module DGInviscidMethods
       integer                         :: formulation
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
       contains
-         generic, public            :: ComputeRiemannFluxes              => ComputeRiemannFluxes_Interior , ComputeRiemannFluxes_StraightBdry , ComputeRiemannFluxes_CurvedBdry
-         procedure, private         :: ComputeRiemannFluxes_Interior     => StdDG_ComputeRiemannFluxes_Interior
-         procedure, private         :: ComputeRiemannFluxes_StraightBdry => StdDG_ComputeRiemannFluxes_StraightBdry
-         procedure, private         :: ComputeRiemannFluxes_CurvedBdry   => StdDG_ComputeRiemannFluxes_CurvedBdry
          procedure                  :: ComputeInnerFluxes                => StdDG_ComputeInnerFluxes
          procedure, non_overridable :: Describe                          => InviscidMethod_describe
    end type InviscidMethod_t
@@ -47,37 +43,7 @@ module DGInviscidMethods
    type, extends(InviscidMethod_t) ::  SplitDG_t
       real(kind=RP)         :: alpha
    end type SplitDG_t
-
-   interface
-      module subroutine StdDG_ComputeRiemannFluxes_Interior( self , ed , FL , FR )
-         use MatrixOperations
-         use QuadElementClass
-         implicit none
-         class(InviscidMethod_t)    :: self
-         type(Edge_t)               :: ed
-         real ( kind=RP )           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-      end subroutine StdDG_ComputeRiemannFluxes_Interior
-
-      module subroutine StdDG_ComputeRiemannFluxes_StraightBdry( self , ed , F )
-         use MatrixOperations
-         use QuadElementClass
-         implicit none
-         class(InviscidMethod_t)  :: self
-         type(StraightBdryEdge_t) :: ed
-         real ( kind=RP )         :: F ( 0 : ed % spA % N , 1 : NCONS )
-      end subroutine StdDG_ComputeRiemannFluxes_StraightBdry
-
-      module subroutine StdDG_ComputeRiemannFluxes_CurvedBdry( self , ed , F )
-         use MatrixOperations
-         use QuadElementClass
-         implicit none
-         class(InviscidMethod_t) :: self
-         type(CurvedBdryEdge_t)  :: ed
-         real ( kind=RP )        :: F ( 0 : ed % spA % N , 1 : NCONS )
-      end subroutine StdDG_ComputeRiemannFluxes_CurvedBdry
-   end interface
-
+!
 !
 !  ========  
    contains
@@ -196,10 +162,7 @@ module DGInviscidMethods
       pure function StdDG_ComputeInnerFluxes( self , e ) result (F) 
 !
 !        **********************************************************************
-!              This subroutine computes the contravariant fluxes of the element
-!           The fluxes read:
-!                 F <- F * Ja(1,1) + G * Ja(2,1)
-!                 G <- F * Ja(1,2) + G * Ja(2,2)
+!              This subroutine computes the cartesian fluxes of the element
 !        **********************************************************************
 !
          use Physics
@@ -207,25 +170,8 @@ module DGInviscidMethods
          class(InviscidMethod_t), intent (in)    :: self
          class(QuadElement_t),    intent (in)    :: e
          real(kind=RP)                           :: F(0:e % spA % N , 0:e % spA % N , 1:NCONS , 1:NDIM)
-!        -------------------------------------------------------------
-         real(kind=RP)              :: F_cartesian(0:e % spA % N,0:e % spA % N,1:NCONS,1:NDIM)
-         integer                    :: eq
-         integer                    :: N 
 
-         N = e % spA % N         
-
-         F_cartesian = InviscidFlux( e % spA % N , e % Q )
-
-         do eq = 1 , NCONS
-!           
-!           F flux (contravariant)
-!           ----------------------
-            F(0:N,0:N,eq,IX) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,1) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,1)
-!           
-!           G flux (contravariant)
-!           ----------------------
-            F(0:N,0:N,eq,IY) = F_cartesian(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F_cartesian(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
-         end do
+         F = InviscidFlux( e % spA % N , e % Q )
 
       end function StdDG_ComputeInnerFluxes
 !

@@ -48,10 +48,10 @@ ProblemFile: SMConstants Setup
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
 DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
-DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals
+DGSpatialDiscretizationMethods: SMConstants Physics QuadMesh DGViscousMethods MatrixOperations DGInviscidMethods DGWeakIntegrals DGArtificialDissipation
+DGArtificialDissipation: SMConstants QuadMesh QuadElement Setup
 DGViscousMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass QuadMesh Headers DGWeakIntegrals
 DGInviscidMethods: SMConstants Physics Setup QuadElement MatrixOperations NodesAndWeightsClass
-DGInviscid_StandardDG: DGInviscidMethods
 DGViscous_BR1: DGViscousMethods
 DGViscous_IP: DGViscousMethods
 DGBoundaryConditions: SMConstants  Setup Physics QuadElement Paramfile
@@ -132,7 +132,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 all: 	def_navier_stokes_macro $(EXECUTABLE)
 
 runcyl: 	
-	(cd ../TestCases/Benchmarktests/FlowOverCircle && ./$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
+	(cd ../TestCases/Benchmarktests/FlowOverCircle && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
 
 debugcyl:
 	(cd ../TestCases/Benchmarktests/FlowOverCircle && gdb ./$(EXECUTABLE))		

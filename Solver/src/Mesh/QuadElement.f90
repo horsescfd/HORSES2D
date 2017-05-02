@@ -10,6 +10,7 @@ module QuadElementClass
 
     private
     public  QuadElement_t , QuadElement_p , Edge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
+    public  Edge_ProjectSolutionType1
 
 !////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -24,6 +25,7 @@ module QuadElementClass
         integer                            :: edgesDirection(EDGES_PER_QUAD) ! Direction (FORWARD/REVERSE) of the edges
         integer                            :: quadPosition(EDGES_PER_QUAD)   ! Position of the quad for the edge (LEFT/RIGHT)
         real(kind=RP), allocatable         :: Volume                         ! Volume of the element
+        real(kind=RP)                      :: mu_a
         real(kind=RP), allocatable         :: x(:,:,:)                       ! Coordinates of the nodes ( xi , eta , X/Y )
         real(kind=RP), allocatable         :: Ja(:,:,:,:)                    ! Contravariant system metric matrix ( xi , eta , IROW , ICOL)
         real(kind=RP), allocatable         :: Jac(:,:)                       ! Mapping jacobian ( xi , eta )
@@ -83,38 +85,43 @@ module QuadElementClass
 !   *********************************************************************************
 !
     type Edge_t
-        integer                             :: ID                         ! Edge ID
-        integer(kind=1)                     :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
-        logical                             :: inverse                    ! Whether both edge projections are in the same or different direction
-        logical                             :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree 
-        integer                             :: Nlow                       ! Lower polynomial degree
-        integer(kind=1),            pointer :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
-        real(kind=RP)                       :: Area                       ! Area of the edge
-        real(kind=RP)                       :: invh                       ! Normal minimum distance approximation (inversed)
-        real(kind=RP),              pointer :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
-        real(kind=RP),              pointer :: X(:,:)                     ! Coordinates: (X/Y, xi)
-        real(kind=RP),              pointer :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
-        real(kind=RP),              pointer :: dS(:)                      ! Surface differential vector (X/Y, xi)
-        real(kind=RP),          allocatable :: T_forward(:,:)             ! Interpolation matrix from the low order to high order
-        real(kind=RP),          allocatable :: T_backward(:,:)            ! Interpolation matrix from the high order to low order
-        type(BoundaryData_t),  allocatable  :: storage(:)                 ! Solution interpolation to boundaries ( LEFT/RIGHT )
-        type(Node_p)                        :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
-        class(QuadElement_p),       pointer :: quads(:)                   ! Pointers to the two (or one) shared quads
-        class(NodesAndWeights_t),   pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
-        class(NodesAndWeights_t),   pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
+        integer                               :: ID                         ! Edge ID
+        integer(kind=1)                       :: edgeType                   ! Edge Type: FACE_INTERIOR , or the marker value if boundary face
+        logical                               :: inverse                    ! Whether both edge projections are in the same or different direction
+        logical                               :: transform(QUADS_PER_EDGE)  ! Whether the element contribution needs transformation to a higher degree
+        integer                               :: Nlow                       ! Lower polynomial degree
+        integer(kind=1),            pointer   :: edgeLocation(:)            ! Edge location for the two (or one) sharing elements (ETOP,EBOTTOM,ELEFT,ERIGHT)
+        real(kind=RP)                         :: Area                       ! Area of the edge
+        real(kind=RP)                         :: mu_a
+        real(kind=RP)                         :: invh                       ! Normal minimum distance approximation (inversed)
+        real(kind=RP),              pointer   :: n(:,:)                     ! Unitary normal: points from LEFT towards RIGHT, and outside the domain for bdryedges
+        real(kind=RP),              pointer   :: X(:,:)                     ! Coordinates: (X/Y, xi)
+        real(kind=RP),              pointer   :: dX(:,:)                    ! Tangent vector: (X/Y, xi)
+        real(kind=RP),              pointer   :: dS(:)                      ! Surface differential vector (X/Y, xi)
+        real(kind=RP),          allocatable   :: T_forward(:,:)             ! Interpolation matrix from the low order to high order
+        real(kind=RP),          allocatable   :: T_backward(:,:)            ! Interpolation matrix from the high order to low order
+        type(BoundaryData_t),  allocatable    :: storage(:)                 ! Solution interpolation to boundaries ( LEFT/RIGHT )
+        type(Node_p)                          :: nodes(POINTS_PER_EDGE)     ! Pointer to the two nodes
+        class(QuadElement_p),       pointer   :: quads(:)                   ! Pointers to the two (or one) shared quads
+        class(NodesAndWeights_t),     pointer :: spA                        ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
+        class(NodesAndWeights_t),     pointer :: spI                        ! Pointer to the integration nodal storage (if over-integration is active)
+        procedure(ProjectSolutionFCN), nopass,  pointer :: ProjectSolution       => NULL()
+        procedure(ProjectFluxesFCN), nopass,  pointer :: ProjectFluxes         => NULL()
+        procedure(ProjectGradientFluxesFCN), nopass,  pointer :: ProjectGradientFluxes => NULL()
         contains
-            procedure      :: SetCurve    => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
-            procedure      :: Invert      => Edge_Invert                      ! Function to invert the edge orientation 
-            procedure      :: evaluateX   => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
-            procedure      :: evaluatedX  => Edge_AnalyticaldX                ! Function to compute an edge point in a local coordinate "xi"
-            procedure      :: evaluatedS  => Edge_AnalyticaldS
-            procedure      :: getX        => Edge_getX                         
-            procedure      :: getdX       => Edge_getdX
-            procedure      :: getdS       => Edge_getdS
+            procedure      :: SetCurve     => Edge_SetCurve                    ! Procedure that computes the coordinates, the tangent, and the normal.
+            procedure      :: Invert       => Edge_Invert                      ! Function to invert the edge orientation
+            procedure      :: evaluateX    => Edge_AnalyticalX                 ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedX   => Edge_AnalyticaldX                ! Function to compute an edge point in a local coordinate "xi"
+            procedure      :: evaluatedS   => Edge_AnalyticaldS
+            procedure      :: getX         => Edge_getX
+            procedure      :: getdX        => Edge_getdX
+            procedure      :: getdS        => Edge_getdS
+            procedure      :: ComputeJumps => Edge_ComputeJumps
     end type Edge_t
 
     type, extends(Edge_t)  :: StraightBdryEdge_t
-        integer(kind=1)                   :: BCWeakType
+        integer(kind=1)                   :: inviscidBCType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)  => NULL()      ! Solution at the boundary (used by the inviscid Riemann solver)
@@ -124,10 +131,12 @@ module QuadElementClass
         real(kind=RP), pointer            :: uSB(:,:)  => NULL()     ! Solution at the boundary (used by the solution Riemann solver)
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()     ! Solution gradient at the boundary
 #endif
+         contains
+            procedure      :: ComputeJumps => StraightBdryEdge_ComputeJumps
     end type StraightBdryEdge_t 
 
     type, extends(Edge_t)  :: CurvedBdryEdge_t
-        integer(kind=1)                   :: BCWeakType
+        integer(kind=1)                   :: inviscidBCType
         logical                           :: associated = .false.
         procedure(RiemannSolverFunction), nopass, pointer :: RiemannSolver => NULL()
         real(kind=RP), pointer            :: uB(:,:)  => NULL()     ! Solution at the boundary (used by the Riemann solver)
@@ -138,13 +147,14 @@ module QuadElementClass
         real(kind=RP), pointer            :: gB(:,:,:) => NULL()    ! Solution gradient at the boundary
 #endif
         contains
-            procedure      :: SetCurve   => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
-            procedure      :: getX       => Curvilinear_getX                         
-            procedure      :: getdX      => Curvilinear_getdX
-            procedure      :: getdS      => Curvilinear_getdS
-            procedure      :: evaluateX  => Curvilinear_InterpolantX
-            procedure      :: evaluatedX => Curvilinear_InterpolantdX
-            procedure      :: evaluatedS => Curvilinear_InterpolantdS
+            procedure      :: SetCurve     => CurvilinearEdge_SetCurve       ! Procedure that computes the coordinates, the tangent, and the normal
+            procedure      :: getX         => Curvilinear_getX
+            procedure      :: getdX        => Curvilinear_getdX
+            procedure      :: getdS        => Curvilinear_getdS
+            procedure      :: evaluateX    => Curvilinear_InterpolantX
+            procedure      :: evaluatedX   => Curvilinear_InterpolantdX
+            procedure      :: evaluatedS   => Curvilinear_InterpolantdS
+            procedure      :: ComputeJumps => CurvedBdryEdge_ComputeJumps
     end type CurvedBdryEdge_t
 
 !
@@ -158,6 +168,46 @@ module QuadElementClass
             procedure      :: Construct => Edge_ConstructEdge
             procedure      :: LinkWithElements => Edge_linkWithElements
     end type Edge_p
+!
+!   
+    abstract interface
+         pure subroutine ProjectSolutionFCN( ed , QL , QR , dQL , dQR )
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
+            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         end subroutine ProjectSolutionFCN
+    end interface
+
+    abstract interface
+         pure subroutine ProjectFluxesFCN( ed , F , FL , FR )
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+         end subroutine ProjectFluxesFCN
+    end interface
+
+    abstract interface
+         pure subroutine ProjectGradientFluxesFCN( ed , GL_edge , GR_edge , GL , GR)
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+         end subroutine ProjectGradientFluxesFCN
+    end interface
+!
 !
 !  ========
    contains

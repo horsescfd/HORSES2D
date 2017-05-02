@@ -21,7 +21,7 @@
                allocate ( edge % FB  ( 0:N , NCONS )  ) 
                allocate ( edge % uB  ( 0:N , NCONS )  ) 
 
-               edge % BCWeakType = self % WeakType
+               edge % inviscidBCType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
@@ -35,7 +35,7 @@
                allocate ( edge % FB  ( 0:N , NCONS )  ) 
                allocate ( edge % uB  ( 0:N , NCONS )  ) 
 
-               edge % BCWeakType = self % WeakType
+               edge % inviscidBCType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
