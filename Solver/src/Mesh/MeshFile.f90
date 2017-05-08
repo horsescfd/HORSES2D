@@ -1,28 +1,28 @@
 module MeshFileClass
     use SMConstants
     use ParamfileIO
+    use IntegerArrayLinkedList
 
 #include "Defines.h"
 
     integer, parameter           :: STR_LEN_MESH = 128
-
-    type MeshFile_t
+                                                                                      ! 
+    type MeshFile_t                                                                   ! -------------------------------------------------------------------------
        logical                                  :: curvilinear = .false.              ! Flag for curvilinear/not curvilinear meshes
        logical                                  :: has_pRefinement = .false.          ! Flag for p-Refinement
        integer                                  :: no_of_nodes                        ! Number of nodes in the mesh
        integer                                  :: no_of_elements                     ! Number of elements in the mesh
-       integer                                  :: no_of_edges                        ! Number of edges in the mesh
+       integer, pointer                         :: no_of_edges                        ! Number of edges in the mesh
        integer                                  :: no_of_bdryedges                    ! Number of edges which are boundaries
        integer                                  :: no_of_markers                      ! Number of markers
        integer                                  :: no_of_pRefinementZones             ! Number of zones in which pRefinement is performed
        integer, allocatable                     :: no_of_curvededges                  ! Number of edges which are curved
        integer, allocatable                     :: curves_polynomialorder             ! Curved edges polynomial order
        integer, allocatable                     :: points_of_elements(:,:)            ! Array with the points for each element ( # , element )
-       integer, allocatable                     :: points_of_edges(:,:)               ! Array with the points for each edge ( # , edge ) 
-       integer, allocatable                     :: elements_of_edges(:,:)             ! Array with the elements which share an edge ( #el , edge ) 
-       integer, allocatable                     :: polynomialOrder(:)               
-       integer, allocatable                     :: cumulativePolynomialOrder(:) 
-!                                                                                                           (-1 for the second point if boundary)
+       type(IntegerArrayLinkedList_t)           :: points_of_edges                    ! Linked list with the points for each edge
+       type(IntegerArrayLinkedList_t)           :: elements_of_edges                  ! Linked list with the elements which share an edge 
+       integer, allocatable                     :: polynomialOrder(:)                 !
+       integer, allocatable                     :: cumulativePolynomialOrder(:)       !
        integer, allocatable                     :: curved_edges_points(:,:)           ! Points of the edges which are curved
        integer, allocatable                     :: curved_edges(:)                    ! Which edges are curved
        integer, allocatable                     :: pRefinementZones(:)                ! The elements for the different pRefinement zones 
@@ -30,26 +30,29 @@ module MeshFileClass
        integer(kind=1), allocatable             :: edgeMarker(:)                      ! Array with the type of each edge ( interior, boundary, ...)
        real(kind=RP), allocatable               :: points_coords(:,:)                 ! Array with points_coordinates  (x/y , point)
        real(kind=RP), allocatable               :: curvilinear_coords(:,:,:)          ! Array with the coordinates of curvilinear edges (x/y , 0:N , edge)
-       character(len=STR_LEN_MESH), allocatable :: bdryzones_names(:)
-!
-!      --------------------------------------------------------------------------------------------------------------------------------------
-!              Intermediate arrays 
-!      --------------------------------------------------------------------------------------------------------------------------------------
-!
-       integer, allocatable :: points_of_bdryedges(:,:)           ! Array with the points for each boundary edge ( # , edge ). Do not use it.
-       integer, allocatable :: bdrymarker_of_edges(:)             ! Intermediate variable. Do not use it.
-       contains
-         procedure      :: Read => ReadMesh
-         procedure      :: Compute => ComputeMesh
-         procedure      :: Describe => DescribeMesh
-         procedure      :: Destruct => MeshFile_Destruct
-    end type MeshFile_t
-
+       character(len=STR_LEN_MESH), allocatable :: bdryzones_names(:)                 ! 
+!                                                                                     !
+!      Intermediate arrays                                                            !
+!      -------------------                                                            !
+       integer, allocatable :: points_of_bdryedges(:,:)                               ! Array with the points for each boundary edge ( # , edge ). Do not use it.
+       integer, allocatable :: bdrymarker_of_edges(:)                                 ! Intermediate variable. Do not use it.
+       contains                                                                       !
+         procedure      :: Read => ReadMesh                                           !
+         procedure      :: Describe => DescribeMesh                                   !
+         procedure      :: Destruct => MeshFile_Destruct                              !
+    end type MeshFile_t                                                               ! --------------------------------------------------------------------------
+                                                                                      !
     private
     public  MeshFile_t
 
     contains
-
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              READ FILE SUBROUTINES
+!              ---------------------
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          subroutine ReadMesh( mesh )
             use Setup_class
             use Physics
@@ -57,7 +60,7 @@ module MeshFileClass
             implicit none
             class(MeshFile_t)          :: mesh
 !           -----------------------------------------------------
-            integer                     :: curved_edges
+            integer                     :: no_of_curved_edges
             integer                     :: marker
             integer                     :: el
             integer                     :: eID
@@ -67,25 +70,28 @@ module MeshFileClass
             integer, allocatable        :: zoneOrder
             character(len=STR_LEN_MESH) :: zoneID
 !
-!           ----------------------------------------------------------------------------------------------------
-!                 Read nodes, elements, and boundary edges
-!           ----------------------------------------------------------------------------------------------------
+!           ****************************************
+!           Read nodes, elements, and boundary edges
+!           ****************************************
 !
-!           Dimensions
+!           Dimensions: Directly obtained from the NetCDF mesh file
+!           -------------------------------------------------------
             mesh % no_of_nodes     = NetCDF_getDimension ( Setup % mesh_file , "no_of_nodes"     ) 
             mesh % no_of_elements  = NetCDF_getDimension ( Setup % mesh_file , "no_of_elements"  ) 
             mesh % no_of_bdryedges = NetCDF_getDimension ( Setup % mesh_file , "no_of_bdryedges" ) 
             mesh % no_of_markers   = NetCDF_getDimension ( Setup % mesh_file , "no_of_markers"   ) 
-
+!
 !           Allocate variables
+!           ------------------
             allocate ( mesh % points_of_elements  ( POINTS_PER_QUAD , mesh % no_of_elements  )  ) 
             allocate ( mesh % points_coords       ( NDIM , mesh % no_of_nodes                )  ) 
             allocate ( mesh % points_of_bdryedges ( POINTS_PER_EDGE , mesh % no_of_bdryedges )  ) 
             allocate ( mesh % bdrymarker_of_edges ( mesh % no_of_bdryedges                   )  ) 
             allocate ( mesh % bdryzones_names     ( mesh % no_of_markers                     )  )
             allocate ( mesh % polynomialOrder     ( mesh % no_of_elements                    )  )
-
-!           Gather variables
+!
+!           Gather variables from the NetCDF mesh file
+!           ------------------------------------------
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_quads"     , mesh % points_of_elements  ) 
             call NetCDF_getVariable ( Setup % mesh_file , "points"              , mesh % points_coords       ) 
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges ) 
@@ -94,8 +100,10 @@ module MeshFileClass
 !           Assign the default polynomial order until replaced by the pRefinement polynomial order if proceeds
 !           --------------------------------------------------------------------------------------------------
             mesh % polynomialOrder  = Setup % N
-
-            mesh % points_coords = mesh % points_coords / RefValues % L       ! Scale with the reference length
+!
+!           Fill each point coordinates (scaled with the reference length)
+!           --------------------------------------------------------------
+            mesh % points_coords = mesh % points_coords / RefValues % L
 
             do marker = 1 , mesh % no_of_markers
                write(name , '(A,I0)') "marker" , marker
@@ -140,38 +148,38 @@ module MeshFileClass
                end do
 
             end if
-            
-
+!
 !           Gather curved boundaries
-            curved_edges        = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
+!           ------------------------
+            no_of_curved_edges = NetCDF_getDimension( Setup % mesh_file , "no_of_curvilinearedges" )
 !
 !           **********************************
 !             ----> Curved edges <----
-            if (curved_edges .ne. -1) then
+            if (no_of_curved_edges .ne. -1) then
 !           **********************************
 !
 !              ===========================
                mesh % curvilinear = .true.
 !              ===========================
 !
+!              no_of_curvedEdges: How many edges are curved
+!              --------------------------------------------
                allocate ( mesh % no_of_curvedEdges  ) 
+               mesh % no_of_curvedEdges  = no_of_curved_edges
+!
+!              curves_polynomialorder: The polynomial order used for the edges
+!              ---------------------------------------------------------------
                allocate ( mesh % curves_polynomialorder ) 
-
-               mesh % no_of_curvedEdges  = curved_edges
                mesh % curves_polynomialorder = NetCDF_getDimension( Setup % mesh_file , "Np1" ) - 1
 !
-!              --------------------------------------
-!                 Get the nodes of curved edges
-!              --------------------------------------
-!
+!              curved_edges_points: The two nodes of each curved edge
+!              ------------------------------------------------------
                allocate ( mesh % curved_edges_points ( NDIM , mesh % no_of_curvedEdges ) ) 
-               allocate ( mesh % curved_edges ( mesh % no_of_curvedEdges ) ) 
                call NetCDF_getVariable ( Setup % mesh_file , "curvilinear_edges" , mesh % curved_edges_points ) 
+
 !
-!              -----------------------------------------------------------------------
-!                 Get curved patches from file: An auxiliary variable "aux" is needed 
-!              -----------------------------------------------------------------------
-!
+!              Get curved patches from file: An auxiliary variable "aux" is needed to store each coordinate
+!              --------------------------------------------------------------------------------------------
                allocate ( mesh % curvilinear_coords ( NDIM , mesh % curves_polynomialorder + 1 , mesh % no_of_curvedEdges )  ) 
                allocate ( aux                       (        mesh % curves_polynomialorder + 1 , mesh % no_of_curvedEdges )  ) 
 !
@@ -185,20 +193,18 @@ module MeshFileClass
                call NetCDF_getVariable( Setup % mesh_file , "y_curvilinear_edges" , aux )
                mesh % curvilinear_coords(2,:,:) = aux / RefValues % L
 !
-!              ------------------------------------
-!                 Free the auxiliary variable
-!              ------------------------------------
-!
+!              Free the auxiliary variable
+!              ---------------------------
                deallocate( aux )
             
             end if
 !       
-!            ---------------------------------------------------------
+!            -------------------------------------------------------------------------
 !                   The cumulativePolynomialOrder is an array that 
 !               goes from 0 to Nelements, and such that
 !                   cumul..(0) = 0
 !                   cumul..(i) = (polynomialOrder(i)+1)**2.0 + cumul...(i-1)
-!           ---------------------------------------------------------
+!           --------------------------------------------------------------------------
              allocate(mesh % cumulativePolynomialOrder( 0 : mesh % no_of_elements ) )
 
             mesh % cumulativePolynomialOrder(0) = 0
@@ -206,213 +212,422 @@ module MeshFileClass
             do el = 1 , mesh % no_of_elements
                mesh % cumulativePolynomialOrder(el)   = mesh % cumulativePolynomialOrder(el-1) + (mesh % polynomialOrder(el) + 1) * (mesh % polynomialOrder(el) + 1)
             end do
-
-
 !
-!           ***************************
-!              Compute the mesh       
-!           ***************************
+!           ****************
+!           Compute the mesh       
+!           ****************
 !
-            call mesh % Compute
+!           First, compute all the faces
+!           ----------------------------
+            call computeFaces( mesh )
+!
+!           Second, merge all divided faces
+!           -------------------------------
+            call mergeDividedFaces ( mesh ) 
+!
+!           Third, compute which elements belong to each edge
+!           -------------------------------------------------
+            call computeElementOfEdges ( mesh ) 
+!
+!           Fourth, assign each face a marker
+!           ---------------------------------
+            call computeFaceMarkers( mesh )
+!
+!           Fifth, if curvilinear, assign each edge a curve
+!           -----------------------------------------------
+            if ( mesh % curvilinear ) then
+               call computeCurvedEdges( mesh ) 
+            end if
+!
+!           Describe the mesh
+!           -----------------
             call mesh % Describe
 
          end subroutine ReadMesh
-
-         subroutine DescribeMesh( mesh )
-            use Setup_class
-            use Headers
-            implicit none
-            class(MeshFile_t)          :: mesh
-            character(len=STR_LEN_MESH)   :: auxstr
-            integer                    :: zone
-
-            write(STD_OUT,'(/)')
-            call Section_Header("Reading mesh")
-            write(STD_OUT,'(/)')
-
-            call SubSection_Header('Mesh file "' // trim(Setup % mesh_file) //'"')
-            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of nodes: ", mesh % no_of_nodes ,"."
-            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of elements: ", mesh % no_of_elements ,"."
-            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of edges: ", mesh % no_of_edges ,"."
-            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of boundary edges: ", mesh % no_of_bdryedges ,"."
-
-            if (mesh % curvilinear) then
-
-               write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of curved edges: ", mesh % no_of_curvedEdges ,"."
-               write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Curved edges polynomial order: ", mesh % curves_polynomialorder ,"."
-               
-            end if
-
-
-            write(STD_OUT,'(/)')
-            write(auxstr , '(I0,A)') mesh % no_of_markers , " boundary zones found"
-            call SubSection_Header( trim(auxstr) )
-
-            do zone = 1 , mesh % no_of_markers
-               write(STD_OUT , '(30X,A,A,I0,A,A20)') "-> ", "Zone ",zone,": ", trim(mesh % bdryzones_names(zone))
-            end do
-
-         end subroutine DescribeMesh
-
-         subroutine ComputeMesh( self )
-            implicit none
-            class(MeshFile_t)          :: self
 !
-!           -------------------------------
-!              Compute number of edges
-!           -------------------------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-            if (mod(4*self % no_of_elements + self % no_of_bdryedges , 2) .eq. 0) then
-               self % no_of_edges = (4*self % no_of_elements + self % no_of_bdryedges) / 2 
-               allocate( self % points_of_edges ( POINTS_PER_EDGE , self % no_of_edges ) ) 
-               allocate( self % elements_of_edges( POINTS_PER_EDGE , self % no_of_edges ) )
-            else
-               print*, "The mesh is not consistent."
-               stop "Stopped."
-            end if
-
-            self % points_of_edges = -1
-            self % elements_of_edges = -1
-
-            call computeFaces( self )
-            call computeFaceMarkers( self )
-
-            if ( self % curvilinear ) then
-               call computeCurvedEdges( self ) 
-            end if
-
-         end subroutine ComputeMesh
-
+!                 COMPUTE SUBROUTINES
+!                 -------------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          subroutine computeFaces( mesh )
             use Headers
+            use Sorting
             implicit none
             class(MeshFile_t)          :: mesh
-!           ----------------------------------------
-            integer                    :: eID
-            integer                    :: elFace
-            integer                    :: currentFace
-            integer                    :: previousFaces
-            logical                    :: exists
-            integer, dimension(2)      :: face
 !
-!           -------------------------------
-!              Obtain faces      
-!           -------------------------------
+!           ---------------
+!           Local variables
+!           ---------------
 !
-            currentFace = 1
+            integer                             :: eID , edID
+            integer                             :: elFace
+            integer, dimension(2)               :: face
+            integer                             :: pos ( mesh % no_of_bdryedges ) 
+            integer                             :: counter
+            class(IntegerArrayEntry_t), pointer :: current
+            integer, parameter                  :: elFaceIDs(EDGES_PER_QUAD + 1) = [1,2,3,4,1]
+!
+!           Initialize the structure
+!           ------------------------
+            mesh % points_of_edges = ConstructIntegerArrayLinkedList()
+!
+!           no_of_edges points to the size of the linked list
+!           -------------------------------------------------
+            mesh % no_of_edges => mesh % points_of_edges % no_of_entries
+!
+!           Obtain the four faces of each element 
+!           -------------------------------------
             do eID = 1 , mesh % no_of_elements
                do elFace = 1 , POINTS_PER_QUAD
 !
-!                 ----------------------------------------
-!                    Select face
-!                 ----------------------------------------
+!                 Select face
+!                 -----------
+                  face = mesh % points_of_elements( elFaceIDs( elFace : elFace + 1 ) , eID ) 
 !
-                  if (elFace .ne. POINTS_PER_QUAD) then
-                     face = mesh % points_of_elements([elFace , elFace + 1] , eID )
-                  else
-                     face = mesh % points_of_elements([elFace , 1] , eID ) 
-                  end if
-!
-!                 ---------------------------------------
-!                    Check if the face exists already
-!                 ---------------------------------------
-!
-                  exists = .false.
-                  do previousFaces = 1 , currentFace - 1             
-                     if ( facesEqual( mesh % points_of_edges(:,previousFaces) , face )) then    ! There is an existing face
-                        exists = .true.
-                        mesh % elements_of_edges(2 , previousFaces) = eID
-                        
-                        exit
-                     end if      ! Continue 
-                  end do
-!
-!                 -------------------------------------------
-!                    If does not exist, store it
-!                 -------------------------------------------
-!
-                  if (.not. exists) then
-                     mesh % points_of_edges( : , currentFace ) = face
-                     mesh % elements_of_edges(1 , currentFace ) = eID
+!                 Add it to points_of_edges
+!                 -------------------------
+                  call mesh % points_of_edges % Add ( POINTS_PER_EDGE , face )
 
-!                    Move to next face
-!                    -----------------
-                     currentFace = currentFace + 1
-                  end if
                end do
             end do
-         
-         end subroutine computeFaces
-
-         subroutine computeFaceMarkers( mesh )
-            implicit none
-            class(MeshFile_t)          :: mesh
-            integer                    :: edge
-            integer                    :: bdryface
-!           ------------------------------------------------
-            
 !
-!           --------------------------
-!           Allocate face marker array
-!           --------------------------
+!           Set which are boundaries in the Linked List attribute field (true/false)
+!           ------------------------------------------------------------------------
+            do edID = 1 , mesh % no_of_bdryedges
 !
-            allocate ( mesh % edgeMarker ( mesh % no_of_edges ) )
+!              Look for the bdryedge points in the edges data
+!              ----------------------------------------------
+               pos(edID) = mesh % points_of_edges % Search( POINTS_PER_EDGE , mesh % points_of_bdryedges(:,edID) )
 
-            do edge = 1 , mesh % no_of_edges
-
-               if (mesh % elements_of_edges(2 , edge) .eq. -1) then   ! Is a boundary face
+            end do
 !
-!                 ------------------------------------------------------------------------
-!                    Search for a similar face in boundary faces structure
-!                 ------------------------------------------------------------------------
+!           Set the value to the linked list attribute
+!           ------------------------------------------
+            current => mesh % points_of_edges % head 
+            counter = 1 
 !
-                  do bdryface = 1 , mesh % no_of_bdryedges
+!           Sort the positions to loop just once the list
+!           ---------------------------------------------
+            call Qsort(pos)         
 
-                     if (facesEqual(mesh % points_of_bdryedges(:,bdryface) , mesh % points_of_edges(:,edge) ) ) then    ! Face found
-!
-!                       ----------------------------------------------
-!
-                        mesh % edgeMarker (edge) =  mesh % bdrymarker_of_edges(bdryface)        
+            do edID = 1 , mesh % points_of_edges % no_of_entries
 
-                        exit        ! Exit from bdryface loop if the face is found
+               if ( pos(counter) .eq. edID ) then
+                  current % attribute = .true.
+                  counter = counter + 1 
 
-                     end if
-
-                  end do
-
-               else     ! Otherwise, an interior face is considered
-
-                  mesh % edgeMarker (edge) = FACE_INTERIOR
+                  if ( counter .eq. mesh % no_of_bdryedges + 1) exit 
 
                end if
 
+               current => current % next
+
             end do
 
+         end subroutine computeFaces
+
+         subroutine mergeDividedFaces( mesh ) 
+!
+!           ******************************************************************************************
+!
+!                 This subroutine looks for subdivided faces in the points_of_edges data
+!              Basically, the process is:
+!
+!                 1/ Search for a point with just 3 faces (X in the sketch).
+!
+!                 2/ Check that this face is not a boundary face. 
+!                                         (otherwise it is valid to have 3 edges)
+!                 3/ Get the three points which are connected through its faces (O in the sketch).
+!
+!                 4/ Get the four points which each of the previous points are connected.
+!
+!                 5/ If one of those is of the three (O) points, they belong to a subdivided face.
+!
+!                          BEFORE                                     AFTER
+!
+!                 +-----------O----------+                   +----------2----------+
+!                 |          /|          |                   |          |          |
+!                 |         /=|          |           \       |          |          |
+!                 |        /==|          |    ========\      |          |          |
+!                 O-------X===|          |    =========\     +----------3          |
+!                 |        \==|          |    =========/     |          |          |
+!                 |         \=|          |    ========/      |          |          |
+!                 |          \|          |           /       |          |          |
+!                 +-----------O----------+                   +----------1----------+
+!
+!           ******************************************************************************************
+!
+            implicit none
+            class(MeshFile_t)          :: mesh
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer                    :: edges(POINTS_PER_QUAD)
+            logical                    :: atts(POINTS_PER_QUAD)
+            integer                    :: points(POINTS_PER_SUBDIVIDED_EDGE)
+            integer                    :: point
+            integer                    :: newSubdividedEdge(POINTS_PER_SUBDIVIDED_EDGE)
+            integer                    :: points_of_edge( POINTS_PER_EDGE )
+            integer                    :: pos
+            integer                    :: threeEdgesNode , j  , k
+!
+!           This subroutine removes the divided edges information
+!           -----------------------------------------------------
+mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
+               edges = mesh % points_of_edges % SearchIfPresent( ONE , [threeEdgesNode] , POINTS_PER_QUAD , atts) 
+
+               if ( edges     ( POINTS_PER_QUAD ) .ne. -1 )  cycle  ! It has four associated edges      -> Is not subdivided
+               if (       any ( atts            )         )  cycle  ! Not connected to boundary faces   -> Is not subdivided
+!
+!              Gather the three neighbouring points
+!              ------------------------------------
+               do j = 1 , POINTS_PER_SUBDIVIDED_EDGE
+                  points_of_edge = mesh % points_of_edges % Get ( POINTS_PER_EDGE , edges(j) )
+         
+                  if ( points_of_edge(ONE) .ne. threeEdgesNode ) then
+                     points(j) = points_of_edge(ONE)
+               
+                  elseif ( points_of_edge(TWO) .ne. threeEdgesNode ) then
+                     points(j) = points_of_edge(TWO)
+   
+                  end if
+
+               end do
+!
+!              Gather all the edges that emerge from each point
+!              ------------------------------------------------
+               do j = 1 , POINTS_PER_SUBDIVIDED_EDGE
+                  edges = mesh % points_of_edges % SearchIfPresent( ONE , [points(j)] , POINTS_PER_QUAD ) 
+
+                  do k = 1 , POINTS_PER_QUAD
+                     points_of_edge = mesh % points_of_edges % Get ( POINTS_PER_EDGE , edges(k) )
+
+                     if ( (points_of_edge(ONE) .ne. points(j)) .and. (points_of_edge(ONE) .ne. threeEdgesNode) ) then
+                        point = points_of_edge(ONE)
+
+                     elseif ( (points_of_edge(TWO) .ne. points(j)) .and. (points_of_edge(TWO) .ne. threeEdgesNode) ) then
+                        point = points_of_edge(TWO)
+
+                     end if
+
+                     if ( any( points .eq. point ) ) then       
+!
+!                       This is the found edge: It is arranged such that the middle node is the last (important!)
+!                       ----------------------
+                        newSubdividedEdge = [ points_of_edge , threeEdgesNode ] 
+!
+!                       Remove the three edges
+!                       ----------------------
+                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , [newSubdividedEdge(ONE) , newSubdividedEdge(TWO)] )
+                        call  mesh % points_of_edges % Remove ( pos )
+
+                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , [newSubdividedEdge(ONE) , newSubdividedEdge(THREE) ] )
+                        call  mesh % points_of_edges % Remove ( pos )
+
+                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , [newSubdividedEdge(TWO) , newSubdividedEdge(THREE) ] )
+                        call  mesh % points_of_edges % Remove ( pos )
+!
+!                       Add the new subdivided edge
+!                       ---------------------------
+                        call mesh % points_of_edges % Add ( POINTS_PER_SUBDIVIDED_EDGE , newSubdividedEdge ) 
+!
+!                       Continue
+!                       --------
+                        cycle mainloop
+
+                     end if
+                  end do
+               end do
+
+            end do   mainloop
+
+         end subroutine mergeDividedFaces
+
+         subroutine computeElementOfEdges ( mesh ) 
+            implicit none
+            class(MeshFile_t)          :: mesh
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer                             :: edID
+            class(IntegerArrayEntry_t), pointer :: current => NULL()
+            integer                             :: simpleEdge            ( POINTS_PER_EDGE            ) 
+            integer                             :: elementsOfSimpleEdge  ( QUADS_PER_EDGE             ) 
+            integer                             :: dividedEdge           ( POINTS_PER_SUBDIVIDED_EDGE ) 
+            integer                             :: elementsOfDividedEdge ( QUADS_PER_SUBDIVIDED_EDGE  ) 
+!
+!           Initialize the structure
+!           ------------------------
+            mesh % elements_of_edges = ConstructIntegerArrayLinkedList(type = WITH_REPEATING )
+!
+!           Get the list head
+!           -----------------
+            current => mesh % points_of_edges % head
+!
+!           Loop the list
+!           -------------
+            do edID = 1 , mesh % points_of_edges % no_of_entries
+
+               if ( current % N .eq. POINTS_PER_EDGE ) then
+!
+!                 Get a simple edge
+!                 -----------------
+                  simpleEdge = current % val
+!
+!                 Compute the elements that share the edge
+!                 ----------------------------------------
+                  elementsOfSimpleEdge = searchSimpleEdgeInElements( mesh % no_of_elements , mesh % points_of_elements , simpleEdge ) 
+!
+!                 Append it to the elements_of_edges list
+!                 ---------------------------------------
+                  if ( elementsOfSimpleEdge(TWO) .eq. -1 ) then
+!
+!                    Boundary edge
+!                    -------------
+                     call mesh % elements_of_edges % Add( ONE , elementsOfSimpleEdge(ONE) )
+
+                  else
+!
+!                    Interior edge
+!                    -------------
+                     call mesh % elements_of_edges % Add( QUADS_PER_EDGE , elementsOfSimpleEdge )
+
+                  end if
+
+               elseif ( current % N .eq. POINTS_PER_SUBDIVIDED_EDGE ) then
+!
+!                 Get a divided edge
+!                 ------------------
+                  dividedEdge = current % val 
+!
+!                 Compute the elements that share the edge
+!                 ----------------------------------------
+                  elementsOfDividedEdge = searchDividedEdgeInElements( mesh % no_of_elements , mesh % points_of_elements , dividedEdge ) 
+!
+!                 Append it to the elements_of_edges list
+!                 ---------------------------------------
+                  call mesh % elements_of_edges % Add( QUADS_PER_SUBDIVIDED_EDGE , elementsOfDividedEdge )
+
+               end if
+!
+!              Move to the next edge
+!              ---------------------
+               current => current % next
+
+            end do
+
+         end subroutine computeElementOfEdges
+
+         subroutine computeFaceMarkers( mesh )
+!
+!           ********************************************************************
+!
+!                   This subroutine compute the edgeMarker array, containing
+!               the boundary zone to which each edge belongs to.
+!
+!           ********************************************************************
+!
+            implicit none
+            class(MeshFile_t)          :: mesh
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer                    :: edge
+            integer                    :: bdryface
+            integer                    :: pos
+!
+!           Allocate face marker array
+!           --------------------------
+            allocate ( mesh % edgeMarker ( mesh % points_of_edges % no_of_entries ) )
+!
+!           Set all faces to interior by default
+!           ------------------------------------
+            mesh % edgeMarker = FACE_INTERIOR
+!
+!           Loop in boundary faces to assign markers
+!           ----------------------------------------
+            do bdryface = 1 , mesh % no_of_bdryedges
+!
+!               Find a boundary edge in the points_of_edges list
+!               ------------------------------------------------            
+                pos = mesh % points_of_edges % Search (POINTS_PER_EDGE , mesh % points_of_bdryedges(:,bdryface) )
+!
+!               Once found, assign it its marker
+!               --------------------------------                
+                mesh % edgeMarker(pos) = mesh % bdrymarker_of_edges(bdryface)
+
+            end do
+        
          end subroutine computeFaceMarkers
 
          subroutine computeCurvedEdges( mesh )
+!
+!           ********************************************************************
+!
+!                   This subroutine computes which edge is curved
+!               If the edge is stored in the opposite way than the curve, it
+!               is inverted.
+!
+!           ********************************************************************
+!
             implicit none
             class(MeshFile_t)          :: mesh
+!
+!           ---------------
+!           Local variables            
+!           ---------------
+!
             integer                    :: edID
             integer                    :: position , direction
+            integer                    :: pos(ONE)
+            integer                    :: edge(POINTS_PER_EDGE)
+!
+!           curved_edges: The ID of the edges which are curved
+!           --------------------------------------------------
+            allocate ( mesh % curved_edges ( mesh % no_of_curvedEdges ) ) 
 
-            do edID = 1 , mesh % no_of_edges
+            do edID = 1 , mesh % no_of_curvedEdges
+!
+!               Get the position in which the curved edge is stored
+!               ---------------------------------------------------
+                pos = mesh % points_of_edges % SearchIfContained ( POINTS_PER_EDGE , mesh % curved_edges_points(:,edID) , ONE  )
+                mesh % curved_Edges(edID) = pos(ONE)
+!
+!               Get the curved edge linear mesh nodes
+!               -------------------------------------            
+                edge = mesh % points_of_edges % Get ( POINTS_PER_EDGE , pos(ONE) )
+!
+!               Check whether their orientation is consistent, and invert if necessary
+!               ----------------------------------------------------------------------            
+                if ( (edge(ONE) .eq. mesh % curved_edges_points(ONE,edID)) .and. (edge(TWO) .eq. mesh % curved_edges_points(TWO,edID) )) then
+!
+!                   Do nothing
+!                   ----------
+                elseif ( (edge(TWO) .eq. mesh % curved_edges_points(ONE,edID)) .and. (edge(ONE) .eq. mesh % curved_edges_points(TWO,edID) ) ) then
+                     mesh % curvilinear_coords(:,:,edID) = mesh % curvilinear_coords(:,mesh % curves_polynomialorder + 1 : 1 : -1 , edID)
 
-               if ( searchFace ( mesh % points_of_edges(:,edID) , mesh % no_of_curvedEdges , mesh % curved_edges_points , position , direction ) ) then
-                  mesh % curved_edges(position) = edID
+                else
+                    errorMessage(STD_OUT)
 
-                  if (direction .eq. BACKWARD) then      ! Change the coordinates order
-                     mesh % curvilinear_coords(:,:,position) = mesh % curvilinear_coords(:,mesh % curves_polynomialorder + 1 : 1 : -1 , position)
-                  end if
+                end if
 
-               end if 
             end do
 
          end subroutine computeCurvedEdges
 !
-!        ****************************************************************************************
-!           Auxiliar subroutines
-!        ****************************************************************************************
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              AUXILIAR SUBROUTINES
+!              --------------------
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
          function facesEqual(face1 , face2) result(val)
             implicit none
@@ -485,37 +700,160 @@ module MeshFileClass
 
             end do
 
+         end subroutine changeEntry
 
-         end subroutine
+         function searchSimpleEdgeInElements( no_of_elements , points_of_elements , edge ) result ( elements ) 
+            implicit none
+            integer, intent(in)        :: no_of_elements
+            integer, intent(in)        :: points_of_elements(POINTS_PER_QUAD , no_of_elements )
+            integer, intent(in)        :: edge(POINTS_PER_EDGE)
+            integer                    :: elements(QUADS_PER_EDGE)
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eID
+            integer     :: counter
 
+            elements = -1
+            counter = 1 
+            do eID = 1 , no_of_elements
+               
+               if ( any(points_of_elements(:,eID) .eq. edge(ONE)) .and. any(points_of_elements(:,eID) .eq. edge(TWO)) ) then
+                  elements(counter) = eID
+                  counter = counter + 1 
+
+                  if ( counter .eq. QUADS_PER_EDGE + 1 ) return
+
+               end if
+            end do
+
+            elements(counter+1:) = -1
+
+         end function searchSimpleEdgeInElements
+
+         function searchDividedEdgeInElements( no_of_elements , points_of_elements , dividedEdge ) result ( elements )
+            implicit none
+            integer, intent(in)        :: no_of_elements
+            integer, intent(in)        :: points_of_elements(POINTS_PER_QUAD , no_of_elements)
+            integer, intent(in)        :: dividedEdge(POINTS_PER_SUBDIVIDED_EDGE)
+            integer                    :: elements(QUADS_PER_SUBDIVIDED_EDGE)
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer  :: eID            
+!
+!           Assign a default value
+!           ----------------------
+            elements = -1 
+!
+!           Loop in all elements: If an element contains edge's nodes 1 and 2 -> First  position
+!                                                                 ""  1 and 3 -> Second position                                                         
+!                                                                 ""  2 and 3 -> Third  position                                                         
+!           ------------------------------------------------------------------------------------
+            do eID = 1 , no_of_elements
+
+               if     ( (any(points_of_elements(:,eID) .eq. dividedEdge(ONE))) .and. (any(points_of_elements(:,eID) .eq. dividedEdge( TWO ))) ) then
+                  elements( ONE )  = eID
+                  if ( .not. any( elements .eq. -1 ) ) return
+
+               elseif ( (any(points_of_elements(:,eID) .eq. dividedEdge(ONE))) .and. (any(points_of_elements(:,eID) .eq. dividedEdge(THREE))) ) then
+                  elements( TWO ) = eID
+                  if ( .not. any( elements .eq. -1 ) ) return
+
+               elseif ( (any(points_of_elements(:,eID) .eq. dividedEdge(TWO))) .and. (any(points_of_elements(:,eID) .eq. dividedEdge(THREE))) ) then
+                  elements(THREE) = eID 
+                  if ( .not. any( elements .eq. -1 ) ) return
+
+               end if
+
+            end do
+ 
+         end function searchDividedEdgeInElements
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              DESTRUCT SUBROUTINES
+!              --------------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          subroutine MeshFile_Destruct ( self ) 
             implicit none
             class(MeshFile_t)          :: self
    
-            self % no_of_nodes = 0
-            self % no_of_elements = 0
-            self % no_of_edges = 0
-            self % no_of_bdryedges = 0
-            self % no_of_markers = 0
-            self % no_of_curvedEdges = 0
-            self % curves_polynomialorder = 0
+            self % no_of_nodes            = ZERO
+            self % no_of_elements         = ZERO
+            self % no_of_edges            = ZERO
+            self % no_of_bdryedges        = ZERO
+            self % no_of_markers          = ZERO
+            self % no_of_curvedEdges      = ZERO
+            self % curves_polynomialorder = ZERO
+
             deallocate ( self % points_of_elements        ) 
             deallocate ( self % points_of_bdryedges       ) 
-            deallocate ( self % elements_of_edges         ) 
             deallocate ( self % polynomialOrder           ) 
             deallocate ( self % cumulativePolynomialOrder ) 
             deallocate ( self % edgeMarker                ) 
             deallocate ( self % points_coords             ) 
             deallocate ( self % bdryzones_names           ) 
-            deallocate ( self % points_of_edges           ) 
             deallocate ( self % bdrymarker_of_edges       ) 
             if ( self % curvilinear ) then
                deallocate ( self % curved_edges_points ) 
-               deallocate ( self % curved_edges     ) 
-               deallocate ( self % curvilinear_coords   ) 
+               deallocate ( self % curved_edges        ) 
+               deallocate ( self % curvilinear_coords  ) 
+            end if
+
+            call self % points_of_edges   % Destruct
+            call self % elements_of_edges % Destruct
+
+         end subroutine MeshFile_Destruct
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!              DESCRIBE SUBROUTINES
+!              --------------------
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+         subroutine DescribeMesh( mesh )
+            use Setup_class
+            use Headers
+            implicit none
+            class(MeshFile_t)          :: mesh
+            character(len=STR_LEN_MESH)   :: auxstr
+            integer                    :: zone
+
+            write(STD_OUT,'(/)')
+            call Section_Header("Reading mesh")
+            write(STD_OUT,'(/)')
+
+            call SubSection_Header('Mesh file "' // trim(Setup % mesh_file) //'"')
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of nodes: ", mesh % no_of_nodes ,"."
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of elements: ", mesh % no_of_elements ,"."
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of edges: ", mesh % no_of_edges ,"."
+            write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of boundary edges: ", mesh % no_of_bdryedges ,"."
+
+            if (mesh % curvilinear) then
+
+               write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Number of curved edges: ", mesh % no_of_curvedEdges ,"."
+               write(STD_OUT,'(30X,A,A35,I10,A)') "-> ","Curved edges polynomial order: ", mesh % curves_polynomialorder ,"."
+               
             end if
 
 
-         end subroutine MeshFile_Destruct
+            write(STD_OUT,'(/)')
+            write(auxstr , '(I0,A)') mesh % no_of_markers , " boundary zones found"
+            call SubSection_Header( trim(auxstr) )
+
+            do zone = 1 , mesh % no_of_markers
+               write(STD_OUT , '(30X,A,A,I0,A,A20)') "-> ", "Zone ",zone,": ", trim(mesh % bdryzones_names(zone))
+            end do
+
+         end subroutine DescribeMesh
 
 end module MeshFileClass
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!

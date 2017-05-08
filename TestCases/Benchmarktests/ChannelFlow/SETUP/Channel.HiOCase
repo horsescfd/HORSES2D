@@ -1,33 +1,33 @@
 !
 !            ***************************
-! 	     * Cylinder parameter file *
-!	     ***************************
+!       * Cylinder parameter file *
+!       ***************************
 !
 
 !-------------------------------------: Geometry
-			     Mesh file: ./MESH/Channel.HiOMesh
-			 Boundary file: _this_
+              Mesh file: ./MESH/Channel.HiOMesh
+          Boundary file: _this_
 
 !-------------------------------------: Physics
-			           Gas: Air
-		    Reference pressure: 101325.0
-		 Reference Temperature: 273.15
-	       	       Reynolds length: 1.0
-		       Reynolds number: 250.0
-		        Prandtl number: 0.72
-		           Mach number: 0.1
-	
+                    Gas: Air
+          Reference pressure: 101325.0
+       Reference Temperature: 273.15
+                   Reynolds length: 1.0
+             Reynolds number: 250.0
+              Prandtl number: 0.72
+                 Mach number: 0.1
+   
 !------------------------------------: DG Discretization
-		  Interpolation nodes: Legendre-Gauss
-		     Default polynomial order: 5
+        Interpolation nodes: Legendre-Gauss
+           Default polynomial order: 5
 
 !------------------------------------: Initialization
-		    Initial condition : Uniform
-		    Restart file      : ./RESULTS/Channel_50.HiORst
+          Initial condition : Uniform
+          Restart file      : ./RESULTS/Channel_50.HiORst
 
 !------------------------------------: Inviscid discretization
-	            Inviscid strategy: Standard
-                 Inviscid formulation: Form I
+               Inviscid strategy: Standard
+                 Inviscid formulation: Green form
                 Inviscid Riemann Flux: Roe
           ! Number of integration points: 6
 
@@ -57,26 +57,26 @@
 
 
 # define zone 1
-	Name = Bottom
-	Type = Viscous wall
+   Name = Bottom
+   Type = Viscous wall
    Wall type = Adiabatic
 # end 
 
 # define zone 2
-	Name = Top
-	Type = Viscous wall
+   Name = Top
+   Type = Viscous wall
    Wall type = Adiabatic
 # end 
 
 # define zone 3
-	Name = Left
-	Type = Periodic
+   Name = Left
+   Type = Periodic
    Direction = x
    Marker = 4
 # end
 
 # define zone 4
-	Name = Right
+   Name = Right
    Type = Periodic
    Direction = x
    Marker = 3

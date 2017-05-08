@@ -202,7 +202,7 @@ module ChecksModule
             
                end do
             end do
-            write(STD_OUT , '(30X,A,A)') "-> ", "All tests succeeded."
+            write(STD_OUT , '(30X,A,A,/)') "-> ", "All tests succeeded."
 
         end subroutine CheckMesh
       

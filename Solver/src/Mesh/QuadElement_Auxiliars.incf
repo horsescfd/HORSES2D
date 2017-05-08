@@ -7,14 +7,14 @@
 !
 !           ******************************************************************************************
 !                 Given two nodes, get the edge ID that belongs and its direction
-!                    -> nodesEL: two nodes ID of the element
+!                    -> nodesEL: four nodes ID of the element
 !                    -> nodesEdge: two nodes ID of an edge
 !                    -> edgePosition: position of the edge in the element: TOP, LEFT, RIGHT, BOTTOM
 !                    -> edgeDirection: linking edge/element: FORWARD, BACKWARD
 !           ******************************************************************************************
             implicit none
-            integer,         intent (in)        :: nodesEl(:)
-            integer,         intent (in)        :: nodesEdge(:)
+            integer,         intent (in)        :: nodesEl(POINTS_PER_QUAD)
+            integer,         intent (in)        :: nodesEdge(POINTS_PER_EDGE)
             logical,         intent (out)       :: needsInversion
             integer(kind=1), intent (out)       :: edgePosition
             integer(kind=1), intent (out)       :: edgeDirection
@@ -51,6 +51,12 @@
                end if
 
             end do   
+!
+!           If not found
+!           ------------
+            edgePosition = -1
+            edgeDirection = 0
+            needsInversion = .false.
 
          end subroutine searchEdge
 

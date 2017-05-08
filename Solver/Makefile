@@ -27,6 +27,7 @@ PhysicsNS: Setup SMConstants Headers MatrixOperations
 VariableConversion: Physics
 RiemannSolvers: Physics SMConstants InviscidFluxes
 InviscidFluxes: Physics SMConstants
+IntegerArrayLinkedList: Qsort
 ViscousFluxes: Physics SMConstants
 DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter
 Plotter: SMConstants
@@ -36,8 +37,8 @@ InterpolationAndDerivatives: SMConstants Utilities
 Utilities: RealDataLinkedList SMConstants
 RealDataLinkedList: SMConstants
 LegendreAlgorithms: SMConstants
-QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage DGBoundaryConditions Utilities
-MeshFile: Setup SMConstants NetCDF_Interface Headers
+QuadMesh: NodeClass QuadElement MeshFile Setup InitialConditions Storage DGBoundaryConditions Utilities IntegerArrayLinkedList
+MeshFile: Setup SMConstants NetCDF_Interface Headers IntegerArrayLinkedList
 QuadElement: NodeClass SMConstants Physics NodesAndWeightsClass Storage InterpolationAndDerivatives MatrixOperations MetricMatrix
 NodeClass: SMConstants Physics
 MetricMatrix: SMConstants
