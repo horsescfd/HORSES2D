@@ -17,7 +17,7 @@ module QuadElementClass
 #include "Defines.h"
 !
     private
-    public  QuadElement_t , QuadElement_p , Edge_t , CurvedEdge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
+    public  QuadElement_t , QuadElement_p , Edge_t , CurvedEdge_t , SubdividedEdge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
     public  Edge_ProjectSolutionType1
     public  Edge_LinkWithElements , BdryEdge_LinkWithElements , SubdividedEdge_LinkWithElements
 !
@@ -114,8 +114,8 @@ module QuadElementClass
         real(kind=RP),              pointer   :: dS(:)                     ! Surface differential vector (X/Y, xi)
         real(kind=RP),          allocatable   :: T_forward(:,:)            ! Interpolation matrix from the low order to high order
         real(kind=RP),          allocatable   :: T_backward(:,:)           ! Interpolation matrix from the high order to low order
-        type(BoundaryData_t),  allocatable    :: storage(:)                ! Solution interpolation to boundaries ( LEFT/RIGHT )
-        type(Node_p)                          :: nodes(POINTS_PER_EDGE)    ! Pointer to the two nodes
+        type(BoundaryData_t),   allocatable   :: storage(:)                ! Solution interpolation to boundaries ( LEFT/RIGHT )
+        type(Node_p),           allocatable   :: nodes(:)                  ! Pointer to the two nodes
         class(QuadElement_p),     pointer     :: quads(:)                  ! Pointers to the two (or one) shared quads
         class(NodesAndWeights_t), pointer     :: spA                       ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
         class(NodesAndWeights_t), pointer     :: spI                       ! Pointer to the integration nodal storage (if over-integration is active)
@@ -157,6 +157,12 @@ module QuadElementClass
        integer                            :: N_S                      ! Polynomial order of the SOUTH mortar
        class(NodesAndWeights_t) , pointer :: spA_N                    ! Nodes and weights of the NORTH mortar
        class(NodesAndWeights_t) , pointer :: spA_S                    ! Nodes and weights of the SOUTH mortar
+       real(kind=RP), allocatable         :: x_N(:,:)                 ! Coordinates of the NORTH mortar
+       real(kind=RP), allocatable         :: x_S(:,:)                 ! Coordinates of the SOUTH mortar
+       real(kind=RP), allocatable         :: normal_N(:,:)            ! NORTH MORTAR normal vector
+       real(kind=RP), allocatable         :: normal_S(:,:)            ! SOUTH MORTAR normal vector
+       real(kind=RP), allocatable         :: dS_N(:)                  ! NORTH MORTAR dS
+       real(kind=RP), allocatable         :: dS_S(:)                  ! SOUTH MORTAR dS
        real(kind=RP), allocatable         :: T_LN_FWD(:,:)            ! LEFT to NORTH interpolation matrix
        real(kind=RP), allocatable         :: T_LS_FWD(:,:)            ! LEFT to SOUTH interpolation matrix
        real(kind=RP), allocatable         :: T_LN_BKW(:,:)            ! NORTH to LEFT interpolation matrix
@@ -165,10 +171,6 @@ module QuadElementClass
        real(kind=RP), allocatable         :: T_RS_FWD(:,:)            ! RIGHT-SOUTH to MORTAR interpolation matrix
        real(kind=RP), allocatable         :: T_RN_BKW(:,:)            ! MORTAR to RIGHT-NORTH interpolation matrix
        real(kind=RP), allocatable         :: T_RS_BKW(:,:)            ! MORTAR to RIGHT-SOUTH interpolation matrix
-       real(kind=RP), allocatable         :: normal_N(:,:)            ! NORTH MORTAR normal vector
-       real(kind=RP), allocatable         :: normal_S(:,:)            ! SOUTH MORTAR normal vector
-       real(kind=RP), allocatable         :: dS_N(:)                  ! NORTH MORTAR dS
-       real(kind=RP), allocatable         :: dS_S(:)                  ! SOUTH MORTAR dS
       contains                                                        ! ---------------------------------------------------
          procedure   :: ConstructMortars                     => SubdividedEdge_ConstructMortars
          procedure   :: ComputeMortarsTransformationMatrices => SubdividedEdge_ComputeMortarsTransformationMatrices
@@ -398,8 +400,15 @@ module QuadElementClass
 
 !               Allocate its elements 
 !               ---------------------
-                allocate ( self % f % quads        ( QUADS_PER_EDGE )  ) 
-                allocate ( self % f % edgeLocation ( QUADS_PER_EDGE )  ) 
+                allocate ( self % f % nodes        ( POINTS_PER_EDGE )  ) 
+                allocate ( self % f % quads        ( QUADS_PER_EDGE  )  ) 
+                allocate ( self % f % edgeLocation ( QUADS_PER_EDGE  )  ) 
+!
+!              Link the nodes    TODO: check if possible to self % f % nodes = nodes (similar to elements!)
+!              --------------
+               do node = 1 , POINTS_PER_EDGE
+                  self % f % nodes(node) % n => nodes(node) % n
+               end do
 
                 do quad = 1 , QUADS_PER_EDGE
                   self % f % quads(quad) % e => NULL()
@@ -425,14 +434,21 @@ module QuadElementClass
 !
 !              Allocate its elements
 !              ---------------------
-               allocate ( self % f % quads        ( QUADS_PER_SUBDIVIDED_EDGE )  ) 
-               allocate ( self % f % edgeLocation ( QUADS_PER_SUBDIVIDED_EDGE )  ) 
+               allocate ( self % f % nodes        ( POINTS_PER_SUBDIVIDED_EDGE )  ) 
+               allocate ( self % f % quads        ( QUADS_PER_SUBDIVIDED_EDGE  )  ) 
+               allocate ( self % f % edgeLocation ( QUADS_PER_SUBDIVIDED_EDGE  )  ) 
+!
+!              Link the nodes    TODO: check if possible to self % f % nodes = nodes (similar to elements!)
+!              --------------
+               do node = 1 , POINTS_PER_SUBDIVIDED_EDGE
+                  self % f % nodes(node) % n => nodes(node) % n
+               end do
 
                do quad = 1 , QUADS_PER_SUBDIVIDED_EDGE
                   self % f % quads(quad) % e => NULL()
                end do
 
-               self % f % quads(quad) % e => NULL()
+               self % f % edgeType = FACE_INTERIOR
 
             elseif (edgeType .NE. FACE_INTERIOR) then
 !
@@ -451,8 +467,15 @@ module QuadElementClass
 
                end if
 
-               allocate ( self % f % quads        ( ONE )  ) 
-               allocate ( self % f % edgeLocation ( ONE )  ) 
+               allocate ( self % f % nodes        ( POINTS_PER_EDGE )  ) 
+               allocate ( self % f % quads        ( ONE             )  ) 
+               allocate ( self % f % edgeLocation ( ONE             )  ) 
+!
+!              Link the nodes    TODO: check if possible to self % f % nodes = nodes (similar to elements!)
+!              --------------
+               do node = 1 , POINTS_PER_EDGE
+                  self % f % nodes(node) % n => nodes(node) % n
+               end do
 
                self % f % quads(ONE) % e => NULL()
                self % f % edgeType       =  edgeType
@@ -462,12 +485,6 @@ module QuadElementClass
 !           Assign its ID
 !           -------------
             self % f % ID = ID
-!
-!           Link the nodes    TODO: check if possible to self % f % nodes = nodes (similar to elements!)
-!           --------------
-            do node = 1 , POINTS_PER_EDGE
-               self % f % nodes(node) % n => nodes(node) % n
-            end do
 !
 !           Compute the nodes and weights
 !           -----------------------------

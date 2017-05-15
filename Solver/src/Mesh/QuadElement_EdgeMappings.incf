@@ -428,6 +428,12 @@
       integer, intent(in)              :: N_S
       class(NodalStorage)              :: spA 
 !
+!     ---------------
+!     Local variables
+!     ---------------
+!
+      integer     :: p 
+!
 !     Gather the mortars polynomial order
 !     -----------------------------------
       self % N_N = N_N
@@ -437,6 +443,15 @@
 !     -------------------------------
       call spA % Add ( N_N , Setup % nodes , self % spA_N )
       call spA % Add ( N_S , Setup % nodes , self % spA_S )
+!
+!     Construct the mortar coordinates
+!     --------------------------------
+      allocate( self % X_S ( NDIM , 0 : N_S ) )
+      allocate( self % X_N ( NDIM , 0 : N_N ) )
+      self % X_S = reshape((/( self % nodes(ONE) % n % X * (1.0_RP - self % spA_S % xi(p)) + self % nodes(THREE) % n % X * self % spA_S % xi(p) , &
+                                             p = 0 , self % spA_S % N)/),(/ NDIM , self % spA_S % N + 1 /) )
+      self % X_N = reshape((/( self % nodes(THREE) % n % X * (1.0_RP - self % spA_N % xi(p)) + self % nodes(TWO) % n % X * self % spA_N % xi(p) , &
+                                             p = 0 , self % spA_N % N)/),(/ NDIM , self % spA_N % N + 1 /) )
 !
 !     Construct the mortar normal vectors
 !     -----------------------------------

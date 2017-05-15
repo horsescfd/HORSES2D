@@ -7,13 +7,22 @@
          real(kind=RP)                 :: dX_edges(NDIM,0:self % spA % N, 0:self % spA % N, EDGES_PER_QUAD)
          real(kind=RP)                 :: dX(NDIM,NDIM,0:self % spA % N , 0:self % spA % N)
          real(kind=RP), pointer        :: xi(:) , eta(:)
+         real(kind=RP)                 :: xi_val(0:self % spA % N) , eta_val(0:self % spA % N) 
          integer, pointer              :: N 
          integer                       :: edge
          real(kind=RP), pointer        :: n1(:) , n2(:) , n3(:) , n4(:)
+         real(kind=RP)                 :: scal
 
          N       => self % spA % N
          xi(0:)  => self % spA % xi
          eta(0:) => self % spA % xi
+!
+!        Pointers to nodes coordinates
+!        -----------------------------
+         n1 => self % nodes(1) % n % X
+         n2 => self % nodes(2) % n % X
+         n3 => self % nodes(3) % n % X 
+         n4 => self % nodes(4) % n % X
 !
 !        Gather the edges data
 !        ---------------------
@@ -29,22 +38,73 @@
                type is (CurvedEdge_t)
 
                   do iXi = 0 , self % spA % N
-                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
-                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
                   end do
-   
+
+               type is (SubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        xi_val = xi
+                        scal   = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi
+                        scal   = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        xi_val = 0.5_RP * xi
+                        scal   = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        xi_val = 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iXi = 0 , self % spA % N
+                     X_edges(IX:IY,iXi,0:self % spA % N , edge) =        spread ( f % evaluateX(  xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge)  = scal * spread ( f % evaluatedX( xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                  end do 
+
                type is (StraightBdryEdge_t)
    
                   do iXi = 0 , self % spA % N
-                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
-                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % evaluatedX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread ( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread ( f % getdX( iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 )
                   end do
    
                type is (CurvedBdryEdge_t)
    
                   do iXi = 0 , self % spA % N
-                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
-                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread ( f % getX( iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread ( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 )
                   end do
 
             end select
@@ -62,15 +122,66 @@
                type is (CurvedEdge_t)
 
                   do iEta = 0 , self % spA % N
-                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
-                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getdX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluateX ( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluatedX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                  end do
+
+               type is (SubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        eta_val = eta 
+                        scal = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta
+                        scal = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        eta_val = 0.5_RP * eta
+                        scal = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        eta_val = 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iEta = 0 , self % spA % N
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge)  =        spread ( f % evaluateX ( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                     dX_edges(IX:IY,0:self % spA % N,iEta,edge) = scal * spread ( f % evaluatedX( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
                   end do
    
                type is (StraightBdryEdge_t)
    
                   do iEta = 0 , self % spA % N
-                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluateX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
-                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluatedX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getdX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                   end do
    
                type is (CurvedBdryEdge_t)
@@ -87,13 +198,8 @@
          self % jac = 0.0_RP
          self % Ja = 0.0_RP
 
-         n1 => self % nodes(1) % n % X
-         n2 => self % nodes(2) % n % X
-         n3 => self % nodes(3) % n % X 
-         n4 => self % nodes(4) % n % X
 
-         do iXi = 0 , self % spA % N
-         do iEta = 0 , self % spA % N
+         do iXi = 0 , self % spA % N   ; do iEta = 0 , self % spA % N
    
             self % X(iXi,iEta,IX:IY) = (1.0_RP - eta(iEta)) * X_edges(IX:IY,iXi,iEta,EBOTTOM) + &
                                                   xi(iXi)   * X_edges(IX:IY,iXi,iEta,ERIGHT)  + &
@@ -132,11 +238,8 @@
             self % Ja(iXi,iEta,IX,IY)    = -dX(IY,IX,iXi,iEta)       !    -Y_xi
             self % Ja(iXi,iEta,IY,IX)    = -dX(IX,IY,iXi,iEta)       !    -X_eta
             self % Ja(iXi,iEta,IY,IY)    = dX(IX,IX,iXi,iEta)        !    X_xi
- 
-         end do
-         end do
 
-   
+         end do                     ; end do
    
       end subroutine QuadElement_SetMappings
    

@@ -167,6 +167,9 @@ module DGSpatialDiscretizationMethods
                type is (CurvedEdge_t)
                   call DGSpatial_QDotFaceLoop_CurvedInterior( f ) 
 
+               type is (SubdividedEdge_t)
+                  call DGSpatial_QDotFaceLoop_SubdividedEdge( f ) 
+
                type is (StraightBdryEdge_t)
                   call DGSpatial_QDotFaceLoop_StraightBdry( f )
   
@@ -174,7 +177,6 @@ module DGSpatialDiscretizationMethods
                   call DGSpatial_QDotFaceLoop_CurvedBdry( f )
 
             end select
-!            call DGSpatial_QDotFaceLoop( f ) 
          end do
 !
 !        ***********************
@@ -199,10 +201,10 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          class(QuadElement_t)          :: e 
-         real ( kind=RP )       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: Fa ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fa ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real(kind=RP), pointer :: QDot(:,:,:)
 
          Fi = InviscidMethod % ComputeInnerFluxes( e )
@@ -226,15 +228,15 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(Edge_t)               :: ed
-         real ( kind=RP )           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP ), pointer  :: QDot(:,:,:)
+         real(kind=RP)           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP), pointer  :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
 !        --------------------------------------------------------------------------
@@ -276,15 +278,15 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(CurvedEdge_t)         :: ed
-         real ( kind=RP )           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP ), pointer  :: QDot(:,:,:)
+         real(kind=RP)           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP), pointer  :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
 !        --------------------------------------------------------------------------
@@ -322,13 +324,77 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_QDotFaceLoop_CurvedInterior
 
+      subroutine DGSpatial_QDotFaceLoop_SubdividedEdge( ed )
+         use QuadElementClass
+         implicit none
+         type(SubdividedEdge_t)    :: ed
+         real(kind=RP)          :: FiL  ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvL  ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: GL   ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: FL   ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FRN   ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FRS   ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS )
+         real(kind=RP), pointer :: QDot(:,:,:)
+!
+!        Compute the Riemann Solver (FL,FRN,FRS) and the Gradient Riemann Solver (GL,GRN,GRS)
+!        ------------------------------------------------------------------------------------
+         call ComputeRiemannSolver_SubdividedEdge( ed , FL , FRN , FRS , GL , GRN , GRS)
+!
+!        Add the contribution to the LEFT element
+!        ----------------------------------------
+         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
+!
+!        Add the contribution to the RIGHT-NORTH element
+!        -----------------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_NORTH , FRN ) 
+!
+!        Add the contribution to the RIGHT-SOUTH element
+!        -----------------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_SOUTH , FRS ) 
+
+#ifdef NAVIER_STOKES
+!
+!        Add the gradient fluxes term
+!        ----------------------------
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Add the contribution to the LEFT element
+!           ----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
+!
+!           Add the contribution to the RIGHT-NORTH element
+!           -----------------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_NORTH , GRN ) 
+!
+!           Add the contribution to the RIGHT-SOUTH element
+!           -----------------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_SOUTH , GRS ) 
+!
+         end if
+#endif
+           
+
+      end subroutine DGSpatial_QDotFaceLoop_SubdividedEdge
+
       subroutine DGSpatial_QDotFaceLoop_StraightBdry( ed )
          use QuadElementClass
          implicit none
          type(StraightBdryEdge_t)  :: ed
          real(kind=RP)             :: G ( 0 : ed % spA % N , 1:NCONS , 1:NDIM )  
          real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
-         real ( kind=RP ), pointer :: QDot(:,:,:)
+         real(kind=RP), pointer :: QDot(:,:,:)
 
          call ComputeRiemannSolver_StraightBdryEdge( ed , F , G )
 
@@ -350,7 +416,7 @@ module DGSpatialDiscretizationMethods
          type(CurvedBdryEdge_t)    :: ed
          real(kind=RP)             :: G ( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
-         real ( kind=RP ), pointer :: QDot(:,:,:)
+         real(kind=RP), pointer :: QDot(:,:,:)
 
          call ComputeRiemannSolver_CurvedBdryEdge( ed , F , G )
 
@@ -408,17 +474,17 @@ module DGSpatialDiscretizationMethods
 !
          real ( kind=RP)            :: Fi( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP)            :: Fstar( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: QL ( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real ( kind=RP ), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP), target   :: QL ( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
 #ifdef NAVIER_STOKES
          real ( kind=RP)            :: Fv( 0 : ed % spA % N , 1 : NCONS )
          real ( kind=RP)            :: Fa( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: GauxL( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: GauxR( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: GauxL( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: GauxR( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
 #endif
-         real ( kind=RP )           :: normal(NDIM , 0 : ed % spA % N )
+         real(kind=RP)           :: normal(NDIM , 0 : ed % spA % N )
          integer                    :: eq , iDim
 !
 !        Compute the normal
@@ -507,17 +573,17 @@ module DGSpatialDiscretizationMethods
 !        Local variables
 !        ---------------
 !
-         real ( kind=RP )          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real ( kind=RP )          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real ( kind=RP ) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real ( kind=RP ) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real ( kind=RP ) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real ( kind=RP ) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
 #ifdef NAVIER_STOKES
-         real ( kind=RP )  :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real ( kind=RP )  :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real ( kind=RP )  :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
-         real ( kind=RP )  :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)  :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
 #endif
          integer :: eq , iDim
 !
@@ -568,6 +634,142 @@ module DGSpatialDiscretizationMethods
 #endif
 
       end subroutine ComputeRiemannSolver_InteriorCurvedEdge
+
+      subroutine ComputeRiemannSolver_SubdividedEdge( ed , FL , FRN , FRS , GL , GRN , GRS )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         type(SubdividedEdge_t)              :: ed
+         real(kind=RP) ,         intent(out) :: FL  ( 0 : ed % storage ( LEFT        )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: FRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: FRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: GL  ( 0 : ed % storage ( LEFT        )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , 1:NCONS , 1:NDIM )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FiN    ( 0 : ed % spA_N % N , 1 : NCONS            )      ! -----------------------------
+         real(kind=RP)          :: FstarN ( 0 : ed % spA_N % N , 1 : NCONS            )      !     Variables in the NORTH
+         real(kind=RP) , target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  mortar.
+         real(kind=RP) , target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  
+         real(kind=RP) , target :: dQLN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! 
+         real(kind=RP) , target :: dQRN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+         real(kind=RP)          :: FiS    ( 0 : ed % spA_S % N , 1 : NCONS            )      ! -----------------------------
+         real(kind=RP)          :: FstarS ( 0 : ed % spA_S % N , 1 : NCONS            )      !     Variables in the SOUTH
+         real(kind=RP) , target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  mortar.
+         real(kind=RP) , target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  
+         real(kind=RP) , target :: dQLS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! 
+         real(kind=RP) , target :: dQRS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+#ifdef NAVIER_STOKES
+         real(kind=RP)  :: FvN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
+         real(kind=RP)  :: FaN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxLN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: FvS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
+         real(kind=RP)  :: FaS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxLS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+#endif
+         real(kind=RP) :: normal_N(NDIM , 0 : ed % spA_N % N )
+         real(kind=RP) :: normal_S(NDIM , 0 : ed % spA_S % N )
+         integer       :: eq , iDim
+!
+!        Compute the normal
+!        ------------------
+         normal_N = spread( ed % normal_N(IX:IY,0) , ncopies = ed % spA_N % N + 1 , dim = 2 )
+         normal_S = spread( ed % normal_S(IX:IY,0) , ncopies = ed % spA_S % N + 1 , dim = 2 )
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
+         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
+         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
+         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+!
+!        Compute the inviscid Riemann solver
+!        -----------------------------------
+         FiN = InviscidMethod % RiemannSolver( ed % spA_N % N , QLN , QRN , normal_N ) 
+         FiS = InviscidMethod % RiemannSolver( ed % spA_S % N , QLS , QRS , normal_S ) 
+#ifdef NAVIER_STOKES
+!
+!        Get the gradient projection onto the edge
+!        -----------------------------------------
+         do eq = 1 , NCONS
+            call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLN(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLS(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % dQ(:,:,eq) , dQRN(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % dQ(:,:,eq) , dQRS(:,:,eq) ) 
+         end do
+!
+!        Compute the viscous Riemann solver
+!        ----------------------------------
+         FvN = ViscousMethod % RiemannSolver( ed , ed % spA_N % N , ed % invh , QLN , QRN , dQLN , dQRN , normal_N )
+         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLN , QRN , dQLN , dQRN , normal_S )
+!
+!        Compute the artificial dissipation Riemann solver
+!        -------------------------------------------------
+         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , QLN , QRN , dQLN , dQRN , normal_N )
+         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , QLS , QRS , dQLS , dQRS , normal_S )
+!
+!        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
+!        --------------------------------------------------------------------------------
+         FStarN = ( FiN - FvN - FaN ) * ed % dS_N(0)
+         FStarS = ( FiS - FvS - FaS ) * ed % dS_S(0)
+#else
+         FStarN = FiN * ed % dS_N(0)
+         FStarS = FiS * ed % dS_S(0)
+#endif
+!
+!        Return the resulting Riemann flux to each element frame
+!        -------------------------------------------------------
+         FL =  Mat_x_Mat_F( ed % T_LN_BKW , FStarN , ed % spA % N + 1, NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FStarS , ed % spA % N + 1, NCONS )
+         call Mat_x_Mat( ed % T_RN_BKW , FStarN , FRN )
+         call Mat_x_Mat( ed % T_RS_BKW , FStarS , FRS )
+      
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Compute the gradient Riemann solver
+!           -----------------------------------
+            call ViscousMethod % GradientRiemannSolver ( ed , ed % spA_N % N , QLN , QRN , normal_N , GauxLN , GauxRN ) 
+            call ViscousMethod % GradientRiemannSolver ( ed , ed % spA_S % N , QLS , QRS , normal_S , GauxLS , GauxRS ) 
+!
+!           Scale it with the surface Jacobian
+!           ----------------------------------
+            GauxLN = GauxLN * ed % dS_N(0)
+            GauxLS = GauxLS * ed % dS_S(0)
+            GauxRN = GauxRN * ed % dS_N(0)
+            GauxRS = GauxRS * ed % dS_S(0)
+!
+!           Return the resulting Riemann flux to each element frame
+!           -------------------------------------------------------
+            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1, NCONS )
+            GL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IY) , ed % spA % N + 1 , NCONS )
+
+            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IX) , GRN(:,:,IX) )
+            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IY) , GRN(:,:,IY) )
+
+            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IX) , GRS(:,:,IX) )
+            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IY) , GRS(:,:,IY) )
+
+         end if
+#endif
+!
+!        Change RIGHT fluxes signs to account for the normal direction
+!        ------------------------------------------------------------- 
+         FRN = -FRN
+         FRS = -FRS
+
+      end subroutine ComputeRiemannSolver_SubdividedEdge
 
       subroutine ComputeRiemannSolver_StraightBdryEdge( ed , F , G )
          use QuadElementClass

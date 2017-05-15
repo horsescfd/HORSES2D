@@ -73,6 +73,7 @@ module ChecksModule
             integer                :: eID
             integer                :: edID
             integer                :: nodesID(EDGES_PER_QUAD,QUADS_PER_EDGE)
+            integer                :: edgeNodes(POINTS_PER_EDGE)
             real(kind=RP)          :: xL(NDIM) , xR(NDIM)
             real(kind=RP)          :: dx(NDIM)
             class(Edge_t), pointer :: edge
@@ -91,30 +92,68 @@ module ChecksModule
             do eID = 1 , mesh % no_of_elements
 
                do edID = 1 , EDGES_PER_QUAD
-                  if ( mesh % elements(eID) % edgesDirection(edID) .eq. FORWARD ) then
-                     if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(1) % n % ID ) then
+                  if ( size( mesh % elements(eID) % edges(edID) % f % nodes ) .eq. TWO ) then
+                     if ( mesh % elements(eID) % edgesDirection(edID) .eq. FORWARD ) then
+                        if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(1) % n % ID ) then
+                           print*, "Connectivities are not correct."
+                           errorMessage(STD_OUT)
+                           stop "Stopped"
+                        elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(2) % n % ID ) then
+                           print*, "Connectivities are not correct."
+                           errorMessage(STD_OUT)
+                           stop "Stopped"
+   
+                        end if
+   
+                     elseif ( mesh % elements(eID) % edgesDirection(edID) .eq. BACKWARD ) then
+                        if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(2) % n % ID ) then
+                           print*, "Connectivities are not correct."
+                           errorMessage(STD_OUT)
+                           stop "Stopped"
+                        elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(1) % n % ID ) then
+                           print*, "Connectivities are not correct."
+                           errorMessage(STD_OUT)
+                           stop "Stopped"
+   
+                        end if
+                  
+                     end if
+   
+                  elseif ( size( mesh % elements(eID) % edges(edID) % f % nodes ) .eq. THREE ) then
+                  
+                     if ( mesh % elements(eID) % quadPosition(edID) .eq. LEFT ) then
+                        edgeNodes = [1,2] 
+                     elseif ( mesh % elements(eID) % quadPosition(edID) .eq. RIGHT_NORTH ) then
+                        if ( mesh % elements(eID) % edgesDirection(edID) .eq. FORWARD ) then 
+                           edgeNodes = [3,2]
+                        elseif ( mesh % elements(eID) % edgesDirection(edID) .eq. BACKWARD ) then
+                           edgeNodes = [2,3]
+                        end if
+                     elseif ( mesh % elements(eID) % quadPosition(edID) .eq. RIGHT_SOUTH ) then
+                        if ( mesh % elements(eID) % edgesDirection(edID) .eq. FORWARD ) then 
+                           edgeNodes = [1,3]
+                        elseif ( mesh % elements(eID) % edgesDirection(edID) .eq. BACKWARD ) then
+                           edgeNodes = [3,1]
+                        end if
+
+                     end if
+
+                     if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(edgeNodes(1)) % n % ID ) then
                         print*, "Connectivities are not correct."
+                        errorMessage(STD_OUT)
                         stop "Stopped"
-                     elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(2) % n % ID ) then
+                     elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(edgeNodes(2)) % n % ID ) then
                         print*, "Connectivities are not correct."
+                        errorMessage(STD_OUT)
                         stop "Stopped"
 
                      end if
 
-                  elseif ( mesh % elements(eID) % edgesDirection(edID) .eq. BACKWARD ) then
-                     if ( mesh % elements(eID) % nodes(nodesID(edID,1)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(2) % n % ID ) then
-                        print*, "Connectivities are not correct."
-                        stop "Stopped"
-                     elseif ( mesh % elements(eID) % nodes(nodesID(edID,2)) % n % ID .ne. mesh % elements(eID) % edges(edID) % f % nodes(1) % n % ID ) then
-                        print*, "Connectivities are not correct."
-                        stop "Stopped"
-
-                     end if
-               
                   end if
-
+ 
                   if ( minval( mesh % elements(eID) % jac ) .le. 0.0_RP ) then
                      print*, "Negative volume in element " , eID
+                     errorMessage(STD_OUT)
                      stop "Stopped"
                   end if
                end do
@@ -138,10 +177,12 @@ module ChecksModule
 
                      if ( dot_product( xR-xL , edge % n(IX:IY,0) ) .lt. 0.0_RP  ) then
                         print*, "Edges normal orientation is not correct. "
+                        errorMessage(STD_OUT)
                         stop "Stopped"
 
                      elseif ( edge % dS(0) .lt. 0.0_RP ) then
                         print*, "Negative surface in edge " , edID
+                        errorMessage(STD_OUT)
 
                      end if
                   
@@ -155,10 +196,12 @@ module ChecksModule
 
                      if ( dot_product( xR - xL , edge % n(IX:IY,0) ) .lt. 0.0_RP ) then
                         print*, "Edges normal orientation is not correct. "
+                        errorMessage(STD_OUT)
                         stop "Stopped"
    
                      elseif ( edge % dS(0) .lt. 0.0_RP ) then
                         print*, "Negative surface in edge " , edID
+                        errorMessage(STD_OUT)
 
                      end if
                
@@ -172,10 +215,12 @@ module ChecksModule
 
                      if ( dot_product( xR - xL , sum( edge % n , dim = 2) / (edge % spA % N + 1.0_RP)  ) .lt. 0.0_RP ) then
                         print*, "Edges normal orientation is not correct. "
+                        errorMessage(STD_OUT)
                         stop "Stopped"
    
                      elseif ( minval(edge % dS) .lt. 0.0_RP ) then
                         print*, "Negative surface in edge " , edID
+                        errorMessage(STD_OUT)
 
                      end if
                end select
@@ -188,20 +233,29 @@ module ChecksModule
                eL => mesh % elements(eID)
                do edID = 1 , EDGES_PER_QUAD
 
-                  dx = eL % nodes(nodesID(edID,2)) % n % x - eL % nodes(nodesID(edID,1)) % n % x 
+                  if ( eL % edgesDirection(edID) .eq. FORWARD ) then
+                     edgeNodes = [1,2]
 
-                  if (( eL % edgesDirection(edID) .eq. FORWARD ) .and. ( dot_product( dx , eL % edges(edID) % f % dX(IX:IY,0) ) .le. 0.0_RP )) then
+                  elseif ( eL % edgesDirection(edID) .eq. BACKWARD ) then
+                     edgeNodes = [2,1]
+   
+                  end if
+
+                  dx = eL % nodes(nodesID(edID,edgeNodes(2))) % n % x - eL % nodes(nodesID(edID,edgeNodes(1))) % n % x 
+
+                  if ( dot_product( dx , eL % edges(edID) % f % dX(IX:IY,0) ) .le. 0.0_RP ) then
                      print*, "Edges tangent vector orientation is not correct."
+                     print*, "Number of nodes: " , size( eL % edges(edID) % f % nodes ) 
+                     print*, eL % edgesDirection(edID) 
+                     print*, dx 
+                     print*, eL % edges(edID) % f % dX(IX:IY,0)
+                     errorMessage(STD_OUT)
                      stop "Stopped"
-
-                  elseif (( eL % edgesDirection(edID) .eq. BACKWARD) .and. ( dot_product( dx , eL % edges(edID) % f % dX(IX:IY,0) ) .ge. 0.0_RP) ) then
-                     print*, "Edges tangent vector orientation is not correct."
-                     stop "Stopped"
-
                   end if
             
                end do
             end do
+
             write(STD_OUT , '(30X,A,A,/)') "-> ", "All tests succeeded."
 
         end subroutine CheckMesh
@@ -302,33 +356,32 @@ module ChecksModule
                   select type (ed => e % edges(EBOTTOM) % f)
                      type is (Edge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
+                     type is (SubdividedEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
                   end select
 
-               elseif (( e % quadPosition(EBOTTOM) .eq. RIGHT) .and. (e % edgesDirection(EBOTTOM) .eq. FORWARD) ) then
+               elseif (( e % quadPosition(EBOTTOM) .eq. RIGHT) ) then
                   select type (ed => e % edges(EBOTTOM) % f)
                      type is (Edge_t)
                         dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
                      type is (StraightBdryEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        else
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                        end if
                   end select
-
-               else
-                  select type (ed => e % edges(EBOTTOM) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+   
+               elseif ( e % quadPosition(EBOTTOM) .eq. RIGHT_SOUTH ) then
+                  select type ( ed => e % edges(EBOTTOM) % f )
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
                   end select
 
                end if
@@ -353,34 +406,33 @@ module ChecksModule
                   select type (ed => e % edges(ERIGHT) % f)
                      type is (Edge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
+                     type is (SubdividedEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
                   end select
 
-               elseif (( e % quadPosition(ERIGHT) .eq. RIGHT) .and. (e % edgesDirection(ERIGHT) .eq. FORWARD) ) then
+               elseif (( e % quadPosition(ERIGHT) .eq. RIGHT)) then
                   select type (ed => e % edges(ERIGHT) % f)
                      type is (Edge_t)
                         dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (StraightBdryEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        else
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                        end if
                   end select
 
-               else
-                  select type (ed => e % edges(ERIGHT) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                  end select
+               elseif ( e % quadPosition(ERIGHT) .eq. RIGHT_SOUTH ) then
+                  select type ( ed => e % edges(ERIGHT) % f)
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                  end select 
 
                end if
  
@@ -389,6 +441,7 @@ module ChecksModule
                   current = eID
                   location = ERIGHT
                end if
+
                if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
                   error =  maxval(abs(dSy - dSe(IY,:) ) )
                   current = eID 
@@ -404,37 +457,36 @@ module ChecksModule
                   select type (ed => e % edges(ETOP) % f)
                      type is (Edge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
+                     type is (SubdividedEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
                   end select
 
-               elseif (( e % quadPosition(ETOP) .eq. RIGHT) .and. (e % edgesDirection(ETOP) .eq. FORWARD) ) then
+               elseif ( e % quadPosition(ETOP) .eq. RIGHT ) then
                   select type (ed => e % edges(ETOP) % f)
                      type is (Edge_t)
                         dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (StraightBdryEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        else
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                        end if
                   end select
 
-               else
-                  select type (ed => e % edges(ETOP) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                  end select
+               elseif ( e % quadPosition(ETOP) .eq. RIGHT_SOUTH ) then
+                  select type ( ed => e % edges(ETOP) % f ) 
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
 
+                  end select
                end if
- 
+   
                if ( maxval(abs(dSx - dSe(IX,:) )) .gt. error ) then
                   error =  maxval(abs(dSx - dSe(IX,:) ) )
                   current = eID
@@ -455,34 +507,33 @@ module ChecksModule
                   select type (ed => e % edges(ELEFT) % f)
                      type is (Edge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
+                     type is (SubdividedEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
                   end select
 
-               elseif (( e % quadPosition(ELEFT) .eq. RIGHT) .and. (e % edgesDirection(ELEFT) .eq. FORWARD) ) then
+               elseif ( e % quadPosition(ELEFT) .eq. RIGHT ) then
                   select type (ed => e % edges(ELEFT) % f)
                      type is (Edge_t)
                         dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (StraightBdryEdge_t)
                         dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
                      type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                        else
+                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                        end if
                   end select
 
-               else
-                  select type (ed => e % edges(ELEFT) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                        dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                  end select
+               elseif ( e % quadPosition(ELEFT) .eq. RIGHT_SOUTH ) then
+                  select type ( ed => e % edges(ELEFT) % f ) 
+                     type is (SubdividedEdge_t)
+                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                  end select 
 
                end if
                
