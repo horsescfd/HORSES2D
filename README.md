@@ -1,13 +1,12 @@
 ```text 
-   oss-    `oss-         -/osso/.         :ooooo+/.         `:osso/`      .oooooooo+       ./oss+-     
-  -MMM-    :MMM.      `sNMMdddNMMh.       hMMNhdNMMd`      +NMNhdNMh      +MMMdddddo     `hMMdhmMM/    
-  +MMN     oMMm      -NMMo`   `yMMN.      NMM+  .MMM/     :MMN`  `.       yMMh           yMMs   ..     
-  hMMm/////dMMy     `NMMo      `MMMo     -MMM- .oMMd`     -MMMmy+-        NMMh+++:       sMMMds/`      
-  NMMmhhhhdMMM/     :MMM-      .MMM/     +MMMMMMMh/        -sdNMMMd`     .MMMmddd+        /ymMMMMs     
- -MMM-    :MMM.     .MMM+     `hMMd      hMMh.sMMN-            -MMM:     +MMN`               `oMMN     
- +MMN     oMMm       +MMMy/:/omMMs`      NMM+  hMMN.     :ddo::sMMd`     hMMm:::::`     omh+:/dMM+     
- yNNh     hNNs        .odNMMMmh+.       -NNN.  `dNNd`    :ymMMMNh/       mNNNNNNNN.    `+hNMMMms-      
-                                                                                                       
+                          _    _    ____    _____     _____   ______    _____ 
+                         | |  | |  / __ \  |  __ \   / ____| |  ____|  / ____|
+                         | |__| | | |  | | | |__) | | (___   | |__    | (___  
+                         |  __  | | |  | | |  _  /   \___ \  |  __|    \___ \ 
+                         | |  | | | |__| | | | \ \   ____) | | |____   ____) |
+                         |_|  |_|  \____/  |_|  \_\ |_____/  |______| |_____/ 
+                                                                              
+                                                                                                                                                            
                          +m:y:-`                                       `-:y:m+                         
                  .:::odmMMMNMms:-                                   -:smMNMMMmdo:::.                   
                  `+mMMNMMMMNNNd+:                                   :+dNNNMMMMNMMm+`                   

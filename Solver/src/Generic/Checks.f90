@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 module ChecksModule
    use SMConstants
    use Physics
@@ -598,38 +619,39 @@ module ChecksModule
 
           write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
 
-          error = 0.0_RP
-      
-          do edID = 1 , mesh % no_of_edges
-            do quad = 1 , size(mesh % edges(edID) % f % quads)
-               do iXi = 0 , mesh % edges(edID) % f % spA % N
-
-                  direction = mesh % edges(edID) % f % quads(quad) % e % edgesDirection( mesh % edges(edID) % f % edgeLocation(quad) )
-
-                  if ( mesh % edges(edID) % f % transform(quad) ) then 
-                     if ( direction .eq. FORWARD ) then
-                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , &
-                                                      mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
-                     else
-                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
-                     end if
-                  else
-                     if ( direction .eq. FORWARD ) then
-                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
-                     else
-                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
-                     end if
-
-                  end if
-
-                  if (currentError .gt. error) then
-                     error = currentError
-                  end if
-               end do
-            end do
-          end do
-      
-          write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
+!          error = 0.0_RP
+!      
+!          do edID = 1 , mesh % no_of_edges
+!            do quad = 1 , size(mesh % edges(edID) % f % quads)
+!               do iXi = 0 , mesh % edges(edID) % f % spA % N
+!
+!                  direction = mesh % edges(edID) % f % quads(quad) % e % edgesDirection( mesh % edges(edID) % f % edgeLocation(quad) )
+!
+!                  if ( mesh % edges(edID) % f % transform(quad) ) then 
+!                     if ( direction .eq. FORWARD ) then
+!                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , &
+!                                                      mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+!                     else
+!                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
+!                     end if
+!                  else
+!                     if ( direction .eq. FORWARD ) then
+!                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
+!                     else
+!                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
+!                     end if
+!
+!                  end if
+!
+!                  if (currentError .gt. error) then
+!                     error = currentError
+!                  end if
+!               end do
+!            end do
+!          end do
+!      
+!          write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
+          print*, "WARNING! Initial condition interpolation error in edges is not implemented:"
 
         end subroutine CheckInterpolationToBoundaries
 

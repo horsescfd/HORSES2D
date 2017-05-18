@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !           File: QuadElement_EdgeProcedures.f90
@@ -138,34 +159,40 @@
 !           Point to the correct procedure
 !           ------------------------------
             if ( (.not. self % f % transform(LEFT)) .and. (.not. self % f % transform(RIGHT)) .and. (.not. self % f % inverse) ) then
-               self % f % ProjectSolution       => Edge_ProjectSolutionType1
-               self % f % ProjectFluxes         => Edge_ProjectFluxesType1
-               self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType1
+               self % f % ProjectSolution            => Edge_ProjectSolutionType1
+               self % f % ProjectSolutionAndGradient => Edge_ProjectSolutionAndGradientType1
+               self % f % ProjectFluxes              => Edge_ProjectFluxesType1
+               self % f % ProjectGradientFluxes      => Edge_ProjectGradientFluxesType1
 
             elseif ( (.not. self % f % transform(LEFT)) .and. (.not. self % f % transform(RIGHT)) .and. (self % f % inverse) ) then
-               self % f % ProjectSolution       => Edge_ProjectSolutionType2
-               self % f % ProjectFluxes         => Edge_ProjectFluxesType2
-               self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType2
+               self % f % ProjectSolution            => Edge_ProjectSolutionType2
+               self % f % ProjectSolutionAndGradient => Edge_ProjectSolutionAndGradientType2
+               self % f % ProjectFluxes              => Edge_ProjectFluxesType2
+               self % f % ProjectGradientFluxes      => Edge_ProjectGradientFluxesType2
 
             elseif ( ( self % f % transform(LEFT) ) .and. ( .not. self % f % inverse ) ) then
-               self % f % ProjectSolution       => Edge_ProjectSolutionType3
-               self % f % ProjectFluxes         => Edge_ProjectFluxesType3
-               self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType3
+               self % f % ProjectSolution            => Edge_ProjectSolutionType3
+               self % f % ProjectSolutionAndGradient => Edge_ProjectSolutionAndGradientType3
+               self % f % ProjectFluxes              => Edge_ProjectFluxesType3
+               self % f % ProjectGradientFluxes      => Edge_ProjectGradientFluxesType3
 
             elseif ( ( self % f % transform(LEFT) ) .and. ( self % f % inverse ) ) then
-               self % f % ProjectSolution       => Edge_ProjectSolutionType4
-               self % f % ProjectFluxes         => Edge_ProjectFluxesType4
-               self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType4
+               self % f % ProjectSolution            => Edge_ProjectSolutionType4
+               self % f % ProjectSolutionAndGradient => Edge_ProjectSolutionAndGradientType4
+               self % f % ProjectFluxes              => Edge_ProjectFluxesType4
+               self % f % ProjectGradientFluxes      => Edge_ProjectGradientFluxesType4
    
             elseif ( ( self % f % transform(RIGHT) ) .and. ( .not. self % f % inverse ) ) then
-               self % f % ProjectSolution       => Edge_ProjectSolutionType5
-               self % f % ProjectFluxes         => Edge_ProjectFluxesType5
-               self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType5
+               self % f % ProjectSolution            => Edge_ProjectSolutionType5
+               self % f % ProjectSolutionAndGradient => Edge_ProjectSolutionAndGradientType5
+               self % f % ProjectFluxes              => Edge_ProjectFluxesType5
+               self % f % ProjectGradientFluxes      => Edge_ProjectGradientFluxesType5
 
             elseif ( ( self % f % transform(RIGHT) ) .and. ( self % f % inverse ) ) then
-               self % f % ProjectSolution       => Edge_ProjectSolutionType6
-               self % f % ProjectFluxes         => Edge_ProjectFluxesType6
-               self % f % ProjectGradientFluxes => Edge_ProjectGradientFluxesType6
+               self % f % ProjectSolution            => Edge_ProjectSolutionType6
+               self % f % ProjectSolutionAndGradient => Edge_ProjectSolutionAndGradientType6
+               self % f % ProjectFluxes              => Edge_ProjectFluxesType6
+               self % f % ProjectGradientFluxes      => Edge_ProjectGradientFluxesType6
 
             end if
             
@@ -594,7 +621,102 @@
 !              ---------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-         pure subroutine Edge_ProjectSolutionType1( ed , QL , QR , dQL , dQR) 
+         pure subroutine Edge_ProjectSolutionType1( ed , QL , QR ) 
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+
+            QL = ed % storage(LEFT) % Q
+            QR = ed % storage(RIGHT) % Q
+
+         end subroutine Edge_ProjectSolutionType1
+
+         pure subroutine Edge_ProjectSolutionType2( ed , QL , QR )
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            
+            QL = ed % storage(LEFT) % Q
+            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+         end subroutine Edge_ProjectSolutionType2
+
+         pure subroutine Edge_ProjectSolutionType3( ed , QL , QR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            QR = ed % storage(RIGHT) % Q
+
+         end subroutine Edge_ProjectSolutionType3
+
+         pure subroutine Edge_ProjectSolutionType4( ed , QL , QR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+
+            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+         end subroutine Edge_ProjectSolutionType4
+
+         pure subroutine Edge_ProjectSolutionType5( ed , QL , QR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+ 
+            QL = ed % storage(LEFT) % Q
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+
+         end subroutine Edge_ProjectSolutionType5
+
+         pure subroutine Edge_ProjectSolutionType6( ed , QL , QR )
+            use MatrixOperations
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: eq
+  
+            QL = ed % storage(LEFT) % Q
+            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+            QR = QR( ed % spA % N : 0 : -1 , 1 : NCONS ) 
+
+         end subroutine Edge_ProjectSolutionType6
+
+         pure subroutine Edge_ProjectSolutionAndGradientType1( ed , QL , QR , dQL , dQR) 
             implicit none
             class(Edge_t), intent(in)     :: ed
             real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
@@ -613,9 +735,9 @@
             dQR = 0.0_RP
 #endif
 
-         end subroutine Edge_ProjectSolutionType1
+         end subroutine Edge_ProjectSolutionAndGradientType1
 
-         pure subroutine Edge_ProjectSolutionType2( ed , QL , QR , dQL , dQR )
+         pure subroutine Edge_ProjectSolutionAndGradientType2( ed , QL , QR , dQL , dQR )
             implicit none
             class(Edge_t), intent(in)     :: ed
             real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
@@ -634,9 +756,9 @@
             dQR = 0.0_RP
 #endif
 
-         end subroutine Edge_ProjectSolutionType2
+         end subroutine Edge_ProjectSolutionAndGradientType2
 
-         pure subroutine Edge_ProjectSolutionType3( ed , QL , QR , dQL , dQR )
+         pure subroutine Edge_ProjectSolutionAndGradientType3( ed , QL , QR , dQL , dQR )
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
@@ -664,9 +786,9 @@
             dQR = 0.0_RP
 #endif
             
-         end subroutine Edge_ProjectSolutionType3
+         end subroutine Edge_ProjectSolutionAndGradientType3
 
-         pure subroutine Edge_ProjectSolutionType4( ed , QL , QR , dQL , dQR )
+         pure subroutine Edge_ProjectSolutionAndGradientType4( ed , QL , QR , dQL , dQR )
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
@@ -694,9 +816,9 @@
             dQR = 0.0_RP
 #endif
             
-         end subroutine Edge_ProjectSolutionType4
+         end subroutine Edge_ProjectSolutionAndGradientType4
 
-         pure subroutine Edge_ProjectSolutionType5( ed , QL , QR , dQL , dQR )
+         pure subroutine Edge_ProjectSolutionAndGradientType5( ed , QL , QR , dQL , dQR )
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
@@ -724,9 +846,9 @@
             dQR = 0.0_RP
 #endif
            
-         end subroutine Edge_ProjectSolutionType5
+         end subroutine Edge_ProjectSolutionAndGradientType5
 
-         pure subroutine Edge_ProjectSolutionType6( ed , QL , QR , dQL , dQR )
+         pure subroutine Edge_ProjectSolutionAndGradientType6( ed , QL , QR , dQL , dQR )
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
@@ -756,7 +878,7 @@
             dQR = 0.0_RP
 #endif
             
-         end subroutine Edge_ProjectSolutionType6
+         end subroutine Edge_ProjectSolutionAndGradientType6
 
          pure subroutine Edge_ProjectFluxesType1( ed , F , FL , FR) 
             implicit none
@@ -1155,6 +1277,42 @@
             jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
    
          end function CurvedEdge_ComputeJumps
+
+         pure function SubdividedEdge_ComputeJumps ( ed , var ) result ( jumps )
+            use MatrixOperations
+            implicit none
+            class(SubdividedEdge_t), intent(in) :: ed
+            integer,                 intent(in) :: var
+            real(kind=RP)                       :: jumps
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)         :: nodalJumps_N ( 0 : ed % spA_N % N )
+            real(kind=RP)         :: nodalJumps_S ( 0 : ed % spA_S % N )
+            real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N ) 
+            real(kind=RP), target :: QLS    ( 0 : ed % spA_S % N ) 
+            real(kind=RP), target :: QRN    ( 0 : ed % spA_N % N ) 
+            real(kind=RP), target :: QRS    ( 0 : ed % spA_S % N ) 
+            real(kind=RP)         :: uStarN ( 0 : ed % spA_N % N ) 
+            real(kind=RP)         :: uStarS ( 0 : ed % spA_S % N ) 
+!
+!           Get the solution projection onto the edge
+!           -----------------------------------------
+            QLN = MatrixTimesVector_F ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_N % N ) 
+            QLS = MatrixTimesVector_F ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_S % N ) 
+            QRN = MatrixTimesVector_F ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q(:,var) , ed % spA_N % N ) 
+            QRS = MatrixTimesVector_F ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q(:,var) , ed % spA_S % N ) 
+!   
+!           Compute the Jumps
+!           -----------------
+            nodalJumps_N = 2.0_RP * ( QLN - QRN ) / ( QLN + QRN )
+            nodalJumps_S = 2.0_RP * ( QLS - QRS ) / ( QLS + QRS )
+            jumps =   sum( ed % spA_N % w * nodalJumps_N * nodalJumps_N * ed % dS_N(0)) &
+                    + sum( ed % spA_S % w * nodalJumps_S * nodalJumps_S * ed % dS_S(0))
+   
+         end function SubdividedEdge_ComputeJumps
 
          pure function StraightBdryEdge_ComputeJumps ( ed , var ) result ( jumps )
             use MatrixOperations

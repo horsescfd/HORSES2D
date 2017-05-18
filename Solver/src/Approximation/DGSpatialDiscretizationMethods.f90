@@ -1,3 +1,25 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+
 module DGSpatialDiscretizationMethods
    use SMConstants
    use Physics
@@ -227,16 +249,16 @@ module DGSpatialDiscretizationMethods
       subroutine DGSpatial_QDotFaceLoop_Interior( ed )
          use QuadElementClass
          implicit none
-         type(Edge_t)               :: ed
-         real(kind=RP)           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP), pointer  :: QDot(:,:,:)
+         type(Edge_t)           :: ed
+         real(kind=RP)          :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP), pointer :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
 !        --------------------------------------------------------------------------
@@ -327,19 +349,19 @@ module DGSpatialDiscretizationMethods
       subroutine DGSpatial_QDotFaceLoop_SubdividedEdge( ed )
          use QuadElementClass
          implicit none
-         type(SubdividedEdge_t)    :: ed
-         real(kind=RP)          :: FiL  ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FvL  ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: GL   ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)          :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)          :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)          :: FL   ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FRN   ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FRS   ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS )
+         type(SubdividedEdge_t) :: ed
+         real(kind=RP)          :: FiL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FvL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: GL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)          :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)          :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)          :: FL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
          real(kind=RP), pointer :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FRN,FRS) and the Gradient Riemann Solver (GL,GRN,GRS)
@@ -485,11 +507,13 @@ module DGSpatialDiscretizationMethods
          real(kind=RP) :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
 #endif
          real(kind=RP)           :: normal(NDIM , 0 : ed % spA % N )
-         integer                    :: eq , iDim
+         integer                    :: eq , iDim , i 
 !
 !        Compute the normal
 !        ------------------
-         normal = spread( ed % n(IX:IY,0) , ncopies = ed % spA % N + 1 , dim = 2 )
+         do i = 0 , ed % spA % N
+            normal(IX:IY,i) = ed % n(IX:IY,0) 
+         end do
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -499,7 +523,11 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the solution projection onto the edge
 !        -----------------------------------------
-         call ed % ProjectSolution(ed , QL , QR , dQL , dQR )
+#ifdef NAVIER_STOKES
+         call ed % ProjectSolutionAndGradient(ed , QL , QR , dQL , dQR )
+#else
+         call ed % ProjectSolution( ed , QL , QR )
+#endif
 !
 !        Compute the inviscid Riemann solver
 !        -----------------------------------
@@ -585,7 +613,7 @@ module DGSpatialDiscretizationMethods
          real(kind=RP)  :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
          real(kind=RP)  :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
 #endif
-         integer :: eq , iDim
+         integer :: eq , dimID , i 
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -595,7 +623,11 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the solution projection onto the edge
 !        -----------------------------------------
-         call ed % ProjectSolution(ed , QL , QR , dQL , dQR )
+#ifdef NAVIER_STOKES
+         call ed % ProjectSolutionAndGradient(ed , QL , QR , dQL , dQR )
+#else
+         call ed % ProjectSolution(ed , QL , QR )
+#endif
 !
 !        Compute the inviscid Riemann solver
 !        -----------------------------------
@@ -609,13 +641,17 @@ module DGSpatialDiscretizationMethods
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
          Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , ed % n )
+#endif
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
 !        --------------------------------------------------------------------------------
-         FStar = ( Fi - Fv - Fa) * spread( ed % dS , ncopies = NCONS , dim = 2 )
+         do eq = 1 , NCONS 
+#ifdef NAVIER_STOKES
+            FStar(:,eq) = ( Fi(:,eq) - Fv(:,eq) - Fa(:,eq) ) * ed % dS
 #else
-         FStar = Fi * spread ( ed % dS , ncopies = NCONS , dim = 2 ) 
+            FStar(:,eq) = Fi(:,eq) * ed % dS 
 #endif
+         end do
 !
 !        Return the resulting Riemann flux to each element frame
 !        -------------------------------------------------------
@@ -627,8 +663,10 @@ module DGSpatialDiscretizationMethods
 
                call ed % ProjectGradientFluxes( ed , GauxL , GauxR , GL , GR )
 
-               GL = GL * spread( spread ( ed % dS , ncopies = NCONS , dim = 2 ) , ncopies = NDIM , dim = 3)
-               GR = GR * spread( spread ( ed % dS , ncopies = NCONS , dim = 2 ) , ncopies = NDIM , dim = 3)
+               do dimID = 1 , NDIM    ; do eq = 1 , NCONS
+                  GL(:,eq,dimID) = GL(:,eq,dimID) * ed % dS
+                  GR(:,eq,dimID) = GR(:,eq,dimID) * ed % dS
+               end do                 ; end do
 
          end if
 #endif
@@ -675,12 +713,17 @@ module DGSpatialDiscretizationMethods
 #endif
          real(kind=RP) :: normal_N(NDIM , 0 : ed % spA_N % N )
          real(kind=RP) :: normal_S(NDIM , 0 : ed % spA_S % N )
-         integer       :: eq , iDim
+         integer       :: eq , iDim , i 
 !
 !        Compute the normal
 !        ------------------
-         normal_N = spread( ed % normal_N(IX:IY,0) , ncopies = ed % spA_N % N + 1 , dim = 2 )
-         normal_S = spread( ed % normal_S(IX:IY,0) , ncopies = ed % spA_S % N + 1 , dim = 2 )
+         do i = 0 , ed % spA_N % N
+            normal_N(IX:IY,i) = ed % normal_N(IX:IY,0)
+         end do
+
+         do i = 0 , ed % spA_S % N
+            normal_S(IX:IY,i) = ed % normal_S(IX:IY,0) 
+         end do
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -803,8 +846,10 @@ module DGSpatialDiscretizationMethods
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 
          N => ed % spA % N
-
-         normal = spread( ed % n(IX:IY,0) , ncopies = ed % spA % N + 1 , dim = 2 )
+      
+         do iXi = 0 , N
+            normal(IX:IY,iXi) = ed % n(IX:IY,0) 
+         end do
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -875,7 +920,6 @@ module DGSpatialDiscretizationMethods
                Qb  = ed % uB(N:0:-1,1:NCONS)
                dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
 
-               normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
                Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
@@ -892,7 +936,6 @@ module DGSpatialDiscretizationMethods
                Qb  = ed % uB
                dQb = ed % gB
 
-               normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
                Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
@@ -912,8 +955,6 @@ module DGSpatialDiscretizationMethods
             dQ = ed % storage(1) % dQ
             Qb = ed % uSB
 
-            normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 )
-            
             Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , normal ) * ed % dS(0) 
             Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , normal ) * ed % dS(0)
 
@@ -992,7 +1033,7 @@ module DGSpatialDiscretizationMethods
          real(kind=RP)                 :: dQb1D( 1 : NDIM , 1 : NCONS ) 
 #endif
          integer, pointer              :: N
-         integer                       :: iXi
+         integer                       :: iXi , dimID , eq , i
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 
          N => ed % spA % N
@@ -1061,11 +1102,20 @@ module DGSpatialDiscretizationMethods
             dQ = ed % storage(1) % dQ
             Qb = ed % uSB
 
-            Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) * spread ( ed % dS , ncopies = NCONS , dim = 2 )  
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 ) 
+            Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) 
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , ed % n )  
+
+            do eq = 1 , NCONS
+               Fv(:,eq) = Fv(:,eq) * ed % dS
+               Fa(:,eq) = Fa(:,eq) * ed % dS
+            end do
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , ed % n ) * spread( spread ( ed % dS , ncopies = NCONS , dim = 2 ) , ncopies = NDIM , dim = 3)
+               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , ed % n ) 
+               
+               do dimID = 1 , NDIM     ; do eq = 1 , NCONS
+                  Gv(:,eq,dimID) = Gv(:,eq,dimID) * ed % dS
+               end do                  ; end do
 
             end if
 
@@ -1073,7 +1123,12 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 ) 
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n )
+            
+            do eq = 1 , NCONS
+               Fa(:,eq) = Fa(:,eq) * ed % dS
+            end do
+
             do iXi = 0 , ed % spA % N
                select case ( ed % viscousBCType(iXi) )
    
@@ -1103,7 +1158,6 @@ module DGSpatialDiscretizationMethods
 #endif
 
 #ifdef NAVIER_STOKES
-         !Fa = 0.0_RP
          F = Fi - Fv - Fa
          G = Gv
 #else

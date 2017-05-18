@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 #ifdef NAVIER_STOKES
 !
 !/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +63,6 @@ submodule (DGViscousMethods)  DGViscous_BR1
          do eID = 1 , mesh % no_of_elements
             dQ(0:,0:,1:,1:)   => mesh % elements(eID) % dQ
             dQ = - VectorWeakIntegrals % StdVolumeGreen( mesh % elements(eID) , mesh % elements(eID) % Q )
-            
          end do
 !
 !        Perform face loops
@@ -54,6 +74,9 @@ submodule (DGViscousMethods)  DGViscous_BR1
 
                type is (CurvedEdge_t)
                   call BR1_dQFaceLoop_CurvedInterior(self , f)
+
+               type is (SubdividedEdge_t)
+                  call BR1_dQFaceLoop_Subdivided(self , f)
 
                type is (StraightBdryEdge_t)
                   call BR1_dQFaceLoop_StraightBdry(self , f)
@@ -80,21 +103,21 @@ submodule (DGViscousMethods)  DGViscous_BR1
          implicit none
          class(ViscousMethod_t)        :: ViscousMethod
          type(Edge_t)                  :: ed
-         real(kind=RP)                 :: UstarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
-         real(kind=RP)                 :: UstarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
+         real(kind=RP)                 :: FuStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                 :: FuStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP), pointer        :: dQ(:,:,:,:)
 
-         call ViscousMethod % ComputeSolutionRiemann( ed , UstarL , UstarR )
+         call ViscousMethod % ComputeSolutionRiemann( ed , FuStarL , FuStarR )
 !
 !>       Add the contribution to the LEFT element
 !        ----------------------------------------
          dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , UstarL )
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
 !
 !>       Add the contribution to the RIGHT element
 !        -----------------------------------------
          dQ(0:,0:,1:,1:)   => ed % quads(RIGHT) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , UstarR ) 
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , FuStarR ) 
 
       end subroutine BR1_dQFaceLoop_Interior
 
@@ -104,23 +127,63 @@ submodule (DGViscousMethods)  DGViscous_BR1
          implicit none
          class(ViscousMethod_t) :: ViscousMethod
          type(CurvedEdge_t)     :: ed
-         real(kind=RP)          :: UstarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
-         real(kind=RP)          :: UstarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FuStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP), pointer :: dQ(:,:,:,:)
 
-         call ViscousMethod % ComputeSolutionRiemann( ed , UstarL , UstarR )
+         call ViscousMethod % ComputeSolutionRiemann( ed , FuStarL , FuStarR )
 !
 !>       Add the contribution to the LEFT element
 !        ----------------------------------------
          dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , UstarL )
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
 !
 !>       Add the contribution to the RIGHT element
 !        -----------------------------------------
          dQ(0:,0:,1:,1:)   => ed % quads(RIGHT) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , UstarR ) 
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , FuStarR ) 
 
       end subroutine BR1_dQFaceLoop_CurvedInterior
+
+      subroutine BR1_dQFaceLoop_Subdivided( ViscousMethod , ed )
+         use QuadElementClass
+         use DGWeakIntegrals
+         implicit none
+         class(ViscousMethod_t) :: ViscousMethod
+         type(SubdividedEdge_t) :: ed
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FuStarL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP), pointer :: dQ(:,:,:,:)
+
+         call ViscousMethod % ComputeSubdividedSolutionRiemann( ed , FuStarL , FuStarRN , FuStarRS )
+!
+!>       Add the contribution to the LEFT element
+!        ----------------------------------------
+         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
+!
+!>       Add the contribution to the RIGHT-NORTH element
+!        -----------------------------------------------
+         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_NORTH) % e % dQ
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_NORTH , FuStarRN ) 
+!
+!>       Add the contribution to the RIGHT-SOUTH element
+!        -----------------------------------------------
+         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_SOUTH) % e % dQ
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_SOUTH , FuStarRS ) 
+
+      end subroutine BR1_dQFaceLoop_Subdivided
 
       subroutine BR1_dQFaceLoop_StraightBdry( ViscousMethod , ed )
          use QuadElementClass
@@ -128,15 +191,20 @@ submodule (DGViscousMethods)  DGViscous_BR1
          implicit none
          class(ViscousMethod_t)           :: ViscousMethod
          type(StraightBdryEdge_t)         :: ed
-         real(kind=RP)                    :: Ustar( 0 : ed % spA % N , 1:NCONS)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)                    :: FuStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP), pointer           :: dQ(:,:,:,:)
       
-         call ViscousMethod % ComputeSolutionRiemann( ed , Ustar ) 
+         call ViscousMethod % ComputeSolutionRiemann( ed , FuStar ) 
 !
 !>       Add the contribution to the element
 !        -----------------------------------
          dQ(0:,0:,1:,1:)   => ed % quads(1) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , Ustar )
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , FuStar )
 !
       end subroutine BR1_dQFaceLoop_StraightBdry
 
@@ -144,14 +212,22 @@ submodule (DGViscousMethods)  DGViscous_BR1
          use QuadElementClass
          use DGWeakIntegrals
          implicit none
-         class(ViscousMethod_t)      :: ViscousMethod
-         type(CurvedBdryEdge_t)      :: ed
-         real(kind=RP), pointer        :: dQ(:,:,:,:)
+         class(ViscousMethod_t) :: ViscousMethod
+         type(CurvedBdryEdge_t) :: ed
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FuStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP), pointer :: dQ(:,:,:,:)
+
+         call ViscousMethod % ComputeSolutionRiemann( ed , FuStar )
 !
 !>       Add the boundary contribution to the element
 !        --------------------------------------------
          dQ(0:,0:,1:,1:)   => ed % quads(1) % e % dQ
-         dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , ed % uSB )
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , FuStar )
 !
       end subroutine BR1_dQFaceLoop_CurvedBdry         
 !

@@ -1,19 +1,38 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !                          HEADER
 !                          ------                                                                                                     
 !
 !///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-!
-write(STD_OUT,'(A)')'#   oss-    `oss-         -/osso/.         :ooooo+/.         `:osso/`      .oooooooo+       ./oss+-   #'
-write(STD_OUT,'(A)')'#  -MMM-    :MMM.      `sNMMdddNMMh.       hMMNhdNMMd`      +NMNhdNMh      +MMMdddddo     `hMMdhmMM/  #'
-write(STD_OUT,'(A)')'#  +MMN     oMMm      -NMMo`   `yMMN.      NMM+  .MMM/     :MMN`  `.       yMMh           yMMs   ..   #'
-write(STD_OUT,'(A)')'#  hMMm/////dMMy     `NMMo      `MMMo     -MMM- .oMMd`     -MMMmy+-        NMMh+++:       sMMMds/`    #'
-write(STD_OUT,'(A)')'#  NMMmhhhhdMMM/     :MMM-      .MMM/     +MMMMMMMh/        -sdNMMMd`     .MMMmddd+        /ymMMMMs   #'
-write(STD_OUT,'(A)')'# -MMM-    :MMM.     .MMM+     `hMMd      hMMh.sMMN-            -MMM:     +MMN`               `oMMN   #'
-write(STD_OUT,'(A)')'# +MMN     oMMm       +MMMy/:/omMMs`      NMM+  hMMN.     :ddo::sMMd`     hMMm:::::`     omh+:/dMM+   #'
-write(STD_OUT,'(A)')'# yNNh     hNNs        .odNMMMmh+.       -NNN.  `dNNd`    :ymMMMNh/       mNNNNNNNN.    `+hNMMMms-    #'
+write(STD_OUT,'(A)')'#                          _    _    ____    _____     _____   ______    _____                        #'
+write(STD_OUT,'(A)')'#                         | |  | |  / __ \\  |  __ \\   / ____| |  ____|  / ____|                       #'
+write(STD_OUT,'(A)')'#                         | |__| | | |  | | | |__) | | (___   | |__    | (___                         #'
+write(STD_OUT,'(A)')'#                         |  __  | | |  | | |  _  /   \\___ \\  |  __|    \\___ \\                        #'
+write(STD_OUT,'(A)')'#                         | |  | | | |__| | | | \\ \\   ____) | | |____   ____) |                       #'
+write(STD_OUT,'(A)')'#                         |_|  |_|  \\____/  |_|  \\_\\ |_____/  |______| |_____/                        #'
+write(STD_OUT,'(A)')'#                                                                                                     #'
 write(STD_OUT,'(A)')'#                                                                                                     #'
 write(STD_OUT,'(A)')'#                         +m:y:-`                                       `-:y:m+                       #'
 write(STD_OUT,'(A)')'#                 .:::odmMMMNMms:-                                   -:smMNMMMmdo:::.                 #'

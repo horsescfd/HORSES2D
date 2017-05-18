@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 module MeshFileClass
     use SMConstants
     use ParamfileIO
@@ -224,6 +245,7 @@ module MeshFileClass
 !           Second, merge all divided faces
 !           -------------------------------
             call mergeDividedFaces ( mesh ) 
+            call mergeDividedFaces ( mesh ) 
 !
 !           Third, compute which elements belong to each edge
 !           -------------------------------------------------
@@ -367,6 +389,7 @@ module MeshFileClass
 !           ---------------
 !
             integer                    :: edges(POINTS_PER_QUAD)
+            integer                    :: neigh_edges(2*POINTS_PER_QUAD)
             logical                    :: atts(POINTS_PER_QUAD)
             integer                    :: points(POINTS_PER_SUBDIVIDED_EDGE)
             integer                    :: point
@@ -381,6 +404,7 @@ mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
                edges = mesh % points_of_edges % SearchIfPresent( ONE , [threeEdgesNode] , POINTS_PER_QUAD , atts) 
 
                if ( edges     ( POINTS_PER_QUAD ) .ne. -1 )  cycle  ! It has four associated edges      -> Is not subdivided
+               if ( edges     ( THREE           ) .eq. -1 )  cycle  ! It has already been merged
                if (       any ( atts            )         )  cycle  ! Not connected to boundary faces   -> Is not subdivided
 !
 !              Gather the three neighbouring points
@@ -401,10 +425,12 @@ mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
 !              Gather all the edges that emerge from each point
 !              ------------------------------------------------
                do j = 1 , POINTS_PER_SUBDIVIDED_EDGE
-                  edges = mesh % points_of_edges % SearchIfPresent( ONE , [points(j)] , POINTS_PER_QUAD ) 
+                  neigh_edges = mesh % points_of_edges % SearchIfPresent( ONE , [points(j)] , 2 * POINTS_PER_QUAD ) 
 
-                  do k = 1 , POINTS_PER_QUAD
-                     points_of_edge = mesh % points_of_edges % Get ( POINTS_PER_EDGE , edges(k) )
+                  do k = 1 , 2 * POINTS_PER_QUAD
+                     if ( neigh_edges(k) .eq. -1 ) cycle 
+
+                     points_of_edge = mesh % points_of_edges % Get ( POINTS_PER_EDGE , neigh_edges(k) )
 
                      if ( (points_of_edge(ONE) .ne. points(j)) .and. (points_of_edge(ONE) .ne. threeEdgesNode) ) then
                         point = points_of_edge(ONE)

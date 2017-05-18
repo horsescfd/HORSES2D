@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !        File: QuadElement.f90
@@ -119,9 +140,10 @@ module QuadElementClass
         class(QuadElement_p),     pointer     :: quads(:)                  ! Pointers to the two (or one) shared quads
         class(NodesAndWeights_t), pointer     :: spA                       ! Pointer to the approximation nodal storage. In this case, is the largest from the two elements
         class(NodesAndWeights_t), pointer     :: spI                       ! Pointer to the integration nodal storage (if over-integration is active)
-        procedure(ProjectSolutionFCN      ), nopass,  pointer :: ProjectSolution       => NULL()
-        procedure(ProjectFluxesFCN        ), nopass,  pointer :: ProjectFluxes         => NULL()
-        procedure(ProjectGradientFluxesFCN), nopass,  pointer :: ProjectGradientFluxes => NULL()
+        procedure(ProjectSolutionFCN           ), nopass, pointer  :: ProjectSolution            => NULL()
+        procedure(ProjectSolutionAndGradientFCN), nopass, pointer  :: ProjectSolutionAndGradient => NULL()
+        procedure(ProjectFluxesFCN             ), nopass, pointer  :: ProjectFluxes              => NULL()
+        procedure(ProjectGradientFluxesFCN     ), nopass, pointer  :: ProjectGradientFluxes      => NULL()
         contains
             procedure      :: SetCurve     => Edge_SetCurve                ! Procedure that computes the coordinates, the tangent, and the normal.
             procedure      :: Invert       => Edge_Invert                  ! Function to invert the edge orientation
@@ -174,6 +196,7 @@ module QuadElementClass
       contains                                                        ! ---------------------------------------------------
          procedure   :: ConstructMortars                     => SubdividedEdge_ConstructMortars
          procedure   :: ComputeMortarsTransformationMatrices => SubdividedEdge_ComputeMortarsTransformationMatrices
+         procedure   :: ComputeJumps                         => SubdividedEdge_ComputeJumps
     end type SubdividedEdge_t                                            
 !
 !  ========================
@@ -222,7 +245,18 @@ module QuadElementClass
 !
 !   
     abstract interface
-         pure subroutine ProjectSolutionFCN( ed , QL , QR , dQL , dQR )
+         pure subroutine ProjectSolutionFCN( ed , QL , QR )
+            use SMConstants
+            import Edge_t
+            implicit none
+            class(Edge_t), intent(in)     :: ed
+            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
+            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+         end subroutine ProjectSolutionFCN
+    end interface
+
+    abstract interface
+         pure subroutine ProjectSolutionAndGradientFCN( ed , QL , QR , dQL , dQR )
             use SMConstants
             import Edge_t
             implicit none
@@ -231,7 +265,7 @@ module QuadElementClass
             real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
             real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
             real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         end subroutine ProjectSolutionFCN
+         end subroutine ProjectSolutionAndGradientFCN
     end interface
 
     abstract interface

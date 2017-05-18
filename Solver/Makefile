@@ -1,8 +1,24 @@
-
-$(info )
-$(info )
-
-
+#
+#///////////////////////////////////////////////////////////////////////////////////////////////////////
+#
+#    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+#    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#////////////////////////////////////////////////////////////////////////////////////////////////////////
+#
 COMPILER ?=gfortran
 INC_DIR=./include
 BUILD_DIR=./build
@@ -79,9 +95,6 @@ F90_INCLUDE=-I$(SRC_DIR)/Mesh/ -I$(SRC_DIR)/Generic/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
 OBJS_F90:= $(filter-out $(F90_REMOVE),$(OBJS_F90))
-$(info )
-$(info ***Files: $(OBJS_F90) )
-$(info )
 OBJS= $(patsubst %.f90,%,$(OBJS_F90))
 OBJS_EXEC = $(foreach obj,$(OBJS),$(BUILD_DIR)/$(obj).o) 
 
@@ -93,11 +106,9 @@ ifeq ($(COMPILER),gfortran)
    MOD_FLAG :=-J
    FC=gfortran
    ifeq ($(MODE),DEBUG)
-      $(info Compiling with gfortran in DEBUG mode.)
 #      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
        FFLAGS = -cpp -O0 -g -fcheck=all -ffree-line-length-0 -fbacktrace -fbounds-check -Wall -fcheck-array-temporaries -fbackslash -ffpe-trap=invalid,zero,overflow -static-libgfortran
    else 
-  	$(info Compiling with gfortran in RELEASE mode.)
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
    LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
@@ -106,14 +117,11 @@ else ifeq ($(COMPILER),ifort)
    MOD_FLAG := -module 
    FC=ifort
    ifeq ($(MODE),DEBUG)
-     $(info Compiling with intel fortran in DEBUG mode.)
      FFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
    else ifeq ($(MODE),RELEASE)
-     $(info Compiling with intel fortran in RELEASE mode.)
      FFLAGS = -cpp -O3 -mkl -assume bscc
      
    else ifeq ($(MODE),VTUNE)
-     $(info Compiling with intel fortran in VTUNE mode.)
      FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
 
    endif
@@ -128,26 +136,27 @@ $(info )
 INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 
 # ------------- Main rules -----------------------
-	
+.PHONY: all	
+.DEFAULT_GOAL := all
 
-all: 	def_navier_stokes_macro $(EXECUTABLE)
+all: 	printHeader def_navier_stokes_macro $(EXECUTABLE)
 
 runcyl: 	
-	(cd ../TestCases/Benchmarktests/FlowOverCircle && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
+	(cd ../TestCases/Cases/FlowOverCircle && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase)		
 
 debugcyl:
-	(cd ../TestCases/Benchmarktests/FlowOverCircle && gdb ./$(EXECUTABLE))		
+	(cd ../TestCases/Cases/FlowOverCircle && gdb ./$(EXECUTABLE))		
 
 runvortex: 	
-	(cd ../TestCases/Benchmarktests/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		
+	(cd ../TestCases/Cases/TaylorVortex && ./$(EXECUTABLE) ./SETUP/TaylorVortex.HiOCase -check)		
 
 runchan: 	
-	(cd ../TestCases/Benchmarktests/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
+	(cd ../TestCases/Cases/ChannelFlow && ./$(EXECUTABLE) ./SETUP/Channel.HiOCase -check)		
 
 runfree: 	
-	(cd ../TestCases/Benchmarktests/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
+	(cd ../TestCases/Cases/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
 
-Euler:  def_euler_macro $(EXECUTABLE)
+Euler:  printHeader def_euler_macro $(EXECUTABLE)
 
 def_euler_macro:
 	$(eval EXECUTABLE:=HORSES2D.Euler)
@@ -165,11 +174,72 @@ $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
 	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$@.f90),$(wildcard $(SRC_DIR)/$@.f90)) -o $(BUILD_DIR)/$@.o
 
 
-clean:
+clean:  printHeader
 	$(info Removing installation:)
-	rm -f $(BUILD_DIR)/*
-	rm -f $(INC_DIR)/*
+	rm -f -v $(BUILD_DIR)/*
+	rm -f -v $(INC_DIR)/*
 
 allclean: clean
-	@rm -r -f $(BIN_DIR)/*
+	@rm -r -f -v $(BIN_DIR)/*
+
+printHeader:
+	@echo '       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// '
+	@echo '      |                                  _    _    ____    _____     _____   ______    _____                                   |'
+	@echo '      |                                 | |  | |  / __ \  |  __ \   / ____| |  ____|  / ____|                                  |'
+	@echo '      |                                 | |__| | | |  | | | |__) | | (___   | |__    | (___                                    |'
+	@echo '      |                                 |  __  | | |  | | |  _  /   \___ \  |  __|    \___ \                                   |'
+	@echo '      |                                 | |  | | | |__| | | | \ \   ____) | | |____   ____) |  				       |'
+	@echo '      |                                 |_|  |_|  \____/  |_|  \_\ |_____/  |______| |_____/                                   |'
+	@echo '      |                                                                                                                        |'
+	@echo '      |                                  +m:y:-`                                       `-:y:m+                                 |'
+	@echo '      |                          .:::odmMMMNMms:-                                   -:smMNMMMmdo:::.                           |'
+	@echo '      |                          `+mMMNMMMMNNNd+:                                   :+dNNNMMMMNMMm+`                           |'
+	@echo '      |                        /shdNMNymMMMMshMmdNmd:                           :dmNdmMhsMMMMmyNMNdhs/                         |'
+	@echo '      |                       ooosMMMNMMMNmNhNMMMNmhd-                         -dhmNMMMNhNmNMMMNMMMsooo                        |'
+	@echo '      |                      `-/+yhMMmMMMhhMhss+/+o+.                           .+o+/+sshMhhMMMmMMhy+/-`                       |'
+	@echo '      |                          yMNMhMMMMNMs                                           sMNMMMMhMNMy                           |'
+	@echo '      |                        :ydmMMhMMMMy+M/                                         /M+yMMMMhMMmdy:                         |'
+	@echo '      |                       .+s+omMhMMMMMy+Ms`                                     `sM+yMMMMMhMmo+s+.                        |'
+	@echo '      |                         +ymNMNmMMMMMmdMm+`                                 `+mMdmMMMMMmNMNmy+                          |'
+	@echo '      |           :-           //oymMMmMMMMMMMmNMd-       /yys:       :syy/       -dMNmMMMMMMMmMMmyo//           -:            |'
+	@echo '      |          - -y.          ./oymMMMMMMMMhddhNMNs..+yNMMMMm-     -mMMMMNy+..sNMNhddhMMMMMMMMmyo/.          .y- -           |'
+	@echo '      |          +o.-N.       `-:+yhdNMMMMMsMMMMMMMMMMmMMMmd/msd     dsm/dmMMMmMMMMMMMMMMsMMMMMNdhy+:-`       .N-.o+           |'
+	@echo '      |         : :NsMo           oyo+-hMMMMMMMMMMMMMM+NMd+`.+mM/   /Mm+.`+dMN+MMMMMMMMMMMMMMh-+oyo           oMsN: :          |'
+	@echo '      |         /y.yMM:          `.   :hoMMMMMMMMMMMMMMmMNMMMMmsN` `NsmMMMMNMmMMMMMMMMMMMMMMoh:   .`          :MMy.y/          |'
+	@echo '      |          oNMMh               oh+MMMMMMMMMMMMMMMMNdNNyNMdms smdMNyNNdNMMMMMMMMMMMMMMMM+ho               hMMNo           |'
+	@echo '      |          oMMM-             /dyhMMMMMMMMMMMMMMMMNs/. `mmsMm mMsmm` ./sNMMMMMMMMMMMMMMMMhyd/             -MMMo           |'
+	@echo '      |          dNym           -oNMMMMMMMMMMMMMMMMNoo/.    odh-mN Nm-hdo    ./ooNMMMMMMMMMMMMMMMMNo-           myNd           |'
+	@echo '      |         `Mdsh        `+mMMMMMMMMMMMMMMMh+Mh-       -NM/ `. .` /MN-       -hM+hMMMMMMMMMMMMMMMm+`        hsdM`          |'
+	@echo '      |         `NN:N.      oNMMMMMMNoMMMMMMMhoyh:       .oNMd`       `dMNo.       :hyohMMMMMMMoNMMMMMMNo      .N:NN`          |'
+	@echo '      |          /Mm/do`  .mMMMMMMMMMMMMMMMmhyo.         NNM+           +MNN         .oyhmMMMMMMMMMMMMMMMm.  `od/mM/           |'
+	@echo '      |           .smNMMdymMMMMMMMMNmMMMMMhy:            sy-             -ys            :yhMMMMMmNMMMMMMMMmydMMNms.            |'
+	@echo '      |             -NhMMdMhmMMMMMMMyMMMhhMM+                                           +MMhhMMMyMMMMMMMmhMdMMhN-              |'
+	@echo '      |             /yhNd-hNMMMMMMMMmymhmMMd                                             dMMmhmymMMMMMMMMNh-dNhy/              |'
+	@echo '      |             :-sm/-`dMMMMMMMMhh/MMMm.                                             .mMMM/hhMMMMMMMMd`-/ms-:              |'
+	@echo '      |               `yy  `oNMMMMMMMmsMMm.                                               .mMMsmMMMMMMMNo`  yy`                |'
+	@echo '      |                 y`   `omMMMMMMsMy`    -/:/+++o.                       .o+++/:/-    `yMsMMMMMMmo`   `y                  |'
+	@echo '      |                         sMMhmoNNhysyhmMMmNMMho`                       `ohMMNmMMmhysyhNNomhMMs                          |'
+	@echo '      |                         oMMN:yMmyo/-.``                                       ``.-/oymMy:NMMo                          |'
+	@echo '      |                        oNMN.                                                             .NMNo                         |'
+	@echo '      |                        -sNmo.             High Order Spectral Element Solver            .omNs-                         |'
+	@echo '      |                           /dyo.                                                       .oyd/                            |'
+	@echo '      |                            `oMNd-      2D Compressible Navier-Stokes equations      -dNMo`                             |'
+	@echo '      |                              :dMNy`                                               `yNMd:                               |'
+	@echo '      |                               -ymms                                               smmy-                                |'
+	@echo '      |                                                                                                                        |'
+	@echo '       \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ '
+	@echo ' '
+	@echo ' '
+	@echo ' '
+	@echo ' *** Files: '
+	@for i in $(OBJS_F90); do \
+		echo "        o    $$i ";\
+	done
+	@echo ' '
+	@echo ' '
+	@echo ' '
+	@echo " *** Compiling with $(COMPILER) in $(MODE) mode"
+	@echo ' '
+	@echo ' '
+	@echo ' '
 
