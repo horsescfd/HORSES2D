@@ -462,9 +462,9 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          use MatrixOperations
          implicit none
-         type(Edge_t)            :: ed
-         real(kind=RP)           :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
-         real(kind=RP)           :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
+         type(Edge_t)                :: ed
+         real(kind=RP)               :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
+         real(kind=RP)               :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
          real(kind=RP), intent (out) :: GL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP), intent (out) :: GR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
 !
@@ -472,17 +472,17 @@ module DGSpatialDiscretizationMethods
 !        Local variables
 !        ---------------
 !
-         real ( kind=RP)            :: Fi( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP)            :: Fstar( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP), target   :: QL ( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real(kind=RP), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
 #ifdef NAVIER_STOKES
-         real ( kind=RP)            :: Fv( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP)            :: Fa( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)           :: GauxL( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)           :: GauxR( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP) :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP) :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
 #endif
          real(kind=RP)           :: normal(NDIM , 0 : ed % spA % N )
          integer                    :: eq , iDim
@@ -752,7 +752,7 @@ module DGSpatialDiscretizationMethods
 !
 !           Return the resulting Riemann flux to each element frame
 !           -------------------------------------------------------
-            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1, NCONS )
+            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1 , NCONS )
             GL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IY) , ed % spA % N + 1 , NCONS )
 
             call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IX) , GRN(:,:,IX) )

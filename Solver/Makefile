@@ -8,7 +8,7 @@ INC_DIR=./include
 BUILD_DIR=./build
 BIN_DIR=./bin
 SRC_DIR=./src
-EXECUTABLE = HiODG2D
+EXECUTABLE = HORSES2D.NS
 MODE ?=DEBUG
 BLAS_LIB = 
 LAPACK_LIB = 
@@ -150,7 +150,7 @@ runfree:
 Euler:  def_euler_macro $(EXECUTABLE)
 
 def_euler_macro:
-	$(eval EXECUTABLE:=HiODG2D.Euler)
+	$(eval EXECUTABLE:=HORSES2D.Euler)
 
 def_navier_stokes_macro:
 	$(eval NS_COMP:=-DNAVIER_STOKES)

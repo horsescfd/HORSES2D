@@ -20,8 +20,8 @@ MODULE Headers
         SUBROUTINE Main_header(title)
                 IMPLICIT NONE
                 CHARACTER(LEN = *)      :: title
-                INTEGER, PARAMETER   :: siz = 100
-                CHARACTER(LEN = siz)    :: ast1,ast2,astTitle,astGroup
+                INTEGER, PARAMETER      :: siz = 103
+                CHARACTER(LEN = siz)    :: ast1,ast2
                 CHARACTER(LEN = siz)    :: compilationDate
                 CHARACTER(LEN = siz)    :: astCompilation
                 CHARACTER(LEN = siz)    :: astBox
@@ -35,22 +35,12 @@ MODULE Headers
                 ast2(1:1) = '#'
                 ast2(siz:siz) = '#'
 
-                astTitle = ''
-                astTitle(1:1) = '#'
-                astTitle(siz/2-LEN_TRIM(title)/2:siz/2 - LEN_TRIM(title)/2 + LEN_TRIM(title)-1) = TRIM(title)
-                astTitle(siz:siz) = '#'
-
-                astGroup = ''
-                astGroup(1:1) = '#'
-                astGroup(siz-LEN_TRIM("Madrid TU")-3 : siz-4) = 'Madrid TU'
-                astGroup(siz:siz) = '#'
-                
                 write(compilationDate,'(A,A,A,A)') "Compiled at ",__DATE__ , ", ",  __TIME__
                 do i = 2 , siz-3
-                  astCompilation(i:i) = ","
+                  astCompilation(i:i) = " "
                 end do
                 astCompilation(1:1) = '#'
-                astCompilation(siz-4-len_trim(compilationDate) : siz-2) = "| " // TRIM(compilationDate)
+                astCompilation(siz-4-len_trim(compilationDate) : siz-2) = "  " // TRIM(compilationDate)
                 astCompilation(siz-1:siz) = " #"
                 do i = 1 , siz
                   astBox(i:i) = ","
@@ -65,11 +55,8 @@ MODULE Headers
                 WRITE(*,'(A)') ast1
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') ast2
-                WRITE(*,'(A)') astTitle
-                WRITE(*,'(A)') ast2
-                WRITE(*,'(A)') astGroup
 #include "./header.incf"
-                WRITE(*,'(A)') astBox
+                WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') astCompilation
                 WRITE(*,'(A)') ast1
 

@@ -14,9 +14,9 @@ program main
    real(kind=RP)  :: tstart , tend
 
 #ifdef NAVIER_STOKES
-    call Main_Header("Compressible Navier-Stokes equations high-order discontinuous Galerkin CFD 2D Solver")
+    call Main_Header("2D Compressible Navier-Stokes equations")
 #else
-    call Main_Header("Compressible Euler equations high-order discontinuous Galerkin CFD 2D Solver")
+    call Main_Header("2D Compressible Euler equations")
 #endif
 !
 !   Read the case file and load parameters on Setup class

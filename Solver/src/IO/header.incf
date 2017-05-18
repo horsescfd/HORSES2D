@@ -1,10 +1,73 @@
-write(STD_OUT,'(A)') "#                                                                                                  #"
-write(STD_OUT,'(A)') "#                 ,*(#%%%%%%%#/*.                                .,*//////**.                      #"
-write(STD_OUT,'(A)') "#          .(%%/,,,,,,,,,,,,,,,,,,,%%*                    ,#&%/,,,,,,,,,,,,,,,,/%&/  .             #"
-write(STD_OUT,'(A)') "#     *%#,,,,,,,,,,,,,%*.   . *&,,,,,#*             ,#%*,,,,#%#/.      .. *%/,,,,,,,*#             #"
-write(STD_OUT,'(A)') "#.#&/,,,,,,,,,,,,,,,,&          ..,.           ,#&/,,,,,*&*              .,#/,,,,,,,/#        .,%%,#"
-write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,*&(.               ,#%#*,,,,,,,,,,#            ##,,,,,,,,/%&(.     .,#%/,,,,,#"
-write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,*#%&&&&&&%(*,,,,,,,,,,,,,,,,,,*&%,.                    ..*#%%*,,,,,,,,,,#"
-write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,***(####(****,,,,,,,,,,,,,,,,,,,,#"
-write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#"
-write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#"
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!                          HEADER
+!                          ------                                                                                                     
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+write(STD_OUT,'(A)')'#   oss-    `oss-         -/osso/.         :ooooo+/.         `:osso/`      .oooooooo+       ./oss+-   #'
+write(STD_OUT,'(A)')'#  -MMM-    :MMM.      `sNMMdddNMMh.       hMMNhdNMMd`      +NMNhdNMh      +MMMdddddo     `hMMdhmMM/  #'
+write(STD_OUT,'(A)')'#  +MMN     oMMm      -NMMo`   `yMMN.      NMM+  .MMM/     :MMN`  `.       yMMh           yMMs   ..   #'
+write(STD_OUT,'(A)')'#  hMMm/////dMMy     `NMMo      `MMMo     -MMM- .oMMd`     -MMMmy+-        NMMh+++:       sMMMds/`    #'
+write(STD_OUT,'(A)')'#  NMMmhhhhdMMM/     :MMM-      .MMM/     +MMMMMMMh/        -sdNMMMd`     .MMMmddd+        /ymMMMMs   #'
+write(STD_OUT,'(A)')'# -MMM-    :MMM.     .MMM+     `hMMd      hMMh.sMMN-            -MMM:     +MMN`               `oMMN   #'
+write(STD_OUT,'(A)')'# +MMN     oMMm       +MMMy/:/omMMs`      NMM+  hMMN.     :ddo::sMMd`     hMMm:::::`     omh+:/dMM+   #'
+write(STD_OUT,'(A)')'# yNNh     hNNs        .odNMMMmh+.       -NNN.  `dNNd`    :ymMMMNh/       mNNNNNNNN.    `+hNMMMms-    #'
+write(STD_OUT,'(A)')'#                                                                                                     #'
+write(STD_OUT,'(A)')'#                         +m:y:-`                                       `-:y:m+                       #'
+write(STD_OUT,'(A)')'#                 .:::odmMMMNMms:-                                   -:smMNMMMmdo:::.                 #'
+write(STD_OUT,'(A)')'#                 `+mMMNMMMMNNNd+:                                   :+dNNNMMMMNMMm+`                 #'
+write(STD_OUT,'(A)')'#               \\shdNMNymMMMMshMmdNmd:                           :dmNdmMhsMMMMmyNMNdhs/               #'
+write(STD_OUT,'(A)')'#              ooosMMMNMMMNmNhNMMMNmhd-                         -dhmNMMMNhNmNMMMNMMMsooo              #'
+write(STD_OUT,'(A)')'#             `-\\+yhMMmMMMhhMhss+\\+o+.                           .+o+/+sshMhhMMMmMMhy+/-`             #'
+write(STD_OUT,'(A)')'#                 yMNMhMMMMNMs                                           sMNMMMMhMNMy                 #'
+write(STD_OUT,'(A)')'#               :ydmMMhMMMMy+M\\                                         /M+yMMMMhMMmdy:               #'
+write(STD_OUT,'(A)')'#              .+s+omMhMMMMMy+Ms`                                     `sM+yMMMMMhMmo+s+.              #'
+write(STD_OUT,'(A)')'#                +ymNMNmMMMMMmdMm+`                                 `+mMdmMMMMMmNMNmy+                #'
+write(STD_OUT,'(A)')'#  :-           \\\\oymMMmMMMMMMMmNMd-       \\yys:       :syy/       -dMNmMMMMMMMmMMmyo//           -:  #'
+write(STD_OUT,'(A)')'# - -y.          .\\oymMMMMMMMMhddhNMNs..+yNMMMMm-     -mMMMMNy+..sNMNhddhMMMMMMMMmyo/.          .y- - #'
+write(STD_OUT,'(A)')'# +o.-N.       `-:+yhdNMMMMMsMMMMMMMMMMmMMMmd\\msd     dsm/dmMMMmMMMMMMMMMMsMMMMMNdhy+:-`       .N-.o+ #'
+write(STD_OUT,'(A)')'#: :NsMo           oyo+-hMMMMMMMMMMMMMM+NMd+`.+mM\\   /Mm+.`+dMN+MMMMMMMMMMMMMMh-+oyo           oMsN: :#'
+write(STD_OUT,'(A)')'#\\y.yMM:          `.   :hoMMMMMMMMMMMMMMmMNMMMMmsN` `NsmMMMMNMmMMMMMMMMMMMMMMoh:   .`          :MMy.y/#'
+write(STD_OUT,'(A)')'# oNMMh               oh+MMMMMMMMMMMMMMMMNdNNyNMdms smdMNyNNdNMMMMMMMMMMMMMMMM+ho               hMMNo #'
+write(STD_OUT,'(A)')'# oMMM-             \\dyhMMMMMMMMMMMMMMMMNs\\. `mmsMm mMsmm` ./sNMMMMMMMMMMMMMMMMhyd/             -MMMo #'
+write(STD_OUT,'(A)')'# dNym           -oNMMMMMMMMMMMMMMMMNoo\\.    odh-mN Nm-hdo    ./ooNMMMMMMMMMMMMMMMMNo-           myNd #'
+write(STD_OUT,'(A)')'#`Mdsh        `+mMMMMMMMMMMMMMMMh+Mh-       -NM\\ `. .` /MN-       -hM+hMMMMMMMMMMMMMMMm+`        hsdM`#'
+write(STD_OUT,'(A)')'#`NN:N.      oNMMMMMMNoMMMMMMMhoyh:       .oNMd`       `dMNo.       :hyohMMMMMMMoNMMMMMMNo      .N:NN`#'
+write(STD_OUT,'(A)')'# \\Mm\\do`  .mMMMMMMMMMMMMMMMmhyo.         NNM+           +MNN         .oyhmMMMMMMMMMMMMMMMm.  `od/mM/ #'
+write(STD_OUT,'(A)')'#  .smNMMdymMMMMMMMMNmMMMMMhy:            sy-             -ys            :yhMMMMMmNMMMMMMMMmydMMNms.  #'
+write(STD_OUT,'(A)')'#    -NhMMdMhmMMMMMMMyMMMhhMM+                                           +MMhhMMMyMMMMMMMmhMdMMhN-    #'
+write(STD_OUT,'(A)')'#    \\yhNd-hNMMMMMMMMmymhmMMd                                             dMMmhmymMMMMMMMMNh-dNhy/    #'
+write(STD_OUT,'(A)')'#    :-sm\\-`dMMMMMMMMhh\\MMMm.                                             .mMMM/hhMMMMMMMMd`-/ms-:    #'
+write(STD_OUT,'(A)')'#      `yy  `oNMMMMMMMmsMMm.                                               .mMMsmMMMMMMMNo`  yy`      #'
+write(STD_OUT,'(A)')'#        y`   `omMMMMMMsMy`    -\\:\\+++o.                       .o+++/:/-    `yMsMMMMMMmo`   `y        #'
+write(STD_OUT,'(A)')'#                sMMhmoNNhysyhmMMmNMMho`                       `ohMMNmMMmhysyhNNomhMMs                #'
+write(STD_OUT,'(A)')'#                oMMN:yMmyo\\-.``                                       ``.-/oymMy:NMMo                #'
+write(STD_OUT,'(A)')'#               oNMN.                                                             .NMNo               #'
+write(STD_OUT,'(A)')'#               -sNmo.             High Order Spectral Element Solver            .omNs-               #'
+write(STD_OUT,'(A)')'#                  \\dyo.                                                       .oyd/                  #'
+write(STD_OUT,'(A,A39,A)')'#                   `oMNd-      ',trim(title),'      -dNMo`                   #'
+write(STD_OUT,'(A)')'#                     :dMNy`                                               `yNMd:                     #'
+write(STD_OUT,'(A)')'#                      -ymms                                Madrid TU      smmy-                      #'
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!                             THE OLD HEADER
+!                             --------------
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!write(STD_OUT,'(A)') "#                                                                                                  #"
+!write(STD_OUT,'(A)') "#                 ,*(#%%%%%%%#/*.                                .,*//////**.                      #"
+!write(STD_OUT,'(A)') "#          .(%%/,,,,,,,,,,,,,,,,,,,%%*                    ,#&%/,,,,,,,,,,,,,,,,/%&/  .             #"
+!write(STD_OUT,'(A)') "#     *%#,,,,,,,,,,,,,%*.   . *&,,,,,#*             ,#%*,,,,#%#/.      .. *%/,,,,,,,*#             #"
+!write(STD_OUT,'(A)') "#.#&/,,,,,,,,,,,,,,,,&          ..,.           ,#&/,,,,,*&*              .,#/,,,,,,,/#        .,%%,#"
+!write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,*&(.               ,#%#*,,,,,,,,,,#            ##,,,,,,,,/%&(.     .,#%/,,,,,#"
+!write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,*#%&&&&&&%(*,,,,,,,,,,,,,,,,,,*&%,.                    ..*#%%*,,,,,,,,,,#"
+!write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,***(####(****,,,,,,,,,,,,,,,,,,,,#"
+!write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#"
+!write(STD_OUT,'(A)') "#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#"
+
+
+
