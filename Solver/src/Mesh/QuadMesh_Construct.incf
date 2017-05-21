@@ -117,9 +117,8 @@
  
                    NLow = min ( self % elements( elements_of_edges % val( ONE ) ) % spA % N , &
                                 self % elements( elements_of_edges % val( TWO ) ) % spA % N , &
-                                self % elements( elements_of_edges % val(THREE) ) % spA % N )
+                                self % elements( elements_of_edges % val(THREE) ) % spA % N ) 
     
- 
                 end if
 ! 
 !               !!!!!!!!!!!!!!!!!!!
@@ -140,6 +139,10 @@
                       type is (CurvedEdge_t)
                          curve = minloc(abs(meshFile % curved_Edges - edge) , dim = 1 ) 
                          call f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
+
+                      type is (CurvedSubdividedEdge_t)
+                         curve = minloc(abs(meshFile % curved_Edges - edge) , dim = 1 ) 
+                         call f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
  
                       type is (CurvedBdryEdge_t) 
                          curve = minloc(abs(meshFile % curved_Edges -  edge) , dim = 1)
@@ -153,13 +156,34 @@
                    call self % edges(edge) % f % SetCurve()
  
                 end if
-
 !
 !               Recompute the location of the 3rd node for Subdivided elements
 !               --------------------------------------------------------------
                 if ( elements_of_edges % N .eq. THREE ) then
                    self % edges(edge) % f % nodes(THREE) % n % X = self % edges(edge) % f % EvaluateX( 0.5_RP ) 
                 end if
+! 
+!               Move to the next elements in the list
+!               -------------------------------------
+                points_of_edges   => points_of_edges % next
+                elements_of_edges => elements_of_edges % next
+
+            end do
+!
+!           Correct the edges coordinates for straight edges
+!           ------------------------------------------------
+            do edge = 1 , self % no_of_edges
+               select type ( f => self % edges(edge) % f ) 
+                  type is (Edge_t)
+                     call self % edges(edge) % f % SetCurve()
+               end select
+            end do
+!
+!           Get again to the HEAD of the list
+!           ---------------------------------
+            points_of_edges     => meshFile % points_of_edges % head
+            elements_of_edges   => meshFile % elements_of_edges % head
+            do edge = 1 , self % no_of_edges
 ! 
 !               ========================
 !               Link elements with edges
@@ -238,6 +262,12 @@
 
                         type is (SubdividedEdge_t)
                            ed % Area = sum( ed % dS(0) * ed % spA % w )
+                           ed % invh = ed % Area / min( ed % quads(    LEFT   ) % e % Volume , &
+                                                        ed % quads(RIGHT_NORTH) % e % Volume , &
+                                                        ed % quads(RIGHT_SOUTH) % e % Volume )
+
+                        type is (CurvedSubdividedEdge_t)
+                           ed % Area = sum( ed % dS * ed % spA % w )
                            ed % invh = ed % Area / min( ed % quads(    LEFT   ) % e % Volume , &
                                                         ed % quads(RIGHT_NORTH) % e % Volume , &
                                                         ed % quads(RIGHT_SOUTH) % e % Volume )

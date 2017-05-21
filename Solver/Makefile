@@ -233,7 +233,7 @@ printHeader:
 	@echo ' '
 	@echo ' *** Files: '
 	@for i in $(OBJS_F90); do \
-		echo "        o    $$i ";\
+		echo "        > $$i ";\
 	done
 	@echo ' '
 	@echo ' '

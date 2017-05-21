@@ -524,124 +524,28 @@ module DGWeakIntegrals
 
             case (EBOTTOM)
             
-               select type ( ed ) 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
-                     end do ; end do ; end do
-
-                  type is (CurvedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
-                     end do ; end do ; end do
-      
-                  type is (SubdividedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
-                     end do ; end do ; end do
-                  
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
-                     end do ; end do ; end do
-
-               end select
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
+               end do ; end do ; end do
       
             case (ERIGHT)
 
-               select type ( ed ) 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT) 
-                     end do ; end do ; end do
-                  
-                  type is (CurvedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT)
-                     end do ; end do ; end do
-
-                  type is (SubdividedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT)
-                     end do ; end do ; end do
-
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT)
-                     end do ; end do ; end do
-
-               end select
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT) 
+               end do ; end do ; end do
                   
             case (ETOP)
 
-               select type ( ed ) 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
-                     end do ; end do ; end do
-
-                  type is (CurvedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
-                     end do ; end do ; end do
-                  
-                  type is (SubdividedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 ,e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
-                     end do ; end do ; end do
-
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT) 
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
-                     end do ; end do ; end do
-
-               end select
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
+               end do ; end do ; end do
    
             case (ELEFT)
 
-               select type ( ed ) 
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
+               end do ; end do ; end do
 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
-                     end do ; end do ; end do
-
-                  type is (CurvedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
-                     end do ; end do ; end do
-                  
-                  type is (SubdividedEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
-                     end do ; end do ; end do
-
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
-                     end do ; end do ; end do
-
-               end select
             case default 
          end select
 

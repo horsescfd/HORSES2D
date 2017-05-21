@@ -145,11 +145,13 @@ module MeshFileClass
 !              ===============================
 !
                allocate ( mesh % pRefinementZones ( mesh % no_of_elements ))
-               allocate ( mesh % pRefinementOrder ( mesh % no_of_pRefinementZones ) )
+               allocate ( mesh % pRefinementOrder ( 0 : mesh % no_of_pRefinementZones ) )
                call NetCDF_getVariable ( Setup % mesh_file , "pRefinement_zones" , mesh % pRefinementZones )
 !
 !              Read from case file the polynomial order
 !              ----------------------------------------
+               mesh % pRefinementOrder(0) = Setup % N          ! Assign the default value to the "0" zones
+
                do pRefZone = 1 , mesh % no_of_pRefinementZones 
                   write( zoneID , '(I0)') pRefZone
                   call ReadValueInRegion( trim(Setup % case_file) , trim(zoneID) , zoneOrder , "# define p-Refinement" , "# end" )

@@ -78,6 +78,9 @@ submodule (DGViscousMethods)  DGViscous_BR1
                type is (SubdividedEdge_t)
                   call BR1_dQFaceLoop_Subdivided(self , f)
 
+               type is (CurvedSubdividedEdge_t)
+                  call BR1_dQFaceLoop_CurvedSubdivided(self , f)
+
                type is (StraightBdryEdge_t)
                   call BR1_dQFaceLoop_StraightBdry(self , f)
 
@@ -184,6 +187,41 @@ submodule (DGViscousMethods)  DGViscous_BR1
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_SOUTH , FuStarRS ) 
 
       end subroutine BR1_dQFaceLoop_Subdivided
+
+      subroutine BR1_dQFaceLoop_CurvedSubdivided( ViscousMethod , ed )
+         use QuadElementClass
+         use DGWeakIntegrals
+         implicit none
+         class(ViscousMethod_t) :: ViscousMethod
+         type(CurvedSubdividedEdge_t) :: ed
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FuStarL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP), pointer :: dQ(:,:,:,:)
+
+         call ViscousMethod % ComputeSubdividedSolutionRiemann( ed , FuStarL , FuStarRN , FuStarRS )
+!
+!>       Add the contribution to the LEFT element
+!        ----------------------------------------
+         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
+!
+!>       Add the contribution to the RIGHT-NORTH element
+!        -----------------------------------------------
+         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_NORTH) % e % dQ
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_NORTH , FuStarRN ) 
+!
+!>       Add the contribution to the RIGHT-SOUTH element
+!        -----------------------------------------------
+         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_SOUTH) % e % dQ
+         dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_SOUTH , FuStarRS ) 
+
+      end subroutine BR1_dQFaceLoop_CurvedSubdivided
 
       subroutine BR1_dQFaceLoop_StraightBdry( ViscousMethod , ed )
          use QuadElementClass

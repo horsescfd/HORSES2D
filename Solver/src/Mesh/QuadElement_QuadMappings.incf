@@ -114,6 +114,57 @@
                      dX_edges(IX:IY,iXi,0:self % spA % N,edge)  = scal * spread ( f % evaluatedX( xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
                   end do 
 
+               type is (CurvedSubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        xi_val = xi
+                        scal   = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi
+                        scal   = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        xi_val = 0.5_RP * xi
+                        scal   = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        xi_val = 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iXi = 0 , self % spA % N
+                     X_edges(IX:IY,iXi,0:self % spA % N , edge) =        spread ( f % evaluateX(  xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge)  = scal * spread ( f % evaluatedX( xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                  end do 
+
                type is (StraightBdryEdge_t)
    
                   do iXi = 0 , self % spA % N
@@ -198,6 +249,57 @@
                      dX_edges(IX:IY,0:self % spA % N,iEta,edge) = scal * spread ( f % evaluatedX( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
                   end do
    
+               type is (CurvedSubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        eta_val = eta 
+                        scal = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta
+                        scal = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        eta_val = 0.5_RP * eta
+                        scal = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        eta_val = 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iEta = 0 , self % spA % N
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge)  =        spread ( f % evaluateX ( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                     dX_edges(IX:IY,0:self % spA % N,iEta,edge) = scal * spread ( f % evaluatedX( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                  end do
+ 
                type is (StraightBdryEdge_t)
    
                   do iEta = 0 , self % spA % N
@@ -314,6 +416,9 @@
             select type ( f => self % edges(edge) % f )
 
                type is (CurvedEdge_t)
+                  curvilinear = .true.
+
+               type is (CurvedSubdividedEdge_t)
                   curvilinear = .true.
 
                type is (CurvedBdryEdge_t)

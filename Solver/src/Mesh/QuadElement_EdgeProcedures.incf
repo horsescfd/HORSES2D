@@ -298,6 +298,9 @@
             select type ( f => self % f )
                type is (SubdividedEdge_t)
                   call f % ConstructMortars ( N_N , N_S , spA ) 
+      
+               type is (CurvedSubdividedEdge_t)
+                  call f % ConstructMortars ( N_N , N_S , spA ) 
         
             end select
 !
@@ -343,6 +346,9 @@
 !           -------------------------------------------
             select type ( f => self % f )
                type is (SubdividedEdge_t)
+                  call f % ComputeMortarsTransformationMatrices
+   
+               type is (CurvedSubdividedEdge_t)
                   call f % ComputeMortarsTransformationMatrices
             end select
 
@@ -476,6 +482,18 @@
                   if ( changeSigndS_val ) then
                      self % n ( 1:NDIM , 0 ) = -self % n ( 1:NDIM , 0) 
       
+                  end if
+
+               type is (CurvedSubdividedEdge_t)
+                  self % dX ( 1:NDIM , 0:self % spA % N ) = -self % dX ( 1:NDIM , self % spA % N : 0 : -1 ) 
+                  self % dS (          0:self % spA % N ) =  self % dS (          self % spA % N : 0 : -1 ) 
+      
+                  if ( changeSigndS_val ) then
+                     self % n ( 1:NDIM , 0:self % spA % N ) = -self % n ( 1:NDIM , self % spA % N : 0 : -1 ) 
+      
+                  else
+                     self % n ( 1:NDIM , 0:self % spA % N ) = self % n ( 1:NDIM , self % spA % N : 0 : -1 ) 
+         
                   end if
          
                type is (StraightBdryEdge_t)
@@ -614,6 +632,113 @@
             end if
  
          end subroutine SubdividedEdge_ComputeMortarsTransformationMatrices
+
+         subroutine CurvedSubdividedEdge_ComputeMortarsTransformationMatrices( self ) 
+            use InterpolationAndDerivatives
+            use MatrixOperations
+            implicit none
+            class(CurvedSubdividedEdge_t),   intent(inout)  :: self
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)        :: nodes_S ( 0 : self % spA_S % N )
+            real(kind=RP)        :: nodes_N ( 0 : self % spA_N % N )
+            real(kind=RP)        :: invert_S( 0 : self % storage(RIGHT_SOUTH) % spA % N , 0 : self % storage(RIGHT_SOUTH) % spA % N )
+            real(kind=RP)        :: invert_N( 0 : self % storage(RIGHT_NORTH) % spA % N , 0 : self % storage(RIGHT_NORTH) % spA % N )
+            integer              :: i
+!
+!           Compute the inversion matrices
+!           ------------------------------
+            invert_S = 0.0_RP
+            do i = 0 , self % storage(RIGHT_SOUTH) % spA % N
+               invert_S(self % storage(RIGHT_SOUTH) % spA % N - i , i ) = 1.0_RP
+            end do
+
+            invert_N = 0.0_RP
+            do i = 0 , self % storage(RIGHT_SOUTH) % spA % N
+               invert_N(self % storage(RIGHT_SOUTH) % spA % N - i , i ) = 1.0_RP
+            end do
+!
+!           #1: LEFT to SOUTH-MORTAR
+!           ------------------------
+            associate (spA_el => self % storage(LEFT) % spA , spA_Mortar => self % spA_S )
+            nodes_S = 0.5_RP * spA_Mortar % xi 
+            allocate ( self % T_LS_FWD ( 0 : spA_Mortar % N , 0 : spA_el % N ) )
+            call PolynomialInterpolationMatrix ( spA_el % N , spA_Mortar % N , spA_el % xi , spA_el % wb , nodes_S , self % T_LS_FWD )
+            end associate
+!
+!           #2: LEFT to NORTH-MORTAR
+!           ------------------------
+            associate (spA_el => self % storage(LEFT) % spA , spA_Mortar => self % spA_N )
+            nodes_N = 0.5_RP + 0.5_RP * spA_Mortar % xi 
+            allocate ( self % T_LN_FWD ( 0 : spA_Mortar % N , 0 : spA_el % N ) ) 
+            call PolynomialInterpolationMatrix ( spA_el % N , spA_Mortar % N , spA_el % xi , spA_el % wb , nodes_N , self % T_LN_FWD )
+            end associate
+!
+!           #3: SOUTH-MORTAR to LEFT
+!           ------------------------
+            associate (spA_el => self % storage(LEFT) % spA , spA_Mortar => self % spA_S )
+            allocate ( self % T_LS_BKW ( 0 : spA_el % N , 0 : spA_Mortar % N ) ) 
+            call TripleMatrixProduct( A = spA_el % Minv , B = self % T_LS_FWD , C = spA_Mortar % M , val = self % T_LS_BKW , trB = .true. ) 
+            end associate
+!
+!           #4: NORTH-MORTAR to LEFT
+!           ------------------------
+            associate (spA_el => self % storage(LEFT) % spA , spA_Mortar => self % spA_N )
+            allocate ( self % T_LN_BKW ( 0 : spA_el % N , 0 : spA_Mortar % N ) ) 
+            call TripleMatrixProduct( A = spA_el % Minv , B = self % T_LN_FWD , C = spA_Mortar % M , val = self % T_LN_BKW , trB = .true. ) 
+            end associate
+!
+!           #5: SOUTH-MORTAR forward
+!           ------------------------
+            associate ( spA_el => self % storage(RIGHT_SOUTH) % spA , spA_Mortar => self % spA_S )
+            allocate ( self % T_RS_FWD ( 0 : spA_Mortar % N , 0 : spA_el % N ) )
+            call PolynomialInterpolationMatrix ( spA_el % N , spA_Mortar % N , spA_el % xi , spA_el % wb , spA_Mortar % xi , self % T_RS_FWD )
+            end associate
+!
+!           #6: SOUTH-MORTAR backward
+!           -------------------------
+            associate ( spA_el => self % storage(RIGHT_SOUTH) % spA , spA_Mortar => self % spA_S )
+            allocate ( self % T_RS_BKW ( 0 : spA_el % N , 0 : spA_Mortar % N ) )
+            call TripleMatrixProduct( A = spA_el % Minv , B = self % T_RS_FWD , C = spA_Mortar % M , val = self % T_RS_BKW , trB = .true. ) 
+            end associate
+!
+!           #7: NORTH-MORTAR forward
+!           ------------------------
+            associate ( spA_el => self % storage(RIGHT_NORTH) % spA , spA_Mortar => self % spA_N )
+            allocate ( self % T_RN_FWD ( 0 : spA_Mortar % N , 0 : spA_el % N ) )
+            call PolynomialInterpolationMatrix ( spA_el % N , spA_Mortar % N , spA_el % xi , spA_el % wb , spA_Mortar % xi , self % T_RN_FWD )
+            end associate
+!
+!           #8: NORTH-MORTAR backward
+!           -------------------------
+            associate ( spA_el => self % storage(RIGHT_NORTH) % spA , spA_Mortar => self % spA_N )
+            allocate ( self % T_RN_BKW ( 0 : spA_el % N , 0 : spA_Mortar % N ) )
+            call TripleMatrixProduct( A = spA_el % Minv , B = self % T_RN_FWD , C = spA_Mortar % M , val = self % T_RN_BKW , trB = .true. ) 
+            end associate
+
+            if ( self % quads(RIGHT_SOUTH) % e % edgesDirection( self % edgeLocation(RIGHT_SOUTH)) .eq. BACKWARD ) then
+!
+!              Invert the edge
+!              ---------------  
+               self % T_RS_FWD = matmul( self % T_RS_FWD , invert_S )
+               self % T_RS_BKW = matmul( invert_S , self % T_RS_BKW )
+
+            end if
+
+            if ( self % quads(RIGHT_NORTH) % e % edgesDirection( self % edgeLocation(RIGHT_NORTH)) .eq. BACKWARD ) then
+!
+!              Invert the edge
+!              ---------------  
+               self % T_RN_FWD = matmul( self % T_RN_FWD , invert_N )
+               self % T_RN_BKW = matmul( invert_N , self % T_RN_BKW )
+
+            end if
+ 
+         end subroutine CurvedSubdividedEdge_ComputeMortarsTransformationMatrices
+
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
@@ -1313,6 +1438,42 @@
                     + sum( ed % spA_S % w * nodalJumps_S * nodalJumps_S * ed % dS_S(0))
    
          end function SubdividedEdge_ComputeJumps
+
+         pure function CurvedSubdividedEdge_ComputeJumps ( ed , var ) result ( jumps )
+            use MatrixOperations
+            implicit none
+            class(CurvedSubdividedEdge_t), intent(in) :: ed
+            integer,                 intent(in)       :: var
+            real(kind=RP)                             :: jumps
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            real(kind=RP)         :: nodalJumps_N ( 0 : ed % spA_N % N )
+            real(kind=RP)         :: nodalJumps_S ( 0 : ed % spA_S % N )
+            real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N ) 
+            real(kind=RP), target :: QLS    ( 0 : ed % spA_S % N ) 
+            real(kind=RP), target :: QRN    ( 0 : ed % spA_N % N ) 
+            real(kind=RP), target :: QRS    ( 0 : ed % spA_S % N ) 
+            real(kind=RP)         :: uStarN ( 0 : ed % spA_N % N ) 
+            real(kind=RP)         :: uStarS ( 0 : ed % spA_S % N ) 
+!
+!           Get the solution projection onto the edge
+!           -----------------------------------------
+            QLN = MatrixTimesVector_F ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_N % N ) 
+            QLS = MatrixTimesVector_F ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_S % N ) 
+            QRN = MatrixTimesVector_F ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q(:,var) , ed % spA_N % N ) 
+            QRS = MatrixTimesVector_F ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q(:,var) , ed % spA_S % N ) 
+!   
+!           Compute the Jumps
+!           -----------------
+            nodalJumps_N = 2.0_RP * ( QLN - QRN ) / ( QLN + QRN )
+            nodalJumps_S = 2.0_RP * ( QLS - QRS ) / ( QLS + QRS )
+            jumps =   sum( ed % spA_N % w * nodalJumps_N * nodalJumps_N * ed % dS_N) &
+                    + sum( ed % spA_S % w * nodalJumps_S * nodalJumps_S * ed % dS_S)
+   
+         end function CurvedSubdividedEdge_ComputeJumps
 
          pure function StraightBdryEdge_ComputeJumps ( ed , var ) result ( jumps )
             use MatrixOperations

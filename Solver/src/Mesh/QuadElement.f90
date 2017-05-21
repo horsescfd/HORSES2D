@@ -39,6 +39,7 @@ module QuadElementClass
 !
     private
     public  QuadElement_t , QuadElement_p , Edge_t , CurvedEdge_t , SubdividedEdge_t , StraightBdryEdge_t , CurvedBdryEdge_t , Edge_p
+    public  CurvedSubdividedEdge_t
     public  Edge_ProjectSolutionType1
     public  Edge_LinkWithElements , BdryEdge_LinkWithElements , SubdividedEdge_LinkWithElements
 !
@@ -198,6 +199,35 @@ module QuadElementClass
          procedure   :: ComputeMortarsTransformationMatrices => SubdividedEdge_ComputeMortarsTransformationMatrices
          procedure   :: ComputeJumps                         => SubdividedEdge_ComputeJumps
     end type SubdividedEdge_t                                            
+!
+!   ============================
+!   CurvedSubdividedEdge_t class : Considers a subdivided curved interior edge
+!   ============================
+!
+    type, extends(CurvedEdge_t)  :: CurvedSubdividedEdge_t
+       integer                            :: N_N                      ! Polynomial order of the NORTH mortar
+       integer                            :: N_S                      ! Polynomial order of the SOUTH mortar
+       class(NodesAndWeights_t) , pointer :: spA_N                    ! Nodes and weights of the NORTH mortar
+       class(NodesAndWeights_t) , pointer :: spA_S                    ! Nodes and weights of the SOUTH mortar
+       real(kind=RP), allocatable         :: x_N(:,:)                 ! Coordinates of the NORTH mortar
+       real(kind=RP), allocatable         :: x_S(:,:)                 ! Coordinates of the SOUTH mortar
+       real(kind=RP), allocatable         :: normal_N(:,:)            ! NORTH MORTAR normal vector
+       real(kind=RP), allocatable         :: normal_S(:,:)            ! SOUTH MORTAR normal vector
+       real(kind=RP), allocatable         :: dS_N(:)                  ! NORTH MORTAR dS
+       real(kind=RP), allocatable         :: dS_S(:)                  ! SOUTH MORTAR dS
+       real(kind=RP), allocatable         :: T_LN_FWD(:,:)            ! LEFT to NORTH interpolation matrix
+       real(kind=RP), allocatable         :: T_LS_FWD(:,:)            ! LEFT to SOUTH interpolation matrix
+       real(kind=RP), allocatable         :: T_LN_BKW(:,:)            ! NORTH to LEFT interpolation matrix
+       real(kind=RP), allocatable         :: T_LS_BKW(:,:)            ! SOUTH to LEFT interpolation matrix
+       real(kind=RP), allocatable         :: T_RN_FWD(:,:)            ! RIGHT-NORTH to MORTAR interpolation matrix
+       real(kind=RP), allocatable         :: T_RS_FWD(:,:)            ! RIGHT-SOUTH to MORTAR interpolation matrix
+       real(kind=RP), allocatable         :: T_RN_BKW(:,:)            ! MORTAR to RIGHT-NORTH interpolation matrix
+       real(kind=RP), allocatable         :: T_RS_BKW(:,:)            ! MORTAR to RIGHT-SOUTH interpolation matrix 
+       contains
+         procedure   :: ConstructMortars                     => CurvedSubdividedEdge_ConstructMortars
+         procedure   :: ComputeMortarsTransformationMatrices => CurvedSubdividedEdge_ComputeMortarsTransformationMatrices
+         procedure   :: ComputeJumps                         => CurvedSubdividedEdge_ComputeJumps
+      end type CurvedSubdividedEdge_t
 !
 !  ========================
 !  StraightBdryEdge_t class : Considers a straight boundary edge
@@ -463,7 +493,7 @@ module QuadElementClass
 !            * Curved divided interior edge
 !              ----------------------------
                else
-                  allocate( CurvedEdge_t  :: self % f )
+                  allocate( CurvedSubdividedEdge_t  :: self % f )
 
                end if
 !
@@ -548,11 +578,11 @@ module QuadElementClass
                   allocate ( f % dS (       0:0 )  ) 
                   allocate ( f % n  ( NDIM ,0:0 )  ) 
 
-!               type is (CurvedSubdividedEdge_t)
-!                  allocate ( f % dX ( NDIM , 0 : f % spA % N )  )
-!                  allocate ( f % dS (        0 : f % spA % N )  )
-!                  allocate ( f % n  ( NDIM , 0 : f % spA % N )  )
-!
+               type is (CurvedSubdividedEdge_t)
+                  allocate ( f % dX ( NDIM , 0 : f % spA % N )  )
+                  allocate ( f % dS (        0 : f % spA % N )  )
+                  allocate ( f % n  ( NDIM , 0 : f % spA % N )  )
+
                type is (StraightBdryEdge_t)
                   allocate ( f % dX ( NDIM , 0:0 )  ) 
                   allocate ( f % dS (        0:0 )  ) 

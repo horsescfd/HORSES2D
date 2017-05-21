@@ -82,10 +82,12 @@ module DGViscousMethods
                                                                             ComputeSolutionRiemann_CurvedInterior , &
                                                                             ComputeSolutionRiemann_StraightBdry   , &
                                                                             ComputeSolutionRiemann_CurvedBdry   
-         generic, public    ::   ComputeSubdividedSolutionRiemann        => ComputeSolutionRiemann_Subdivided 
+         generic, public    ::   ComputeSubdividedSolutionRiemann        => ComputeSolutionRiemann_Subdivided     , &
+                                                                            ComputeSolutionRiemann_CurvedSubdivided
          procedure, private ::   ComputeSolutionRiemann_Interior         => BaseClass_ComputeSolutionRiemann_Interior
          procedure, private ::   ComputeSolutionRiemann_CurvedInterior   => BaseClass_ComputeSolutionRiemann_CurvedInterior
          procedure, private ::   ComputeSolutionRiemann_Subdivided       => BaseClass_ComputeSolutionRiemann_Subdivided
+         procedure, private ::   ComputeSolutionRiemann_CurvedSubdivided => BaseClass_ComputeSolutionRiemann_CurvedSubdivided
          procedure, private ::   ComputeSolutionRiemann_StraightBdry     => BaseClass_ComputeSolutionRiemann_StraightBdry
          procedure, private ::   ComputeSolutionRiemann_CurvedBdry       => BaseClass_ComputeSolutionRiemann_CurvedBdry
          procedure, private ::   SolutionRiemannSolver                   => BaseClass_SolutionRiemannSolver
@@ -665,6 +667,65 @@ module DGViscousMethods
          FuStarRS(:,:,IY) = -uStarRS * ed % dS_S(0) * ed % normal_S(IY,0)
 
       end subroutine BaseClass_ComputeSolutionRiemann_Subdivided
+
+      subroutine BaseClass_ComputeSolutionRiemann_CurvedSubdivided( self ,  ed , FuStarL , FuStarRN , FuStarRS )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         class(ViscousMethod_t)       :: self
+         type(CurvedSubdividedEdge_t) :: ed
+         real(kind=RP)                :: FuStarL (0 : ed % storage(LEFT       ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                :: FuStarRN(0 : ed % storage(RIGHT_NORTH) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                :: FuStarRS(0 : ed % storage(RIGHT_SOUTH) % spA % N , 1:NCONS , 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP), target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP), target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP), target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarN ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarS ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP)         :: FuStarN ( 0 : ed % spA_N % N , 1 : NCONS , 1:NDIM) 
+         real(kind=RP)         :: FuStarS ( 0 : ed % spA_S % N , 1 : NCONS , 1:NDIM) 
+         integer               :: dimID , eq
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
+         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
+         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
+         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+!
+!        Compute the solution Riemann solver
+!        -----------------------------------
+         uStarN = self % SolutionRiemannSolver( ed % spA_N % N , QLN , QRN )
+         uStarS = self % SolutionRiemannSolver( ed % spA_S % N , QLS , QRS )
+!
+!        Compute the solution flux
+!        -------------------------
+         do dimID = 1 , NDIM ; do eq = 1 , NCONS
+            FuStarN(:,eq,dimID) = uStarN(:,eq) * ed % dS_N * ed % normal_N(dimID,:)
+            FuStarS(:,eq,dimID) = uStarS(:,eq) * ed % dS_S * ed % normal_S(dimID,:)
+         end do              ; end do
+!
+!        Return the flux to each element space
+!        -------------------------------------
+         FuStarL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , FuStarN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FuStarS(:,:,IX) , ed % spA % N + 1 , NCONS )
+         FuStarL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , FuStarN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FuStarS(:,:,IY) , ed % spA % N + 1 , NCONS )
+
+         call Mat_x_Mat( ed % T_RN_BKW , FuStarN(:,:,IX) , FuStarRN(:,:,IX) )
+         call Mat_x_Mat( ed % T_RN_BKW , FuStarN(:,:,IY) , FuStarRN(:,:,IY) )
+
+         call Mat_x_Mat( ed % T_RS_BKW , FuStarS(:,:,IX) , FuStarRS(:,:,IX) )
+         call Mat_x_Mat( ed % T_RS_BKW , FuStarS(:,:,IY) , FuStarRS(:,:,IY) )
+
+         FuStarRN = -FuStarRN
+         FuStarRS = -FuStarRS
+
+      end subroutine BaseClass_ComputeSolutionRiemann_CurvedSubdivided
 
       subroutine BaseClass_ComputeSolutionRiemann_StraightBdry( self ,  ed , FuStar)
 !
