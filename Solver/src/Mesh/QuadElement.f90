@@ -360,6 +360,7 @@ module QuadElementClass
 !            ************
 !            Linking data
 !            ************
+!
 !            -------------------------------------------------------------
 !               These two arrays were before 
 !               allocated inside each element.

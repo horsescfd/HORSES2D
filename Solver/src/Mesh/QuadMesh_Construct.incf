@@ -153,6 +153,13 @@
                    call self % edges(edge) % f % SetCurve()
  
                 end if
+
+!
+!               Recompute the location of the 3rd node for Subdivided elements
+!               --------------------------------------------------------------
+                if ( elements_of_edges % N .eq. THREE ) then
+                   self % edges(edge) % f % nodes(THREE) % n % X = self % edges(edge) % f % EvaluateX( 0.5_RP ) 
+                end if
 ! 
 !               ========================
 !               Link elements with edges

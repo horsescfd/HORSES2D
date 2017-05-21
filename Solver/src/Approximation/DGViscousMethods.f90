@@ -607,7 +607,7 @@ module DGViscousMethods
 !
 !        Return its value to each element frame
 !        --------------------------------------
-         call ed % ProjectFluxes( ed , FuStar(:,:,IX) , FuStarL(:,:,IX) , FuStarR(:,:,IY) )
+         call ed % ProjectFluxes( ed , FuStar(:,:,IX) , FuStarL(:,:,IX) , FuStarR(:,:,IX) )
          call ed % ProjectFluxes( ed , FuStar(:,:,IY) , FuStarL(:,:,IY) , FuStarR(:,:,IY) )
 
       end subroutine BaseClass_ComputeSolutionRiemann_CurvedInterior

@@ -60,7 +60,7 @@
 
                   do iXi = 0 , self % spA % N
                      X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
-                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % evaluatedX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
                   end do
 
                type is (SubdividedEdge_t)
