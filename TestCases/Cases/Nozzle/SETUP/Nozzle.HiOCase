@@ -23,8 +23,8 @@
                  Default polynomial order    : 4
 
 !------------------------------------: Initialization
-                   Initial condition : Steady
-                   Restart file      : ./RESULTS/NozzleSteady_46000000.HiORst
+                   Initial condition : Uniform
+                   Restart file      : ./RESULTS/Nozzle.HiORst
 
 !---------------------------------------------: Inviscid discretization
                Inviscid discretization        : Standard
@@ -39,7 +39,7 @@
              Gradient jumps penalty parameter : 0.0
 
 !---------------------------------------------: Artificial dissipation
-            Artificial dissipation (0/1) : 1
+            Artificial dissipation (0/1) : 0
             Artificial dissipation type : Green volume
             Artificial dissipation matrix : Residuals-based
 
@@ -47,13 +47,13 @@
                     Integration mode     : Steady
                     Integration scheme   : Williamson RK5
                     Time step            : 2.0e-0
-                    CFL Number           : 0.1
+                    CFL Number           : 0.4
                     Simulation time      : 1.0
                     Number of iterations : 100
                     Initial time         : 0.0
 
 !-----------------------------------: Output variables
-                  Solution file     : ./RESULTS/NozzleSteady.HiORst
+                  Solution file     : ./RESULTS/Nozzle.HiORst
                   Autosave interval : 10000
                   Output interval   : 10
                   Output file type  : Interpolated

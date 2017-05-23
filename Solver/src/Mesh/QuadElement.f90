@@ -161,6 +161,7 @@ module QuadElementClass
 !   CurvedEdge_t class : Considers a curved interior edge
 !   ==================
     type, extends(Edge_t)  :: CurvedEdge_t
+      integer              :: Ncurve
       contains                                                             ! 
          procedure   :: SetCurve     => CurvedEdge_SetCurve                !  ---------------------------------------
          procedure   :: getX         => CurvedEdge_getX                    !        Curves edges just have
@@ -423,7 +424,7 @@ module QuadElementClass
 !
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-        subroutine Edge_ConstructEdge( self , ID , curvilinear , N , NLow , nodes , edgeType , spA , spI)
+        subroutine Edge_ConstructEdge( self , ID , curvilinear , N , NLow , nodes , edgeType , spA , spI , Ncurve)
             use Setup_Class
             implicit none
             class(Edge_p)                     :: self
@@ -436,6 +437,7 @@ module QuadElementClass
             integer                           :: node
             class(NodalStorage)               :: spA
             class(NodesAndWeights_t), pointer :: spI
+            integer                           :: Ncurve
 !
 !           ---------------
 !           Local variables
@@ -572,6 +574,7 @@ module QuadElementClass
                   allocate ( f % dX ( NDIM , 0 : f % spA % N )  )
                   allocate ( f % dS (        0 : f % spA % N )  )
                   allocate ( f % n  ( NDIM , 0 : f % spA % N )  )
+                  f % Ncurve = Ncurve
 
                type is (SubdividedEdge_t)
                   allocate ( f % dX ( NDIM ,0:0 )  ) 
@@ -582,6 +585,7 @@ module QuadElementClass
                   allocate ( f % dX ( NDIM , 0 : f % spA % N )  )
                   allocate ( f % dS (        0 : f % spA % N )  )
                   allocate ( f % n  ( NDIM , 0 : f % spA % N )  )
+                  f % Ncurve = Ncurve
 
                type is (StraightBdryEdge_t)
                   allocate ( f % dX ( NDIM , 0:0 )  ) 
@@ -595,6 +599,7 @@ module QuadElementClass
                   allocate ( f % dX ( NDIM , 0 : f % spA % N )  )
                   allocate ( f % dS (        0 : f % spA % N )  )
                   allocate ( f % n  ( NDIM , 0 : f % spA % N )  )
+                  f % Ncurve = Ncurve
 #ifdef NAVIER_STOKES
                   allocate ( f % viscousBCType( 0 : f % spA % N ) )
 #endif

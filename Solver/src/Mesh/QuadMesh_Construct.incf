@@ -43,7 +43,7 @@
              integer                                  :: eID
              integer                                  :: el , el_L , el_R , el_R1 , el_R2
              integer                                  :: N
-             integer                                  :: NLow 
+             integer                                  :: NLow , Ncurve
              integer                                  :: curve
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              logical                                  :: curvilinear
@@ -99,6 +99,7 @@
 !                  -------------------------------------
                    N    = self % elements( elements_of_edges % val(ONE) ) % spA % N
                    NLow = N 
+                   NCurve = N
  
                 elseif ( elements_of_edges % N .eq. TWO ) then
 ! 
@@ -108,7 +109,15 @@
                                 self % elements( elements_of_edges % val(TWO) ) % spA % N )
                    NLow = min ( self % elements( elements_of_edges % val(ONE) ) % spA % N , &
                                 self % elements( elements_of_edges % val(TWO) ) % spA % N )
- 
+
+                   if ( NLow .gt. 1 ) then
+                     NCurve = NLow / 2
+   
+                   else 
+                     NCurve = NLow
+         
+                   end if  
+
                 elseif ( elements_of_edges % N .eq. THREE ) then
 ! 
 !                  Divdided interior edge: The big element polynomial order
@@ -118,7 +127,15 @@
                    NLow = min ( self % elements( elements_of_edges % val( ONE ) ) % spA % N , &
                                 self % elements( elements_of_edges % val( TWO ) ) % spA % N , &
                                 self % elements( elements_of_edges % val(THREE) ) % spA % N ) 
-    
+
+                   if ( NLow .gt. 1 ) then
+                     NCurve = NLow / 2
+   
+                   else 
+                     NCurve = NLow
+         
+                   end if  
+
                 end if
 ! 
 !               !!!!!!!!!!!!!!!!!!!
@@ -126,7 +143,8 @@
 !               ¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡
 ! 
                 call self % edges(edge) % Construct( ID = edge  , curvilinear = curvilinear , N = N , NLow = NLow , &
-                                                  nodes = nodes(1:points_of_edges % N) , edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
+                                                  nodes = nodes(1:points_of_edges % N) , edgeType = meshFile % edgeMarker(edge) , &
+                                                    spA = spA , spI = spI , NCurve = NCurve)
 ! 
 !               *********************
                 if (curvilinear) then

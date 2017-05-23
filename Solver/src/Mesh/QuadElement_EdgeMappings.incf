@@ -200,36 +200,36 @@
    
         if ( present(points) .and. present(order) ) then
 !
-!          First, there is an interpolation from "order" to "Nlow" (i.e. the curve is interpolated to the lowest order)   
-!          -------------------------------------------------------
+!          First, there is an interpolation from "order" to "NCurve"   
+!          ---------------------------------------------------------
            associate ( N => self % spA % N ) 
-           associate ( NLow => self % Nlow )
+           associate ( NCurve => self % NCurve )
    
            allocate( CGLnodes(0 : order ) )
-           allocate( CGLintermediate(0 : NLow ) )
+           allocate( CGLintermediate(0 : NCurve ) )
    
            CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
-           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(NLow - node)/(1.0_RP*NLow)),node = 0,NLow)/),(/NLow+1/) )
+           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(NCurve - node)/(1.0_RP*NCurve)),node = 0,NCurve)/),(/NCurve+1/) )
    
-           allocate( Xintermediate(NDIM , 0:NLow) )
+           allocate( Xintermediate(NDIM , 0:NCurve) )
      
            allocate( wb ( 0 : order ) )
-           allocate( T ( 0 : NLow , 0 : order ) )
+           allocate( T ( 0 : NCurve , 0 : order ) )
      
            call BarycentricWeights( N = order , x = CGLnodes , w = wb )
-           call PolynomialInterpolationMatrix( N = order , M = NLow , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
+           call PolynomialInterpolationMatrix( N = order , M = NCurve , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
 !   
 !          Compute intermediate points
 !          ---------------------------
-           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = NLow+1, trB = .true. ) 
+           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = NCurve+1, trB = .true. ) 
    
            deallocate( wb , T )
       
-           allocate ( wb ( 0 : NLow         )  ) 
-           allocate ( T  ( 0 : N , 0 : NLow )  ) 
+           allocate ( wb ( 0 : NCurve         )  ) 
+           allocate ( T  ( 0 : N , 0 : NCurve )  ) 
    
-           call BarycentricWeights( N = NLow , x = CGLintermediate , w = wb )
-           call PolynomialInterpolationMatrix( N = NLow , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
+           call BarycentricWeights( N = NCurve , x = CGLintermediate , w = wb )
+           call PolynomialInterpolationMatrix( N = NCurve , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
      
 !          Compute points
 !          --------------
