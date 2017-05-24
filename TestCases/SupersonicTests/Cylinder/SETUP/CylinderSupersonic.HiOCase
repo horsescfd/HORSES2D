@@ -23,7 +23,7 @@
          Default polynomial order    : 8
 
 !------------------------------------: Initialization
-                   Initial condition : Restart
+                   Initial condition : Uniform
                    Restart file      : ./RESULTS/Cylinder.HiORst
 
 !------------------------------------: Inviscid discretization

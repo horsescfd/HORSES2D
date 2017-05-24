@@ -21,20 +21,26 @@
 !
 #include "Defines.h"
 
-function UserDefinedInitialCondition(x , argin , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
+function UserDefinedInitialCondition(x , argin , thermodynamics_ , Setup_ , refValues_ , dimensionless_ )  result (val)
    use SMConstants
    use Setup_class
    use Physics
    implicit none
-   real(kind=RP)                        :: x(NDIM)
-   real(kind=RP), optional              :: argin
+   real(kind=RP)           :: x(NDIM)
+   real(kind=RP), optional :: argin
    class(Thermodynamics_t), intent(in)  :: thermodynamics_
    class(Setup_t),          intent(in)  :: Setup_
    class(RefValues_t),      intent(in)  :: refValues_
    class(Dimensionless_t),  intent(in)  :: dimensionless_
-   real(kind=RP)                        :: val(NCONS)
+   real(kind=RP)           :: val(NCONS)
 
-   val = 0.0_RP
+
+    if ( x(IX) .lt. 0.0_RP ) then
+         val = [0.537037037037037_RP,   0.829539386177859_RP,                   0.0_RP,   1.657627118644068_RP]
+    else
+         val = [1.000000000000000_RP,   0.829539386177859_RP,                   0.0_RP,   2.844067796610170_RP]
+
+    end if
 
 end function UserDefinedInitialCondition
 

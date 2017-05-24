@@ -24,12 +24,14 @@ INC_DIR=./include
 BUILD_DIR=./build
 BIN_DIR=./bin
 SRC_DIR=./src
+LIB_DIR=./lib
 EXECUTABLE = HORSES2D.NS
 MODE ?=DEBUG
 BLAS_LIB = 
 LAPACK_LIB = 
 LIBS=
 GLOB_MACROS := -D_DIMENSIONLESS_TAU
+CURRENT_PATH := ${CURDIR}
 
 # --------------- MACROS ---------------------------------------------------
 
@@ -61,7 +63,7 @@ MetricMatrix: SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
 Headers: SMConstants
 NetCDF_Interface: SMConstants
-ProblemFile: SMConstants Setup
+ProblemFile: SMConstants Setup Physics
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
 DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
@@ -90,7 +92,7 @@ main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
 
 # --------------- DO NOT EDIT ----------------------------------------------------
 
-F90_REMOVE=
+F90_REMOVE=ProblemFile.f90
 F90_INCLUDE=-I$(SRC_DIR)/Mesh/ -I$(SRC_DIR)/Generic/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
@@ -106,12 +108,11 @@ ifeq ($(COMPILER),gfortran)
    MOD_FLAG :=-J
    FC=gfortran
    ifeq ($(MODE),DEBUG)
-#      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
-       FFLAGS = -cpp -O0 -g -fcheck=all -ffree-line-length-0 -fbacktrace -fbounds-check -Wall -fcheck-array-temporaries -fbackslash -ffpe-trap=invalid,zero,overflow -static-libgfortran
+      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
    else 
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
-   LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff
+   LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff ./lib/libproblemfile.dylib -Wl,-rpath,./SETUP -Wl,-rpath,$(CURRENT_PATH)/lib
 
 else ifeq ($(COMPILER),ifort)
    MOD_FLAG := -module 
@@ -125,9 +126,11 @@ else ifeq ($(COMPILER),ifort)
      FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
 
    endif
-   LIBS += -L$(NETCDF_LIB) -lnetcdff
+   LIBS += -L$(NETCDF_LIB) -lnetcdff ./lib/libproblemfile.dylib -Wl,-rpath,./SETUP -Wl,-rpath,$(CURRENT_PATH)/lib
 
 endif
+
+DYNLIB_FLAG=-fPIC -shared -install_name @rpath/libproblemfile.dylib -o ./lib/libproblemfile.dylib
 
 
 $(info )
@@ -139,7 +142,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 .PHONY: all	
 .DEFAULT_GOAL := all
 
-all: 	printHeader def_navier_stokes_macro $(EXECUTABLE)
+all: 	printHeader def_navier_stokes_macro ProblemFile $(EXECUTABLE)
 
 runcyl: 	
 	(cd ../TestCases/Cases/FlowOverCircle && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase)		
@@ -156,7 +159,7 @@ runchan:
 runfree: 	
 	(cd ../TestCases/Cases/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
 
-Euler:  printHeader def_euler_macro $(EXECUTABLE)
+Euler:  printHeader def_euler_macro ProblemFile $(EXECUTABLE)
 
 def_euler_macro:
 	$(eval EXECUTABLE:=HORSES2D.Euler)
@@ -167,7 +170,12 @@ def_navier_stokes_macro:
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
-	$(OBJS_EXEC) $(LIBS)\
+	$(OBJS_EXEC) $(LIBS)
+
+# ---------- Library rule
+ProblemFile: src/IO/ProblemFile.f90
+	$(FC) -fPIC -shared $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c src/IO/ProblemFile.f90 -o $(BUILD_DIR)/$@.o
+	$(FC) $(DYNLIB_FLAG) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) ./build/ProblemFile.o
 
 # ---------- Default compilation rule -----------
 $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
@@ -176,11 +184,12 @@ $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
 
 clean:  printHeader
 	$(info Removing installation:)
-	rm -f -v $(BUILD_DIR)/*
-	rm -f -v $(INC_DIR)/*
+	rm -f -v -r $(BUILD_DIR)/*
+	rm -f -v -r $(INC_DIR)/*
+	rm -f -v -r $(LIB_DIR)/*
 
 allclean: clean
-	@rm -r -f -v $(BIN_DIR)/*
+	@rm -f -v -r $(BIN_DIR)/*
 
 printHeader:
 	@echo '       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// '

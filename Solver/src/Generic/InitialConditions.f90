@@ -76,17 +76,6 @@ module InitialConditions
          procedure(ICFcn), pointer     :: fcn
          character(len=*), optional    :: which
          character(len=STR_LEN_IC)     :: ICName
-         interface
-            function UserDefinedInitialCondition(x , argin) result (val)
-               use SMConstants
-               use Setup_class
-               use Physics
-               implicit none
-               real(kind=RP)           :: x(NDIM)
-               real(kind=RP), optional :: argin
-               real(kind=RP)           :: val(NCONS)
-            end function UserDefinedInitialCondition
-         end interface
          
          if (present(which)) then
             ICName = which
@@ -128,7 +117,7 @@ module InitialConditions
             case ( trim(UserDefinedIC) )
 !           ============================
 !
-               fcn => UserDefinedInitialCondition
+               fcn => UserDefinedInitialConditionDriver
 !
 !           ============================
             case ( trim(ChecksPolyIC) )
@@ -226,6 +215,34 @@ module InitialConditions
          end associate
 
       end function UniformInitialCondition
+
+      function UserDefinedInitialConditionDriver( x , argin ) result ( val )
+         use SMConstants
+         use Setup_Class
+         use Physics
+         implicit none
+         real(kind=RP)        :: x(NDIM)
+         real(kind=RP), optional :: argin
+         real(kind=RP)           :: val(NCONS)
+         interface
+            function UserDefinedInitialCondition(x , argin , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
+               use SMConstants
+               use Setup_class
+               use Physics
+               implicit none
+               real(kind=RP)                        :: x(NDIM)
+               real(kind=RP), optional              :: argin
+               class(Thermodynamics_t), intent(in)  :: thermodynamics_
+               class(Setup_t),          intent(in)  :: Setup_
+               class(RefValues_t),      intent(in)  :: refValues_
+               class(Dimensionless_t),  intent(in)  :: dimensionless_
+               real(kind=RP)                        :: val(NCONS)
+            end function UserDefinedInitialCOndition
+         end interface 
+
+         val = UserDefinedInitialCondition( x , argin , Thermodynamics , Setup , refValues , dimensionless )
+
+      end function UserDefinedInitialConditionDriver
 
       function PerturbedUniformInitialCondition(x , argin) result(val)
 !        ***************************************************************

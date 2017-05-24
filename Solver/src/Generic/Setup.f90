@@ -27,7 +27,7 @@ module Setup_class
 #include "Defines.h"
 
     private
-    public  :: setup
+    public  :: setup , Setup_t
   
     integer, parameter          :: STR_LEN_SETUP = 128
     type Setup_t

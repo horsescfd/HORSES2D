@@ -28,6 +28,7 @@ module PhysicsNS
     private
     public :: solver
     public :: RefValues , Dimensionless , Thermodynamics
+    public :: RefValues_t , Dimensionless_t , Thermodynamics_t
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux , ViscousFlux , AdiabaticViscousFlux
     public :: ComputeViscousTensor
