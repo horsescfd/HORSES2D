@@ -33,8 +33,33 @@ function UserDefinedInitialCondition(x , argin , Thermodynamics_ , Setup_ , refV
    class(RefValues_t),      intent(in)  :: refValues_
    class(Dimensionless_t),  intent(in)  :: dimensionless_
    real(kind=RP)                        :: val(NCONS)
+!
+!  ---------------
+!  Local variables
+!  ---------------
+!
+   real(kind=RP)            :: pressure
+   real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
 
-   val = 0.0_RP
+
+   pressure = Setup_ % pressure_ref / RefValues_ % p
+
+   associate ( gamma => Thermodynamics_ % gamma , Mach => dimensionless_ % Mach ) 
+
+#ifdef _DIMENSIONLESS_TAU
+   val(IRHO)  = 1.0_RP
+   val(IRHOU) = sqrt(gamma) * Mach * cos ( AngleOfAttack )
+   val(IRHOV) = sqrt(gamma) * Mach * sin ( AngleOfAttack )
+   val(IRHOE) = Dimensionless_ % cv * pressure + 0.5_RP * gamma * Mach * Mach
+#else
+   val(IRHO)  = 1.0_RP
+   val(IRHOU) = cos ( AngleOfAttack )
+   val(IRHOV) = sin ( AngleOfAttack )
+   val(IRHOE) = Dimensionless_ % cv * pressure + 0.5_RP 
+#endif
+
+   end associate
+
 
 end function UserDefinedInitialCondition
 

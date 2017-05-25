@@ -19,6 +19,7 @@
 #
 #////////////////////////////////////////////////////////////////////////////////////////////////////////
 #
+SYSTEM ?= LINUX
 COMPILER ?=gfortran
 INC_DIR=./include
 BUILD_DIR=./build
@@ -103,6 +104,15 @@ OBJS_EXEC = $(foreach obj,$(OBJS),$(BUILD_DIR)/$(obj).o)
 
 include make.inc
 
+# -------------- CHOOSE SYSTEM -----------------------
+ifeq ($(SYSTEM),MACOSX)
+   DYNLIB_FLAG=-fPIC -shared -install_name @rpath/libproblemfile.dylib -o ./lib/libproblemfile.dylib
+   PROBLEM_LIB=./lib/libproblemfile.dylib -Wl,-rpath,./SETUP -Wl,-rpath,$(CURRENT_PATH)/lib
+else ifeq ($(SYSTEM),LINUX)
+   DYNLIB_FLAG=-fPIC -shared -o ./lib/libproblemfile.so
+   PROBLEM_LIB=-L./lib -lproblemfile -Wl,-rpath=./SETUP -Wl,-rpath=$(CURRENT_PATH)/lib
+endif
+
 # -------------- CHOOSE COMPILER ------------------
 ifeq ($(COMPILER),gfortran)
    MOD_FLAG :=-J
@@ -112,8 +122,7 @@ ifeq ($(COMPILER),gfortran)
    else 
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
-   LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff ./lib/libproblemfile.dylib -Wl,-rpath,./SETUP -Wl,-rpath,$(CURRENT_PATH)/lib
-
+   LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff $(PROBLEM_LIB)
 else ifeq ($(COMPILER),ifort)
    MOD_FLAG := -module 
    FC=ifort
@@ -126,11 +135,10 @@ else ifeq ($(COMPILER),ifort)
      FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
 
    endif
-   LIBS += -L$(NETCDF_LIB) -lnetcdff ./lib/libproblemfile.dylib -Wl,-rpath,./SETUP -Wl,-rpath,$(CURRENT_PATH)/lib
+   LIBS += -L$(NETCDF_LIB) -lnetcdff $(PROBLEM_LIB)
 
 endif
 
-DYNLIB_FLAG=-fPIC -shared -install_name @rpath/libproblemfile.dylib -o ./lib/libproblemfile.dylib
 
 
 $(info )

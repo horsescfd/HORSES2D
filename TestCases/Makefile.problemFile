@@ -1,4 +1,5 @@
 # Do not edit this line
+SYSTEM ?= LINUX
 COMPILER ?=gfortran
 INC_DIR=./include
 BUILD_DIR=./build
@@ -14,6 +15,13 @@ GLOB_MACROS := -D_DIMENSIONLESS_TAU
 CURRENT_PATH := ${CURDIR}
 
 INCLUDE = -I$(HORSES_DIR)/$(INC_DIR) -I$(HORSES_DIR)/src/Generic
+
+ifeq ($(SYSTEM),MACOSX)
+   DYNLIB_FLAG=-fPIC -shared -install_name @rpath/libproblemfile.dylib -o ./libproblemfile.dylib
+else ifeq ($(SYSTEM),LINUX)
+   DYNLIB_FLAG=-fPIC -shared -o ./libproblemfile.so
+endif
+
 
 ifeq ($(COMPILER),gfortran)
    MOD_FLAG :=-J
@@ -39,8 +47,6 @@ else ifeq ($(COMPILER),ifort)
 
 endif
 
-DYNLIB_FLAG=-fPIC -shared -install_name @rpath/libproblemfile.dylib -o ./libproblemfile.dylib
-
 #	------------- COMPILATION RULE ---------------
 
 ProblemFile: ./ProblemFile.f90
@@ -49,4 +55,4 @@ ProblemFile: ./ProblemFile.f90
 	@rm -r -v ./ProblemFile.o ./libproblemfile.dylib.dSYM
 
 clean:
-	@rm -r -v ./ProblemFile.o ./libproblemfile.dylib ./libproblemfile.dylib.dSYM
+	@rm -r -v ./ProblemFile.o ./libproblemfile.dylib ./libproblemfile.dylib.dSYM ./libproblemfile.so
