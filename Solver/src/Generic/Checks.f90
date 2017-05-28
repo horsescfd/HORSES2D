@@ -607,7 +607,7 @@ module ChecksModule
             do iXi = 0 , mesh % elements(eID) % spA % N
                do iEta = 0 , mesh % elements(eiD) % spA % N
                
-                  currentError = norm2( mesh % elements(eID) % Q(iXi,iEta,:) - mesh % IC(mesh % elements(eID) % x(:,iXi,iEta) ) ) 
+                  currentError = norm2( mesh % elements(eID) % Q(iXi,iEta,:) - getDimensionlessVariables( mesh % IC(mesh % elements(eID) % x(:,iXi,iEta) ) ) ) 
                   if (currentError .gt. error) then
                      error = currentError
                   end if
@@ -789,6 +789,8 @@ module ChecksModule
          use DGSEM_Class
          use DGSpatialDiscretizationMethods
          use Headers
+         use Setup_Class
+         use InitialConditions
          implicit none
          class(DGSem_t)          :: sem
          integer                 :: iXi , iEta
@@ -806,10 +808,11 @@ module ChecksModule
 !        Apply the "ChecksPolynomic" initial condition
 !        ------------------------------------
          L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call setLCheck( L ) 
          call sem % mesh % SetInitialCondition("ChecksPolynomic")
-         call sem % mesh % ApplyInitialCondition( L )    
+         call sem % mesh % ApplyInitialCondition()    
 
-         call DGSpatial_ComputeTimeDerivative( sem % mesh )
+         call DGSpatial_ComputeTimeDerivative( sem % mesh , Setup % initialTime )
 
          error = 0.0_RP
          do eID = 1 , sem % mesh % no_of_elements
@@ -826,10 +829,10 @@ module ChecksModule
 
                   elementIsInterior = .true.
 
-                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
 
                   if ( (localerror .gt. error) .and. elementIsInterior ) then
                      error = localerror
@@ -847,11 +850,12 @@ module ChecksModule
 !        Apply the "ChecksTrigonometric" initial condition
 !        ------------------------------------
          L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call setLCheck(L)
          call sem % mesh % SetInitialCondition("ChecksTrigonometric")
-         call sem % mesh % ApplyInitialCondition( L )
+         call sem % mesh % ApplyInitialCondition()
 
 
-         call DGSpatial_ComputeTimeDerivative( sem % mesh )
+         call DGSpatial_ComputeTimeDerivative( sem % mesh , Setup % initialTime )
 
          error = 0.0_RP
          do eID = 1 , sem % mesh % no_of_elements
@@ -866,10 +870,10 @@ module ChecksModule
                   localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
                   
                   elementIsInterior = .true.
-                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
+!                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
 
                   if ( (localerror .gt. error) .and. elementIsInterior ) then
 
@@ -903,6 +907,7 @@ module ChecksModule
           use Storage_module
           use DGBoundaryConditions  
           use Headers
+          use InitialConditions
           implicit none
           class(DGSem_t)         :: sem
           class(QuadElement_t), pointer   :: e
@@ -921,10 +926,11 @@ module ChecksModule
 !        Set the polynomic initial condition
 !        -----------------------------------
          L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call setLCheck(L)
          call sem % mesh % SetInitialCondition("ChecksPolynomic")
-         call sem % mesh % ApplyInitialCondition(L)
+         call sem % mesh % ApplyInitialCondition()
 
-          call DGSpatial_newTimeStep( sem % mesh )
+          call DGSpatial_newTimeStep( sem % mesh , Setup % initialTime)
 
 
           do eID = 1 , sem % mesh % no_of_elements
@@ -960,10 +966,11 @@ module ChecksModule
 !        Set the trigonometric initial condition
 !        -----------------------------------
          L = sqrt( sem % mesh % VolumeIntegral("One") ) / 4.0_RP
+         call setLCheck(L)
          call sem % mesh % SetInitialCondition("ChecksTrigonometric")
-         call sem % mesh % ApplyInitialCondition( L )
+         call sem % mesh % ApplyInitialCondition()
 
-         call DGSpatial_newTimeStep( sem % mesh )
+         call DGSpatial_newTimeStep( sem % mesh , Setup % initialTime )
 
          error = 0.0_RP
          elem = -1

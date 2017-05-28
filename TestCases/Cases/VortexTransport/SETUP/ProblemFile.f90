@@ -25,7 +25,7 @@ function getProblemFileName() result ( Name )
    implicit none
    character(len=LINE_LENGTH)    :: Name
 
-   Name = "Default problem file"
+   Name = "Inviscid taylor vortex transport"
 
 end function getProblemFileName
 
@@ -53,12 +53,29 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 !  Local variables
 !  ---------------
 !
+   real(kind=RP), parameter :: R = 0.1_RP                  ! This is the "vortex radius" (dimensionless)
+   real(kind=RP), parameter :: Beta = 0.01_RP              ! This is the "vortex strength"
+   real(kind=RP), parameter :: XC = 0.5_RP                 ! Vortex X position (in dimensionless coordinates)
+   real(kind=RP), parameter :: YC = 0.5_RP                 ! Vortex Y position (in dimensionless coordinates)
    real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+   real(kind=RP)            :: r2 , rho , u , v , T
 
-   val(IRHO)  = refValues_ % rho
-   val(IRHOU) = refValues_ % rho * refValues_ % V * cos(AngleOfAttack)
-   val(IRHOV) = refValues_ % rho * refValues_ % V * sin(AngleOfAttack)
-   val(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
+   associate ( gamma => Thermodynamics_ % Gamma , Mach => Dimensionless_ % Mach , cv => Dimensionless_ % cv )
+
+   r2 = ((x(IX) - XC)*(x(IX) - XC) + (x(IY) - YC)*(x(IY) - YC)) / (R*R)
+
+   u = refValues_ % V * (cos(AngleOfAttack) - Beta * (x(IY) - YC) / R * exp(-0.5_RP * r2))
+   v = refValues_ % V * (sin(AngleOfAttack) + Beta * (x(IX) - XC) / R * exp(-0.5_RP * r2))
+   T = refValues_ % T * (1.0_RP - gamma * Mach * Mach * beta * beta / (2.0_RP * Dimensionless_ % cp) * exp(-r2) )
+   rho = refValues_ % rho * (T/refValues_ % T)**( Thermodynamics_ % invgm1 ) 
+
+   val(IRHO)  = rho
+   val(IRHOU) = rho * u
+   val(IRHOV) = rho * v
+   val(IRHOE) = thermodynamics_ % cv * (rho * T) + 0.5_RP * rho * ( u*u + v*v )
+
+   end associate
+ 
 
 end function UserDefinedInitialCondition
 
@@ -182,3 +199,5 @@ function AnalyticalSolution(x,time, Thermodynamics_ , Setup_ , refValues_ , dime
    val = 0.0_RP
 
 end function AnalyticalSolution
+
+

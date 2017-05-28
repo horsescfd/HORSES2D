@@ -27,6 +27,21 @@ submodule(PhysicsNS)   VariableConversion
    contains
 !
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!           Compute dimensionless variables
+!
+      module pure function getDimensionlessVariables(QWithDim) result ( Q )
+         implicit none
+         real(kind=RP), intent(in)           :: QWithDim(1:NCONS)
+         real(kind=RP)                       :: Q(1:NCONS)
+
+         Q(IRHO)  = QWithDim(IRHO)  / refValues % rho
+         Q(IRHOU) = QWithDim(IRHOU) / ( refValues % rho * refValues % a )
+         Q(IRHOV) = QWithDim(IRHOV) / ( refValues % rho * refValues % a )
+         Q(IRHOE) = QWithDim(IRHOE) / refValues % p
+
+      end function getDimensionlessVariables
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !           Compute pressure
 !
 !

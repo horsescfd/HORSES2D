@@ -68,13 +68,14 @@ module DGTimeIntegrator
    end interface NewTimeIntegrator
 
    abstract interface
-      subroutine TimeScheme( mesh , NDOF , dt , Storage)
+      subroutine TimeScheme( mesh , NDOF , time , dt , Storage)
          use SMConstants
          use Storage_module
          use QuadMeshClass
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
       end subroutine TimeScheme
@@ -181,7 +182,7 @@ module DGTimeIntegrator
 !
 !           Perform a time-step
 !           -------------------
-            call self % TimeStep( mesh , NDOF , self % dt , Storage)
+            call self % TimeStep( mesh , NDOF , self % t , self % dt , Storage)
 !
 !           Compute new time 
 !           ----------------
@@ -232,17 +233,18 @@ module DGTimeIntegrator
 !              --------------------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine TimeIntegrator_ExplicitEuler( mesh , NDOF , dt , Storage)
+      subroutine TimeIntegrator_ExplicitEuler( mesh , NDOF , time , dt , Storage)
          use Storage_module
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
 !
 !        Compute the time derivative
 !  
-         call DGSpatial_computeTimeDerivative( mesh )
+         call DGSpatial_computeTimeDerivative( mesh , time )
 
 !        Perform a step in the explicit Euler method
 !
@@ -250,26 +252,27 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_ExplicitEuler
 
-      subroutine TimeIntegrator_WilliamsonRK3( mesh , NDOF , dt , Storage )
+      subroutine TimeIntegrator_WilliamsonRK3( mesh , NDOF , time , dt , Storage )
          use Storage_module
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
          real(kind=RP)              :: G(1:NDOF)
          integer                    :: m 
          integer, parameter         :: N_STAGES = 3
-         real(kind=RP), parameter   :: am(3) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
-         real(kind=RP), parameter   :: bm(3) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
-         real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
+         real(kind=RP), parameter   :: am(N_STAGES) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
+         real(kind=RP), parameter   :: gm(N_STAGES) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
+         real(kind=RP), parameter   :: cm(N_STAGES) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
          
          do m = 1 , N_STAGES
 
 !           Compute time derivative
 !           -----------------------
-            call DGSpatial_ComputeTimeDerivative( mesh )
+            call DGSpatial_ComputeTimeDerivative( mesh , time + dt * cm(m) )
 
             if (m .eq. 1) then
                G = Storage % QDot
@@ -286,7 +289,7 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_WilliamsonRK3
 
-      subroutine TimeIntegrator_WilliamsonRK5( mesh , NDOF , dt , Storage )
+      subroutine TimeIntegrator_WilliamsonRK5( mesh , NDOF , time , dt , Storage )
 !  
 !        *****************************************************************************************
 !           These coefficients have been extracted from the paper: "Fourth-Order 2N-Storage
@@ -297,6 +300,7 @@ module DGTimeIntegrator
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
@@ -305,22 +309,13 @@ module DGTimeIntegrator
          integer, parameter         :: N_STAGES = 5
          real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
          real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
-!         real(kind=RP), parameter   :: am(N_STAGES) = [0.0_RP , &
-!                                                      -1.0_RP , &
-!                                                      -1.0_RP / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP , &
-!                                                      -2.0_RP ** (1.0_RP / 3.0_RP) - 2.0_RP ** (2.0_RP / 3.0_RP) - 2.0_RP , &
-!                                                      -1.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) ]
-!         real(kind=RP), parameter   :: gm(N_STAGES) = [2.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP , &
-!                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
-!                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
-!                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
-!                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
+         real(kind=RP), parameter  :: cm(N_STAGES) = [0.0_RP , 0.1496590219993_RP , 0.3704009573644_RP , 0.6222557631345_RP , 0.9582821306748_RP ]
         
          do m = 1 , N_STAGES
 !
 !           Compute time derivative
 !           -----------------------
-            call DGSpatial_ComputeTimeDerivative( mesh )
+            call DGSpatial_ComputeTimeDerivative( mesh , time + dt * cm(m) )
 
             if (m .eq. 1) then
                G = dt * Storage % QDot

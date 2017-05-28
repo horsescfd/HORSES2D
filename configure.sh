@@ -9,9 +9,10 @@ for i in $FILES; do
 	rm $FILE_PATH/HORSES2D.Euler
 	rm $FILE_PATH/horses2d.ns
 	rm $FILE_PATH/horses2d.euler
+	rm "$FILE_PATH/horses2d (Case Conflict"*
 	ln -v -s $script_path/Solver/bin/HORSES2D.NS $FILE_PATH
 	ln -v -s $script_path/Solver/bin/HORSES2D.Euler $FILE_PATH
-	cp -v $script_path/TestCases/Makefile $FILE_PATH/SETUP/Makefile
+	cp -v $script_path/TestCases/Makefile $FILE_PATH/SETUP/Makefile.template
 done
 
 rm ./TestCases/Makefile

@@ -162,6 +162,10 @@
 !           -----------------------------
             call meshFile % Destruct
 !
+!           Describe the problem file
+!           -------------------------
+            call DescribeProblemFile()
+!
 !           Set the initial condition to all flow variables
 !           -----------------------------------------------
             call self % SetInitialCondition()
@@ -201,7 +205,7 @@
 
             end if
 
-            call DGSpatial_ComputeTimeDerivative( self % mesh )
+            call DGSpatial_ComputeTimeDerivative( self % mesh , Setup % initialTime )
 
         end subroutine DGSEM_SetInitialCondition
       
@@ -274,5 +278,22 @@
             deallocate( t , Q ) 
    
         end subroutine DGSEM_loadRestartFile
+
+        subroutine DescribeProblemFile()
+            use Headers
+            implicit none
+            interface
+               function getProblemFileName() result (name)
+                  implicit none
+                  character(len = LINE_LENGTH)  :: name
+               end function getProblemFileName
+            end interface
+
+            write(STD_OUT,'(/)') 
+            call Section_header("Problem file")
+            write(STD_OUT,*)
+            write(STD_OUT , '(30X,A,A,A)') "-> ", "Linked problem file: " , trim(getProblemFileName())
+
+         end subroutine DescribeProblemFile
 
    end module DGSEM_class

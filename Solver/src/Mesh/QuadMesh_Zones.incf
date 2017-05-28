@@ -130,13 +130,14 @@
 
          end subroutine Zone_LinkPeriodicZones
 
-         subroutine Zone_UpdateSolution( self )
+         subroutine Zone_UpdateSolution( self , time )
             implicit none
-            class(Zone_t)           :: self
-            integer                 :: edID
+            class(Zone_t)             :: self
+            real(kind=RP), intent(in) :: time
+            integer                   :: edID
 
             do edID = 1 , self % no_of_edges
-               call self % BC % UpdateSolution( self % edges(edID) % f )
+               call self % BC % UpdateSolution( self % edges(edID) % f , time )
             end do
 
          end subroutine Zone_UpdateSolution

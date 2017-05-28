@@ -185,47 +185,28 @@ module QuadMeshClass
 !            -------------------------------------------
              call self % ApplyInitialCondition()
 
+             call BoundaryConditions_SetInitialCondition( self % IC )
+
           end subroutine setInitialCondition
 
-          subroutine ApplyInitialCondition( self , argin)
+          subroutine ApplyInitialCondition( self )
              use Physics
              implicit none
              class(QuadMesh_t)        :: self
-             real(kind=RP), optional  :: argin
              integer                  :: eID
              integer                  :: iXi
              integer                  :: iEta
              real(kind=RP)            :: X(NDIM)
 
-             if ( present ( argin ) ) then
-!
-!               Initial condition with an input parameter
-!               -----------------------------------------
-                do eID = 1 , self % no_of_elements
-                  do iXi = 0 , self % elements(eID) % spA % N
-                     do iEta = 0 , self % elements(eID) % spA % N
-                        X = self % elements(eID) % X(iXi,iEta,IX:IY)
-                        self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X , argin) 
+             do eID = 1 , self % no_of_elements
+               do iXi = 0 , self % elements(eID) % spA % N
+                  do iEta = 0 , self % elements(eID) % spA % N
+                     X = self % elements(eID) % X(iXi,iEta,IX:IY)
+                     self % elements(eID) % Q(iXi,iEta,1:NCONS)  = getDimensionlessVariables ( self % IC( X ) )
 
-                     end do
                   end do
-                end do
-
-             else
-!
-!               Initial condition without input parameter
-!               -----------------------------------------
-                do eID = 1 , self % no_of_elements
-                  do iXi = 0 , self % elements(eID) % spA % N
-                     do iEta = 0 , self % elements(eID) % spA % N
-                        X = self % elements(eID) % X(iXi,iEta,IX:IY)
-                        self % elements(eID) % Q(iXi,iEta,1:NCONS)  = self % IC( X ) 
-
-                     end do
-                  end do
-                end do
-   
-             end if
+               end do
+             end do
 
           end subroutine ApplyInitialCondition
 

@@ -33,7 +33,8 @@ module PhysicsNS
     public :: InviscidFlux , ViscousFlux , AdiabaticViscousFlux
     public :: ComputeViscousTensor
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver
-    public :: getPressure , getSoundSpeed , getStrainTensor , getTemperatureGradient
+    public :: getPressure , getSoundSpeed , getStrainTensor , getTemperatureGradient , getTemperature
+    public :: getDimensionlessVariables
 
 !   ********************************************
 !        Current solver
@@ -94,7 +95,7 @@ module PhysicsNS
 
 
     type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , &
-                              0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP , -2.0_RP / 3.0_RP )
+                              0.4_RP , 3.5_RP , 2.5_RP , 287.15_RP*3.5_RP , 287.15_RP*2.5_RP , -2.0_RP / 3.0_RP )
     type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
@@ -141,6 +142,12 @@ module PhysicsNS
 !
 !
     interface
+      module pure function getDimensionlessVariables(QWithDim) result ( Q )
+         implicit none
+         real(kind=RP), intent(in)           :: QWithDim(1:NCONS)
+         real(kind=RP)                       :: Q(1:NCONS)
+      end function getDimensionlessVariables
+
       module pure function getPressure0D(Q) result (p)
          implicit none
          real(kind=RP), intent(in)           :: Q(1:NCONS)

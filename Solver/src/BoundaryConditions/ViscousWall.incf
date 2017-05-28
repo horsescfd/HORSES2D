@@ -155,7 +155,7 @@
          end associate
       end subroutine ViscousWall_Associate
 
-      subroutine ViscousWall_UpdateSolution( self , edge )
+      subroutine ViscousWall_UpdateSolution( self , edge , time)
 !
 !        ***************************************************
 !           For each edge the ghost cell state is computed as
@@ -169,6 +169,7 @@
          implicit none  
          class(ViscousWall_t)                  :: self
          class(Edge_t)                       :: edge
+         real(kind=RP)            :: time
 !
 !        ---------------
 !        Local variables

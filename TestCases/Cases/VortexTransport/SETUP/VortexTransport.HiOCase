@@ -23,7 +23,7 @@
            Default polynomial order: 4
 
 !------------------------------------: Initialization
-          Initial condition: Vortex transport
+          Initial condition: User-defined
                Restart file: ./RESULTS/VortexTransport.HiORst
 
 !------------------------------------: Inviscid discretization
@@ -43,7 +43,7 @@
                     Integration scheme: Williamson RK5
                            Time step: 1.0e-2
                         CFL Number : 0.2
-               Simulation time: 1.0
+               Simulation time: 0.5
          Number of iterations: 1000000
                 Initial time: 0.0
 

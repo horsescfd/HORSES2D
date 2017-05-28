@@ -21,19 +21,33 @@
 !
 #include "Defines.h"
 
-function UserDefinedInitialCondition(x , argin , thermodynamics_ , Setup_ , refValues_ , dimensionless_ )  result (val)
+function getProblemFileName() result ( Name )
+   implicit none
+   character(len=LINE_LENGTH)    :: Name
+
+   Name = "Shock wave"
+
+end function getProblemFileName
+
+function HasAnalyticalSolution() 
+   implicit none
+   logical        :: hasAnalyticalSolution
+
+   hasAnalyticalSolution = .false.
+
+end function HasAnalyticalSolution
+
+function UserDefinedInitialCondition(x , thermodynamics_ , Setup_ , refValues_ , dimensionless_ )  result (val)
    use SMConstants
    use Setup_class
    use Physics
    implicit none
    real(kind=RP)           :: x(NDIM)
-   real(kind=RP), optional :: argin
    class(Thermodynamics_t), intent(in)  :: thermodynamics_
    class(Setup_t),          intent(in)  :: Setup_
    class(RefValues_t),      intent(in)  :: refValues_
    class(Dimensionless_t),  intent(in)  :: dimensionless_
    real(kind=RP)           :: val(NCONS)
-
 
     if ( x(IX) .lt. 0.0_RP ) then
          val = [0.537037037037037_RP,   0.829539386177859_RP,                   0.0_RP,   1.657627118644068_RP]
@@ -42,6 +56,131 @@ function UserDefinedInitialCondition(x , argin , thermodynamics_ , Setup_ , refV
 
     end if
 
+    val(IRHO) = val(IRHO) * refValues_ % rho
+    val(IRHOU) = val(IRHOU) * refValues_ % rho * refValues_ % a
+    val(IRHOV) = val(IRHOV) * refValues_ % rho * refValues_ % a
+    val(IRHOE) = val(IRHOE) * refValues_ % p
+
 end function UserDefinedInitialCondition
 
+function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
+   use SMConstants
+   use Setup_class
+   use Physics
+   implicit none
+   real(kind=RP),           intent(in)           :: x(NDIM)
+   real(kind=RP),           intent(in)           :: time
+   class(Thermodynamics_t), intent(in)           :: thermodynamics_
+   class(Setup_t),          intent(in)           :: Setup_
+   class(RefValues_t),      intent(in)           :: refValues_
+   class(Dimensionless_t),  intent(in)           :: dimensionless_
+   real(kind=RP)                                 :: state(NCONS)
+!
+!  ---------------
+!  Local variables
+!  ---------------
+!
+   real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+
+   state(IRHO)  = refValues_ % rho
+   state(IRHOU) = refValues_ % rho * refValues_ % V * cos(AngleOfAttack)
+   state(IRHOV) = refValues_ % rho * refValues_ % V * sin(AngleOfAttack)
+   state(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
+
+end function BoundaryConditionFunction1
+
+function BoundaryConditionFunction2(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
+   use SMConstants
+   use Setup_class
+   use Physics
+   implicit none
+   real(kind=RP),           intent(in)           :: x(NDIM)
+   real(kind=RP),           intent(in)           :: time
+   class(Thermodynamics_t), intent(in)           :: thermodynamics_
+   class(Setup_t),          intent(in)           :: Setup_
+   class(RefValues_t),      intent(in)           :: refValues_
+   class(Dimensionless_t),  intent(in)           :: dimensionless_
+   real(kind=RP)                                 :: state(NCONS)
+!
+!  ---------------
+!  Local variables
+!  ---------------
+!
+   real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+
+   state(IRHO)  = refValues_ % rho
+   state(IRHOU) = refValues_ % rho * refValues_ % V * cos(AngleOfAttack)
+   state(IRHOV) = refValues_ % rho * refValues_ % V * sin(AngleOfAttack)
+   state(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
+
+end function BoundaryConditionFunction2
+
+function BoundaryConditionFunction3(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
+   use SMConstants
+   use Setup_class
+   use Physics
+   implicit none
+   real(kind=RP),           intent(in)           :: x(NDIM)
+   real(kind=RP),           intent(in)           :: time
+   class(Thermodynamics_t), intent(in)           :: thermodynamics_
+   class(Setup_t),          intent(in)           :: Setup_
+   class(RefValues_t),      intent(in)           :: refValues_
+   class(Dimensionless_t),  intent(in)           :: dimensionless_
+   real(kind=RP)                                 :: state(NCONS)
+!
+!  ---------------
+!  Local variables
+!  ---------------
+!
+   real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+
+   state(IRHO)  = refValues_ % rho
+   state(IRHOU) = refValues_ % rho * refValues_ % V * cos(AngleOfAttack)
+   state(IRHOV) = refValues_ % rho * refValues_ % V * sin(AngleOfAttack)
+   state(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
+
+end function BoundaryConditionFunction3
+
+function BoundaryConditionFunction4(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
+   use SMConstants
+   use Setup_class
+   use Physics
+   implicit none
+   real(kind=RP),           intent(in)           :: x(NDIM)
+   real(kind=RP),           intent(in)           :: time
+   class(Thermodynamics_t), intent(in)           :: thermodynamics_
+   class(Setup_t),          intent(in)           :: Setup_
+   class(RefValues_t),      intent(in)           :: refValues_
+   class(Dimensionless_t),  intent(in)           :: dimensionless_
+   real(kind=RP)                                 :: state(NCONS)
+!
+!  ---------------
+!  Local variables
+!  ---------------
+!
+   real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
+
+   state(IRHO)  = refValues_ % rho
+   state(IRHOU) = refValues_ % rho * refValues_ % V * cos(AngleOfAttack)
+   state(IRHOV) = refValues_ % rho * refValues_ % V * sin(AngleOfAttack)
+   state(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
+
+end function BoundaryConditionFunction4
+
+function AnalyticalSolution(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
+   use SMConstants
+   use Setup_class
+   use Physics
+   implicit none
+   real(kind=RP),           intent(in)           :: x(NDIM)
+   real(kind=RP),           intent(in)           :: time
+   class(Thermodynamics_t), intent(in)           :: thermodynamics_
+   class(Setup_t),          intent(in)           :: Setup_
+   class(RefValues_t),      intent(in)           :: refValues_
+   class(Dimensionless_t),  intent(in)           :: dimensionless_
+   real(kind=RP)                                 :: val(NCONS)
+
+   val = 0.0_RP
+
+end function AnalyticalSolution
 

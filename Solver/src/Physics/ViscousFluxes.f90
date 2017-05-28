@@ -297,7 +297,7 @@ submodule (PhysicsNS)   ViscousFluxes
          F(IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * divV
          F(IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * divV
 
-                                                               !                      -                                             -
+                                                          !                      -                                             -
          F(IRHOU,IY) = - vDivRho * dq(IX,IRHO)  &         !        du   dv      |    u  drho    1  drhou    v  drho    1  drhov |
                        - uDivRho * dq(IY,IRHO)  &         !     mu -- + -- = mu | - --- ---- + --- ----- - --- ---- + --- ----- |
                        + invRho  * dq(IY,IRHOU) &         !        dy   dx      |   rho  dy    rho  dy     rho  dx    rho  dx   |

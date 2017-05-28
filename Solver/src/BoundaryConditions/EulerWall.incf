@@ -72,10 +72,11 @@
                 
       end subroutine EulerWall_Associate
 
-      subroutine EulerWall_UpdateSolution( self , edge )
+      subroutine EulerWall_UpdateSolution( self , edge , time)
          implicit none  
          class(EulerWall_t)                  :: self
          class(Edge_t)                       :: edge
+         real(kind=RP)                       :: time
          real(kind=RP)                       :: q(0 : edge % spA % N , NCONS) , F(0:edge % spA % N , NCONS,NDIM)
          real(kind=RP)                       :: rhovn(0 : edge % spA % N) , rhovt(0 : edge % spA % N)
          real(kind=RP)                       :: p(0 : edge % spA % N)

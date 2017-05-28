@@ -41,7 +41,7 @@
          Artificial dissipation (0/1): 1
          Artificial dissipation type: Laplacian
          Artificial dissipation indicator: Jumps-based
-         Artificial dissipation intensity: 0.2
+         Artificial dissipation intensity: 0.4
 
 !-----------------------------------: Time integration
                Integration mode     : Steady
@@ -49,7 +49,7 @@
                Time step            : 1.0e-2
                CFL Number           : 0.05
                Simulation time      : 0.01
-               Number of iterations : 1000000
+               Number of iterations : 200000
                Initial time         : 0.0
 
 !----------------------------------: Output variables

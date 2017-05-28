@@ -89,7 +89,7 @@ module DGSpatialDiscretizationMethods
 !              -----------------------
 !///////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine DGSpatial_computeTimeDerivative( mesh ) 
+      subroutine DGSpatial_computeTimeDerivative( mesh , time ) 
 !
 !        ***************************************************
 !           Subroutine that performs the spatial
@@ -98,11 +98,12 @@ module DGSpatialDiscretizationMethods
 !        ***************************************************
 !
          implicit none
-         class(QuadMesh_t)         :: mesh
+         class(QuadMesh_t)          :: mesh
+         real(kind=RP), intent(in)  :: time
 !
 !        Prepare the mesh for a new iteration
 !        ------------------------------------
-         call DGSpatial_newTimeStep( mesh )
+         call DGSpatial_newTimeStep( mesh , time )
 !
 !        Compute QDot
 !        ------------
@@ -110,7 +111,7 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_computeTimeDerivative
       
-         subroutine DGSpatial_newTimeStep( mesh )
+         subroutine DGSpatial_newTimeStep( mesh , time)
 !
 !        *************************************************************
 !           This subroutine prepares the mesh struct
@@ -124,6 +125,7 @@ module DGSpatialDiscretizationMethods
 !
          implicit none
          class(QuadMesh_t)         :: mesh
+         real(kind=RP)             :: time
          integer                   :: zoneID
 !
 !        Interpolate solution to boundaries
@@ -133,7 +135,7 @@ module DGSpatialDiscretizationMethods
 !        Update the zones solution
 !        -------------------------
          do zoneID = 1 , size(mesh % zones) - 1
-            call mesh % zones(zoneID) % UpdateSolution
+            call mesh % zones(zoneID) % UpdateSolution(time)
          end do 
 
 #ifdef NAVIER_STOKES

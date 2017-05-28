@@ -1,3 +1,5 @@
+# HORSES: a High Order Spectral Element Solver
+
 ```text 
                           _    _    ____    _____     _____   ______    _____ 
                          | |  | |  / __ \  |  __ \   / ____| |  ____|  / ____|

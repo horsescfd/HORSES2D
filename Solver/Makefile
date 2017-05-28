@@ -153,7 +153,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 all: 	printHeader def_navier_stokes_macro ProblemFile $(EXECUTABLE)
 
 runcyl: 	
-	(cd ../TestCases/Cases/FlowOverCircle && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase)		
+	(cd ../TestCases/Cases/Cylinder && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase)		
 
 debugcyl:
 	(cd ../TestCases/Cases/FlowOverCircle && gdb ./$(EXECUTABLE))		
