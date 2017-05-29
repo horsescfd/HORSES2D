@@ -824,7 +824,7 @@ module DGSpatialDiscretizationMethods
 !        Compute the viscous Riemann solver
 !        ----------------------------------
          FvN = ViscousMethod % RiemannSolver( ed , ed % spA_N % N , ed % invh , QLN , QRN , dQLN , dQRN , normal_N )
-         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLN , QRN , dQLN , dQRN , normal_S )
+         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLS , QRS , dQLS , dQRS , normal_S )
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
@@ -953,7 +953,7 @@ module DGSpatialDiscretizationMethods
 !        Compute the viscous Riemann solver
 !        ----------------------------------
          FvN = ViscousMethod % RiemannSolver( ed , ed % spA_N % N , ed % invh , QLN , QRN , dQLN , dQRN , ed % normal_N )
-         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLN , QRN , dQLN , dQRN , ed % normal_S )
+         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLS , QRS , dQLS , dQRS , ed % normal_S )
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------

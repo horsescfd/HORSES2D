@@ -1076,6 +1076,7 @@ module ChecksModule
          real(kind=RP)           :: val(NCONS)
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
+         real(kind=RP)           :: tauxx , tauyy , tauxx_x , tauyy_y , qx , qy
 
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
@@ -1130,22 +1131,20 @@ module ChecksModule
          
 #ifdef NAVIER_STOKES
          associate ( mu => dimensionless % mu , kappa => dimensionless % kappa )
-!
-!         tauxx = 2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-!         tauyy = -2.0_RP * mu *  sqrt(gamma) * Mach * PI * cos(PI * x(IX) / L ) * cos(PI * x(IY) / L) / L
-!         tauxy = 0.0_RP
-!
-!         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
-!         tauyy_y = 2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
-!
-!         T_xx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
-!         T_yy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
-!
-!         val(IRHOU) = val(IRHOU) + tauxx_x
-!         val(IRHOV) = val(IRHOV) + tauyy_y
-!         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * T_xx + kappa * T_yy
-!
-!
+
+         tauxx = 2.0_RP * mu * ux
+         tauyy = 2.0_RP * mu * vy
+
+         tauxx_x = -2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * sin(PI * x(IX) / L) * cos(PI * x(IY) / L ) / ( L * L )
+         tauyy_y =  2.0_RP * mu * sqrt(gamma) * Mach * PI * PI * cos(PI * x(IX) / L) * sin(PI * x(IY) / L ) / ( L * L )
+
+         qx = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IX) / L ) / (L * L)
+         qy = -0.5_RP * gamma * Mach * Mach * PI * PI * cos(2.0_RP * PI * x(IY) / L ) / (L * L)
+
+         val(IRHOU) = val(IRHOU) + tauxx_x
+         val(IRHOV) = val(IRHOV) + tauyy_y
+         val(IRHOE) = val(IRHOE) + ux * tauxx + u * tauxx_x + vy * tauyy + v*tauyy_y + kappa * qx + kappa * qy
+
          end associate
 #endif
          end associate
@@ -1160,6 +1159,7 @@ module ChecksModule
          real(kind=RP)           :: val(NCONS)
          real(kind=RP)           :: u , v , p
          real(kind=RP)           :: ux , vy , H , uy , vx , px , py , Hx , Hy
+         real(kind=RP)           :: tauxx , tauyy , tauxy , qx , qy
 
          associate( gamma => Thermodynamics % gamma , Mach => dimensionless % Mach , cp => Dimensionless % cp)
 
@@ -1201,20 +1201,29 @@ module ChecksModule
          val(IRHOV)     = 2.0_RP * v * vy + py + u*vx + ux*v
          val(IRHOE)     = H * (ux + vy) + Hx * u + Hy * v
 
-         end associate
-#ifdef NAVIER_STOKES
-         associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
-!
-!         val(IRHOE) = val(IRHOE) + gamma * Mach * Mach / (L*L) * ( 4.0_RP/3.0_RP * mu + 4.0_RP * kappa ) 
-!
-
-         end associate
-#endif
-
 #ifdef _DIMENSIONLESS_TAU
          val = -val * dimensionless % invSqrtGammaMach
 #else
          val = -val
+#endif
+
+         end associate
+!
+!        Add viscous fluxes
+!        ------------------
+#ifdef NAVIER_STOKES
+         associate ( gamma => thermodynamics % gamma , Mach => dimensionless % Mach , mu => dimensionless % mu , kappa => dimensionless % kappa )
+
+            tauxx = mu * ( 2.0_RP * ux + thermodynamics % lambda * (ux + vy) )
+            tauyy = mu * ( 2.0_RP * vy + thermodynamics % lambda * (ux + vy) )
+            tauxy = mu * ( uy + vx )
+
+            qx = kappa * 2.0_RP * gamma * Mach * Mach / (L ** 2.0_RP ) 
+            qy = kappa * 2.0_RP * gamma * Mach * Mach / (L ** 2.0_RP ) 
+   
+            val(IRHOE) = val(IRHOE) + ux*tauxx + vx*tauxy + uy*tauxy + vy*tauyy + qx + qy
+            
+         end associate
 #endif
 
         end function QDotPolynomicFCN        
