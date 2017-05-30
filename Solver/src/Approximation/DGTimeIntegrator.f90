@@ -47,6 +47,7 @@ module DGTimeIntegrator
       real(kind=RP)                         :: dt
       real(kind=RP)                         :: t_end
       real(kind=RP)                         :: Ccfl
+      real(kind=RP)                         :: residualTarget
       integer                               :: no_of_iterations
       integer                               :: initial_iteration 
       integer                               :: plot_interval
@@ -100,6 +101,7 @@ module DGTimeIntegrator
             Integrator % initial_iteration = Setup % initialIteration
             Integrator % Ccfl              = Setup % Ccfl
             Integrator % dt                = Setup % dt
+            Integrator % residualTarget    = Setup % residualTarget
    
          elseif ( trim(Setup % IntegrationMode) .eq. "Transient") then
             Integrator % mode = TRANSIENT
@@ -110,6 +112,7 @@ module DGTimeIntegrator
             Integrator % t_end             = Setup % simulationTime
             Integrator % initial_iteration = Setup % initialIteration
             Integrator % dt                = Setup % dt
+            Integrator % residualTarget    = 0.0_RP
             
          else
             write(STD_OUT , '(/,/)') 
@@ -212,6 +215,14 @@ module DGTimeIntegrator
                call self % EstimateTimeStep( mesh )
             end if
 
+            if ( self % mode .eq. STEADY ) then
+               if ( maxval(abs(Monitors % residuals % values ( : , Monitors % bufferLine ))) .lt. self % residualTarget ) then
+                  write(STD_OUT,'(/,20X,A,I0,A,ES10.3,A)') "** Residual tolerance reached in iteration " , iter , &
+                        " with residual " , maxval(abs(Monitors % residuals % values( : , Monitors % bufferLine ) ) ) , "."
+                  exit
+               end if
+            end if
+
             call Monitors % WriteToFile()
 
          end do
@@ -305,7 +316,7 @@ module DGTimeIntegrator
          class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
          real(kind=RP)                   :: G(1:NDOF)
-         integer                    :: m 
+         integer                    :: m , i  
          integer, parameter         :: N_STAGES = 5
          real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
          real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
@@ -319,13 +330,22 @@ module DGTimeIntegrator
 
             if (m .eq. 1) then
                G = dt * Storage % QDot
+!$omp parallel do
+               do i = 1 , size(Storage % QDot)
+                  Storage % Q(i) = Storage % Q(i) + gm(m) * G(i)
+               end do
+!$omp end parallel do
 
             else
-               G = am(m) * G + dt * Storage % QDot
+!$omp parallel do
+               do i = 1 , size(Storage % QDot)
+                  G(i) = am(m) * G(i) + dt * Storage % QDot(i)
+                  Storage % Q(i) = Storage % Q(i) + gm(m) * G(i)
+               end do
+!$omp end parallel do
 
             end if
 
-            Storage % Q = Storage % Q + gm(m) * G
 
          end do 
          

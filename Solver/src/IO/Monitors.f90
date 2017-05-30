@@ -723,6 +723,7 @@ readloop:do
          write( fID , '(A20,A    )') "Probe name :       " , trim(self % monitorName)
          write( fID , '(A20,F10.3)') "x position :       " , self % x(IX) 
          write( fID , '(A20,F10.3)') "y position :       " , self % x(IY) 
+         write( fID , '(A20,I10  )') "Element    :       " , self % eID
          write( fID , '(A20,A    )') "Tracked variable : " , trim( self % variable )
          write( fID , * )
 !

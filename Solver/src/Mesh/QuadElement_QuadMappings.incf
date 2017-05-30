@@ -404,7 +404,11 @@
          real(kind=RP),        intent(in)             :: x(NDIM)
          real(kind=RP),        intent(out)            :: xi , eta
          logical      ,        intent(out)            :: isInside
-!        -------------------------------------------------------------------
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          logical                                      :: curvilinear
          integer                                      :: edge
       
@@ -450,6 +454,11 @@
                return
             end if
          end if
+
+         if ( (xi .gt. 2.0_RP) .or. (xi .lt. -1.0_RP) .or. (eta .gt. 2.0_RP) .or. (eta .lt. -1.0_RP) ) then
+            isInside = .false.
+         end if
+
    
       end subroutine QuadElement_FindPointWithCoords
 !   
@@ -521,6 +530,7 @@
          integer                          :: iNode , iEdge
          integer                          :: no_of_intersections
          integer                          :: j 
+         integer, parameter               :: quadNodes(5) = [1,2,3,4,1]
 
          no_of_intersections = 0
 !   
@@ -548,6 +558,9 @@
 !                    The edge is horizontal
 !                    ----------------------
                      if ( almostEqual ( x(IY) , f % nodes(1) % n % x(IY) ) .and. ( newSign ( f % nodes(1) % n % x(IX) - x(IX)) .ne. newSign( f % nodes(2) % n % x(IX) - x(IX) ) )) then
+!
+!                       Is in the edge
+!                       --------------
                         isInside = .true.
                         return
    
@@ -619,7 +632,113 @@
    
                   end associate
  
+               type is ( SubdividedEdge_t )
+!   
+!                 Find if crosses the line
+!                 ------------------------
+                  if ( almostEqual ( self % nodes(quadNodes(iEdge)) % n % x(IY) , self % nodes(quadNodes(iEdge+1)) % n % x(IY) ) ) then  
+!                    
+!                    The edge is horizontal
+!                    ----------------------
+                     if ( almostEqual ( x(IY) , self % nodes(quadNodes(iEdge)) % n % x(IY) )  &
+                              .and. ( newSign ( self % nodes(quadNodes(iEdge)) % n % x(IX) - x(IX)) &
+                              .ne. newSign( self % nodes(quadNodes(iEdge+1)) % n % x(IX) - x(IX) ) )) then
+!
+!                       Is in the edge
+!                       --------------
+                        isInside = .true.
+                        return
    
+                     end if
+   
+                  elseif ( newSign ( self % nodes(quadNodes(iEdge)) % n % x(IY) - x(IY) ) .ne.  newSign ( self % nodes(quadNodes(iEdge+1)) % n % x(IY) - x(IY) ) ) then
+!   
+!                    Crosses the line. Compute the x coordinate of the intersection
+!                    --------------------------------------------------------------
+                     xc = ( self % nodes(quadNodes(iEdge)) % n % x(IX) * ( self % nodes(quadNodes(iEdge+1)) % n % X(IY) - x(IY) )  + &
+                            self % nodes(quadNodes(iEdge+quadNodes(iEdge))) % n % x(IX) * ( x(IY) - self % nodes(quadNodes(iEdge)) % n % x(IY) ) ) / &
+                          ( self % nodes(quadNodes(iEdge+quadNodes(iEdge))) % n % x(IY) - self % nodes(quadNodes(iEdge)) % n % x(IY) )
+   
+                     if ( xc .lt. x(IX) ) then
+                        no_of_intersections = no_of_intersections + 1 
+   
+                     elseif ( almostEqual ( xc , x(IX) ) ) then
+                        isInside = .true.
+                        return
+   
+                     end if
+                     
+                  end if
+
+               type is (CurvedSubdividedEdge_t)
+
+!
+!                 First, the element position with respect to the edge is needed to get the appropriate curve
+!                 -------------------------------------------------------------------------------------------
+                  associate ( N => f % storage(self % quadPosition(iEdge)) % spA % N )
+
+                  if ( self % quadPosition(iEdge) .eq. LEFT ) then 
+         
+                   allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+                   edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+                   edgePoints(IX:IY,1:N+1) = f % X(IX:IY,0:N)
+                   edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+
+                  elseif ( self % quadPosition(iEdge) .eq. RIGHT_NORTH ) then 
+
+                   allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+                   edgePoints(IX:IY,0)     = f % nodes(3) % n % x
+                   edgePoints(IX:IY,1:N+1) = f % X_N(IX:IY,0:N)
+                   edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+
+                  elseif ( self % quadPosition(iEdge) .eq. RIGHT_SOUTH ) then
+      
+                    allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+                    edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+                    edgePoints(IX:IY,1:N+1) = f % X_S(IX:IY,0:N)
+                    edgePoints(IX:IY,N+2)   = f % nodes(3) % n % x
+
+                  end if
+
+                  
+                  do j = 0 , N+1
+!   
+!                    Find if crosses the line
+!                    ------------------------
+                     if ( almostEqual ( edgePoints(IY,j) , edgePoints(IY,j+1) ) ) then  
+!                    
+!                       The edge is horizontal
+!                       ----------------------
+                        if ( almostEqual ( x(IY) , edgePoints(IY,j) ) .and. ( newSign ( edgePoints(IX,j) - x(IX)) .ne. newSign( edgePoints(IX,j+1) - x(IX) )) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+   
+                     elseif ( newSign ( edgePoints(IY,j) - x(IY) ) .ne.  newSign ( edgePoints(IY,j+1) - x(IY) ) ) then
+!   
+!                       Crosses the line. Compute the x coordinate of the intersection
+!                       --------------------------------------------------------------
+                        xc = ( edgePoints(IX,j) * ( edgePoints(IY,j+1) - x(IY) )  + &
+                            edgePoints(IX,j+1) * ( x(IY) - edgePoints(IY,j) ) ) / &
+                          ( edgePoints(IY,j+1) - edgePoints(IY,j) )
+   
+                        if ( xc .lt. x(IX) ) then
+                           no_of_intersections = no_of_intersections + 1 
+   
+                        elseif ( almostEqual ( xc , x(IX) ) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+                     
+                     end if
+                  end do
+   
+                  deallocate ( edgePoints ) 
+   
+                  end associate
+
                type is ( StraightBdryEdge_t )
 !   
 !                 Find if crosses the line
@@ -838,11 +957,6 @@
             eta = eta + STEP * dx(IY)
    
             
-            if ( (xi .gt. 2.0_RP) .or. (xi .lt. -1.0_RP) .or. (eta .gt. 2.0_RP) .or. (eta .lt. -1.0_RP) ) then
-               print*, "The probe was not found in any element."
-               stop "Stopped"
-   
-            end if
    
          end do
    

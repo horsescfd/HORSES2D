@@ -100,6 +100,7 @@ module Setup_class
         real(kind=RP), allocatable   :: Ccfl
         real(kind=RP), allocatable   :: dt
         real(kind=RP), allocatable   :: simulationTime            
+        real(kind=RP), allocatable   :: residualTarget 
         integer, allocatable         :: no_of_iterations          
         real(kind=RP)                :: initialTime = 0.0_RP          
         integer                      :: initialIteration = 0
@@ -367,6 +368,11 @@ module Setup_class
 !         ---------------------------
           call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
           call Setup_CheckWithDefault( Setup % simulationTime , 1.0_RP , "Simulation time" ) 
+!
+!         Request the residual convergence target
+!         ---------------------------------------
+          call readValue ( trim ( case_name )  , "Residual target"                  , Setup % residualTarget    ) 
+          call Setup_CheckWithDefault( Setup % residualTarget , 1.0e-12_RP , "Residual target" ) 
 !
 !         Request the number of iterations
 !         --------------------------------

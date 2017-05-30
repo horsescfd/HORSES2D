@@ -29,14 +29,6 @@ function getProblemFileName() result ( Name )
 
 end function getProblemFileName
 
-function HasAnalyticalSolution() 
-   implicit none
-   logical        :: hasAnalyticalSolution
-
-   hasAnalyticalSolution = .false.
-
-end function HasAnalyticalSolution
-
 function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
    use SMConstants
    use Setup_class
@@ -61,6 +53,22 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
    val(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
 
 end function UserDefinedInitialCondition
+
+subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) 
+    use SMConstants
+    use DGSEM_Class
+    use Setup_class
+    use QuadMeshClass
+    use QuadElementClass
+    use Headers
+    use Physics
+    implicit none
+    class(DGSEM_t)                      :: sem_
+    class(Thermodynamics_t), intent(in) :: thermodynamics_
+    class(Setup_t),          intent(in) :: Setup_
+    class(RefValues_t),      intent(in) :: refValues_
+    class(Dimensionless_t),  intent(in) :: dimensionless_
+end subroutine Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
    use SMConstants

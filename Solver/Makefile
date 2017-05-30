@@ -21,6 +21,7 @@
 #
 SYSTEM ?= LINUX
 COMPILER ?=gfortran
+COMM ?= SERIAL
 INC_DIR=./include
 BUILD_DIR=./build
 BIN_DIR=./bin
@@ -64,7 +65,7 @@ MetricMatrix: SMConstants
 Checks: DGSEM_class Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods Storage DGBoundaryConditions
 Headers: SMConstants
 NetCDF_Interface: SMConstants
-ProblemFile: SMConstants Setup Physics
+ProblemFile: SMConstants Setup Physics DGSEM_class
 InitialConditions: SMConstants Physics
 Setup: SMConstants Paramfile
 DGWeakIntegrals: SMConstants Physics QuadElement MatrixOperations
@@ -139,6 +140,9 @@ else ifeq ($(COMPILER),ifort)
 
 endif
 
+ifeq ($(COMM),PARALLEL)
+  FFLAGS += -fopenmp
+endif
 
 
 $(info )

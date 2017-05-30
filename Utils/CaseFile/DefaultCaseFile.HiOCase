@@ -1,0 +1,144 @@
+!
+!       ******************
+! 	     * parameter file *
+!	     ******************
+!
+
+!-------------------------------------: Geometry
+                             Mesh file: ./MESH/*.HiOMesh
+                         Boundary file: _this_
+
+!-------------------------------------: Physics
+                Gas                   : Air
+                Reference pressure    : 101325.0
+                Reference Temperature : 273.15
+                Reynolds length       : 1.0
+                Reynolds number       : 1000.0
+                Prandtl number        : 0.72
+                Mach number           : 0.1
+	
+!------------------------------------: DG Discretization
+                 Interpolation nodes : Legendre-Gauss
+         Default polynomial order    : 8
+
+!------------------------------------: Initialization
+                   Initial condition : Uniform
+                   Restart file      : ./RESULTS/*.HiORst
+
+!------------------------------------: Inviscid discretization
+             Inviscid discretization : Standard
+               Inviscid formulation  : Green form
+             Inviscid Riemann solver : Roe            ! HLL 
+
+!------------------------------------: Viscous discretization
+               Viscous discretization: BR1            ! IP
+              Interior penalty method: IIPG           ! NIPG/SIPG/IIPG
+              Jumps penalty parameter: 1.0
+     Gradient jumps penalty parameter: 0.0
+
+!------------------------------------: Artificial dissipation
+         Artificial dissipation (0/1): 0
+         Artificial dissipation type: Laplacian          ! Physical
+         Artificial dissipation indicator: Jumps-based
+         Artificial dissipation intensity: 0.4
+
+!-----------------------------------: Time integration
+               Integration mode     : Steady             ! Transient
+               Integration scheme   : Williamson RK5     ! Williamson RK3, Explicit-Euler
+               Time step            : 1.0e-2
+               CFL Number           : 0.4
+               Simulation time      : 1.0
+               Residual target      : 1.0e-5
+               Number of iterations : 2000
+               Initial time         : 0.0
+
+!----------------------------------: Output variables
+                      Solution file: ./RESULTS/*.HiORst
+                  Autosave interval: 1000
+                     Export format : Tecplot
+                    Output interval: 10
+                   Output file type: Interpolated
+    Number of representation points: 10
+                     Save variables: rho_rhou_rhov_rhoe_u_v_p_Mach_vort_rhot_rhout_rhovt_rhoet_muart
+
+!
+!       *************************
+! 	     * boundary mapping file *
+!	     *************************
+!
+# define p-Refinement
+   zoneID: value
+# end
+
+# define zone i
+   Name = Euler wall
+   Type = Euler wall
+# end 
+
+# define zone i
+   Name = Periodic
+   Direction = x
+   Marker = #2
+# end 
+
+# define zone i
+   Name = Dirichlet / Farfield / Pressure inlet / Riemann
+   Type = Dirichlet / Farfield / Pressure inlet / Riemann
+   pressure = 
+   Temperature =
+   Mach = 
+   Angle of attack
+   Use function = 
+# end
+
+# define zone i
+   Name = Pressure outlet
+   Type = Pressure outlet
+   pressure = 
+   Temperature = 
+   Mach = 
+   Angle of attack = 
+   Outflow type = Reflective / Partially non reflective
+   Use function =
+# end
+
+# define zone i
+   Name = newDirichlet
+   Type = newDirichlet
+   pressure = 
+   Temperature = 
+   Mach =
+   Angle of attack = 
+   Outflow pressure = Static / Total
+   Mode = Specify speed / Specify total pressure
+# end
+
+# define zone i 
+   Name = Viscous wall
+   Type = Viscous wall
+   Wall type = Adiabatic / Isothermal
+   Wall temperature = 
+   Mach number = 
+   Velocity direction = [1.0 , 0.0]
+# end
+
+# define probe i
+   Name = probe
+   x position = 0.0
+   y position = 0.0
+   Variable = p
+# end
+
+# define surface monitor 1
+   Name = lift
+   Marker = 
+   Variable = lift
+   Reference surface = 1.0
+# end
+
+# define surface monitor 2
+   Name = drag
+   Marker = 5
+   Variable = drag
+   Reference surface = 1.0
+# end

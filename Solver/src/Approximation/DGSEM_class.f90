@@ -70,10 +70,11 @@
         type(TimeIntegrator_t)              :: Integrator
         class(Plotter_t), allocatable       :: Plotter
         contains
-            procedure       :: Construct => DGSEM_construct
-            procedure       :: SetInitialCondition => DGSEM_SetInitialCondition
-            procedure       :: Integrate => DGSEM_Integrate
-            procedure       :: LoadRestartFile => DGSEM_LoadRestartFile
+            procedure :: Construct           => DGSEM_construct
+            procedure :: SetInitialCondition => DGSEM_SetInitialCondition
+            procedure :: Integrate           => DGSEM_Integrate
+            procedure :: LoadRestartFile     => DGSEM_LoadRestartFile
+            procedure :: Finalize            => DGSEM_Finalize
     end type DGSEM_t
 
 !
@@ -278,6 +279,39 @@
             deallocate( t , Q ) 
    
         end subroutine DGSEM_loadRestartFile
+
+        subroutine DGSEM_Finalize( self )
+            use SMConstants
+            use Physics
+            use Setup_class
+            implicit none
+            class(DGSEM_t)       :: self
+!
+!           ----------
+!           Interfaces            
+!           ----------
+!
+            interface
+               subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) 
+                  use SMConstants
+                  use Setup_class
+                  use QuadMeshClass
+                  use QuadElementClass
+                  use Headers
+                  use Physics
+                  import DGSEM_t
+                  implicit none
+                  class(DGSEM_t)                      :: sem_
+                  class(Thermodynamics_t), intent(in) :: thermodynamics_
+                  class(Setup_t),          intent(in) :: Setup_
+                  class(RefValues_t),      intent(in) :: refValues_
+                  class(Dimensionless_t),  intent(in) :: dimensionless_
+               end subroutine Finalize
+            end interface
+
+            call Finalize ( self , Thermodynamics , Setup , refValues , dimensionless ) 
+
+        end subroutine DGSEM_Finalize
 
         subroutine DescribeProblemFile()
             use Headers

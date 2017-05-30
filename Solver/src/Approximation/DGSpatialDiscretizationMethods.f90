@@ -175,14 +175,18 @@ module DGSpatialDiscretizationMethods
 !        Volume loops
 !        ************
 !
+!$omp parallel
+!$omp do
          do eID = 1 , mesh % no_of_elements
             call DGSpatial_QDotVolumeLoop( mesh % elements(eID) ) 
          end do
+!$omp end do
 !
 !        **********
 !        Face loops
 !        **********
 !
+!$omp do
          do edID = 1 , mesh % no_of_edges
             select type ( f => mesh % edges(edID) % f ) 
                type is (Edge_t)
@@ -205,16 +209,20 @@ module DGSpatialDiscretizationMethods
 
             end select
          end do
+!$omp end do
 !
 !        ***********************
 !        Scale with the jacobian
 !        ***********************
 !
+!$omp do collapse(2)
          do eID = 1 , mesh % no_of_elements 
             do eq = 1 , NCONS
                mesh % elements(eID) % QDot(:,:,eq) = mesh % elements(eID) % QDot(:,:,eq) / mesh % elements(eID) % Jac
             end do
          end do
+!$omp end do
+!$omp end parallel
 
       end subroutine DGSpatial_computeQDot
 !
@@ -1389,6 +1397,7 @@ module DGSpatialDiscretizationMethods
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
 
+!$omp parallel do private(eID,ed,eq,N,e)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1423,6 +1432,7 @@ module DGSpatialDiscretizationMethods
             end do
         
          end do
+!$omp end parallel do
             
       end subroutine DGSpatial_interpolateSolutionToBoundaries
 
@@ -1439,6 +1449,7 @@ module DGSpatialDiscretizationMethods
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
 
+!$omp parallel do private(e,N,eq,iDim,ed)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1473,6 +1484,7 @@ module DGSpatialDiscretizationMethods
             end do            ; end do
         
          end do
+!$omp end parallel do
  
       end subroutine DGSpatial_interpolateGradientsToBoundaries
 #endif

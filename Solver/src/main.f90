@@ -30,15 +30,16 @@ program main
     use Headers
     use ChecksModule
     implicit none
-    type(DGSEM_t)          :: sem
-    integer                :: eID , edID
-   real(kind=RP)  :: tstart , tend
+    type(DGSEM_t) :: sem
+    integer       :: eID , edID
+    real(kind=RP) :: tstart , tend
 
 #ifdef NAVIER_STOKES
     call Main_Header("2D Compressible Navier-Stokes equations")
 #else
     call Main_Header("2D Compressible Euler equations")
 #endif
+!$ call omp_set_num_threads(2)
 !
 !   Read the case file and load parameters on Setup class
 !   -----------------------------------------------------
@@ -62,7 +63,11 @@ program main
     call cpu_time(tstart)
     call sem % Integrate()
     call cpu_time(tend)
-    print*, "Time: ",tend-tstart
+    print*, "Time elapsed: ",tend-tstart
+!
+!   Check with an analytical condition
+!   ----------------------------------
+    call sem % Finalize
 !
 !  Program finished
 !  ----------------
