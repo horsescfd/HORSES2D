@@ -43,13 +43,14 @@ CURRENT_PATH := ${CURDIR}
 
 
 Physics: PhysicsNS Headers
+Stopwatch: SMConstants
 PhysicsNS: Setup SMConstants Headers MatrixOperations
 VariableConversion: Physics
 RiemannSolvers: Physics SMConstants InviscidFluxes
 InviscidFluxes: Physics SMConstants
 IntegerArrayLinkedList: Qsort
 ViscousFluxes: Physics SMConstants
-DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter
+DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter Stopwatch
 Plotter: SMConstants
 Tecplot: Plotter
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
@@ -133,7 +134,7 @@ else ifeq ($(COMPILER),ifort)
      FFLAGS = -cpp -O3 -mkl -assume bscc
      
    else ifeq ($(MODE),VTUNE)
-     FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
+     FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc -fopenmp
 
    endif
    LIBS += -L$(NETCDF_LIB) -lnetcdff $(PROBLEM_LIB)
@@ -154,7 +155,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 .PHONY: all	
 .DEFAULT_GOAL := all
 
-all: 	printHeader def_navier_stokes_macro ProblemFile $(EXECUTABLE)
+all: 	printHeader createFolders def_navier_stokes_macro ProblemFile $(EXECUTABLE)
 
 runcyl: 	
 	(cd ../TestCases/Cases/Cylinder && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase)		
@@ -171,7 +172,7 @@ runchan:
 runfree: 	
 	(cd ../TestCases/Cases/FreeStream && ./$(EXECUTABLE) ./SETUP/FreeStream.HiOCase -check)		
 
-Euler:  printHeader def_euler_macro ProblemFile $(EXECUTABLE)
+Euler:  printHeader createFolders def_euler_macro ProblemFile $(EXECUTABLE)
 
 def_euler_macro:
 	$(eval EXECUTABLE:=HORSES2D.Euler)
@@ -202,6 +203,9 @@ clean:  printHeader
 
 allclean: clean
 	@rm -f -v -r $(BIN_DIR)/*
+
+createFolders:
+	@mkdir -p $(BIN_DIR) $(INC_DIR) $(LIB_DIR) $(BUILD_DIR)
 
 printHeader:
 	@echo '       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// '

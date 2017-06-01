@@ -100,6 +100,7 @@ module DGSpatialDiscretizationMethods
          implicit none
          class(QuadMesh_t)          :: mesh
          real(kind=RP), intent(in)  :: time
+!$omp parallel
 !
 !        Prepare the mesh for a new iteration
 !        ------------------------------------
@@ -108,6 +109,7 @@ module DGSpatialDiscretizationMethods
 !        Compute QDot
 !        ------------
          call DGSpatial_computeQDot( mesh )
+!$omp end parallel
 
       end subroutine DGSpatial_computeTimeDerivative
       
@@ -134,9 +136,11 @@ module DGSpatialDiscretizationMethods
 !
 !        Update the zones solution
 !        -------------------------
+!$omp do
          do zoneID = 1 , size(mesh % zones) - 1
             call mesh % zones(zoneID) % UpdateSolution(time)
          end do 
+!$omp end do
 
 #ifdef NAVIER_STOKES
 !
@@ -170,13 +174,13 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID
          integer                 :: edID
          integer                 :: eq
+         class(Edge_t), pointer  :: f
 !
 !        ************
 !        Volume loops
 !        ************
 !
-!$omp parallel
-!$omp do
+!$omp do schedule(runtime)
          do eID = 1 , mesh % no_of_elements
             call DGSpatial_QDotVolumeLoop( mesh % elements(eID) ) 
          end do
@@ -186,9 +190,11 @@ module DGSpatialDiscretizationMethods
 !        Face loops
 !        **********
 !
-!$omp do
+!$omp barrier
+!$omp master
          do edID = 1 , mesh % no_of_edges
-            select type ( f => mesh % edges(edID) % f ) 
+            f => mesh % edges(edID) % f
+            select type ( f ) 
                type is (Edge_t)
                   call DGSpatial_QDotFaceLoop_Interior( f ) 
 
@@ -209,20 +215,20 @@ module DGSpatialDiscretizationMethods
 
             end select
          end do
-!$omp end do
+!$omp end master
 !
 !        ***********************
 !        Scale with the jacobian
 !        ***********************
 !
-!$omp do collapse(2)
+!$omp barrier
+!$omp do private(eq) schedule(runtime)
          do eID = 1 , mesh % no_of_elements 
             do eq = 1 , NCONS
                mesh % elements(eID) % QDot(:,:,eq) = mesh % elements(eID) % QDot(:,:,eq) / mesh % elements(eID) % Jac
             end do
          end do
 !$omp end do
-!$omp end parallel
 
       end subroutine DGSpatial_computeQDot
 !
@@ -1397,7 +1403,7 @@ module DGSpatialDiscretizationMethods
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
 
-!$omp parallel do private(eID,ed,eq,N,e)
+!$omp do private(eID,ed,eq,N,e) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1432,7 +1438,7 @@ module DGSpatialDiscretizationMethods
             end do
         
          end do
-!$omp end parallel do
+!$omp end do
             
       end subroutine DGSpatial_interpolateSolutionToBoundaries
 
@@ -1449,7 +1455,7 @@ module DGSpatialDiscretizationMethods
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
 
-!$omp parallel do private(e,N,eq,iDim,ed)
+!$omp do private(e,N,eq,iDim,ed) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1484,7 +1490,7 @@ module DGSpatialDiscretizationMethods
             end do            ; end do
         
          end do
-!$omp end parallel do
+!$omp end do
  
       end subroutine DGSpatial_interpolateGradientsToBoundaries
 #endif

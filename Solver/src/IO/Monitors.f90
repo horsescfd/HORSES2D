@@ -632,6 +632,8 @@ readloop:do
 !        Close file
 !        ----------        
          close ( fID )
+
+         self % values(1:NCONS,1) = self % values(1:NCONS,no_of_lines)
       
       end subroutine Residuals_WriteToFile
 
@@ -901,6 +903,8 @@ readloop:do
             end do
            
             close ( fID )
+
+            self % values(1) = self % values(no_of_lines)
          end if
       
       end subroutine Probe_WriteToFile
@@ -1195,6 +1199,8 @@ readloop:do
          end do
         
          close ( fID )
+
+         self % values(1) = self % values(no_of_lines)
       
       end subroutine SurfaceMonitor_WriteToFile
 !
@@ -1384,6 +1390,8 @@ readloop:do
          end do
         
          close ( fID )
+
+         self % values(1) = self % values(no_of_lines)
       
       end subroutine VolumeMonitor_WriteToFile
 

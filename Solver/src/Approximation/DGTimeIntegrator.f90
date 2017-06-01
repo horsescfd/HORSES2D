@@ -28,7 +28,7 @@ module DGTimeIntegrator
 #include "Defines.h"
 
    private
-   public TimeIntegrator_t , NewTimeIntegrator
+   public TimeIntegrator_t , NewTimeIntegrator , Monitors
 !
 !                                *******************************
    integer, parameter         :: STR_LEN_TIMEINTEGRATOR    = 128
@@ -160,12 +160,18 @@ module DGTimeIntegrator
          use Storage_module
          use Setup_class
          use Utilities
+         use StopwatchClass
          implicit none
          class(TimeIntegrator_t)          :: self
          class(QuadMesh_t)                  :: mesh
          class(Storage_t)                 :: Storage
          integer                          :: iter
          integer                          :: NDOF
+!
+!        Stopwatch initialization
+!        ------------------------
+         call Stopwatch % CreateNewEvent("Simulation")
+         call Stopwatch % Start("Simulation")
 
          NDOF = size( Storage % QDot )
 
@@ -217,8 +223,12 @@ module DGTimeIntegrator
 
             if ( self % mode .eq. STEADY ) then
                if ( maxval(abs(Monitors % residuals % values ( : , Monitors % bufferLine ))) .lt. self % residualTarget ) then
-                  write(STD_OUT,'(/,20X,A,I0,A,ES10.3,A)') "** Residual tolerance reached in iteration " , iter , &
+                  if ( any(isnan(Storage % Q ) ) ) then 
+                     write(STD_OUT,'(/,20X,A)') "** The simulation has crashed."
+                  else
+                     write(STD_OUT,'(/,20X,A,I0,A,ES10.3,A)') "** Residual tolerance reached in iteration " , iter , &
                         " with residual " , maxval(abs(Monitors % residuals % values( : , Monitors % bufferLine ) ) ) , "."
+                  end if
                   exit
                end if
             end if
@@ -226,6 +236,10 @@ module DGTimeIntegrator
             call Monitors % WriteToFile()
 
          end do
+!
+!        Stop stopwatch
+!        --------------
+         call Stopwatch % Pause("Simulation")
 
 !        Save solution file
 !        ------------------
@@ -235,6 +249,8 @@ module DGTimeIntegrator
          if ( self % no_of_iterations .ne. 0 ) then
             call Monitors % WriteToFile ( force = .true. )
          end if
+
+         self % no_of_iterations = iter - self % initial_iteration
 
       end subroutine TimeIntegrator_Integrate
 !
@@ -330,19 +346,15 @@ module DGTimeIntegrator
 
             if (m .eq. 1) then
                G = dt * Storage % QDot
-!$omp parallel do
                do i = 1 , size(Storage % QDot)
                   Storage % Q(i) = Storage % Q(i) + gm(m) * G(i)
                end do
-!$omp end parallel do
 
             else
-!$omp parallel do
                do i = 1 , size(Storage % QDot)
                   G(i) = am(m) * G(i) + dt * Storage % QDot(i)
                   Storage % Q(i) = Storage % Q(i) + gm(m) * G(i)
                end do
-!$omp end parallel do
 
             end if
 

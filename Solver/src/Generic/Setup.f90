@@ -416,7 +416,7 @@ module Setup_class
 !         Output file type
 !         ----------------
           call readValue ( trim ( case_name )  , "Output file type"                 , Setup % outputType        ) 
-          call Setup_CheckWithDefault( Setup % outputType , "DGSEM" , "Output file type" ) 
+          call Setup_CheckWithDefault( Setup % outputType , "Interpolated" , "Output file type" ) 
 !
 !         Number of representation points
 !         -------------------------------

@@ -104,6 +104,7 @@
         subroutine DGSEM_construct( self )
             use Setup_class
             use QuadElementClass
+            use StopwatchClass
             implicit none
             class(DGSEM_t)   :: self
 !
@@ -113,6 +114,11 @@
 !
             type(MeshFile_t) :: meshFile
             integer          :: totalPolynomialOrder
+!
+!           Create an event to measure the preprocessing time
+!           -------------------------------------------------
+            call Stopwatch % CreateNewEvent("Preprocessing")
+            call Stopwatch % Start("Preprocessing")
 !
 !           Read the mesh file
 !           ------------------
@@ -171,6 +177,10 @@
 !           -----------------------------------------------
             call self % SetInitialCondition()
             call self % Plotter % Export( self % mesh , './RESULTS/InitialCondition')     
+!
+!           Stop the preprocessing event time
+!           ---------------------------------
+            call Stopwatch % Pause("Preprocessing")
             
         end subroutine DGSEM_construct
             
@@ -284,6 +294,10 @@
             use SMConstants
             use Physics
             use Setup_class
+            use DGTimeIntegrator
+            use MonitorsClass
+            use Headers
+            use StopwatchClass
             implicit none
             class(DGSEM_t)       :: self
 !
@@ -292,13 +306,13 @@
 !           ----------
 !
             interface
-               subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) 
+               subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_ ) 
                   use SMConstants
                   use Setup_class
                   use QuadMeshClass
                   use QuadElementClass
-                  use Headers
                   use Physics
+                  use MonitorsClass
                   import DGSEM_t
                   implicit none
                   class(DGSEM_t)                      :: sem_
@@ -306,10 +320,22 @@
                   class(Setup_t),          intent(in) :: Setup_
                   class(RefValues_t),      intent(in) :: refValues_
                   class(Dimensionless_t),  intent(in) :: dimensionless_
+                  class(Monitor_t),        intent(in) :: Monitors_
                end subroutine Finalize
             end interface
 
-            call Finalize ( self , Thermodynamics , Setup , refValues , dimensionless ) 
+            write(STD_OUT,*)
+            call Section_header("Solution analysis")
+
+            call Finalize ( self , Thermodynamics , Setup , refValues , dimensionless , Monitors) 
+
+            write(STD_OUT,*)
+            call Section_header("Simulation statistics")
+            write(STD_OUT,*)
+            write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Preprocessing time: ", Stopwatch % ElapsedTime("Preprocessing") , " (s)."
+            write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Simulation time: ", Stopwatch % ElapsedTime("Simulation") , " (s)."
+            write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Solver perfomance: ", &
+                  1.0e06_RP * Stopwatch % ElapsedTime("Simulation") / self % Integrator % no_of_iterations / size(self % Storage % Q), " (s/iter 1MDOF)."
 
         end subroutine DGSEM_Finalize
 

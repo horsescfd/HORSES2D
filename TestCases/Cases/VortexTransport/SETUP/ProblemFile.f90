@@ -29,14 +29,6 @@ function getProblemFileName() result ( Name )
 
 end function getProblemFileName
 
-function HasAnalyticalSolution() 
-   implicit none
-   logical        :: hasAnalyticalSolution
-
-   hasAnalyticalSolution = .false.
-
-end function HasAnalyticalSolution
-
 function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
    use SMConstants
    use Setup_class
@@ -75,9 +67,94 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
    val(IRHOE) = thermodynamics_ % cv * (rho * T) + 0.5_RP * rho * ( u*u + v*v )
 
    end associate
- 
 
 end function UserDefinedInitialCondition
+
+subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) 
+    use SMConstants
+    use DGSEM_Class
+    use Setup_class
+    use QuadMeshClass
+    use QuadElementClass
+    use Headers
+    use Physics
+    use MonitorsClass
+    implicit none
+    class(DGSEM_t)                      :: sem_
+    class(Thermodynamics_t), intent(in) :: thermodynamics_
+    class(Setup_t),          intent(in) :: Setup_
+    class(RefValues_t),      intent(in) :: refValues_
+    class(Dimensionless_t),  intent(in) :: dimensionless_
+    class(Monitor_t),       intent(in)  :: Monitors_
+!
+!   ************************************************
+!   Compute the error w.r.t. the analytical solution
+!   ************************************************
+!
+    integer       :: i , j  , eID
+    real(kind=RP)    :: errors(NCONS) , localErrors(NCONS)
+    real(kind=RP)    :: analytical(NCONS)
+    real(kind=RP)    :: x(NDIM)
+    real(kind=RP), parameter  :: expectedErrors(NCONS) = &
+            [2.8611740532369367E-008_RP , 3.7496128491021352E-007_RP , 1.1718996089120012E-007_RP , 3.1433237790423618E-007_RP ]
+    interface
+      function UserDefinedInitialCondition(x, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
+         use SMConstants
+         use Setup_class
+         use Physics
+         implicit none
+         real(kind=RP),           intent(in)           :: x(NDIM)
+         class(Thermodynamics_t), intent(in)           :: thermodynamics_
+         class(Setup_t),          intent(in)           :: Setup_
+         class(RefValues_t),      intent(in)           :: refValues_
+         class(Dimensionless_t),  intent(in)           :: dimensionless_
+         real(kind=RP)                                 :: val(NCONS)
+      end function UserDefinedInitialCondition
+    end interface
+
+    errors = 0.0_RP
+
+    do eID = 1 , sem_ % mesh % no_of_elements
+      do i = 0 , sem_ % mesh % elements(eID) % spA % N
+         do j = 0 , sem_ % mesh % elements(eID) % spA % N
+
+            x = sem_ % mesh % elements(eID) % x(i,j,1:NDIM)
+            analytical = UserDefinedInitialCondition( x , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) 
+
+            analytical(IRHO) = analytical(IRHO) / refValues_ % rho
+            analytical(IRHOU) = analytical(IRHOU) / ( refValues_ % rho * refValues_ % a )
+            analytical(IRHOV) = analytical(IRHOV) / ( refValues_ % rho * refValues_ % a )
+            analytical(IRHOE) = analytical(IRHOE) / refValues_ % p
+
+            localErrors = abs(analytical - sem_ % mesh % elements(eID) % Q(i,j,1:NCONS) )
+
+            if ( localErrors(IRHO) .gt. errors(IRHO) ) then
+               errors(IRHO) = localErrors(IRHO)
+            end if
+
+            if ( localErrors(IRHOU) .gt. errors(IRHOU) ) then
+               errors(IRHOU) = localErrors(IRHOU)
+            end if
+
+            if ( localErrors(IRHOV) .gt. errors(IRHOV) ) then
+               errors(IRHOV) = localErrors(IRHOV)
+            end if
+
+            if ( localErrors(IRHOE) .gt. errors(IRHOE) ) then
+               errors(IRHOE) = localErrors(IRHOE)
+            end if
+   
+         end do
+      end do
+    end do
+
+    write(STD_OUT , '(/ , 30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in density: "    , errors(IRHO)
+    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in x-momentum: " , errors(IRHOU)
+    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in y-momentum: " , errors(IRHOV)
+    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in energy: "     , errors(IRHOE)
+    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Difference with expected errors: "     , maxval(errors - expectedErrors)
+     
+end subroutine Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
    use SMConstants

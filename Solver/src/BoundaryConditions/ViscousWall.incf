@@ -208,7 +208,8 @@
                edge % uSB(0:N,IRHOV) = edge % uSB(0:N,IRHO) * self % v(IY)
    
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uSB(0:N,IRHOE) = dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw 
+                  edge % uSB(0:N,IRHOE) =   dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw &
+                                          + 0.5_RP * ( edge % uSB(0:N,IRHOU) * edge % uSB(0:N,IRHOU) + edge % uSB(0:N,IRHOV) * edge % uSB(0:N,IRHOV) ) / edge % uSB(0:N,IRHO) 
    
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
                   edge % uSB(0:N,IRHOE) =   edge % storage(1) % Q(0:N,IRHOE)  - Ek &

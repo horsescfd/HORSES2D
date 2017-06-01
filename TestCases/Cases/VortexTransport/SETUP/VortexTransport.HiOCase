@@ -1,11 +1,11 @@
 !
-!            ***********************************
+!       ***********************************
 !       * Vortex transport parameter file *
 !       ***********************************
 !
 
 !-------------------------------------: Geometry
-              Mesh file: ./MESH/VortexTransport_Coarse.HiOMesh
+              Mesh file: ./MESH/VortexTransport.HiOMesh
           Boundary file: _this_
 
 
@@ -14,7 +14,7 @@
           Reference pressure: 101325.0
        Reference Temperature: 273.15
                    Reynolds length: 0.1
-             Reynolds number: 250.0
+             Reynolds number: 0.0
               Prandtl number: 0.72
                  Mach number: 0.6
    
@@ -42,8 +42,8 @@
                     Integration mode: Transient
                     Integration scheme: Williamson RK5
                            Time step: 1.0e-2
-                        CFL Number : 0.2
-               Simulation time: 0.5
+                        CFL Number : 0.4
+               Simulation time: 1.0
          Number of iterations: 1000000
                 Initial time: 0.0
 

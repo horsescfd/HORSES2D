@@ -712,8 +712,8 @@ module DGBoundaryConditions
          if ( self % wall_type .eq. ADIABATIC_WALL ) then
             write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Adiabatic"
          elseif ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Adiabatic"
-            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall temperature: "   , self % Tw * refValues % T 
+            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Isothermal"
+            write(STD_OUT , '( 30X , A , A25 , F10.4 )') "-> " , "Wall temperature: "   , self % Tw * refValues % T 
          end if
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "           , self % v(IX) * refValues % a

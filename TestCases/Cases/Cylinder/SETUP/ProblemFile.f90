@@ -25,7 +25,7 @@ function getProblemFileName() result ( Name )
    implicit none
    character(len=LINE_LENGTH)    :: Name
 
-   Name = "Default problem file"
+   Name = "Cylinder problem file"
 
 end function getProblemFileName
 
@@ -70,8 +70,23 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     class(RefValues_t),      intent(in) :: refValues_
     class(Dimensionless_t),  intent(in) :: dimensionless_
     class(Monitor_t),       intent(in)  :: Monitors_
+!
+!   ------------------------------------------------------------------------------
+!   This subroutine checks that the residuals, lift, and drag, match stored values
+!   ------------------------------------------------------------------------------
+!
+    real(kind=RP), parameter :: residuals(4) = [ 1.0465014137614558E+01_RP , 1.1730865624341172E+01_RP , 6.6959281046871171E+00_RP , 3.6141017219114211E+01_RP ]
+    real(kind=RP), parameter :: cl = 1.3772850858396856E-08_RP
+    real(kind=RP), parameter :: cd = 2.1487956180577015E+01_RP
 
-    write(STD_OUT , '(/,30X,A,A,A)') "-> ", "Nothing to be done."
+    write(STD_OUT,*)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(residuals(1) - Monitors_ % residuals % values(IRHO ,1)) / residuals(1)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1)) / residuals(2)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1)) / residuals(3)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1)) / residuals(4)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in lift coefficient" , " : " , abs(cl - Monitors_ % surfaceMonitors(1) % values(1))
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in drag coefficient" , " : " , abs(cd - Monitors_ % surfaceMonitors(2) % values(1)) / cd
+
 end subroutine Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)

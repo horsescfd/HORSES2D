@@ -52,7 +52,9 @@ endif
 ProblemFile: ./ProblemFile.f90
 	$(FC) -fPIC -shared $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE)  -c ./ProblemFile.f90 -o ./$@.o
 	$(FC) $(DYNLIB_FLAG) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) ./ProblemFile.o
-	@rm -r -v ./ProblemFile.o ./libproblemfile.dylib.dSYM
+	@rm -r -v -f ./ProblemFile.o ./libproblemfile.dylib.dSYM
 
 clean:
-	@rm -r -v ./ProblemFile.o ./libproblemfile.dylib ./libproblemfile.dylib.dSYM ./libproblemfile.so
+	@rm -r -v -f ./ProblemFile.o ./libproblemfile.dylib ./libproblemfile.dylib.dSYM ./libproblemfile.so
+
+allclean: clean

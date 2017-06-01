@@ -57,22 +57,24 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
          integer     :: eID , edID , iDim , eq
          real(kind=RP), pointer  :: dQ(:,:,:,:)
+         class(Edge_t), pointer  :: f
 !
 !        Perform volume loops
 !        --------------------
-!$omp parallel
-!$omp do private(dQ)
+!$omp do private(dQ) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
             dQ(0:,0:,1:,1:)   => mesh % elements(eID) % dQ
             dQ = - VectorWeakIntegrals % StdVolumeGreen( mesh % elements(eID) , mesh % elements(eID) % Q )
          end do
-!$omp end do
+!$omp end do 
 !
 !        Perform face loops
 !        ------------------
-!$omp do 
+!$omp barrier
+!$omp master
          do edID = 1 , mesh % no_of_edges
-            select type ( f => mesh % edges(edID) % f ) 
+            f => mesh % edges(edID) % f
+            select type ( f ) 
                type is (Edge_t)
                   call BR1_dQFaceLoop_Interior(self , f)
 
@@ -93,18 +95,18 @@ submodule (DGViscousMethods)  DGViscous_BR1
 
             end select
          end do
-!$omp end do
+!$omp end master
 !
 !        Perform the scaling with the jacobian
 !        -------------------------------------
-!$omp do collapse(3)
+!$omp barrier
+!$omp do private(iDim,eq) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
             do iDim = 1 , NDIM   ; do eq = 1 , NCONS
                mesh % elements(eID) % dQ(:,:,iDim,eq) = mesh % elements(eID) % dQ(:,:,iDim,eq) / mesh % elements(eID) % jac
             end do               ; end do
          end do
 !$omp end do
-!$omp end parallel
 
       end subroutine BR1_ComputeGradient 
 
