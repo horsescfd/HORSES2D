@@ -87,7 +87,7 @@ RiemannBC: DGBoundaryConditions
 ViscousWallBC: DGBoundaryConditions
 FileWriting: SMConstants Physics QuadMesh Setup
 Paramfile: SMConstants
-DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Plotter Monitors
+DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Plotter Monitors Stopwatch
 Monitors: SMConstants Setup Paramfile Physics QuadMesh
 Storage: SMConstants
 main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class

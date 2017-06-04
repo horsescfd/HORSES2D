@@ -1,0 +1,125 @@
+!
+!            ***************************
+! 	     * Cylinder parameter file *
+!	     ***************************
+!
+
+!-------------------------------------: Geometry
+                             Mesh file: ./MESH/CylinderInflation.HiOMesh
+                         Boundary file: _this_
+
+
+!-------------------------------------: Physics
+                Gas                   : Air
+                Reference pressure    : 101325.0
+                Reference Temperature : 273.15
+                Reynolds length       : 1.0
+                Reynolds number       : 1000.0
+                Prandtl number        : 0.72
+                Mach number           : 0.1
+	
+!------------------------------------: DG Discretization
+                 Interpolation nodes : Legendre-Gauss
+         Default polynomial order    : 4
+
+!------------------------------------: Initialization
+                   Initial condition : Uniform
+                   Restart file      : ./RESULTS/Cylinder.HiORst
+
+!------------------------------------: Inviscid discretization
+             Inviscid discretization : Standard
+               Inviscid formulation  : Green form
+             Inviscid Riemann solver : HLL
+
+!------------------------------------: Viscous discretization
+               Viscous discretization: IP
+              Interior penalty method: SIPG
+              Jumps penalty parameter: 10.0
+     Gradient jumps penalty parameter: 0.0
+
+!-----------------------------------: Time integration
+               Integration mode     : Transient
+               Integration scheme   : Williamson RK5
+               Time step            : 1.0e-2
+               CFL Number           : 0.1
+               Simulation time      : 0.013
+               Number of iterations : 10000000
+               Initial time         : 0.0
+
+!----------------------------------: Output variables
+                      Solution file: ./RESULTS/Cylinder.HiORst
+                  Autosave interval: 100000
+                    Output interval: 10
+                   Output file type: Interpolated
+    Number of representation points: 10
+                     Save variables: rho_rhou_rhov_rhoe_u_v_p_Mach_vort_rhot_rhout_rhovt_rhoet
+
+!
+!            **********************************
+! 	     * Cylinder boundary mapping file *
+!	     **********************************
+!
+
+# define p-Refinement
+   1: 6
+   2: 10
+   3: 8
+   4: 8
+# end
+
+
+# define zone 1
+   Name = Symmetry
+!  Type = newDirichlet
+   Type = Dirichlet
+   Riemann solver = Exact
+# end 
+
+# define zone 2
+   Name = Symmetry
+!  Type = Euler wall
+   Type = Dirichlet
+   Riemann solver = Exact
+# end 
+
+# define zone 3
+   Name = Inflow
+   Type = Dirichlet
+   Riemann solver = Exact
+# end
+
+# define zone 4
+   Name = Outflow
+   Type = Pressure outlet
+   Type = Partially non reflective
+   Riemann solver = Exact
+# end
+
+# define zone 5
+   Name = Wall
+!   Type = Dirichlet
+   Type = Viscous wall
+   Wall type = Adiabatic
+   Riemann solver = Exact
+# end
+
+# define probe 1
+   Name = Wake_v
+   x position = 0.75
+   y position = 0.0
+   Variable = v
+# end
+
+# define surface monitor 1
+   Name = lift
+   Marker = 5
+   Variable = lift
+   Reference surface = 1.0
+# end
+
+# define surface monitor 2
+   Name = drag
+   Marker = 5
+   Variable = drag
+   Reference surface = 1.0
+# end

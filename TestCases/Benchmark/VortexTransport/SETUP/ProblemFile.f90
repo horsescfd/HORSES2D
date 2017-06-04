@@ -46,9 +46,9 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 !  ---------------
 !
    real(kind=RP), parameter :: R = 0.1_RP                  ! This is the "vortex radius" (dimensionless)
-   real(kind=RP), parameter :: Beta = 0.01_RP              ! This is the "vortex strength"
-   real(kind=RP), parameter :: XC = 0.5_RP                 ! Vortex X position (in dimensionless coordinates)
-   real(kind=RP), parameter :: YC = 0.5_RP                 ! Vortex Y position (in dimensionless coordinates)
+   real(kind=RP), parameter :: Beta = 0.05_RP              ! This is the "vortex strength"
+   real(kind=RP), parameter :: XC = 0.0_RP                 ! Vortex X position (in dimensionless coordinates)
+   real(kind=RP), parameter :: YC = 0.0_RP                 ! Vortex Y position (in dimensionless coordinates)
    real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
    real(kind=RP)            :: r2 , rho , u , v , T
 
@@ -95,6 +95,9 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     real(kind=RP)    :: errors(NCONS) , localErrors(NCONS)
     real(kind=RP)    :: analytical(NCONS)
     real(kind=RP)    :: x(NDIM)
+    integer,       parameter  :: expectedIter = 3237
+    real(kind=RP), parameter  :: expectedErrors(NCONS) = &
+            [ 1.7564464390384948E-005_RP, 1.3312909555291963E-003_RP, 3.8656265138769554E-004_RP, 9.5352754637234582E-004_RP ]
     interface
       function UserDefinedInitialCondition(x, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
          use SMConstants
@@ -150,6 +153,8 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in x-momentum: " , errors(IRHOU)
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in y-momentum: " , errors(IRHOV)
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in energy: "     , errors(IRHOE)
+    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Difference w.r.t. expected errors: "     , maxval(abs(errors - expectedErrors))
+    write(STD_OUT , '(    30X , A , A50 , I0    )') "-> " , "Expected final iteration: " , expectedIter
      
 end subroutine Finalize
 

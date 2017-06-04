@@ -25,7 +25,7 @@ function getProblemFileName() result ( Name )
    implicit none
    character(len=LINE_LENGTH)    :: Name
 
-   Name = "Inviscid taylor vortex transport"
+   Name = "Ramp problem file"
 
 end function getProblemFileName
 
@@ -45,28 +45,12 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 !  Local variables
 !  ---------------
 !
-   real(kind=RP), parameter :: R = 0.1_RP                  ! This is the "vortex radius" (dimensionless)
-   real(kind=RP), parameter :: Beta = 0.01_RP              ! This is the "vortex strength"
-   real(kind=RP), parameter :: XC = 0.5_RP                 ! Vortex X position (in dimensionless coordinates)
-   real(kind=RP), parameter :: YC = 0.5_RP                 ! Vortex Y position (in dimensionless coordinates)
    real(kind=RP), parameter :: AngleOfAttack = 0.0_RP
-   real(kind=RP)            :: r2 , rho , u , v , T
 
-   associate ( gamma => Thermodynamics_ % Gamma , Mach => Dimensionless_ % Mach , cv => Dimensionless_ % cv )
-
-   r2 = ((x(IX) - XC)*(x(IX) - XC) + (x(IY) - YC)*(x(IY) - YC)) / (R*R)
-
-   u = refValues_ % V * (cos(AngleOfAttack) - Beta * (x(IY) - YC) / R * exp(-0.5_RP * r2))
-   v = refValues_ % V * (sin(AngleOfAttack) + Beta * (x(IX) - XC) / R * exp(-0.5_RP * r2))
-   T = refValues_ % T * (1.0_RP - gamma * Mach * Mach * beta * beta / (2.0_RP * Dimensionless_ % cp) * exp(-r2) )
-   rho = refValues_ % rho * (T/refValues_ % T)**( Thermodynamics_ % invgm1 ) 
-
-   val(IRHO)  = rho
-   val(IRHOU) = rho * u
-   val(IRHOV) = rho * v
-   val(IRHOE) = thermodynamics_ % cv * (rho * T) + 0.5_RP * rho * ( u*u + v*v )
-
-   end associate
+   val(IRHO)  = refValues_ % rho
+   val(IRHOU) = refValues_ % rho * refValues_ % V * cos(AngleOfAttack)
+   val(IRHOV) = refValues_ % rho * refValues_ % V * sin(AngleOfAttack)
+   val(IRHOE) = thermodynamics_ % cv * refValues_ % rho * refValues_ % T + 0.5_RP * refValues_ % rho * refValues_ % V * refValues_ % V
 
 end function UserDefinedInitialCondition
 
@@ -87,70 +71,20 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     class(Dimensionless_t),  intent(in) :: dimensionless_
     class(Monitor_t),       intent(in)  :: Monitors_
 !
-!   ************************************************
-!   Compute the error w.r.t. the analytical solution
-!   ************************************************
+!   ------------------------------------------------------------------------------
+!   This subroutine checks that the residuals, lift, and drag, match stored values
+!   ------------------------------------------------------------------------------
 !
-    integer       :: i , j  , eID
-    real(kind=RP)    :: errors(NCONS) , localErrors(NCONS)
-    real(kind=RP)    :: analytical(NCONS)
-    real(kind=RP)    :: x(NDIM)
-    interface
-      function UserDefinedInitialCondition(x, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (val)
-         use SMConstants
-         use Setup_class
-         use Physics
-         implicit none
-         real(kind=RP),           intent(in)           :: x(NDIM)
-         class(Thermodynamics_t), intent(in)           :: thermodynamics_
-         class(Setup_t),          intent(in)           :: Setup_
-         class(RefValues_t),      intent(in)           :: refValues_
-         class(Dimensionless_t),  intent(in)           :: dimensionless_
-         real(kind=RP)                                 :: val(NCONS)
-      end function UserDefinedInitialCondition
-    end interface
+    real(kind=RP), parameter :: residuals(4) = [2.4388433197776486E-09_RP , 7.4856244624377491E-10_RP , 4.6932216339799777E-10_RP , 9.9903534671171063E-09_RP ]
+    integer,       parameter :: finalIteration = 9884
 
-    errors = 0.0_RP
+    write(STD_OUT,*)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(residuals(1) - Monitors_ % residuals % values(IRHO ,1)) / residuals(1)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1)) / residuals(2)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1)) / residuals(3)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1)) / residuals(4)
+    write(STD_OUT , '(    30X , A , A35 , I0,A,I0)') "-> " , "Error in the final iteration: "     , finalIteration , "/",sem_ % Integrator % iter
 
-    do eID = 1 , sem_ % mesh % no_of_elements
-      do i = 0 , sem_ % mesh % elements(eID) % spA % N
-         do j = 0 , sem_ % mesh % elements(eID) % spA % N
-
-            x = sem_ % mesh % elements(eID) % x(i,j,1:NDIM)
-            analytical = UserDefinedInitialCondition( x , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) 
-
-            analytical(IRHO) = analytical(IRHO) / refValues_ % rho
-            analytical(IRHOU) = analytical(IRHOU) / ( refValues_ % rho * refValues_ % a )
-            analytical(IRHOV) = analytical(IRHOV) / ( refValues_ % rho * refValues_ % a )
-            analytical(IRHOE) = analytical(IRHOE) / refValues_ % p
-
-            localErrors = abs(analytical - sem_ % mesh % elements(eID) % Q(i,j,1:NCONS) )
-
-            if ( localErrors(IRHO) .gt. errors(IRHO) ) then
-               errors(IRHO) = localErrors(IRHO)
-            end if
-
-            if ( localErrors(IRHOU) .gt. errors(IRHOU) ) then
-               errors(IRHOU) = localErrors(IRHOU)
-            end if
-
-            if ( localErrors(IRHOV) .gt. errors(IRHOV) ) then
-               errors(IRHOV) = localErrors(IRHOV)
-            end if
-
-            if ( localErrors(IRHOE) .gt. errors(IRHOE) ) then
-               errors(IRHOE) = localErrors(IRHOE)
-            end if
-   
-         end do
-      end do
-    end do
-
-    write(STD_OUT , '(/ , 30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in density: "    , errors(IRHO)
-    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in x-momentum: " , errors(IRHOU)
-    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in y-momentum: " , errors(IRHOV)
-    write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in energy: "     , errors(IRHOE)
-     
 end subroutine Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
@@ -273,5 +207,3 @@ function AnalyticalSolution(x,time, Thermodynamics_ , Setup_ , refValues_ , dime
    val = 0.0_RP
 
 end function AnalyticalSolution
-
-

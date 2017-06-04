@@ -15,6 +15,8 @@ classdef MeshFile
         curvesOrder
         curvedEdges
         p_refinementZoneConditions
+        p_refinementElements
+        mode
     end
     
     properties (Dependent)
@@ -41,7 +43,7 @@ classdef MeshFile
             self.bdrymarker_of_edges = [];
             self.p_refinementZoneConditions = {};
             self.curvedEdges = {};
-            
+            self.mode = 'Conditions';
         end
         
         function self = Load(self,points_of_elements , x , y , points_of_bdryEdges , bdrymarker_of_edges , curvesOrder )
@@ -337,8 +339,8 @@ classdef MeshFile
             self.xp(nodes(2)) = R * cos(theta2)+xc(1);
             self.yp(nodes(2)) = R * sin(theta2)+xc(2);
 %
-%           Next, construct a new curved edge selfect
-%           ----------------------------------------
+%           Next, construct a new curved edge
+%           ---------------------------------
             self.no_of_curvedEdges = self.no_of_curvedEdges + 1 ;
             self.curvedEdges{self.no_of_curvedEdges} = CurvedEdge(nodes , self.xp(nodes) , self.yp(nodes) , self.curvesOrder);
             current = self.no_of_curvedEdges;
@@ -348,6 +350,62 @@ classdef MeshFile
             self.curvedEdges{current} = self.curvedEdges{current}.SetCircularEdge( R , xc );
                                                
         end
+        
+        function self = SetCircularStraightMappedCurve(self,nodes,xc,R,circNodes,straightNodes,position)
+%
+%           Generate the mapping
+%           --------------------
+            theta1 = atan2(circNodes(1,2)-xc(2),circNodes(1,1)-xc(1));            
+            theta2 = atan2(circNodes(2,2)-xc(2),circNodes(2,1)-xc(1)); 
+            
+            if ( theta2-theta1 > pi )
+                theta2 = theta2 - 2*pi;
+            elseif ( theta1 - theta2 > pi )
+                theta1 = theta1 - 2*pi;
+            end
+                            
+            
+            dTheta = theta2-theta1;
+            
+            X = @(xi)((1-xi(2))*(xc + R*[cos(dTheta*xi(1)+theta1),sin(dTheta*xi(1)+theta1)]) + xi(2)*(straightNodes(1,:)*(1-xi(1)) + straightNodes(2,:)*xi(1)));
+%
+%           Get the nodes local coordinates
+%           -------------------------------
+            options = optimoptions('fsolve','OptimalityTolerance',1e-15);
+            x1 = [self.xp(nodes(1)) , self.yp(nodes(1)) ];
+            xi1 = fsolve(@(x)(X(x)-x1),[0,0],options);
+            
+            x2 = [self.xp(nodes(2)) , self.yp(nodes(2)) ];
+            xi2 = fsolve(@(x)(X(x)-x2),[0,0],options);
+%
+%           Then, move the nodes according to their new location: Maintain
+%           the xi coordinate, and fix the eta coord.
+%           ----------------------------------------------------
+            x1 = X([xi1(1),position]);
+            x2 = X([xi2(1),position]);
+                  
+            self.xp(nodes(1)) = x1(1);
+            self.yp(nodes(1)) = x1(2);
+            self.xp(nodes(2)) = x2(1);
+            self.yp(nodes(2)) = x2(2);            
+%
+%           Next, construct a new curved edge
+%           ---------------------------------
+            self.no_of_curvedEdges = self.no_of_curvedEdges + 1 ;
+            self.curvedEdges{self.no_of_curvedEdges} = CurvedEdge(nodes , self.xp(nodes) , self.yp(nodes) , self.curvesOrder);
+            current = self.no_of_curvedEdges;
+%
+%           Build the curve
+%           ---------------
+            s = (xi2(1)-xi1(1))*0.5*(self.sj + 1)+xi1(1);
+            for p = 1 : self.curvedEdges{current}.order+1
+                x_p = X([s(p),position]);
+                self.curvedEdges{current}.x_coord(p) = x_p(1);
+                self.curvedEdges{current}.y_coord(p) = x_p(2);
+            end
+            
+                                               
+        end        
         
         function value = get.sj(self)
             value = cos(pi-pi*double(0:self.curvesOrder)/double(self.curvesOrder));
@@ -427,7 +485,7 @@ classdef MeshFile
             N3_ID       = netcdf.defDim(ncid,'three',3);
             N4_ID       = netcdf.defDim(ncid,'four',4);    
             NChar_ID    = netcdf.defDim(ncid,'character_length',20);
-            Nmarkers_ID = netcdf.defDim(ncid,'no_of_markers',5);
+            Nmarkers_ID = netcdf.defDim(ncid,'no_of_markers',4); % 5
             NPzones_ID  = netcdf.defDim(ncid,'no_of_pRefinementzones',self.no_of_pRefinementzones);
 %           *********
 %           Variables
@@ -447,7 +505,7 @@ classdef MeshFile
             marker2_ID = netcdf.defVar(ncid , 'marker2','NC_CHAR',NChar_ID);
             marker3_ID = netcdf.defVar(ncid , 'marker3','NC_CHAR',NChar_ID);
             marker4_ID = netcdf.defVar(ncid , 'marker4','NC_CHAR',NChar_ID);
-            marker5_ID = netcdf.defVar(ncid , 'marker5','NC_CHAR',NChar_ID);
+           % marker5_ID = netcdf.defVar(ncid , 'marker5','NC_CHAR',NChar_ID);
     
 %           ===================    
             netcdf.endDef(ncid);    
@@ -462,12 +520,16 @@ classdef MeshFile
                 netcdf.putVar(ncid , x_curvilinear_ID , self.x_curvilinear_coords');
                 netcdf.putVar(ncid , y_curvilinear_ID , self.y_curvilinear_coords');
             end
-            netcdf.putVar(ncid , pRefinementZones_ID , self.pRefinement_zones);
+            if ( strcmpi(self.mode,'Conditions'))
+                netcdf.putVar(ncid , pRefinementZones_ID , self.pRefinement_zones);
+            else
+                netcdf.putVar(ncid , pRefinementZones_ID , self.p_refinementElements);
+            end
             netcdf.putVar(ncid , marker1_ID , ['bottom',blanks(20-6)]);
             netcdf.putVar(ncid , marker2_ID , ['top',blanks(20-3)]);
             netcdf.putVar(ncid , marker3_ID , ['left',blanks(20-4)]);
             netcdf.putVar(ncid , marker4_ID , ['right',blanks(20-5)]);
-            netcdf.putVar(ncid , marker5_ID , ['circle',blanks(20-6)]);
+            %netcdf.putVar(ncid , marker5_ID , ['circle',blanks(20-6)]);
             netcdf.close(ncid);
             
             
@@ -490,7 +552,12 @@ classdef MeshFile
         end        
         
         function val = get.no_of_pRefinementzones(self)
-            val = length(self.p_refinementZoneConditions);
+            if ( strcmpi(self.mode,'Conditions'))
+                val = length(self.p_refinementZoneConditions);
+            else
+                val = max(self.p_refinementElements);
+            end
+               
         end
         
         function xc = ElementCentroid(self,eID)

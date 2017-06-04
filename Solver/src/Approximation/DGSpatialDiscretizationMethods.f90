@@ -622,7 +622,7 @@ module DGSpatialDiscretizationMethods
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
-         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , QL , QR , dQL , dQR , normal )
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
 !        --------------------------------------------------------------------------------
@@ -722,7 +722,7 @@ module DGSpatialDiscretizationMethods
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
-         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , ed % n )
+         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , QL , QR , dQL , dQR , ed % n )
 #endif
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
@@ -743,12 +743,12 @@ module DGSpatialDiscretizationMethods
          if ( ViscousMethod % computeRiemannGradientFluxes ) then
                call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , ed % n , GauxL , GauxR ) 
 
-               call ed % ProjectGradientFluxes( ed , GauxL , GauxR , GL , GR )
-
                do dimID = 1 , NDIM    ; do eq = 1 , NCONS
-                  GL(:,eq,dimID) = GL(:,eq,dimID) * ed % dS
-                  GR(:,eq,dimID) = GR(:,eq,dimID) * ed % dS
+                  GauxL(:,eq,dimID) = GauxL(:,eq,dimID) * ed % dS
+                  GauxR(:,eq,dimID) = GauxR(:,eq,dimID) * ed % dS
                end do                 ; end do
+
+               call ed % ProjectGradientFluxes( ed , GauxL , GauxR , GL , GR )
 
          end if
 #endif
@@ -842,8 +842,8 @@ module DGSpatialDiscretizationMethods
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
-         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , QLN , QRN , dQLN , dQRN , normal_N )
-         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , QLS , QRS , dQLS , dQRS , normal_S )
+         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_N % N , QLN , QRN , dQLN , dQRN , normal_N )
+         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_S % N , QLS , QRS , dQLS , dQRS , normal_S )
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
 !        --------------------------------------------------------------------------------
@@ -971,8 +971,8 @@ module DGSpatialDiscretizationMethods
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
-         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , QLN , QRN , dQLN , dQRN , ed % normal_N )
-         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , QLS , QRS , dQLS , dQRS , ed % normal_S )
+         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_N % N , QLN , QRN , dQLN , dQRN , ed % normal_N )
+         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_S % N , QLS , QRS , dQLS , dQRS , ed % normal_S )
 #endif
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
@@ -1138,7 +1138,7 @@ module DGSpatialDiscretizationMethods
                dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
-               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
                if ( ViscousMethod % computeRiemannGradientFluxes ) then
                   call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , Q , Qb , normal , Gv , Gaux ) 
@@ -1154,7 +1154,7 @@ module DGSpatialDiscretizationMethods
                dQb = ed % gB
 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
-               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
                if ( ViscousMethod % computeRiemannGradientFluxes ) then
                    call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , Q , Qb , normal , Gv , Gaux )
@@ -1173,7 +1173,7 @@ module DGSpatialDiscretizationMethods
             Qb = ed % uSB
 
             Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , normal ) * ed % dS(0) 
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , normal ) * ed % dS(0)
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQ , normal ) * ed % dS(0)
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
                Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , normal ) * ed % dS(0)
@@ -1184,7 +1184,7 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , normal ) * ed % dS(0)
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , normal ) * ed % dS(0)
             do iXi = 0 , ed % spA % N
                select case ( ed % viscousBCType(iXi) )
    
@@ -1320,7 +1320,7 @@ module DGSpatialDiscretizationMethods
             Qb = ed % uSB
 
             Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) 
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , ed % n )  
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQ , ed % n )  
 
             do eq = 1 , NCONS
                Fv(:,eq) = Fv(:,eq) * ed % dS
@@ -1340,7 +1340,7 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n )
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n )
             
             do eq = 1 , NCONS
                Fa(:,eq) = Fa(:,eq) * ed % dS
