@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       subroutine Edge_SetCurve( self , points , order )
          implicit none
          class(Edge_t)                       :: self
@@ -161,11 +182,11 @@
 !           ---------------------------
 !   ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 !   
-     subroutine CurvilinearEdge_SetCurve( self , points , order )
+     subroutine CurvedEdge_SetCurve( self , points , order )
         use InterpolationAndDerivatives
         use MatrixOperations
         implicit none
-        class(CurvedBdryEdge_t)                            :: self
+        class(CurvedEdge_t)                                :: self
         real(kind=RP)               , intent(in), optional :: points(:,:)
         integer                     , intent(in), optional :: order
 !       -----------------------------------------------------------------------------
@@ -178,34 +199,37 @@
         integer                                            :: iXi
    
         if ( present(points) .and. present(order) ) then
-   
+!
+!          First, there is an interpolation from "order" to "NCurve"   
+!          ---------------------------------------------------------
            associate ( N => self % spA % N ) 
+           associate ( NCurve => self % NCurve )
    
            allocate( CGLnodes(0 : order ) )
-           allocate( CGLintermediate(0 : N ) )
+           allocate( CGLintermediate(0 : NCurve ) )
    
            CGLnodes = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(order - node)/(1.0_RP*order)),node = 0,order)/),(/order+1/) )
-           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(N - node)/(1.0_RP*N)),node = 0,N)/),(/N+1/) )
+           CGLintermediate = reshape ( (/(0.5_RP + 0.5_RP*cos(PI*(NCurve - node)/(1.0_RP*NCurve)),node = 0,NCurve)/),(/NCurve+1/) )
    
-           allocate( Xintermediate(NDIM , 0:N) )
+           allocate( Xintermediate(NDIM , 0:NCurve) )
      
            allocate( wb ( 0 : order ) )
-           allocate( T ( 0 : N , 0 : order ) )
+           allocate( T ( 0 : NCurve , 0 : order ) )
      
            call BarycentricWeights( N = order , x = CGLnodes , w = wb )
-           call PolynomialInterpolationMatrix( N = order , M = N , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
+           call PolynomialInterpolationMatrix( N = order , M = NCurve , oldNodes = CGLnodes, weights = wb, newNodes = CGLintermediate , T = T )
 !   
 !          Compute intermediate points
 !          ---------------------------
-           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = N+1, trB = .true. ) 
+           Xintermediate = Mat_x_Mat_F ( A = points , B = T , rowC = NDIM , colC = NCurve+1, trB = .true. ) 
    
            deallocate( wb , T )
       
-           allocate ( wb ( 0 : N         )  ) 
-           allocate ( T  ( 0 : N , 0 : N )  ) 
+           allocate ( wb ( 0 : NCurve         )  ) 
+           allocate ( T  ( 0 : N , 0 : NCurve )  ) 
    
-           call BarycentricWeights( N = N , x = CGLintermediate , w = wb )
-           call PolynomialInterpolationMatrix( N = N , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
+           call BarycentricWeights( N = NCurve , x = CGLintermediate , w = wb )
+           call PolynomialInterpolationMatrix( N = NCurve , M = N , oldNodes = CGLintermediate, weights = wb, newNodes = self % spA % xi , T = T)
      
 !          Compute points
 !          --------------
@@ -224,6 +248,7 @@
            end do
       
            end associate
+           end associate
    
         else
    
@@ -232,11 +257,11 @@
    
         end if
    
-     end subroutine CurvilinearEdge_SetCurve
+     end subroutine CurvedEdge_SetCurve
 
-     pure function Curvilinear_getX( self , iXi , direction ) result ( X ) 
+     pure function CurvedEdge_getX( self , iXi , direction ) result ( X ) 
          implicit none
-         class(CurvedBdryEdge_t), intent(in)                 :: self
+         class(CurvedEdge_t), intent(in)                 :: self
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: X (NDIM)
@@ -263,11 +288,11 @@
    
          end if
    
-      end function Curvilinear_getX
+      end function CurvedEdge_getX
    
-      pure function Curvilinear_getdX( self , iXi , direction ) result ( dX ) 
+      pure function CurvedEdge_getdX( self , iXi , direction ) result ( dX ) 
          implicit none
-         class(CurvedBdryEdge_t), intent(in)                 :: self
+         class(CurvedEdge_t), intent(in)                 :: self
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: dX (NDIM)
@@ -294,11 +319,11 @@
     
          end if
    
-      end function Curvilinear_getdX
+      end function CurvedEdge_getdX
    
-      pure function Curvilinear_getdS( self , iXi , direction ) result ( dS ) 
+      pure function CurvedEdge_getdS( self , iXi , direction ) result ( dS ) 
          implicit none
-         class(CurvedBdryEdge_t), intent(in)                 :: self
+         class(CurvedEdge_t), intent(in)                 :: self
          integer      , intent(in)                 :: iXi
          integer      , intent(in), optional       :: direction
          real(kind=RP)                             :: dS (NDIM)
@@ -325,12 +350,12 @@
     
          end if
    
-      end function Curvilinear_getdS
+      end function CurvedEdge_getdS
    
-     pure function Curvilinear_InterpolantX( self , xi , direction ) result( p )
+     pure function CurvedEdge_InterpolantX( self , xi , direction ) result( p )
          use MatrixOperations
          implicit none
-         class(CurvedBdryEdge_t), intent (in)           :: self
+         class(CurvedEdge_t), intent (in)           :: self
          real(kind=RP),           intent (in)           :: xi
          integer      ,           intent (in), optional :: direction
          real(kind=RP)                                  :: p(NDIM)
@@ -352,19 +377,23 @@
           
          p = MatrixTimesVector_F( self % X , self % spA % lj(correctedXi) , size(self % X ,1 ))
          
-     end function Curvilinear_InterpolantX
+     end function CurvedEdge_InterpolantX
    
-     pure function Curvilinear_InterpolantdS( self , xi , direction ) result( dS )
+     pure function CurvedEdge_InterpolantdS( self , xi , direction ) result( dS )
          use MatrixOperations
          implicit none
-         class(CurvedBdryEdge_t), intent (in)           :: self
+         class(CurvedEdge_t), intent (in)               :: self
          real(kind=RP),           intent (in)           :: xi
          integer,                 intent (in), optional :: direction
          real(kind=RP)                                  :: dS(NDIM)
-         real(kind=RP)                                  :: auxdS(NDIM,0:self % spA % N+1)
-!        --------------------------------------------------------------
-         real(kind=RP)                        :: correctedXi
-         integer                                      :: dir
+         real(kind=RP)                                  :: auxdS(NDIM,0:self % spA % N)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP) :: correctedXi
+         integer       :: dir
    
          if (present(direction)) then
             dir = direction
@@ -378,15 +407,17 @@
            correctedXi = xi
          end if 
            
-         auxdS = spread( self % dS , 2 , self % spA % N + 1) * self % n
+         auxdS(IX,:) = self % dS * self % n(IX,:)
+         auxdS(IY,:) = self % dS * self % n(IY,:)
+
          dS = MatrixTimesVector_F( auxdS , self % spA % lj(correctedXi) , NDIM )
    
-      end function Curvilinear_InterpolantdS
+      end function CurvedEdge_InterpolantdS
    
-     pure function Curvilinear_InterpolantdX( self , xi , direction ) result( dX )
+     pure function CurvedEdge_InterpolantdX( self , xi , direction ) result( dX )
          use MatrixOperations
          implicit none
-         class(CurvedBdryEdge_t), intent (in)           :: self
+         class(CurvedEdge_t), intent (in)           :: self
          real(kind=RP),           intent (in)           :: xi
          integer      ,           intent (in), optional :: direction
          real(kind=RP)                                  :: dX(NDIM)
@@ -408,4 +439,131 @@
 
          dX = real(dir , kind=RP) * MatrixTimesVector_F( self % dX , self % spA % lj(correctedXi) , NDIM)
    
-     end function Curvilinear_InterpolantdX
+     end function CurvedEdge_InterpolantdX
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+!
+!        SUBDIVIDED EDGE PROCEDURES
+!        --------------------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+!
+   subroutine SubdividedEdge_ConstructMortars ( self , N_N , N_S , spA ) 
+      use Setup_class
+      implicit none
+      class(SubdividedEdge_t)          :: self
+      integer, intent(in)              :: N_N
+      integer, intent(in)              :: N_S
+      class(NodalStorage)              :: spA 
+!
+!     ---------------
+!     Local variables
+!     ---------------
+!
+      integer     :: p 
+!
+!     Gather the mortars polynomial order
+!     -----------------------------------
+      self % N_N = N_N
+      self % N_S = N_S
+!
+!     Construct the nodes and weights
+!     -------------------------------
+      call spA % Add ( N_N , Setup % nodes , self % spA_N )
+      call spA % Add ( N_S , Setup % nodes , self % spA_S )
+!
+!     Construct the mortar coordinates
+!     --------------------------------
+      allocate( self % X_S ( NDIM , 0 : N_S ) )
+      allocate( self % X_N ( NDIM , 0 : N_N ) )
+      self % X_S = reshape((/( self % nodes(ONE) % n % X * (1.0_RP - self % spA_S % xi(p)) + self % nodes(THREE) % n % X * self % spA_S % xi(p) , &
+                                             p = 0 , self % spA_S % N)/),(/ NDIM , self % spA_S % N + 1 /) )
+      self % X_N = reshape((/( self % nodes(THREE) % n % X * (1.0_RP - self % spA_N % xi(p)) + self % nodes(TWO) % n % X * self % spA_N % xi(p) , &
+                                             p = 0 , self % spA_N % N)/),(/ NDIM , self % spA_N % N + 1 /) )
+!
+!     Construct the mortar normal vectors
+!     -----------------------------------
+      allocate( self % normal_N ( NDIM , 0:0 ) )
+      allocate( self % normal_S ( NDIM , 0:0 ) )
+      self % normal_N = self % n
+      self % normal_S = self % n
+!
+!     Construct the mortar surface jacobian
+!     -------------------------------------
+      allocate( self % dS_N ( 0:0 ) ) 
+      allocate( self % dS_S ( 0:0 ) ) 
+      self % dS_N = 0.5_RP * self % dS
+      self % dS_S = 0.5_RP * self % dS
+
+   end subroutine SubdividedEdge_ConstructMortars
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+!
+!        CURVED SUBDIVIDED EDGE PROCEDURES
+!        ---------------------------------
+!///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////7
+!
+   subroutine CurvedSubdividedEdge_ConstructMortars ( self , N_N , N_S , spA ) 
+      use Setup_class
+      implicit none
+      class(CurvedSubdividedEdge_t) :: self
+      integer, intent(in)           :: N_N
+      integer, intent(in)           :: N_S
+      class(NodalStorage)           :: spA
+!
+!     ---------------
+!     Local variables
+!     ---------------
+!
+      integer     :: p 
+!
+!     Gather the mortars polynomial order
+!     -----------------------------------
+      self % N_N = N_N
+      self % N_S = N_S
+!
+!     Construct the nodes and weights
+!     -------------------------------
+      call spA % Add ( N_N , Setup % nodes , self % spA_N )
+      call spA % Add ( N_S , Setup % nodes , self % spA_S )
+!
+!     Construct the mortar coordinates
+!     --------------------------------
+      allocate ( self % X_S ( NDIM , 0 : N_S )  ) 
+      allocate ( self % X_N ( NDIM , 0 : N_N )  ) 
+      do p = 0 , self % N_N
+         self % X_N(1:NDIM , p) = self % evaluateX( 0.5_RP + 0.5_RP * self % spA_N % xi(p) )
+      end do
+      do p = 0 , self % N_S
+         self % X_S(1:NDIM , p) = self % evaluateX( 0.5_RP * self % spA_S % xi(p) )
+      end do
+!
+!     Construct the mortar normal vectors
+!     -----------------------------------
+      allocate ( self % normal_N ( NDIM , 0 : N_N )  ) 
+      allocate ( self % normal_S ( NDIM , 0 : N_S )  ) 
+      do p = 0 , self % N_N
+         self % normal_N(1:NDIM , p) = self % evaluatedS( 0.5_RP + 0.5_RP * self % spA_N % xi(p) )
+      end do
+      do p = 0 , self % N_S
+         self % normal_S(1:NDIM , p) = self % evaluatedS( 0.5_RP * self % spA_S % xi(p) )
+      end do
+!
+!     Construct the mortar surface jacobian
+!     -------------------------------------
+      allocate ( self % dS_N ( 0 : N_N )  ) 
+      allocate ( self % dS_S ( 0 : N_S )  ) 
+      self % dS_N = 0.5_RP * norm2( self % normal_N , dim = 1 )
+      self % dS_S = 0.5_RP * norm2( self % normal_S , dim = 1 ) 
+!
+!     Divide the dS vector by the norm
+!     --------------------------------
+      self % normal_N(IX,:) = 0.5_RP * self % normal_N(IX,:) / self % dS_N
+      self % normal_N(IY,:) = 0.5_RP * self % normal_N(IY,:) / self % dS_N
+      self % normal_S(IX,:) = 0.5_RP * self % normal_S(IX,:) / self % dS_S
+      self % normal_S(IY,:) = 0.5_RP * self % normal_S(IY,:) / self % dS_S
+
+   end subroutine CurvedSubdividedEdge_ConstructMortars
+!
+!//////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!

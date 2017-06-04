@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 module DGSpatialDiscretizationMethods
    use SMConstants
    use Physics
@@ -11,10 +32,10 @@ module DGSpatialDiscretizationMethods
    implicit none
 !
 #include "Defines.h"
-
+!
    private
    public DGSpatial_Initialization  , DGSpatial_computeTimeDerivative , DGSpatial_interpolateSolutionToBoundaries
-   public DGSpatial_newTimeStep
+   public DGSpatial_newTimeStep , ArtificialDissipation
 !
 !  ************************************
 !  Inviscid and Viscous methods objects
@@ -67,7 +88,7 @@ module DGSpatialDiscretizationMethods
 !              -----------------------
 !///////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine DGSpatial_computeTimeDerivative( mesh ) 
+      subroutine DGSpatial_computeTimeDerivative( mesh , time ) 
 !
 !        ***************************************************
 !           Subroutine that performs the spatial
@@ -76,19 +97,22 @@ module DGSpatialDiscretizationMethods
 !        ***************************************************
 !
          implicit none
-         class(QuadMesh_t)         :: mesh
+         class(QuadMesh_t)          :: mesh
+         real(kind=RP), intent(in)  :: time
+!$omp parallel
 !
 !        Prepare the mesh for a new iteration
 !        ------------------------------------
-         call DGSpatial_newTimeStep( mesh )
+         call DGSpatial_newTimeStep( mesh , time )
 !
 !        Compute QDot
 !        ------------
          call DGSpatial_computeQDot( mesh )
+!$omp end parallel
 
       end subroutine DGSpatial_computeTimeDerivative
       
-         subroutine DGSpatial_newTimeStep( mesh )
+         subroutine DGSpatial_newTimeStep( mesh , time)
 !
 !        *************************************************************
 !           This subroutine prepares the mesh struct
@@ -102,6 +126,7 @@ module DGSpatialDiscretizationMethods
 !
          implicit none
          class(QuadMesh_t)         :: mesh
+         real(kind=RP)             :: time
          integer                   :: zoneID
 !
 !        Interpolate solution to boundaries
@@ -110,9 +135,11 @@ module DGSpatialDiscretizationMethods
 !
 !        Update the zones solution
 !        -------------------------
+!$omp do
          do zoneID = 1 , size(mesh % zones) - 1
-            call mesh % zones(zoneID) % UpdateSolution
+            call mesh % zones(zoneID) % UpdateSolution(time)
          end do 
+!$omp end do
 
 #ifdef NAVIER_STOKES
 !
@@ -146,23 +173,38 @@ module DGSpatialDiscretizationMethods
          integer                 :: eID
          integer                 :: edID
          integer                 :: eq
+         class(Edge_t), pointer  :: f
 !
 !        ************
 !        Volume loops
 !        ************
 !
+!$omp do schedule(runtime)
          do eID = 1 , mesh % no_of_elements
             call DGSpatial_QDotVolumeLoop( mesh % elements(eID) ) 
          end do
+!$omp end do
 !
 !        **********
 !        Face loops
 !        **********
 !
+!$omp barrier
+!$omp master
          do edID = 1 , mesh % no_of_edges
-            select type ( f => mesh % edges(edID) % f ) 
+            f => mesh % edges(edID) % f
+            select type ( f ) 
                type is (Edge_t)
                   call DGSpatial_QDotFaceLoop_Interior( f ) 
+
+               type is (CurvedEdge_t)
+                  call DGSpatial_QDotFaceLoop_CurvedInterior( f ) 
+
+               type is (SubdividedEdge_t)
+                  call DGSpatial_QDotFaceLoop_SubdividedEdge( f ) 
+
+               type is (CurvedSubdividedEdge_t)
+                  call DGSpatial_QDotFaceLoop_CurvedSubdividedEdge( f ) 
 
                type is (StraightBdryEdge_t)
                   call DGSpatial_QDotFaceLoop_StraightBdry( f )
@@ -171,18 +213,21 @@ module DGSpatialDiscretizationMethods
                   call DGSpatial_QDotFaceLoop_CurvedBdry( f )
 
             end select
-!            call DGSpatial_QDotFaceLoop( f ) 
          end do
+!$omp end master
 !
 !        ***********************
 !        Scale with the jacobian
 !        ***********************
 !
+!$omp barrier
+!$omp do private(eq) schedule(runtime)
          do eID = 1 , mesh % no_of_elements 
             do eq = 1 , NCONS
                mesh % elements(eID) % QDot(:,:,eq) = mesh % elements(eID) % QDot(:,:,eq) / mesh % elements(eID) % Jac
             end do
          end do
+!$omp end do
 
       end subroutine DGSpatial_computeQDot
 !
@@ -196,10 +241,10 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          class(QuadElement_t)          :: e 
-         real ( kind=RP )       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: Fa ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real ( kind=RP )       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fa ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
          real(kind=RP), pointer :: QDot(:,:,:)
 
          Fi = InviscidMethod % ComputeInnerFluxes( e )
@@ -222,16 +267,16 @@ module DGSpatialDiscretizationMethods
       subroutine DGSpatial_QDotFaceLoop_Interior( ed )
          use QuadElementClass
          implicit none
-         type(Edge_t)               :: ed
-         real ( kind=RP )           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real ( kind=RP ), pointer  :: QDot(:,:,:)
+         type(Edge_t)           :: ed
+         real(kind=RP)          :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)          :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP), pointer :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
 !        --------------------------------------------------------------------------
@@ -269,13 +314,189 @@ module DGSpatialDiscretizationMethods
 
       end subroutine DGSpatial_QDotFaceLoop_Interior
 
+      subroutine DGSpatial_QDotFaceLoop_CurvedInterior( ed )
+         use QuadElementClass
+         implicit none
+         type(CurvedEdge_t)         :: ed
+         real(kind=RP)           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP)           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP), pointer  :: QDot(:,:,:)
+!
+!        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
+!        --------------------------------------------------------------------------
+         call ComputeRiemannSolver_InteriorCurvedEdge( ed , FL , FR , GL , GR)
+!
+!        Add the contribution to the LEFT element
+!        ----------------------------------------
+         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
+!
+!        Add the contribution to the RIGHT element
+!        -----------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT , FR ) 
+
+#ifdef NAVIER_STOKES
+!
+!        Add the gradient fluxes term
+!        ----------------------------
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Add the contribution to the LEFT element
+!           ----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
+!
+!           Add the contribution to the RIGHT element
+!           -----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT , GR ) 
+!
+         end if
+#endif
+           
+
+      end subroutine DGSpatial_QDotFaceLoop_CurvedInterior
+
+      subroutine DGSpatial_QDotFaceLoop_SubdividedEdge( ed )
+         use QuadElementClass
+         implicit none
+         type(SubdividedEdge_t) :: ed
+         real(kind=RP)          :: FiL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FvL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: GL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)          :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)          :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)          :: FL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP), pointer :: QDot(:,:,:)
+!
+!        Compute the Riemann Solver (FL,FRN,FRS) and the Gradient Riemann Solver (GL,GRN,GRS)
+!        ------------------------------------------------------------------------------------
+         call ComputeRiemannSolver_SubdividedEdge( ed , FL , FRN , FRS , GL , GRN , GRS)
+!
+!        Add the contribution to the LEFT element
+!        ----------------------------------------
+         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
+!
+!        Add the contribution to the RIGHT-NORTH element
+!        -----------------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_NORTH , FRN ) 
+!
+!        Add the contribution to the RIGHT-SOUTH element
+!        -----------------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_SOUTH , FRS ) 
+
+#ifdef NAVIER_STOKES
+!
+!        Add the gradient fluxes term
+!        ----------------------------
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Add the contribution to the LEFT element
+!           ----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
+!
+!           Add the contribution to the RIGHT-NORTH element
+!           -----------------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_NORTH , GRN ) 
+!
+!           Add the contribution to the RIGHT-SOUTH element
+!           -----------------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_SOUTH , GRS ) 
+!
+         end if
+#endif
+
+      end subroutine DGSpatial_QDotFaceLoop_SubdividedEdge
+
+      subroutine DGSpatial_QDotFaceLoop_CurvedSubdividedEdge( ed )
+         use QuadElementClass
+         implicit none
+         type(CurvedSubdividedEdge_t) :: ed
+         real(kind=RP)                :: FiL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FvL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: GL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)                :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)                :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)                :: FL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP), pointer       :: QDot(:,:,:)
+!
+!        Compute the Riemann Solver (FL,FRN,FRS) and the Gradient Riemann Solver (GL,GRN,GRS)
+!        ------------------------------------------------------------------------------------
+         call ComputeRiemannSolver_CurvedSubdividedEdge( ed , FL , FRN , FRS , GL , GRN , GRS)
+!
+!        Add the contribution to the LEFT element
+!        ----------------------------------------
+         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
+!
+!        Add the contribution to the RIGHT-NORTH element
+!        -----------------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_NORTH , FRN ) 
+!
+!        Add the contribution to the RIGHT-SOUTH element
+!        -----------------------------------------------
+         QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+         QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_SOUTH , FRS ) 
+
+#ifdef NAVIER_STOKES
+!
+!        Add the gradient fluxes term
+!        ----------------------------
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Add the contribution to the LEFT element
+!           ----------------------------------------
+            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
+!
+!           Add the contribution to the RIGHT-NORTH element
+!           -----------------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_NORTH , GRN ) 
+!
+!           Add the contribution to the RIGHT-SOUTH element
+!           -----------------------------------------------
+            QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+            QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_SOUTH , GRS ) 
+!
+         end if
+#endif
+
+      end subroutine DGSpatial_QDotFaceLoop_CurvedSubdividedEdge
+
       subroutine DGSpatial_QDotFaceLoop_StraightBdry( ed )
          use QuadElementClass
          implicit none
          type(StraightBdryEdge_t)  :: ed
          real(kind=RP)             :: G ( 0 : ed % spA % N , 1:NCONS , 1:NDIM )  
          real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
-         real ( kind=RP ), pointer :: QDot(:,:,:)
+         real(kind=RP), pointer :: QDot(:,:,:)
 
          call ComputeRiemannSolver_StraightBdryEdge( ed , F , G )
 
@@ -297,7 +518,7 @@ module DGSpatialDiscretizationMethods
          type(CurvedBdryEdge_t)    :: ed
          real(kind=RP)             :: G ( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
-         real ( kind=RP ), pointer :: QDot(:,:,:)
+         real(kind=RP), pointer :: QDot(:,:,:)
 
          call ComputeRiemannSolver_CurvedBdryEdge( ed , F , G )
 
@@ -343,9 +564,9 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          use MatrixOperations
          implicit none
-         type(Edge_t)            :: ed
-         real(kind=RP)           :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
-         real(kind=RP)           :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
+         type(Edge_t)                :: ed
+         real(kind=RP)               :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
+         real(kind=RP)               :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
          real(kind=RP), intent (out) :: GL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP), intent (out) :: GR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
 !
@@ -353,24 +574,26 @@ module DGSpatialDiscretizationMethods
 !        Local variables
 !        ---------------
 !
-         real ( kind=RP)            :: Fi( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP)            :: Fstar( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: QL ( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: QR ( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target   :: dQL ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real ( kind=RP ), target   :: dQR ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
 #ifdef NAVIER_STOKES
-         real ( kind=RP)            :: Fv( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP)            :: Fa( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP )           :: GauxL( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
-         real ( kind=RP )           :: GauxR( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM)
+         real(kind=RP) :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP) :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
 #endif
-         real ( kind=RP )           :: normal(NDIM , 0 : ed % spA % N )
-         integer                    :: eq , iDim
+         real(kind=RP)           :: normal(NDIM , 0 : ed % spA % N )
+         integer                    :: eq , iDim , i 
 !
 !        Compute the normal
 !        ------------------
-         normal = spread( ed % n(IX:IY,0) , ncopies = ed % spA % N + 1 , dim = 2 )
+         do i = 0 , ed % spA % N
+            normal(IX:IY,i) = ed % n(IX:IY,0) 
+         end do
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -380,7 +603,11 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the solution projection onto the edge
 !        -----------------------------------------
-         call ed % ProjectSolution(ed , QL , QR , dQL , dQR )
+#ifdef NAVIER_STOKES
+         call ed % ProjectSolutionAndGradient(ed , QL , QR , dQL , dQR )
+#else
+         call ed % ProjectSolution( ed , QL , QR )
+#endif
 !
 !        Compute the inviscid Riemann solver
 !        -----------------------------------
@@ -393,7 +620,7 @@ module DGSpatialDiscretizationMethods
 !
 !        Compute the artificial dissipation Riemann solver
 !        -------------------------------------------------
-         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
+         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , QL , QR , dQL , dQR , normal )
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
 !        --------------------------------------------------------------------------------
@@ -407,6 +634,9 @@ module DGSpatialDiscretizationMethods
          call ed % ProjectFluxes( ed , FStar , FL , FR )
 
 #ifdef NAVIER_STOKES
+!
+!        Compute the Gradient Riemann solver
+!        -----------------------------------
          if ( ViscousMethod % computeRiemannGradientFluxes ) then
                call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
 
@@ -417,340 +647,390 @@ module DGSpatialDiscretizationMethods
 
          end if
 #endif
-!
-!
-!         if ( ed % transform(LEFT) .and. ed % inverse ) then
-!! 
-!!        -------------------------------------------------------
-!!>       First case: LEFT needs p-Adaption and RIGHT is reversed
-!!        -------------------------------------------------------
-!!
-!!           Transform the LEFT edge
-!!           -----------------------            
-!            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-!#ifdef NAVIER_STOKES
-!            do eq = 1 , NCONS
-!               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
-!            end do
-!#endif
-!!
-!!           Invert the RIGHT edge 
-!!           ---------------------
-!            QR  = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
-!#ifdef NAVIER_STOKES
-!            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
-!#endif
-!!
-!!           Compute the Riemann solver
-!!           --------------------------
-!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-!#ifdef NAVIER_STOKES
-!            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-!
-!            FR = ( Fi - Fv - Fa) * ed % dS(0)
-!#else
-!            FR = Fi * ed % dS(0)
-!#endif
-!!
-!!           Transform the LEFT edge
-!!           -----------------------
-!            call Mat_x_Mat( ed % T_backward , FR , FL )
-!!
-!!           Invert the RIGHT edge
-!!           ---------------------
-!            FR(0:ed % spA % N , 1:NCONS) = FR(ed % spA % N : 0 : -1 , 1:NCONS)
-!
-!#ifdef NAVIER_STOKES
-!!
-!!           Compute the Gradient Riemann solver if proceeds
-!!           -----------------------------------------------
-!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
-!
-!               do iDim = 1 , NDIM
-!                  call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
-!               end do
-!
-!               GL = GL * ed % dS(0)
-!               GR = GauxR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM)  * ed % dS(0)
-!
-!            end if
-!#endif
-!
-!         elseif ( ed % transform(LEFT) ) then
-!! 
-!!        ----------------------------------
-!!>       Second case: LEFT needs p-Adaption.
-!!        ----------------------------------
-!!
-!!           Transform the LEFT edge
-!!           -----------------------
-!            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-!#ifdef NAVIER_STOKES
-!            do eq = 1 , NCONS
-!               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
-!            end do
-!#endif
-!!
-!!           Get the RIGHT edge state
-!!           ------------------------
-!            QR = ed % storage(RIGHT) % Q
-!#ifdef NAVIER_STOKES
-!            dQR = ed % storage(RIGHT) % dQ
-!#endif
-!!
-!!           Compute the Riemann solver
-!!           --------------------------
-!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-!#ifdef NAVIER_STOKES
-!            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-!            FR = ( Fi - Fv - Fa) * ed % dS(0)
-!#else
-!            FR = Fi * ed % dS(0)
-!#endif
-!
-!!
-!!           Transform the LEFT edge
-!!           -----------------------
-!            call Mat_x_Mat( ed % T_backward , FR , FL )
-!
-!#ifdef NAVIER_STOKES
-!!
-!!           Compute the Gradient Riemann solver if proceeds
-!!           -----------------------------------------------
-!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GR )
-!
-!               do iDim = 1 , NDIM
-!                  call Mat_x_Mat( ed % T_backward , GauxL(:,:,iDim) , GL(:,:,iDim) )
-!               end do
-!
-!               GL = GL * ed % dS(0)
-!               GR = GR * ed % dS(0)
-!            end if
-!
-!#endif
-!
-!         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
-!! 
-!!        ----------------------------------------------------
-!!>       Third case: RIGHT needs p-Adaption, and its reversed.
-!!        ----------------------------------------------------
-!!
-!!           Get the LEFT edge 
-!!           -----------------
-!            QL = ed % storage(LEFT) % Q
-!#ifdef NAVIER_STOKES
-!            dQL = ed % storage(LEFT) % dQ
-!#endif
-!!
-!!           Transform the RIGHT edge 
-!!           ------------------------
-!            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-!#ifdef NAVIER_STOKES
-!            do eq = 1 , NCONS
-!               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
-!            end do
-!#endif
-!!
-!!           Invert the RIGHT edge 
-!!           ---------------------
-!            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
-!#ifdef NAVIER_STOKES
-!            dQR = dQR(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
-!#endif
-!!
-!!           Compute the Riemann solver
-!!           --------------------------
-!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-!#ifdef NAVIER_STOKES
-!            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-!            FL = ( Fi - Fv - Fa) * ed % dS(0)
-!#else
-!            FL = Fi * ed % dS(0)
-!#endif
-!!
-!!           Undo the transformation for the RIGHT edge
-!!           ------------------------------------------ 
-!            call Mat_x_Mat( ed % T_backward , FL , FR )
-!!
-!!           Invert the edge 
-!!           ---------------
-!            FR(0:ed % NLow,1:NCONS) = FR(ed % NLow:0:-1 , 1:NCONS)
-!
-!#ifdef NAVIER_STOKES
-!!
-!!           Compute the Gradient Riemann solver if proceeds
-!!           -----------------------------------------------
-!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
-!
-!               do iDim = 1 , NDIM
-!                  call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
-!               end do
-!
-!               GL   = GL * ed % dS(0)
-!               GR   = GR(ed % spA % N : 0 : -1 , 1:NCONS, 1:NDIM) * ed % dS(0)
-!            end if
-!#endif
-!
-!         elseif ( ed % transform(RIGHT) ) then
-!! 
-!!        -----------------------------------
-!!>       Fourth case: RIGHT needs p-Adaption.
-!!        -----------------------------------
-!!
-!!           Get the LEFT edge
-!!           -----------------
-!            QL = ed % storage(LEFT) % Q
-!#ifdef NAVIER_STOKES
-!            dQL = ed % storage(LEFT) % dQ
-!#endif
-!!
-!!           Transform the RIGHT edge
-!!           ------------------------
-!            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-!#ifdef NAVIER_STOKES
-!            do eq = 1 , NCONS
-!               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
-!            end do
-!#endif
-!!
-!!           Compute the Riemann solver
-!!           --------------------------
-!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-!#ifdef NAVIER_STOKES
-!            Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-!            FL = ( Fi - Fv - Fa) * ed % dS(0)
-!#else
-!            FL = Fi * ed % dS(0)
-!#endif
-!!
-!!           Undo the transformation for the RIGHT 
-!!           ------------------------------------------
-!            call Mat_x_Mat( ed % T_backward , FL , FR )
-!
-!#ifdef NAVIER_STOKES
-!!
-!!           Compute the Gradient Riemann solver if proceeds
-!!           -----------------------------------------------
-!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GauxR ) 
-!      
-!               do iDim = 1 , NDIM
-!                  call Mat_x_Mat( ed % T_backward , GauxR(:,:,iDim) , GR(:,:,iDim) )
-!               end do
-!
-!               GL = GL * ed % dS(0)
-!               GR = GR * ed % dS(0)
-!            end if
-!#endif
-!         
-!         elseif ( ed % inverse ) then
-!! 
-!!        -----------------------------
-!!>       Fifth case: RIGHT is reversed.
-!!        -----------------------------
-!!
-!!           Get the LEFT edge
-!!           -----------------
-!            QL = ed % storage(LEFT) % Q
-!#ifdef NAVIER_STOKES
-!            dQL = ed % storage(LEFT) % dQ
-!#endif
-!!
-!!           Invert the RIGHT edge
-!!           ---------------------
-!            QR(0:ed % spA % N , 1:NCONS ) = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS)
-!#ifdef NAVIER_STOKES
-!            dQR = ed % storage(RIGHT) % dQ(ed % spA % N : 0 : -1 , 1:NDIM , 1:NCONS )
-!#endif
-!!
-!!           Compute the Riemann solver
-!!           --------------------------
-!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-!#ifdef NAVIER_STOKES
-!            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-!
-!            FL = ( Fi - Fv - Fa) * ed % dS(0)
-!#else
-!            FL = Fi * ed % dS(0)
-!#endif
-!!
-!!           Invert the RIGHT edge
-!!           ---------------------
-!            FR( 0 : ed % spA % N , 1:NCONS ) = FL ( ed % spA % N : 0 : -1 , 1:NCONS )
-!
-!#ifdef NAVIER_STOKES
-!!
-!!           Compute the Gradient Riemann solver if proceeds
-!!           -----------------------------------------------
-!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
-!
-!               GL = GL * ed % dS(0)
-!               GR = GR(ed % spA % N : 0 : -1 , 1:NCONS , 1:NDIM) * ed % dS(0)
-!            end if
-!#endif
-!
-!         else
-!! 
-!!        -----------------------------------------------------------------------
-!!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
-!!        -----------------------------------------------------------------------
-!!
-!!           Get the LEFT edge
-!!           -----------------   
-!            QL = ed % storage(LEFT) % Q
-!#ifdef NAVIER_STOKES
-!            dQL = ed % storage(LEFT) % dQ
-!#endif 
-!!
-!!           Get the RIGHT edge
-!!           ------------------
-!            QR = ed % storage(RIGHT) % Q
-!#ifdef NAVIER_STOKES
-!            dQR = ed % storage(RIGHT) % dQ
-!#endif
-!!
-!!           Compute the Riemann solver
-!!           --------------------------
-!            Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , normal ) 
-!#ifdef NAVIER_STOKES
-!            Fv = ViscousMethod  % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , normal )
-!            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , QL , QR , dQL , dQR , normal )
-!
-!            FL = ( Fi - Fv - Fa ) * ed % dS(0)
-!            FR = FL
-!#else
-!            FL = Fi * ed % dS(0)
-!            FR = FL
-!#endif
-!
-!#ifdef NAVIER_STOKES
-!!
-!!           Compute the Gradient Riemann solver if proceeds
-!!           -----------------------------------------------
-!            if ( ViscousMethod % computeRiemannGradientFluxes ) then
-!               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GL , GR ) 
-!
-!               GL = GL * ed % dS(0)
-!               GR = GR * ed % dS(0)
-!            end if
-!#endif
-!         
-!         end if
-!!
-!!        Change the sign of FR so that it points towards the element outside
-!!        -------------------------------------------------------------------
-!         FR = -1.0_RP * FR
 
       end subroutine ComputeRiemannSolver_InteriorEdge
+
+      subroutine ComputeRiemannSolver_InteriorCurvedEdge( ed , FL , FR , GL , GR)
+!
+!        *****************************************************************************
+!           This routine computes the Viscous Riemann problem in the "ed" edge.
+!              -> The result is FStarL and FStarR
+
+!        >> It considers several possibilities:
+!
+!              1/ LEFT edge needs a p-Transformation and RIGHT edge is reversed.
+!              2/ LEFT edge needs a p-Transformation
+!              3/ RIGHT edge needs a p-Transformation and RIGHT edge is reversed.
+!              4/ RIGHT edge needs a p-Transformation
+!              5/ RIGHT edge is reversed.
+!              6/ No transformations are needed.
+!
+!           The Riemann solver is computed with the 
+!>                self % RiemannSolver( N , QL , QR , dQL , dQR , normal )
+!           procedure.
+!
+!        *****************************************************************************
+!
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         type(CurvedEdge_t)          :: ed
+         real(kind=RP)               :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
+         real(kind=RP)               :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
+         real(kind=RP), intent (out) :: GL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP), intent (out) :: GR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+#ifdef NAVIER_STOKES
+         real(kind=RP)  :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)  :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+#endif
+         integer :: eq , dimID , i 
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+#ifdef NAVIER_STOKES
+         call ed % ProjectSolutionAndGradient(ed , QL , QR , dQL , dQR )
+#else
+         call ed % ProjectSolution(ed , QL , QR )
+#endif
+!
+!        Compute the inviscid Riemann solver
+!        -----------------------------------
+         Fi = InviscidMethod % RiemannSolver( ed % spA % N , QL , QR , ed % n ) 
+#ifdef NAVIER_STOKES
+!
+!        Compute the viscous Riemann solver
+!        ----------------------------------
+         Fv = ViscousMethod % RiemannSolver( ed , ed % spA % N , ed % invh , QL , QR , dQL , dQR , ed % n )
+!
+!        Compute the artificial dissipation Riemann solver
+!        -------------------------------------------------
+         Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , QL , QR , dQL , dQR , ed % n )
+#endif
+!
+!        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
+!        --------------------------------------------------------------------------------
+         do eq = 1 , NCONS 
+#ifdef NAVIER_STOKES
+            FStar(:,eq) = ( Fi(:,eq) - Fv(:,eq) - Fa(:,eq) ) * ed % dS
+#else
+            FStar(:,eq) = Fi(:,eq) * ed % dS 
+#endif
+         end do
+!
+!        Return the resulting Riemann flux to each element frame
+!        -------------------------------------------------------
+         call ed % ProjectFluxes( ed , FStar , FL , FR )
+
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+               call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , ed % n , GauxL , GauxR ) 
+
+               do dimID = 1 , NDIM    ; do eq = 1 , NCONS
+                  GauxL(:,eq,dimID) = GauxL(:,eq,dimID) * ed % dS
+                  GauxR(:,eq,dimID) = GauxR(:,eq,dimID) * ed % dS
+               end do                 ; end do
+
+               call ed % ProjectGradientFluxes( ed , GauxL , GauxR , GL , GR )
+
+         end if
+#endif
+
+      end subroutine ComputeRiemannSolver_InteriorCurvedEdge
+
+      subroutine ComputeRiemannSolver_SubdividedEdge( ed , FL , FRN , FRS , GL , GRN , GRS )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         type(SubdividedEdge_t)              :: ed
+         real(kind=RP) ,         intent(out) :: FL  ( 0 : ed % storage ( LEFT        )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: FRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: FRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: GL  ( 0 : ed % storage ( LEFT        )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , 1:NCONS , 1:NDIM )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FiN    ( 0 : ed % spA_N % N , 1 : NCONS            )      ! -----------------------------
+         real(kind=RP)          :: FstarN ( 0 : ed % spA_N % N , 1 : NCONS            )      !     Variables in the NORTH
+         real(kind=RP) , target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  mortar.
+         real(kind=RP) , target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  
+         real(kind=RP) , target :: dQLN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! 
+         real(kind=RP) , target :: dQRN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+         real(kind=RP)          :: FiS    ( 0 : ed % spA_S % N , 1 : NCONS            )      ! -----------------------------
+         real(kind=RP)          :: FstarS ( 0 : ed % spA_S % N , 1 : NCONS            )      !     Variables in the SOUTH
+         real(kind=RP) , target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  mortar.
+         real(kind=RP) , target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  
+         real(kind=RP) , target :: dQLS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! 
+         real(kind=RP) , target :: dQRS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+#ifdef NAVIER_STOKES
+         real(kind=RP)  :: FvN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
+         real(kind=RP)  :: FaN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxLN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: FvS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
+         real(kind=RP)  :: FaS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxLS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+#endif
+         real(kind=RP) :: normal_N(NDIM , 0 : ed % spA_N % N )
+         real(kind=RP) :: normal_S(NDIM , 0 : ed % spA_S % N )
+         integer       :: eq , iDim , i 
+!
+!        Compute the normal
+!        ------------------
+         do i = 0 , ed % spA_N % N
+            normal_N(IX:IY,i) = ed % normal_N(IX:IY,0)
+         end do
+
+         do i = 0 , ed % spA_S % N
+            normal_S(IX:IY,i) = ed % normal_S(IX:IY,0) 
+         end do
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
+         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
+         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
+         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+!
+!        Compute the inviscid Riemann solver
+!        -----------------------------------
+         FiN = InviscidMethod % RiemannSolver( ed % spA_N % N , QLN , QRN , normal_N ) 
+         FiS = InviscidMethod % RiemannSolver( ed % spA_S % N , QLS , QRS , normal_S ) 
+#ifdef NAVIER_STOKES
+!
+!        Get the gradient projection onto the edge
+!        -----------------------------------------
+         do eq = 1 , NCONS
+            call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLN(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLS(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % dQ(:,:,eq) , dQRN(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % dQ(:,:,eq) , dQRS(:,:,eq) ) 
+         end do
+!
+!        Compute the viscous Riemann solver
+!        ----------------------------------
+         FvN = ViscousMethod % RiemannSolver( ed , ed % spA_N % N , ed % invh , QLN , QRN , dQLN , dQRN , normal_N )
+         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLS , QRS , dQLS , dQRS , normal_S )
+!
+!        Compute the artificial dissipation Riemann solver
+!        -------------------------------------------------
+         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_N % N , QLN , QRN , dQLN , dQRN , normal_N )
+         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_S % N , QLS , QRS , dQLS , dQRS , normal_S )
+!
+!        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
+!        --------------------------------------------------------------------------------
+         FStarN = ( FiN - FvN - FaN ) * ed % dS_N(0)
+         FStarS = ( FiS - FvS - FaS ) * ed % dS_S(0)
+#else
+         FStarN = FiN * ed % dS_N(0)
+         FStarS = FiS * ed % dS_S(0)
+#endif
+!
+!        Return the resulting Riemann flux to each element frame
+!        -------------------------------------------------------
+         FL =  Mat_x_Mat_F( ed % T_LN_BKW , FStarN , ed % spA % N + 1, NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FStarS , ed % spA % N + 1, NCONS )
+         call Mat_x_Mat( ed % T_RN_BKW , FStarN , FRN )
+         call Mat_x_Mat( ed % T_RS_BKW , FStarS , FRS )
+      
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Compute the gradient Riemann solver
+!           -----------------------------------
+            call ViscousMethod % GradientRiemannSolver ( ed , ed % spA_N % N , QLN , QRN , normal_N , GauxLN , GauxRN ) 
+            call ViscousMethod % GradientRiemannSolver ( ed , ed % spA_S % N , QLS , QRS , normal_S , GauxLS , GauxRS ) 
+!
+!           Scale it with the surface Jacobian
+!           ----------------------------------
+            GauxLN = GauxLN * ed % dS_N(0)
+            GauxLS = GauxLS * ed % dS_S(0)
+            GauxRN = GauxRN * ed % dS_N(0)
+            GauxRS = GauxRS * ed % dS_S(0)
+!
+!           Return the resulting Riemann flux to each element frame
+!           -------------------------------------------------------
+            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1 , NCONS )
+            GL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IY) , ed % spA % N + 1 , NCONS )
+
+            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IX) , GRN(:,:,IX) )
+            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IY) , GRN(:,:,IY) )
+
+            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IX) , GRS(:,:,IX) )
+            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IY) , GRS(:,:,IY) )
+
+         end if
+#endif
+!
+!        Change RIGHT fluxes signs to account for the normal direction
+!        ------------------------------------------------------------- 
+         FRN = -FRN
+         FRS = -FRS
+
+      end subroutine ComputeRiemannSolver_SubdividedEdge
+
+      subroutine ComputeRiemannSolver_CurvedSubdividedEdge( ed , FL , FRN , FRS , GL , GRN , GRS )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         type(CurvedSubdividedEdge_t)        :: ed
+         real(kind=RP) ,         intent(out) :: FL  ( 0 : ed % storage ( LEFT        )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: FRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: FRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , NCONS            )
+         real(kind=RP) ,         intent(out) :: GL  ( 0 : ed % storage ( LEFT        )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , 1:NCONS , 1:NDIM )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)          :: FiN    ( 0 : ed % spA_N % N , 1 : NCONS            )      ! -----------------------------
+         real(kind=RP)          :: FstarN ( 0 : ed % spA_N % N , 1 : NCONS            )      !     Variables in the NORTH
+         real(kind=RP) , target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  mortar.
+         real(kind=RP) , target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  
+         real(kind=RP) , target :: dQLN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! 
+         real(kind=RP) , target :: dQRN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+         real(kind=RP)          :: FiS    ( 0 : ed % spA_S % N , 1 : NCONS            )      ! -----------------------------
+         real(kind=RP)          :: FstarS ( 0 : ed % spA_S % N , 1 : NCONS            )      !     Variables in the SOUTH
+         real(kind=RP) , target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  mortar.
+         real(kind=RP) , target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  
+         real(kind=RP) , target :: dQLS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! 
+         real(kind=RP) , target :: dQRS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+#ifdef NAVIER_STOKES
+         real(kind=RP)  :: FvN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
+         real(kind=RP)  :: FaN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxLN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: FvS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
+         real(kind=RP)  :: FaS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
+         real(kind=RP)  :: GauxLS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+#endif
+         integer       :: eq , dimID , i 
+!
+!        Compute the edge artificial dissipation
+!        ---------------------------------------
+#ifdef NAVIER_STOKES
+         ed % mu_a = ArtificialDissipation % ComputeEdgeViscosity( ed )
+#endif
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
+         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
+         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
+         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+!
+!        Compute the inviscid Riemann solver
+!        -----------------------------------
+         FiN = InviscidMethod % RiemannSolver( ed % spA_N % N , QLN , QRN , ed % normal_N ) 
+         FiS = InviscidMethod % RiemannSolver( ed % spA_S % N , QLS , QRS , ed % normal_S ) 
+#ifdef NAVIER_STOKES
+!
+!        Get the gradient projection onto the edge
+!        -----------------------------------------
+         do eq = 1 , NCONS
+            call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLN(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLS(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % dQ(:,:,eq) , dQRN(:,:,eq) ) 
+            call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % dQ(:,:,eq) , dQRS(:,:,eq) ) 
+         end do
+!
+!        Compute the viscous Riemann solver
+!        ----------------------------------
+         FvN = ViscousMethod % RiemannSolver( ed , ed % spA_N % N , ed % invh , QLN , QRN , dQLN , dQRN , ed % normal_N )
+         FvS = ViscousMethod % RiemannSolver( ed , ed % spA_S % N , ed % invh , QLS , QRS , dQLS , dQRS , ed % normal_S )
+!
+!        Compute the artificial dissipation Riemann solver
+!        -------------------------------------------------
+         FaN = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_N % N , QLN , QRN , dQLN , dQRN , ed % normal_N )
+         FaS = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA_S % N , QLS , QRS , dQLS , dQRS , ed % normal_S )
+#endif
+!
+!        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
+!        --------------------------------------------------------------------------------
+         do eq = 1 , NCONS
+#ifdef NAVIER_STOKES
+            FStarN(:,eq) = ( FiN(:,eq) - FvN(:,eq) - FaN(:,eq) ) * ed % dS_N
+            FStarS(:,eq) = ( FiS(:,eq) - FvS(:,eq) - FaS(:,eq) ) * ed % dS_S
+#else
+            FStarN(:,eq) = FiN(:,eq) * ed % dS_N
+            FStarS(:,eq) = FiS(:,eq) * ed % dS_S
+#endif
+         end do
+!
+!        Return the resulting Riemann flux to each element frame
+!        -------------------------------------------------------
+         FL =  Mat_x_Mat_F( ed % T_LN_BKW , FStarN , ed % spA % N + 1, NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FStarS , ed % spA % N + 1, NCONS )
+         call Mat_x_Mat( ed % T_RN_BKW , FStarN , FRN )
+         call Mat_x_Mat( ed % T_RS_BKW , FStarS , FRS )
+      
+#ifdef NAVIER_STOKES
+         if ( ViscousMethod % computeRiemannGradientFluxes ) then
+!
+!           Compute the gradient Riemann solver
+!           -----------------------------------
+            call ViscousMethod % GradientRiemannSolver ( ed , ed % spA_N % N , QLN , QRN , ed % normal_N , GauxLN , GauxRN ) 
+            call ViscousMethod % GradientRiemannSolver ( ed , ed % spA_S % N , QLS , QRS , ed % normal_S , GauxLS , GauxRS ) 
+!
+!           Scale it with the surface Jacobian
+!           ----------------------------------
+            do dimID = 1 , NDIM     ; do eq = 1 , NCONS
+               GauxLN(:,eq,dimID) = GauxLN(:,eq,dimID) * ed % dS_N
+               GauxLS(:,eq,dimID) = GauxLS(:,eq,dimID) * ed % dS_S
+               GauxRN(:,eq,dimID) = GauxRN(:,eq,dimID) * ed % dS_N
+               GauxRS(:,eq,dimID) = GauxRS(:,eq,dimID) * ed % dS_S
+            end do                  ; end do
+!
+!           Return the resulting Riemann flux to each element frame
+!           -------------------------------------------------------
+            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1 , NCONS )
+            GL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IY) , ed % spA % N + 1 , NCONS )
+
+            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IX) , GRN(:,:,IX) )
+            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IY) , GRN(:,:,IY) )
+
+            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IX) , GRS(:,:,IX) )
+            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IY) , GRS(:,:,IY) )
+
+         end if
+#endif
+!
+!        Change RIGHT fluxes signs to account for the normal direction
+!        ------------------------------------------------------------- 
+         FRN = -FRN
+         FRS = -FRS
+
+      end subroutine ComputeRiemannSolver_CurvedSubdividedEdge
 
       subroutine ComputeRiemannSolver_StraightBdryEdge( ed , F , G )
          use QuadElementClass
@@ -784,8 +1064,10 @@ module DGSpatialDiscretizationMethods
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 
          N => ed % spA % N
-
-         normal = spread( ed % n(IX:IY,0) , ncopies = ed % spA % N + 1 , dim = 2 )
+      
+         do iXi = 0 , N
+            normal(IX:IY,iXi) = ed % n(IX:IY,0) 
+         end do
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -856,9 +1138,8 @@ module DGSpatialDiscretizationMethods
                Qb  = ed % uB(N:0:-1,1:NCONS)
                dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
 
-               normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
-               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
                if ( ViscousMethod % computeRiemannGradientFluxes ) then
                   call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , Q , Qb , normal , Gv , Gaux ) 
@@ -873,9 +1154,8 @@ module DGSpatialDiscretizationMethods
                Qb  = ed % uB
                dQb = ed % gB
 
-               normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 ) 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
-               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
+               Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
 
                if ( ViscousMethod % computeRiemannGradientFluxes ) then
                    call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , Q , Qb , normal , Gv , Gaux )
@@ -893,10 +1173,8 @@ module DGSpatialDiscretizationMethods
             dQ = ed % storage(1) % dQ
             Qb = ed % uSB
 
-            normal = spread( ed % n(IX:IY,0) , ncopies = N+1 , dim = 2 )
-            
             Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , normal ) * ed % dS(0) 
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , normal ) * ed % dS(0)
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQ , normal ) * ed % dS(0)
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
                Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , normal ) * ed % dS(0)
@@ -907,7 +1185,7 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , normal ) * ed % dS(0)
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , normal ) * ed % dS(0)
             do iXi = 0 , ed % spA % N
                select case ( ed % viscousBCType(iXi) )
    
@@ -973,7 +1251,7 @@ module DGSpatialDiscretizationMethods
          real(kind=RP)                 :: dQb1D( 1 : NDIM , 1 : NCONS ) 
 #endif
          integer, pointer              :: N
-         integer                       :: iXi
+         integer                       :: iXi , dimID , eq , i
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 
          N => ed % spA % N
@@ -1042,11 +1320,20 @@ module DGSpatialDiscretizationMethods
             dQ = ed % storage(1) % dQ
             Qb = ed % uSB
 
-            Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) * spread ( ed % dS , ncopies = NCONS , dim = 2 )  
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , Q , Qb , dQ , dQ , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 ) 
+            Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) 
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQ , ed % n )  
+
+            do eq = 1 , NCONS
+               Fv(:,eq) = Fv(:,eq) * ed % dS
+               Fa(:,eq) = Fa(:,eq) * ed % dS
+            end do
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
-               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , ed % n ) * spread( spread ( ed % dS , ncopies = NCONS , dim = 2 ) , ncopies = NDIM , dim = 3)
+               Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , ed % n ) 
+               
+               do dimID = 1 , NDIM     ; do eq = 1 , NCONS
+                  Gv(:,eq,dimID) = Gv(:,eq,dimID) * ed % dS
+               end do                  ; end do
 
             end if
 
@@ -1054,7 +1341,12 @@ module DGSpatialDiscretizationMethods
 !
 !           Dirichlet/Neumann boundary conditions
 !           -------------------------------------
-            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 ) 
+            Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n )
+            
+            do eq = 1 , NCONS
+               Fa(:,eq) = Fa(:,eq) * ed % dS
+            end do
+
             do iXi = 0 , ed % spA % N
                select case ( ed % viscousBCType(iXi) )
    
@@ -1084,7 +1376,6 @@ module DGSpatialDiscretizationMethods
 #endif
 
 #ifdef NAVIER_STOKES
-         !Fa = 0.0_RP
          F = Fi - Fv - Fa
          G = Gv
 #else
@@ -1113,6 +1404,7 @@ module DGSpatialDiscretizationMethods
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
 
+!$omp do private(eID,ed,eq,N,e) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1147,6 +1439,7 @@ module DGSpatialDiscretizationMethods
             end do
         
          end do
+!$omp end do
             
       end subroutine DGSpatial_interpolateSolutionToBoundaries
 
@@ -1163,6 +1456,7 @@ module DGSpatialDiscretizationMethods
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
 
+!$omp do private(e,N,eq,iDim,ed) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1197,6 +1491,7 @@ module DGSpatialDiscretizationMethods
             end do            ; end do
         
          end do
+!$omp end do
  
       end subroutine DGSpatial_interpolateGradientsToBoundaries
 #endif

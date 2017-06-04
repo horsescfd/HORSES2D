@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !              VISCOUS WALL BC
@@ -134,7 +155,7 @@
          end associate
       end subroutine ViscousWall_Associate
 
-      subroutine ViscousWall_UpdateSolution( self , edge )
+      subroutine ViscousWall_UpdateSolution( self , edge , time)
 !
 !        ***************************************************
 !           For each edge the ghost cell state is computed as
@@ -148,6 +169,7 @@
          implicit none  
          class(ViscousWall_t)                  :: self
          class(Edge_t)                       :: edge
+         real(kind=RP)            :: time
 !
 !        ---------------
 !        Local variables
@@ -186,7 +208,8 @@
                edge % uSB(0:N,IRHOV) = edge % uSB(0:N,IRHO) * self % v(IY)
    
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uSB(0:N,IRHOE) = dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw 
+                  edge % uSB(0:N,IRHOE) =   dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw &
+                                          + 0.5_RP * ( edge % uSB(0:N,IRHOU) * edge % uSB(0:N,IRHOU) + edge % uSB(0:N,IRHOV) * edge % uSB(0:N,IRHOV) ) / edge % uSB(0:N,IRHO) 
    
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
                   edge % uSB(0:N,IRHOE) =   edge % storage(1) % Q(0:N,IRHOE)  - Ek &
@@ -197,32 +220,32 @@
             type is (CurvedBdryEdge_t)
 
                edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
-               edge % uB(0 : N , IRHOU) = -edge % storage(1) % Q(0 : N , IRHOU)
-               edge % uB(0 : N , IRHOV) = -edge % storage(1) % Q(0 : N , IRHOV)
+               edge % uB(0 : N , IRHOU) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IX) - edge % storage(1) % Q(0 : N , IRHOU)
+               edge % uB(0 : N , IRHOV) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IY) - edge % storage(1) % Q(0 : N , IRHOV) 
                Ek = 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % uB(0:N,IRHOU) + edge % uB(0:N,IRHOV) * edge % uB(0:N,IRHOV) ) / edge % uB(0:N,IRHO)
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
                   edge % uB(0:N,IRHOE) = dimensionless % cv * edge % uB(0:N,IRHO) * stateConstant * self % Tw + Ek
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N, IRHOE)
+                  edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
 
                end if
 
 #ifdef NAVIER_STOKES
                edge % uSB(0:N,IRHO) = edge % storage(1) % Q(0:N,IRHO)
-               edge % uSB(0:N,IRHOU) = 0.0_RP
-               edge % uSB(0:N,IRHOV) = 0.0_RP
+               edge % uSB(0:N,IRHOU) = edge % uSB(0:N,IRHO) * self % v(IX)
+               edge % uSB(0:N,IRHOV) = edge % uSB(0:N,IRHO) * self % v(IY)
    
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uSB(0:N,IRHOE) = dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw 
+                  edge % uSB(0:N,IRHOE) =   dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw &
+                                          + 0.5_RP * ( edge % uSB(0:N,IRHOU) * edge % uSB(0:N,IRHOU) + edge % uSB(0:N,IRHOV) * edge % uSB(0:N,IRHOV) ) / edge % uSB(0:N,IRHO) 
    
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % uSB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE) - Ek
-
+                  edge % uSB(0:N,IRHOE) =   edge % storage(1) % Q(0:N,IRHOE)  - Ek &
+                                          + 0.5_RP * edge % uSB(0:N,IRHO) * ( self % v(IX) * self % v(IX) + self % v(IY) * self % v(IY) ) 
                endif
 #endif
-
             class default
          end select
 

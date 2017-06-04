@@ -1,0 +1,42 @@
+                          _    _    ____    _____     _____   ______    _____ 
+                         | |  | |  / __ \  |  __ \   / ____| |  ____|  / ____|
+                         | |__| | | |  | | | |__) | | (___   | |__    | (___  
+                         |  __  | | |  | | |  _  /   \___ \  |  __|    \___ \ 
+                         | |  | | | |__| | | | \ \   ____) | | |____   ____) |
+                         |_|  |_|  \____/  |_|  \_\ |_____/  |______| |_____/ 
+                                                                  
+                         +m:y:-`                                       `-:y:m+                         
+                 .:::odmMMMNMms:-                                   -:smMNMMMmdo:::.                 
+                 `+mMMNMMMMNNNd+:                                   :+dNNNMMMMNMMm+`                 
+               /shdNMNymMMMMshMmdNmd:                           :dmNdmMhsMMMMmyNMNdhs/               
+              ooosMMMNMMMNmNhNMMMNmhd-                         -dhmNMMMNhNmNMMMNMMMsooo              
+             `-/+yhMMmMMMhhMhss+/+o+.                           .+o+/+sshMhhMMMmMMhy+/-`             
+                 yMNMhMMMMNMs                                           sMNMMMMhMNMy                 
+               :ydmMMhMMMMy+M/                                         /M+yMMMMhMMmdy:               
+              .+s+omMhMMMMMy+Ms`                                     `sM+yMMMMMhMmo+s+.              
+                +ymNMNmMMMMMmdMm+`                                 `+mMdmMMMMMmNMNmy+                
+  :-           //oymMMmMMMMMMMmNMd-       /yys:       :syy/       -dMNmMMMMMMMmMMmyo//           -:  
+ - -y.          ./oymMMMMMMMMhddhNMNs..+yNMMMMm-     -mMMMMNy+..sNMNhddhMMMMMMMMmyo/.          .y- - 
+ +o.-N.       `-:+yhdNMMMMMsMMMMMMMMMMmMMMmd/msd     dsm/dmMMMmMMMMMMMMMMsMMMMMNdhy+:-`       .N-.o+ 
+: :NsMo           oyo+-hMMMMMMMMMMMMMM+NMd+`.+mM/   /Mm+.`+dMN+MMMMMMMMMMMMMMh-+oyo           oMsN: :
+/y.yMM:          `.   :hoMMMMMMMMMMMMMMmMNMMMMmsN` `NsmMMMMNMmMMMMMMMMMMMMMMoh:   .`          :MMy.y/
+ oNMMh               oh+MMMMMMMMMMMMMMMMNdNNyNMdms smdMNyNNdNMMMMMMMMMMMMMMMM+ho               hMMNo 
+ oMMM-             /dyhMMMMMMMMMMMMMMMMNs/. `mmsMm mMsmm` ./sNMMMMMMMMMMMMMMMMhyd/             -MMMo 
+ dNym           -oNMMMMMMMMMMMMMMMMNoo/.    odh-mN Nm-hdo    ./ooNMMMMMMMMMMMMMMMMNo-           myNd 
+`Mdsh        `+mMMMMMMMMMMMMMMMh+Mh-       -NM/ `. .` /MN-       -hM+hMMMMMMMMMMMMMMMm+`        hsdM`
+`NN:N.      oNMMMMMMNoMMMMMMMhoyh:       .oNMd`       `dMNo.       :hyohMMMMMMMoNMMMMMMNo      .N:NN`
+ /Mm/do`  .mMMMMMMMMMMMMMMMmhyo.         NNM+           +MNN         .oyhmMMMMMMMMMMMMMMMm.  `od/mM/ 
+  .smNMMdymMMMMMMMMNmMMMMMhy:            sy-             -ys            :yhMMMMMmNMMMMMMMMmydMMNms.  
+    -NhMMdMhmMMMMMMMyMMMhhMM+                                           +MMhhMMMyMMMMMMMmhMdMMhN-    
+    /yhNd-hNMMMMMMMMmymhmMMd                                             dMMmhmymMMMMMMMMNh-dNhy/    
+    :-sm/-`dMMMMMMMMhh/MMMm.                                             .mMMM/hhMMMMMMMMd`-/ms-:    
+      `yy  `oNMMMMMMMmsMMm.                                               .mMMsmMMMMMMMNo`  yy`      
+        y`   `omMMMMMMsMy`    -/:/+++o.                       .o+++/:/-    `yMsMMMMMMmo`   `y        
+                sMMhmoNNhysyhmMMmNMMho`                       `ohMMNmMMmhysyhNNomhMMs                
+                oMMN:yMmyo/-.``                                       ``.-/oymMy:NMMo                
+               oNMN.                                                             .NMNo               
+               -sNmo.             High Order Spectral Element Solver            .omNs-               
+                  /dyo.                                                       .oyd/                  
+                   `oMNd-      2D Compressible Navier-Stokes equations      -dNMo`                   
+                     :dMNy`                                               `yNMd:                     
+                      -ymms                                               smmy-                      

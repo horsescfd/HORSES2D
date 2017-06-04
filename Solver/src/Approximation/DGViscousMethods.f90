@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !           DGViscous procedures
@@ -57,10 +78,16 @@ module DGViscousMethods
 !                                   SOLUTION RIEMANN PROCEDURE
 !                                ***************************************
 !
-         generic, public    ::   ComputeSolutionRiemann                  => ComputeSolutionRiemann_Interior     , &
-                                                                            ComputeSolutionRiemann_StraightBdry , &
+         generic, public    ::   ComputeSolutionRiemann                  => ComputeSolutionRiemann_Interior       , &
+                                                                            ComputeSolutionRiemann_CurvedInterior , &
+                                                                            ComputeSolutionRiemann_StraightBdry   , &
                                                                             ComputeSolutionRiemann_CurvedBdry   
+         generic, public    ::   ComputeSubdividedSolutionRiemann        => ComputeSolutionRiemann_Subdivided     , &
+                                                                            ComputeSolutionRiemann_CurvedSubdivided
          procedure, private ::   ComputeSolutionRiemann_Interior         => BaseClass_ComputeSolutionRiemann_Interior
+         procedure, private ::   ComputeSolutionRiemann_CurvedInterior   => BaseClass_ComputeSolutionRiemann_CurvedInterior
+         procedure, private ::   ComputeSolutionRiemann_Subdivided       => BaseClass_ComputeSolutionRiemann_Subdivided
+         procedure, private ::   ComputeSolutionRiemann_CurvedSubdivided => BaseClass_ComputeSolutionRiemann_CurvedSubdivided
          procedure, private ::   ComputeSolutionRiemann_StraightBdry     => BaseClass_ComputeSolutionRiemann_StraightBdry
          procedure, private ::   ComputeSolutionRiemann_CurvedBdry       => BaseClass_ComputeSolutionRiemann_CurvedBdry
          procedure, private ::   SolutionRiemannSolver                   => BaseClass_SolutionRiemannSolver
@@ -507,195 +534,200 @@ module DGViscousMethods
          real(kind=RP)                       :: Gstar(0:N , 1:NCONS , 1:NDIM)
       end function BaseClass_GradientRiemannSolver_Adiabatic
          
-      subroutine BaseClass_ComputeSolutionRiemann_Interior( self ,  ed , uStarL , uStarR )
-!
-!        *****************************************************************************
-!           This routine computes the Solution Riemann problem in the "ed" edge.
-!              -> The result is uStarL and uStarR
-!           This procedure is common to all ViscousMethods, since it just provides
-!           a framework to deal with the data sharing across the interface. Then,
-!           each method considers its own SolutionRiemann solver procedure
-!                                     -------------------
-!        >> Therefore, it considers several possibilities:
-!
-!              1/ LEFT edge needs a p-Transformation and RIGHT edge is reversed.
-!              2/ LEFT edge needs a p-Transformation
-!              3/ RIGHT edge needs a p-Transformation and RIGHT edge is reversed.
-!              4/ RIGHT edge needs a p-Transformation
-!              5/ RIGHT edge is reversed.
-!              6/ No transformations are needed.
-!
-!           The solution Riemann solver is computed with the 
-!>                self % SolutionRiemannSolver( N , QL , QR )
-!           procedure.
-!
-!        *****************************************************************************
-!
+      subroutine BaseClass_ComputeSolutionRiemann_Interior( self ,  ed , FuStarL , FuStarR )
          use QuadElementClass
          use MatrixOperations
          implicit none
          class(ViscousMethod_t)              :: self
          type(Edge_t)            :: ed
-         real(kind=RP)           :: uStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS )
-         real(kind=RP)           :: uStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS )
+         real(kind=RP)           :: FuStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP)           :: FuStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real ( kind=RP ), target :: QL ( 0 : ed % spA % N , 1 : NCONS )
-         real ( kind=RP ), target :: QR ( 0 : ed % spA % N , 1 : NCONS )
-
-         if ( ed % transform(LEFT) .and. ed % inverse ) then
-! 
-!        ---------------------------------------------------------
-!>       First case: LEFT needs p-Adaption, and RIGHT is reversed.
-!        ---------------------------------------------------------
+         real(kind=RP), target :: QL ( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP), target :: QR ( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP)         :: uStar(0 : ed % spA % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarL(0 : ed % storage(LEFT) % spA % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarR(0 : ed % storage(RIGHT) % spA % N , 1 : NCONS ) 
 !
-!           Transform the LEFT edge
-!           -----------------------            
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS )
-!
-!           Compute the Riemann solver
-!           --------------------------
-            uStarR = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
-!
-!           Transform the LEFT edge 
-!           -----------------------
-            call Mat_x_Mat( ed % T_backward , uStarR , uStarL )
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            uStarR(0:ed % spA % N , 1:NCONS) = uStarR(ed % spA % N : 0 : -1 , 1:NCONS) 
-
-         elseif ( ed % transform(LEFT) ) then
-! 
+!        Project the solution onto the edge
 !        ----------------------------------
-!>       Second case: LEFT needs p-Adaption.
-!        ----------------------------------
+         call ed % ProjectSolution( ed , QL , QR ) 
 !
-!           Transform the LEFT 
-!           -----------------------
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+!        Compute the solution Riemann solver
+!        ----------------------------------- 
+         uStar = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
 !
-!           Get the RIGHT edge state
-!           ------------------------
-            QR = ed % storage(RIGHT) % Q
+!        Return to each element space
+!        ----------------------------
+         call ed % ProjectFluxes( ed , uStar , uStarL , uStarR ) 
 !
-!           Compute the Riemann solver
-!           --------------------------
-            uStarR = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
-!
-!           Transform the LEFT edge 
-!           -----------------------
-            call Mat_x_Mat( ed % T_backward , uStarR , uStarL )
-
-
-         elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
-! 
-!        ---------------------------------------------------------
-!>       Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
-!        ---------------------------------------------------------
-!
-!           Get the LEFT edge 
-!           -----------------
-            QL = ed % storage(LEFT) % Q
-!
-!           Transform the RIGHT edge 
-!           ------------------------
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-!
-!           Invert the RIGHT edge 
-!           ---------------------
-            QR(0:ed % spA % N,1:NCONS) = QR(ed % spA % N : 0 : -1 , 1:NCONS)
-!
-!           Compute the Riemann solver
-!           --------------------------
-            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
-!
-!           Transform the RIGHT edge
-!           ------------------------ 
-            call Mat_x_Mat( ed % T_backward , uStarL , uStarR )
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            uStarR(0:ed % Nlow,1:NCONS) = uStarR(ed % Nlow:0:-1 , 1:NCONS)
-
-         elseif ( ed % transform(RIGHT) ) then
-! 
-!        -----------------------------------
-!>       Fourth case: RIGHT needs p-Adaption.
-!        -----------------------------------
-!
-!           Get the LEFT edge
-!           -----------------
-            QL = ed % storage(LEFT) % Q
-!
-!           Transform the RIGHT edge
-!           ------------------------
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-!
-!           Compute the Riemann solver
-!           --------------------------
-            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
-!
-!           Transform the RIGHT edge
-!           ------------------------
-            call Mat_x_Mat( ed % T_backward , uStarL , uStarR )
-         
-         elseif ( ed % inverse ) then
-! 
-!        -----------------------------
-!>       Fifth case: RIGHT is reversed.
-!        -----------------------------
-!
-!           Get the LEFT edge
-!           -----------------
-            QL = ed % storage(LEFT) % Q
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            QR(0:ed % spA % N , 1:NCONS ) = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , 1:NCONS)
-!
-!           Compute the Riemann solver
-!           --------------------------         
-            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
-!
-!           Invert the RIGHT edge
-!           ---------------------
-            uStarR( 0 : ed % spA % N , 1:NCONS ) = uStarL ( ed % spA % N : 0 : -1 , 1:NCONS )
-
-         else
-! 
-!        -----------------------------------------------------------------------
-!>       Sixth case: Default case: neither p-Adaption nor inversion are required.
-!        -----------------------------------------------------------------------
-!
-!           Get the LEFT edge 
-!           -----------------   
-            QL = ed % storage(LEFT) % Q
-!
-!           Get the RIGHT edge
-!           ------------------
-            QR = ed % storage(RIGHT) % Q
-!
-!           Compute the Riemann solver
-!           --------------------------
-            uStarL = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
-!
-!           Assign the value to the RIGHT edge
-!           ----------------------------------
-            uStarR = uStarL
-         
-         end if
+!        Compute the solution flux
+!        -------------------------
+         FuStarL(:,:,IX) = uStarL * ed % dS(0) * ed % n(IX,0)
+         FuStarL(:,:,IY) = uStarL * ed % dS(0) * ed % n(IY,0)
+         FuStarR(:,:,IX) = uStarR * ed % dS(0) * ed % n(IX,0)
+         FuStarR(:,:,IY) = uStarR * ed % dS(0) * ed % n(IY,0)
 
       end subroutine BaseClass_ComputeSolutionRiemann_Interior
 
-      subroutine BaseClass_ComputeSolutionRiemann_StraightBdry( self ,  ed , uStar)
+      subroutine BaseClass_ComputeSolutionRiemann_CurvedInterior( self ,  ed , FuStarL , FuStarR )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         class(ViscousMethod_t) :: self
+         type(CurvedEdge_t)     :: ed
+         real(kind=RP)          :: FuStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP), target :: QL ( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP), target :: QR ( 0 : ed % spA % N , 1 : NCONS )
+         real(kind=RP)         :: uStar(0 : ed % spA % N , 1 : NCONS ) 
+         real(kind=RP)         :: FuStar(0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+         integer               :: i , eq , dimID
+!
+!        Project the solution onto the edge
+!        ----------------------------------
+         call ed % ProjectSolution( ed , QL , QR ) 
+!
+!        Compute the solution Riemann solver
+!        ----------------------------------- 
+         uStar = self % SolutionRiemannSolver( ed % spA % N , QL , QR )
+!
+!        Compute the solution flux
+!        -------------------------
+         do dimID = 1 , NDIM ;   do eq = 1 , NCONS ;   do i = 0 , ed % spA % N
+            FuStar(i,eq,dimID) = uStar(i,eq) * ed % dS(i) * ed % n(dimID,i)
+         end do              ;   end do            ;   end do
+!
+!        Return its value to each element frame
+!        --------------------------------------
+         call ed % ProjectFluxes( ed , FuStar(:,:,IX) , FuStarL(:,:,IX) , FuStarR(:,:,IX) )
+         call ed % ProjectFluxes( ed , FuStar(:,:,IY) , FuStarL(:,:,IY) , FuStarR(:,:,IY) )
+
+      end subroutine BaseClass_ComputeSolutionRiemann_CurvedInterior
+
+      subroutine BaseClass_ComputeSolutionRiemann_Subdivided( self ,  ed , FuStarL , FuStarRN , FuStarRS )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         class(ViscousMethod_t) :: self
+         type(SubdividedEdge_t) :: ed
+         real(kind=RP)          :: FuStarL (0 : ed % storage(LEFT       ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarRN(0 : ed % storage(RIGHT_NORTH) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarRS(0 : ed % storage(RIGHT_SOUTH) % spA % N , 1:NCONS , 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP), target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP), target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP), target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarN ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarS ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarL (0 : ed % storage(LEFT       ) % spA % N , 1:NCONS )
+         real(kind=RP)         :: uStarRN(0 : ed % storage(RIGHT_NORTH) % spA % N , 1:NCONS )
+         real(kind=RP)         :: uStarRS(0 : ed % storage(RIGHT_SOUTH) % spA % N , 1:NCONS )
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
+         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
+         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
+         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+!
+!        Compute the solution Riemann solver
+!        -----------------------------------
+         uStarN = self % SolutionRiemannSolver( ed % spA_N % N , QLN , QRN )
+         uStarS = self % SolutionRiemannSolver( ed % spA_S % N , QLS , QRS )
+!
+!        Return the flux to each element space
+!        -------------------------------------
+         uStarL =   0.5_RP * Mat_x_Mat_F( ed % T_LN_BKW , uStarN , ed % spA % N + 1 , NCONS ) &
+                  + 0.5_RP * Mat_x_Mat_F(ed % T_LS_BKW , uStarS , ed % spA % N + 1 , NCONS )
+         call Mat_x_Mat( ed % T_RN_BKW , uStarN , uStarRN )
+         call Mat_x_Mat( ed % T_RS_BKW , uStarS , uStarRS )
+!
+!        Compute the solution fluxes
+!        ---------------------------
+         FuStarL(:,:,IX)  = uStarL  * ed % dS(0)   * ed % n(IX,0)
+         FuStarL(:,:,IY)  = uStarL  * ed % dS(0)   * ed % n(IY,0)
+         FuStarRN(:,:,IX) = -uStarRN * ed % dS_N(0) * ed % normal_N(IX,0)
+         FuStarRN(:,:,IY) = -uStarRN * ed % dS_N(0) * ed % normal_N(IY,0)
+         FuStarRS(:,:,IX) = -uStarRS * ed % dS_S(0) * ed % normal_S(IX,0)
+         FuStarRS(:,:,IY) = -uStarRS * ed % dS_S(0) * ed % normal_S(IY,0)
+
+      end subroutine BaseClass_ComputeSolutionRiemann_Subdivided
+
+      subroutine BaseClass_ComputeSolutionRiemann_CurvedSubdivided( self ,  ed , FuStarL , FuStarRN , FuStarRS )
+         use QuadElementClass
+         use MatrixOperations
+         implicit none
+         class(ViscousMethod_t)       :: self
+         type(CurvedSubdividedEdge_t) :: ed
+         real(kind=RP)                :: FuStarL (0 : ed % storage(LEFT       ) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                :: FuStarRN(0 : ed % storage(RIGHT_NORTH) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                :: FuStarRS(0 : ed % storage(RIGHT_SOUTH) % spA % N , 1:NCONS , 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP), target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP), target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP), target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarN ( 0 : ed % spA_N % N , 1 : NCONS ) 
+         real(kind=RP)         :: uStarS ( 0 : ed % spA_S % N , 1 : NCONS ) 
+         real(kind=RP)         :: FuStarN ( 0 : ed % spA_N % N , 1 : NCONS , 1:NDIM) 
+         real(kind=RP)         :: FuStarS ( 0 : ed % spA_S % N , 1 : NCONS , 1:NDIM) 
+         integer               :: dimID , eq
+!
+!        Get the solution projection onto the edge
+!        -----------------------------------------
+         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
+         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
+         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
+         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+!
+!        Compute the solution Riemann solver
+!        -----------------------------------
+         uStarN = self % SolutionRiemannSolver( ed % spA_N % N , QLN , QRN )
+         uStarS = self % SolutionRiemannSolver( ed % spA_S % N , QLS , QRS )
+!
+!        Compute the solution flux
+!        -------------------------
+         do dimID = 1 , NDIM ; do eq = 1 , NCONS
+            FuStarN(:,eq,dimID) = uStarN(:,eq) * ed % dS_N * ed % normal_N(dimID,:)
+            FuStarS(:,eq,dimID) = uStarS(:,eq) * ed % dS_S * ed % normal_S(dimID,:)
+         end do              ; end do
+!
+!        Return the flux to each element space
+!        -------------------------------------
+         FuStarL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , FuStarN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FuStarS(:,:,IX) , ed % spA % N + 1 , NCONS )
+         FuStarL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , FuStarN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FuStarS(:,:,IY) , ed % spA % N + 1 , NCONS )
+
+         call Mat_x_Mat( ed % T_RN_BKW , FuStarN(:,:,IX) , FuStarRN(:,:,IX) )
+         call Mat_x_Mat( ed % T_RN_BKW , FuStarN(:,:,IY) , FuStarRN(:,:,IY) )
+
+         call Mat_x_Mat( ed % T_RS_BKW , FuStarS(:,:,IX) , FuStarRS(:,:,IX) )
+         call Mat_x_Mat( ed % T_RS_BKW , FuStarS(:,:,IY) , FuStarRS(:,:,IY) )
+
+         FuStarRN = -FuStarRN
+         FuStarRS = -FuStarRS
+
+      end subroutine BaseClass_ComputeSolutionRiemann_CurvedSubdivided
+
+      subroutine BaseClass_ComputeSolutionRiemann_StraightBdry( self ,  ed , FuStar)
 !
 !        ****************************************************************************
 !              This subroutine computes the Solution Riemann problem for a straight
@@ -711,14 +743,15 @@ module DGViscousMethods
          implicit none
          class(ViscousMethod_t)   :: self
          type(StraightBdryEdge_t) :: ed
-         real(kind=RP)            :: uStar( 0 : ed % spA % N , 1:NCONS )
+         real(kind=RP)            :: FuStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
 !     
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)                 :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
-         integer                       :: N
+         real(kind=RP) :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
+         real(kind=RP) :: uStar( 0 : ed % spA % N , 1:NCONS )
+         integer       :: N
 
          N = ed % spA % N
 
@@ -749,10 +782,15 @@ module DGViscousMethods
             uStar = ed % uSB
    
          end if
+!
+!        Compute the solution flux
+!        -------------------------
+         FuStar(:,:,IX) = uStar * ed % dS(0) * ed % n(IX,0)
+         FuStar(:,:,IY) = uStar * ed % dS(0) * ed % n(IY,0)
 
       end subroutine BaseClass_ComputeSolutionRiemann_StraightBdry
 
-      subroutine BaseClass_ComputeSolutionRiemann_CurvedBdry( self ,  ed , uStar)
+      subroutine BaseClass_ComputeSolutionRiemann_CurvedBdry( self ,  ed , FuStar)
 !
 !        ****************************************************************************
 !              This subroutine computes the Solution Riemann problem for a straight
@@ -769,14 +807,16 @@ module DGViscousMethods
          implicit none
          class(ViscousMethod_t) :: self
          type(CurvedBdryEdge_t) :: ed
-         real(kind=RP)          :: uStar( 0 : ed % spA % N , 1:NCONS )
+         real(kind=RP)          :: FuStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
 !     
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)                 :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
-         integer                       :: N
+         real(kind=RP) :: uStar( 0 : ed % spA % N , 1:NCONS )
+         real(kind=RP) :: QL(0 : ed % spA % N , 1:NCONS) , QR(0 : ed % spA % N , 1:NCONS)
+         integer       :: N
+         integer       :: i , eq , dimID
 
          N = ed % spA % N
 
@@ -807,6 +847,12 @@ module DGViscousMethods
             uStar = ed % uSB
    
          end if
+!
+!        Compute the solution flux
+!        -------------------------
+         do dimID = 1 , NDIM ;   do eq = 1 , NCONS ;   do i = 0 , N
+            FuStar(i,eq,dimID) = uStar(i,eq) * ed % dS(i) * ed % n(dimID,i)
+         end do              ;   end do            ;   end do
 
       end subroutine BaseClass_ComputeSolutionRiemann_CurvedBdry
 !

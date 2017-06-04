@@ -1,123 +1,251 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
          subroutine constructElementsAndEdges( self  , meshFile , spA , Storage , spI)
              use MeshFileClass
              use Setup_class
              use Physics
              use NodesAndWeights_Class
              use MatrixOperations
+             use IntegerArrayLinkedList
              implicit none
              class(QuadMesh_t),                 intent (inout)               :: self
              class(MeshFile_t),                 intent (in )                 :: meshFile
              class(NodalStorage),               intent (in )                 :: spA
              class(Storage_t),                  intent (in )                 :: storage
              class(NodesAndWeights_t), pointer, intent (in )                 :: spI
-!            ----------------------------------------------------------------------
+!
+!            ---------------
+!            Local variables
+!            ---------------
+!
              integer                                  :: address
              integer                                  :: node
              integer                                  :: edge
              integer                                  :: eID
-             integer                                  :: el1 , el2 , elb
-             integer                                  :: polynomialOrder
+             integer                                  :: el , el_L , el_R , el_R1 , el_R2
+             integer                                  :: N
+             integer                                  :: NLow , Ncurve
              integer                                  :: curve
              type(Node_p)                             :: nodes(POINTS_PER_QUAD)
              logical                                  :: curvilinear
-!            ----------------------------------------------------------------------
+             class(IntegerArrayEntry_t), pointer      :: points_of_edges   => NULL()
+             class(IntegerArrayEntry_t), pointer      :: elements_of_edges => NULL()
 !
-!            ===================
 !            Construct elements
-!            ===================
-!
+!            ------------------
              do eID = 1 , self % no_of_elements
+!
+!                Gather each element's nodes
+!                ---------------------------
                  do node = 1 , POINTS_PER_QUAD
                     nodes(node) % n => self % nodes ( meshFile % points_of_elements(node , eID) ) 
                  end do
-
-
+!
+!                Get the solution memory address
+!                -------------------------------
                  address = ( meshFile % cumulativePolynomialOrder(eID-1)  ) * NCONS + 1 
+!
+!                Construct the element
+!                ---------------------
                  call self % elements(eID) % Construct( eID , nodes , meshFile % polynomialOrder(eID) , spA , address , storage , spI ) 
 
              end do
 !
-!            ================
-!            Construct edges
-!            ================
-!
+!            Construct edges: loop the points_of_edges linked list
+!            -----------------------------------------------------
+             points_of_edges     => meshFile % points_of_edges % head
+             elements_of_edges   => meshFile % elements_of_edges % head
+
              do edge = 1 , self % no_of_edges
+! 
+!               Gather each edge's nodes in "nodes"
+!               ----------------------------------
+                do node = 1 , points_of_edges % N
+                   nodes(node) % n => self % nodes ( points_of_edges % val(node) )
+                end do
+! 
+!               Set whether the edge is straight or curved in "curvilinear"
+!               -----------------------------------------------------------
+                if (meshFile % curvilinear) then
+                   curvilinear = any(meshFile % curved_Edges == edge)
+                else
+                   curvilinear = .false.
+                end if
+! 
+!               Get its generic polynomial order: The largest within the neighbouring elements
+!               ------------------------------------------------------------------------------
+                if ( elements_of_edges % N .eq. ONE ) then
+! 
+!                  Boundary edge: Get the boundary order
+!                  -------------------------------------
+                   N    = self % elements( elements_of_edges % val(ONE) ) % spA % N
+                   NLow = N 
+                   NCurve = N
+ 
+                elseif ( elements_of_edges % N .eq. TWO ) then
+! 
+!                  Simple interior edge: The maximum of the adjacent elements
+!                  ----------------------------------------------------------
+                   N    = max ( self % elements( elements_of_edges % val(ONE) ) % spA % N , &
+                                self % elements( elements_of_edges % val(TWO) ) % spA % N )
+                   NLow = min ( self % elements( elements_of_edges % val(ONE) ) % spA % N , &
+                                self % elements( elements_of_edges % val(TWO) ) % spA % N )
 
-               do node = 1 , POINTS_PER_EDGE
-                  nodes(node) % n => self % nodes ( meshFile % points_of_edges(node , edge) )
-               end do
+                   if ( NLow .gt. 1 ) then
+                     NCurve = NLow / 2
+   
+                   else 
+                     NCurve = NLow
+         
+                   end if  
 
-               if (meshFile % curvilinear) then
-                  curvilinear = any(meshFile % curved_bdryedges == edge)
-               else
-                  curvilinear = .false.
-               end if
+                elseif ( elements_of_edges % N .eq. THREE ) then
+! 
+!                  Divdided interior edge: The big element polynomial order
+!                  --------------------------------------------------------
+                   N    = self % elements( elements_of_edges % val( ONE ) ) % spA % N 
+ 
+                   NLow = min ( self % elements( elements_of_edges % val( ONE ) ) % spA % N , &
+                                self % elements( elements_of_edges % val( TWO ) ) % spA % N , &
+                                self % elements( elements_of_edges % val(THREE) ) % spA % N ) 
+
+                   if ( NLow .gt. 1 ) then
+                     NCurve = NLow / 2
+   
+                   else 
+                     NCurve = NLow
+         
+                   end if  
+
+                end if
+! 
+!               !!!!!!!!!!!!!!!!!!!
+!               ===> Construct <===
+!               ¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡
+! 
+                call self % edges(edge) % Construct( ID = edge  , curvilinear = curvilinear , N = N , NLow = NLow , &
+                                                  nodes = nodes(1:points_of_edges % N) , edgeType = meshFile % edgeMarker(edge) , &
+                                                    spA = spA , spI = spI , NCurve = NCurve)
+! 
+!               *********************
+                if (curvilinear) then
+!               *********************
+!             
+!                  Add the curve to the edge
+!                  -------------------------
+                   select type ( f => self % edges(edge) % f )
+ 
+                      type is (CurvedEdge_t)
+                         curve = minloc(abs(meshFile % curved_Edges - edge) , dim = 1 ) 
+                         call f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
+
+                      type is (CurvedSubdividedEdge_t)
+                         curve = minloc(abs(meshFile % curved_Edges - edge) , dim = 1 ) 
+                         call f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
+ 
+                      type is (CurvedBdryEdge_t) 
+                         curve = minloc(abs(meshFile % curved_Edges -  edge) , dim = 1)
+                         call f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
+ 
+                      class default
+ 
+                   end select
+ 
+                else
+                   call self % edges(edge) % f % SetCurve()
+ 
+                end if
 !
-!              Get its generic polynomial order: The largest within the neighbouring elements
-!              ------------------------------------------------------------------------------
-               if ( meshFile % elements_of_edges(1,edge) .eq. -1 ) then
-                  polynomialOrder = self % elements( meshFile % elements_of_edges(2,edge) ) % spA % N
-            
-               elseif ( meshFile % elements_of_edges(2,edge) .eq. -1 ) then
-                  polynomialOrder = self % elements( meshFile % elements_of_edges(1,edge) ) % spA % N
+!               Recompute the location of the 3rd node for Subdivided elements
+!               --------------------------------------------------------------
+                if ( elements_of_edges % N .eq. THREE ) then
+                   self % edges(edge) % f % nodes(THREE) % n % X = self % edges(edge) % f % EvaluateX( 0.5_RP ) 
+                end if
+! 
+!               Move to the next elements in the list
+!               -------------------------------------
+                points_of_edges   => points_of_edges % next
+                elements_of_edges => elements_of_edges % next
 
-               else
-                  polynomialOrder = self % elements( meshFile % elements_of_edges(1,edge) ) % spA % N
-                  polynomialOrder = max ( polynomialOrder , self % elements( meshFile % elements_of_edges(2,edge) ) % spA % N )
-
-               end if
-
-               call self % edges(edge) % Construct( ID = edge , curvilinear = curvilinear , N = polynomialOrder , &
-                                                nodes = nodes , edgeType = meshFile % edgeMarker(edge) , spA = spA , spI = spI )
+            end do
 !
-!              *********************
-               if (curvilinear) then
-!              *********************
+!           Correct the edges coordinates for straight edges
+!           ------------------------------------------------
+            do edge = 1 , self % no_of_edges
+               select type ( f => self % edges(edge) % f ) 
+                  type is (Edge_t)
+                     call self % edges(edge) % f % SetCurve()
+               end select
+            end do
 !
+!           Get again to the HEAD of the list
+!           ---------------------------------
+            points_of_edges     => meshFile % points_of_edges % head
+            elements_of_edges   => meshFile % elements_of_edges % head
+            do edge = 1 , self % no_of_edges
+! 
+!               ========================
+!               Link elements with edges
+!               ========================
+! 
+                if ( elements_of_edges % N .eq. ONE ) then
 !
-            
-!              Add the curve to the edge
-!              -------------------------
-                  select type ( f => self % edges(edge) % f )
+!                 Boundary edge
+!                 -------------
+                  el = elements_of_edges % val ( ONE ) 
 
-                     type is (Edge_t)
-                        call self % edges(edge) % f % SetCurve()
+                  call BdryEdge_LinkWithElements( self % edges(edge) , self % elements(el) )
+              
 
-                     type is (StraightBdryEdge_t) 
-                        call self % edges(edge) % f % SetCurve()
-
-                     type is (CurvedBdryEdge_t) 
-                        curve = minloc(abs(meshFile % curved_bdryedges -  edge) , 1)
-                        call self % edges(edge) % f % SetCurve( meshFile % curvilinear_coords(:,:,curve) , meshFile % curves_polynomialorder )  
-
-                     class default
-
-                  end select
-
-               else
-                  call self % edges(edge) % f % SetCurve()
-
-               end if
-             end do
+                elseif ( elements_of_edges % N .eq. TWO ) then
 !
-!             ========================
-!             Link elements with edges
-!             ========================
+!                 Simple interior edge
+!                 --------------------
+                  el_L = elements_of_edges % val ( ONE ) 
+                  el_R = elements_of_edges % val ( TWO ) 
+
+                  call Edge_linkWithElements( self % edges(edge) , self % elements(el_L) , self % elements(el_R) )
+
+                elseif ( elements_of_edges % N .eq. THREE ) then
 !
-              do edge = 1 , self % no_of_edges
-                  if (self % edges(edge) % f % edgeType .eq. FACE_INTERIOR) then
-                     el1 = meshFile % elements_of_edges( 1 , edge )
-                     el2 = meshFile % elements_of_edges( 2 , edge )
+!                 Subdivided interior edge
+!                 -------------------------
+                  el_L  = elements_of_edges % val ( ONE )
+                  el_R1 = elements_of_edges % val ( TWO )
+                  el_R2 = elements_of_edges % val (THREE)
 
-                     call self % edges(edge) % linkWithElements( el1 = self % elements(el1) , el2 = self % elements(el2) )
+                  call SubdividedEdge_LinkWithElements( self % edges(edge) , self % elements(el_L ) , &
+                                                                             self % elements(el_R1) , &
+                                                                             self % elements(el_R2) , &
+                                                                              spA                     )
 
-                  else
-                     
-                     elb = meshFile % elements_of_edges( 1 , edge )
-                     call self % edges(edge)  % linkWithElements( elb = self % elements(elb) )
+                end if
+! 
+!               Move to the next elements in the list
+!               -------------------------------------
+                points_of_edges   => points_of_edges % next
+                elements_of_edges => elements_of_edges % next
 
-                  end if
-               end do
+              end do
 !
 !              =================================
 !              Compute the geometry of the quads
@@ -146,6 +274,22 @@
                            ed % Area = sum( ed % dS(0) * ed % spA % w )
                            ed % invh = ed % Area / min( ed % quads(LEFT) % e % Volume , ed % quads(RIGHT) % e % Volume )
 
+                        type is (CurvedEdge_t)
+                           ed % Area = sum( ed % dS * ed % spA % w )
+                           ed % invh = ed % Area / min( ed % quads(LEFT) % e % Volume , ed % quads(RIGHT) % e % Volume ) 
+
+                        type is (SubdividedEdge_t)
+                           ed % Area = sum( ed % dS(0) * ed % spA % w )
+                           ed % invh = ed % Area / min( ed % quads(    LEFT   ) % e % Volume , &
+                                                        ed % quads(RIGHT_NORTH) % e % Volume , &
+                                                        ed % quads(RIGHT_SOUTH) % e % Volume )
+
+                        type is (CurvedSubdividedEdge_t)
+                           ed % Area = sum( ed % dS * ed % spA % w )
+                           ed % invh = ed % Area / min( ed % quads(    LEFT   ) % e % Volume , &
+                                                        ed % quads(RIGHT_NORTH) % e % Volume , &
+                                                        ed % quads(RIGHT_SOUTH) % e % Volume )
+
                         type is (StraightBdryEdge_t)
                            ed % Area = sum( ed % dS(0) * ed % spA % w )
                            ed % invh = ed % Area / ed % quads(1) % e % Volume
@@ -157,8 +301,6 @@
                      end select
                   end associate
                end do
-
-               
 
          end subroutine constructElementsAndEdges
 

@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////
 !
 !           DIRICHLET BC
@@ -23,20 +44,22 @@
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
-         call readValueInRegion( trim(Setup % bdry_file) , "Source" , source , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Use function" , source , in_label , "# end")
+   
+         self % BoundaryStateName = trim(source)
          
          if ( allocated(pressure) ) then
-            pressure = pressure / refValues % p
+            pressure = pressure 
          else
             allocate(pressure)
-            pressure = Setup % pressure_ref / refValues % p
+            pressure = Setup % pressure_ref 
          end if
 
          if ( allocated(Temperature) ) then
-            Temperature = Temperature / refValues % T
+            Temperature = Temperature 
          else
             allocate(Temperature)
-            Temperature = 1.0_RP
+            Temperature = Setup % Temperature_ref
          end if
 
          if ( .not. allocated(Mach) ) then
@@ -50,29 +73,27 @@
             allocate(AngleOfAttack)
             AngleOfAttack = 0.0_RP
          end if
+!
+!        Associate the Boundary State
+!        ----------------------------
+         call AssociateBoundaryConditionFunction ( trim(source) , self % BoundaryState )
 
-         if ( trim(source) .eq. "Initial condition" ) then
-         
-            call getInitialCondition( self % IC )
+         if ( .not. associated(self % BoundaryState) ) then
+            V = Mach * sqrt( thermodynamics % Gamma * thermodynamics % R * Temperature )
+            rho = pressure / ( thermodynamics % R * Temperature ) 
+   !
+   !        Construct the state vector
+   !        --------------------------
+            associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv)
+            self % q(IRHO ) = rho
+            self % q(IRHOU) = rho * V * cos(AngleOfAttack)
+            self % q(IRHOV) = rho * V * sin(AngleOfAttack)
+            self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
+            end associate
+
+            self % q = getDimensionlessVariables( self % q ) 
 
          end if
-
-#ifdef _DIMENSIONLESS_TAU
-         rho = pressure / Temperature
-#else
-         rho = dimensionless % gammaMach2 * pressure / Temperature
-#endif
-         V = Mach * sqrt( thermodynamics % Gamma * pressure / rho )
-!
-!        Construct the state vector
-!        --------------------------
-         associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv)
-         self % p        = pressure
-         self % q(IRHO ) = rho
-         self % q(IRHOU) = rho * V * cos(AngleOfAttack)
-         self % q(IRHOV) = rho * V * sin(AngleOfAttack)
-         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
-         end associate
 
       end subroutine DirichletBC_Construct
 
@@ -97,12 +118,7 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               if ( associated ( self % IC ) ) then
-                  do i = 0 , N
-                     edge % uB(i , 1:NCONS) = self % IC( edge % x(IX:IY,i) ) 
-                  end do
-
-               else
+               if ( .not. associated ( self % BoundaryState ) ) then
                   do i = 0 , N
                      edge % uB(i , 1:NCONS) = self % q
                   end do
@@ -111,7 +127,6 @@
 
 #ifdef NAVIER_STOKES
                allocate ( edge % uSB  ( 0:N , NCONS )  ) 
-!               edge % uSB(0: , 1:) => edge % storage(1) % Q
 #endif
 
             type is (CurvedBdryEdge_t)
@@ -121,34 +136,27 @@
 
                edge % RiemannSolver => self % RiemannSolver
 
-               if ( associated ( self % IC ) ) then
-                  do i = 0 , N
-                     edge % uB(i , 1:NCONS) = self % IC( edge % x(IX:IY,i) ) 
-                  end do
-
-               else
+               if ( .not. associated ( self % BoundaryState ) ) then
                   do i = 0 , N
                      edge % uB(i , 1:NCONS) = self % q
                   end do
 
                end if
 
-
-
 #ifdef NAVIER_STOKES
                allocate ( edge % uSB  ( 0:N , NCONS )  ) 
-!               edge % uSB(0: , 1:) => edge % storage(1) % Q
 #endif
 
          end select
          end associate
 
       end subroutine DirichletBC_Associate
-#ifdef NAVIER_STOKES
-      subroutine DirichletBC_UpdateSolution( self , edge )
+
+      subroutine DirichletBC_UpdateSolution( self , edge , time)
          implicit none
          class(DirichletBC_t)          :: self
          class(Edge_t)                 :: edge
+         real(kind=RP)                 :: time
 !
 !        ---------------
 !        Local variables
@@ -166,13 +174,21 @@
 
          select type ( edge )
             type is (StraightBdryEdge_t) 
+
                do ixi = 0 , N
+!
+!                 Get uB if comes from a Boundary State function
+!                 ----------------------------------------------
+                  if ( associated ( self % BoundaryState ) ) then
+                     edge % uB(iXi,:) = self % BoundaryState( edge % x(1:NDIM , iXi) , time )
+                  end if
+#ifdef NAVIER_STOKES
 !
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % storage(1) % q(iXi , IRHO)
-                  uL  = edge % storage(1) % q(iXi , IRHOU) / rhoL
-                  vL  = edge % storage(1) % q(iXi , IRHOV) / rhoL
+                  rhoL = edge % storage(1) % Q(iXi , IRHO)
+                  uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
+                  vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
                   vnL = uL * edge % n (IX , 0) + vL * edge % n(IY, 0)
                   pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
                         ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
@@ -231,17 +247,25 @@
 
                      end if
                   end if
-
+#endif
                end do 
 
             type is (CurvedBdryEdge_t) 
                do ixi = 0 , N
 !
+!                 Get uB if comes from a Boundary State function
+!                 ----------------------------------------------
+                  if ( associated ( self % BoundaryState ) ) then
+                     edge % uB(iXi,:) = self % BoundaryState( edge % x(1:NDIM , iXi) , time ) 
+                  end if
+#ifdef NAVIER_STOKES
+
+!
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % storage(1) % q(iXi , IRHO)
-                  uL  = edge % storage(1) % q(iXi , IRHOU) / rhoL
-                  vL  = edge % storage(1) % q(iXi , IRHOV) / rhoL
+                  rhoL = edge % storage(1) % Q(iXi , IRHO)
+                  uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
+                  vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
                   vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
                   pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
                         ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
@@ -302,13 +326,12 @@
                      end if
                   end if
 
+#endif
                end do 
-
             class default
          end select
 
          end associate
 
       end subroutine DirichletBC_UpdateSolution
-#endif
 

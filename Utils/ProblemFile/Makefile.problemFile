@@ -1,0 +1,60 @@
+# Do not edit this line
+SYSTEM ?= LINUX
+COMPILER ?=gfortran
+INC_DIR=./include
+BUILD_DIR=./build
+BIN_DIR=./bin
+SRC_DIR=./src
+LIB_DIR=./lib
+EXECUTABLE = HORSES2D.NS
+MODE ?=DEBUG
+BLAS_LIB = 
+LAPACK_LIB = 
+LIBS=
+GLOB_MACROS := -D_DIMENSIONLESS_TAU
+CURRENT_PATH := ${CURDIR}
+
+INCLUDE = -I$(HORSES_DIR)/$(INC_DIR) -I$(HORSES_DIR)/src/Generic
+
+ifeq ($(SYSTEM),MACOSX)
+   DYNLIB_FLAG=-fPIC -shared -install_name @rpath/libproblemfile.dylib -o ./libproblemfile.dylib
+else ifeq ($(SYSTEM),LINUX)
+   DYNLIB_FLAG=-fPIC -shared -o ./libproblemfile.so
+endif
+
+
+ifeq ($(COMPILER),gfortran)
+   MOD_FLAG :=-J
+   FC=gfortran
+   ifeq ($(MODE),DEBUG)
+      FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+   else 
+      FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
+   endif
+
+else ifeq ($(COMPILER),ifort)
+   MOD_FLAG := -module 
+   FC=ifort
+   ifeq ($(MODE),DEBUG)
+     FFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
+   else ifeq ($(MODE),RELEASE)
+     FFLAGS = -cpp -O3 -mkl -assume bscc
+     
+   else ifeq ($(MODE),VTUNE)
+     FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc
+
+   endif
+
+endif
+
+#	------------- COMPILATION RULE ---------------
+
+ProblemFile: ./ProblemFile.f90
+	$(FC) -fPIC -shared $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE)  -c ./ProblemFile.f90 -o ./$@.o
+	$(FC) $(DYNLIB_FLAG) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) ./ProblemFile.o
+	@rm -r -v -f ./ProblemFile.o ./libproblemfile.dylib.dSYM
+
+clean:
+	@rm -r -v -f ./ProblemFile.o ./libproblemfile.dylib ./libproblemfile.dylib.dSYM ./libproblemfile.so
+
+allclean: clean

@@ -1,0 +1,100 @@
+!
+!       ***************************
+!       * Cylinder parameter file *
+!       ***************************
+!
+
+!-------------------------------------: Geometry
+                        Mesh file     : ./MESH/Ramp.HiOMesh
+                        Boundary file : _this_
+
+
+!-----------------------------------------: Physics
+                    Gas                   : Air
+                    Reference pressure    : 101325.0
+                    Reference Temperature : 273.15
+                    Reynolds length       : 1.0
+                    Reynolds number       : 0.0
+                    Prandtl number        : 0.72
+                    Mach number           : 2.0
+   
+!------------------------------------: DG Discretization
+                 Interpolation nodes : Legendre-Gauss
+                 Default polynomial order    : 3
+
+!------------------------------------: Initialization
+                   Initial condition : Uniform
+                   Restart file      : ./RESULTS/Ramp.HiORst
+ 
+!------------------------------------: Inviscid discretization
+             Inviscid discretization : Standard
+               Inviscid formulation  : Green form
+             Inviscid Riemann solver : Roe
+
+!------------------------------------: Viscous discretization
+               Viscous discretization: IP
+              Interior penalty method: IIPG
+              Jumps penalty parameter: 1.0
+     Gradient jumps penalty parameter: 0.0
+
+!------------------------------------: Artificial dissipation
+         Artificial dissipation (0/1): 1
+         Artificial dissipation type: Laplacian
+         Artificial dissipation intensity: 0.1
+         Artificial dissipation indicator: Jumps-based
+
+
+!----------------------------------------: Time integration
+                    Integration mode     : Steady
+                    Integration scheme   : Williamson RK5
+                    Time step            : 2.0e-0
+                    CFL Number           : 0.1
+                    Residual target      : 1.0e-8
+                    Simulation time      : 1.0
+                    Number of iterations : 10000
+                    Initial time         : 0.0
+
+!-----------------------------------: Output variables
+                  Solution file     : ./RESULTS/Ramp.HiORst
+                  Autosave interval : 10000
+                    Output file type: Interpolated
+     Number of representation points: 10
+                  Output interval   : 10
+                  Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+
+!
+!       **********************************
+!       * Cylinder boundary mapping file *
+!       **********************************
+!
+
+
+
+# define zone 1
+   Name = Ramp
+   Type = Euler wall
+# end 
+
+# define zone 2
+   Name = Symmetry
+   Type = Euler wall
+# end 
+
+# define zone 3
+   Name = Outflow
+   Type = newDirichlet
+!   Type = Pressure outlet
+!   Outflow type = Partially non reflective 
+# end
+
+# define zone 4
+   Name = Inflow
+   Type = newDirichlet
+!   Type = newDirichlet
+!   Mode = Specify total pressure
+# end
+
+# define volume monitor 1
+   Name = dSnorm
+   Variable = dSnorm
+# end

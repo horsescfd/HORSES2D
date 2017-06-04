@@ -23,7 +23,7 @@
          Default polynomial order    : 8
 
 !------------------------------------: Initialization
-                   Initial condition : Restart
+                   Initial condition : Uniform
                    Restart file      : ./RESULTS/Cylinder.HiORst
 
 !------------------------------------: Inviscid discretization
@@ -41,7 +41,7 @@
          Artificial dissipation (0/1): 1
          Artificial dissipation type: Laplacian
          Artificial dissipation indicator: Jumps-based
-         Artificial dissipation intensity: 0.2
+         Artificial dissipation intensity: 0.4
 
 !-----------------------------------: Time integration
                Integration mode     : Steady
@@ -49,12 +49,14 @@
                Time step            : 1.0e-2
                CFL Number           : 0.05
                Simulation time      : 0.01
-               Number of iterations : 1000000
+               Residual target      : 1.0e-5
+               Number of iterations : 200000
                Initial time         : 0.0
 
 !----------------------------------: Output variables
                       Solution file: ./RESULTS/Cylinder.HiORst
                   Autosave interval: 10000
+                     Export format : Tecplot
                     Output interval: 10
                    Output file type: Interpolated
     Number of representation points: 10

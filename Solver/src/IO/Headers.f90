@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 MODULE Headers
    use SMConstants
    implicit none
@@ -20,8 +41,8 @@ MODULE Headers
         SUBROUTINE Main_header(title)
                 IMPLICIT NONE
                 CHARACTER(LEN = *)      :: title
-                INTEGER, PARAMETER   :: siz = 100
-                CHARACTER(LEN = siz)    :: ast1,ast2,astTitle,astGroup
+                INTEGER, PARAMETER      :: siz = 103
+                CHARACTER(LEN = siz)    :: ast1,ast2
                 CHARACTER(LEN = siz)    :: compilationDate
                 CHARACTER(LEN = siz)    :: astCompilation
                 CHARACTER(LEN = siz)    :: astBox
@@ -35,22 +56,12 @@ MODULE Headers
                 ast2(1:1) = '#'
                 ast2(siz:siz) = '#'
 
-                astTitle = ''
-                astTitle(1:1) = '#'
-                astTitle(siz/2-LEN_TRIM(title)/2:siz/2 - LEN_TRIM(title)/2 + LEN_TRIM(title)-1) = TRIM(title)
-                astTitle(siz:siz) = '#'
-
-                astGroup = ''
-                astGroup(1:1) = '#'
-                astGroup(siz-LEN_TRIM("Madrid TU")-3 : siz-4) = 'Madrid TU'
-                astGroup(siz:siz) = '#'
-                
                 write(compilationDate,'(A,A,A,A)') "Compiled at ",__DATE__ , ", ",  __TIME__
                 do i = 2 , siz-3
-                  astCompilation(i:i) = ","
+                  astCompilation(i:i) = " "
                 end do
                 astCompilation(1:1) = '#'
-                astCompilation(siz-4-len_trim(compilationDate) : siz-2) = "| " // TRIM(compilationDate)
+                astCompilation(siz-4-len_trim(compilationDate) : siz-2) = "  " // TRIM(compilationDate)
                 astCompilation(siz-1:siz) = " #"
                 do i = 1 , siz
                   astBox(i:i) = ","
@@ -65,11 +76,8 @@ MODULE Headers
                 WRITE(*,'(A)') ast1
                 WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') ast2
-                WRITE(*,'(A)') astTitle
-                WRITE(*,'(A)') ast2
-                WRITE(*,'(A)') astGroup
 #include "./header.incf"
-                WRITE(*,'(A)') astBox
+                WRITE(*,'(A)') ast2
                 WRITE(*,'(A)') astCompilation
                 WRITE(*,'(A)') ast1
 

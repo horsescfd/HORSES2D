@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 module DGTimeIntegrator
    use SMConstants
    use DGSpatialDiscretizationMethods
@@ -7,7 +28,7 @@ module DGTimeIntegrator
 #include "Defines.h"
 
    private
-   public TimeIntegrator_t , NewTimeIntegrator
+   public TimeIntegrator_t , NewTimeIntegrator , Monitors
 !
 !                                *******************************
    integer, parameter         :: STR_LEN_TIMEINTEGRATOR    = 128
@@ -26,6 +47,7 @@ module DGTimeIntegrator
       real(kind=RP)                         :: dt
       real(kind=RP)                         :: t_end
       real(kind=RP)                         :: Ccfl
+      real(kind=RP)                         :: residualTarget
       integer                               :: no_of_iterations
       integer                               :: initial_iteration 
       integer                               :: plot_interval
@@ -47,13 +69,14 @@ module DGTimeIntegrator
    end interface NewTimeIntegrator
 
    abstract interface
-      subroutine TimeScheme( mesh , NDOF , dt , Storage)
+      subroutine TimeScheme( mesh , NDOF , time , dt , Storage)
          use SMConstants
          use Storage_module
          use QuadMeshClass
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
       end subroutine TimeScheme
@@ -78,6 +101,7 @@ module DGTimeIntegrator
             Integrator % initial_iteration = Setup % initialIteration
             Integrator % Ccfl              = Setup % Ccfl
             Integrator % dt                = Setup % dt
+            Integrator % residualTarget    = Setup % residualTarget
    
          elseif ( trim(Setup % IntegrationMode) .eq. "Transient") then
             Integrator % mode = TRANSIENT
@@ -88,6 +112,7 @@ module DGTimeIntegrator
             Integrator % t_end             = Setup % simulationTime
             Integrator % initial_iteration = Setup % initialIteration
             Integrator % dt                = Setup % dt
+            Integrator % residualTarget    = 0.0_RP
             
          else
             write(STD_OUT , '(/,/)') 
@@ -135,12 +160,18 @@ module DGTimeIntegrator
          use Storage_module
          use Setup_class
          use Utilities
+         use StopwatchClass
          implicit none
          class(TimeIntegrator_t)          :: self
          class(QuadMesh_t)                  :: mesh
          class(Storage_t)                 :: Storage
          integer                          :: iter
          integer                          :: NDOF
+!
+!        Stopwatch initialization
+!        ------------------------
+         call Stopwatch % CreateNewEvent("Simulation")
+         call Stopwatch % Start("Simulation")
 
          NDOF = size( Storage % QDot )
 
@@ -160,7 +191,7 @@ module DGTimeIntegrator
 !
 !           Perform a time-step
 !           -------------------
-            call self % TimeStep( mesh , NDOF , self % dt , Storage)
+            call self % TimeStep( mesh , NDOF , self % t , self % dt , Storage)
 !
 !           Compute new time 
 !           ----------------
@@ -190,9 +221,25 @@ module DGTimeIntegrator
                call self % EstimateTimeStep( mesh )
             end if
 
+            if ( self % mode .eq. STEADY ) then
+               if ( maxval(abs(Monitors % residuals % values ( : , Monitors % bufferLine ))) .lt. self % residualTarget ) then
+                  if ( any(isnan(Storage % Q ) ) ) then 
+                     write(STD_OUT,'(/,20X,A)') "** The simulation has crashed."
+                  else
+                     write(STD_OUT,'(/,20X,A,I0,A,ES10.3,A)') "** Residual tolerance reached in iteration " , iter , &
+                        " with residual " , maxval(abs(Monitors % residuals % values( : , Monitors % bufferLine ) ) ) , "."
+                  end if
+                  exit
+               end if
+            end if
+
             call Monitors % WriteToFile()
 
          end do
+!
+!        Stop stopwatch
+!        --------------
+         call Stopwatch % Pause("Simulation")
 
 !        Save solution file
 !        ------------------
@@ -203,6 +250,8 @@ module DGTimeIntegrator
             call Monitors % WriteToFile ( force = .true. )
          end if
 
+         self % no_of_iterations = iter - self % initial_iteration
+
       end subroutine TimeIntegrator_Integrate
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,17 +260,18 @@ module DGTimeIntegrator
 !              --------------------------------
 !//////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      subroutine TimeIntegrator_ExplicitEuler( mesh , NDOF , dt , Storage)
+      subroutine TimeIntegrator_ExplicitEuler( mesh , NDOF , time , dt , Storage)
          use Storage_module
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
 !
 !        Compute the time derivative
 !  
-         call DGSpatial_computeTimeDerivative( mesh )
+         call DGSpatial_computeTimeDerivative( mesh , time )
 
 !        Perform a step in the explicit Euler method
 !
@@ -229,26 +279,27 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_ExplicitEuler
 
-      subroutine TimeIntegrator_WilliamsonRK3( mesh , NDOF , dt , Storage )
+      subroutine TimeIntegrator_WilliamsonRK3( mesh , NDOF , time , dt , Storage )
          use Storage_module
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
          real(kind=RP)              :: G(1:NDOF)
          integer                    :: m 
          integer, parameter         :: N_STAGES = 3
-         real(kind=RP), parameter   :: am(3) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
-         real(kind=RP), parameter   :: bm(3) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
-         real(kind=RP), parameter   :: gm(3) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
+         real(kind=RP), parameter   :: am(N_STAGES) = [0.0_RP , -5.0_RP / 9.0_RP , -153.0_RP / 128.0_RP]
+         real(kind=RP), parameter   :: gm(N_STAGES) = [1.0_RP / 3.0_RP , 15.0_RP / 16.0_RP , 8.0_RP / 15.0_RP ]
+         real(kind=RP), parameter   :: cm(N_STAGES) = [0.0_RP , 1.0_RP / 3.0_RP  , 3.0_RP / 4.0_RP ]
          
          do m = 1 , N_STAGES
 
 !           Compute time derivative
 !           -----------------------
-            call DGSpatial_ComputeTimeDerivative( mesh )
+            call DGSpatial_ComputeTimeDerivative( mesh , time + dt * cm(m) )
 
             if (m .eq. 1) then
                G = Storage % QDot
@@ -265,7 +316,7 @@ module DGTimeIntegrator
 
       end subroutine TimeIntegrator_WilliamsonRK3
 
-      subroutine TimeIntegrator_WilliamsonRK5( mesh , NDOF , dt , Storage )
+      subroutine TimeIntegrator_WilliamsonRK5( mesh , NDOF , time , dt , Storage )
 !  
 !        *****************************************************************************************
 !           These coefficients have been extracted from the paper: "Fourth-Order 2N-Storage
@@ -276,40 +327,37 @@ module DGTimeIntegrator
          implicit none
          class(QuadMesh_t), intent(in)   :: mesh
          integer, intent(in)             :: NDOF
+         real(kind=RP), intent(in)       :: time
          real(kind=RP), intent(in)       :: dt
          class(Storage_t), intent(inout) :: Storage
 !        -----------------------------------------
          real(kind=RP)                   :: G(1:NDOF)
-         integer                    :: m 
+         integer                    :: m , i  
          integer, parameter         :: N_STAGES = 5
          real(kind=RP), parameter  :: am(N_STAGES) = [0.0_RP , -0.4178904745_RP, -1.192151694643_RP , -1.697784692471_RP , -1.514183444257_RP ]
          real(kind=RP), parameter  :: gm(N_STAGES) = [0.1496590219993_RP , 0.3792103129999_RP , 0.8229550293869_RP , 0.6994504559488_RP , 0.1530572479681_RP]
-!         real(kind=RP), parameter   :: am(N_STAGES) = [0.0_RP , &
-!                                                      -1.0_RP , &
-!                                                      -1.0_RP / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP , &
-!                                                      -2.0_RP ** (1.0_RP / 3.0_RP) - 2.0_RP ** (2.0_RP / 3.0_RP) - 2.0_RP , &
-!                                                      -1.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) ]
-!         real(kind=RP), parameter   :: gm(N_STAGES) = [2.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 6.0_RP , &
-!                                                     -2.0_RP **(2.0_RP / 3.0_RP) / 6.0_RP + 1.0_RP / 6.0_RP , &
-!                                                     -1.0_RP / 3.0_RP - 2.0_RP * 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP) / 3.0_RP , &
-!                                                      1.0_RP/3.0_RP - 2.0_RP ** (1.0_RP / 3.0_RP) / 3.0_RP - 2.0_RP ** (2.0_RP / 3.0_RP)/6.0_RP, &
-!                                                      1.0_RP / 3.0_RP + 2.0_RP ** (1.0_RP / 3.0_RP) / 6.0_RP + 2.0_RP ** (2.0_RP / 3.0_RP) / 12.0_RP]
+         real(kind=RP), parameter  :: cm(N_STAGES) = [0.0_RP , 0.1496590219993_RP , 0.3704009573644_RP , 0.6222557631345_RP , 0.9582821306748_RP ]
         
          do m = 1 , N_STAGES
 !
 !           Compute time derivative
 !           -----------------------
-            call DGSpatial_ComputeTimeDerivative( mesh )
+            call DGSpatial_ComputeTimeDerivative( mesh , time + dt * cm(m) )
 
             if (m .eq. 1) then
                G = dt * Storage % QDot
+               do i = 1 , size(Storage % QDot)
+                  Storage % Q(i) = Storage % Q(i) + gm(m) * G(i)
+               end do
 
             else
-               G = am(m) * G + dt * Storage % QDot
+               do i = 1 , size(Storage % QDot)
+                  G(i) = am(m) * G(i) + dt * Storage % QDot(i)
+                  Storage % Q(i) = Storage % Q(i) + gm(m) * G(i)
+               end do
 
             end if
 
-            Storage % Q = Storage % Q + gm(m) * G
 
          end do 
          

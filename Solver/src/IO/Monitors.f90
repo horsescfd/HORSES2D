@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !        Monitors.f90
@@ -611,6 +632,8 @@ readloop:do
 !        Close file
 !        ----------        
          close ( fID )
+
+         self % values(1:NCONS,1) = self % values(1:NCONS,no_of_lines)
       
       end subroutine Residuals_WriteToFile
 
@@ -702,6 +725,7 @@ readloop:do
          write( fID , '(A20,A    )') "Probe name :       " , trim(self % monitorName)
          write( fID , '(A20,F10.3)') "x position :       " , self % x(IX) 
          write( fID , '(A20,F10.3)') "y position :       " , self % x(IY) 
+         write( fID , '(A20,I10  )') "Element    :       " , self % eID
          write( fID , '(A20,A    )') "Tracked variable : " , trim( self % variable )
          write( fID , * )
 !
@@ -879,6 +903,8 @@ readloop:do
             end do
            
             close ( fID )
+
+            self % values(1) = self % values(no_of_lines)
          end if
       
       end subroutine Probe_WriteToFile
@@ -1173,6 +1199,8 @@ readloop:do
          end do
         
          close ( fID )
+
+         self % values(1) = self % values(no_of_lines)
       
       end subroutine SurfaceMonitor_WriteToFile
 !
@@ -1362,6 +1390,8 @@ readloop:do
          end do
         
          close ( fID )
+
+         self % values(1) = self % values(no_of_lines)
       
       end subroutine VolumeMonitor_WriteToFile
 

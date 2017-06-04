@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 module PhysicsNS
     use SMConstants
     use Setup_class
@@ -7,11 +28,13 @@ module PhysicsNS
     private
     public :: solver
     public :: RefValues , Dimensionless , Thermodynamics
+    public :: RefValues_t , Dimensionless_t , Thermodynamics_t
     public :: RiemannSolverFunction , InitializePhysics
     public :: InviscidFlux , ViscousFlux , AdiabaticViscousFlux
     public :: ComputeViscousTensor
     public :: HLLFlux, RoeFlux , AUSMFlux , ExactRiemannSolver
-    public :: getPressure , getSoundSpeed , getStrainTensor , getTemperatureGradient
+    public :: getPressure , getSoundSpeed , getStrainTensor , getTemperatureGradient , getTemperature
+    public :: getDimensionlessVariables
 
 !   ********************************************
 !        Current solver
@@ -72,7 +95,7 @@ module PhysicsNS
 
 
     type(Thermodynamics_t), target  :: thermodynamicsAir = Thermodynamics_t("Air",287.15_RP , 1.4_RP , &
-                              0.4_RP , 3.5_RP , 2.5_RP , 287.0_RP*3.5_RP , 287.0_RP*2.5_RP , -2.0_RP / 3.0_RP )
+                              0.4_RP , 3.5_RP , 2.5_RP , 287.15_RP*3.5_RP , 287.15_RP*2.5_RP , -2.0_RP / 3.0_RP )
     type(Thermodynamics_t), pointer, protected            :: thermodynamics
     type(RefValues_t), protected       :: refValues      
     type(Dimensionless_t), protected   :: dimensionless
@@ -119,6 +142,12 @@ module PhysicsNS
 !
 !
     interface
+      module pure function getDimensionlessVariables(QWithDim) result ( Q )
+         implicit none
+         real(kind=RP), intent(in)           :: QWithDim(1:NCONS)
+         real(kind=RP)                       :: Q(1:NCONS)
+      end function getDimensionlessVariables
+
       module pure function getPressure0D(Q) result (p)
          implicit none
          real(kind=RP), intent(in)           :: Q(1:NCONS)
@@ -414,7 +443,11 @@ module PhysicsNS
          refValues % V     = refValues % Mach * sqrt( thermodynamics % gamma * Setup % pressure_ref / refValues % rho )
          refValues % a     = refValues % V
          refValues % p     = refValues % Mach * refValues % Mach * thermodynamics % gamma * Setup % pressure_ref
-         refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         if ( setup % reynolds_number .eq. 0.0_RP ) then
+            refValues % mu = 0.0_RP
+         else
+            refValues % mu    = refValues % rho * refValues % V * refValues % L / Setup % reynolds_number
+         end if
          refValues % kappa = refValues % mu * thermodynamics % cp / Setup % prandtl_number
          refValues % tc    = refValues % L / (refValues % V )
 #endif

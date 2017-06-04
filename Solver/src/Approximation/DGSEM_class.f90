@@ -1,12 +1,33 @@
 !
-!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !      DGSEM_class.f90
 !      Created: 2015-09-26 12:05:17
 !      REV:     2016-02-24 21:16:23
 !      By: Juan MANZANERO
 !
-!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !   *****************
     module DGSEM_class
@@ -49,10 +70,11 @@
         type(TimeIntegrator_t)              :: Integrator
         class(Plotter_t), allocatable       :: Plotter
         contains
-            procedure       :: Construct => DGSEM_construct
-            procedure       :: SetInitialCondition => DGSEM_SetInitialCondition
-            procedure       :: Integrate => DGSEM_Integrate
-            procedure       :: LoadRestartFile => DGSEM_LoadRestartFile
+            procedure :: Construct           => DGSEM_construct
+            procedure :: SetInitialCondition => DGSEM_SetInitialCondition
+            procedure :: Integrate           => DGSEM_Integrate
+            procedure :: LoadRestartFile     => DGSEM_LoadRestartFile
+            procedure :: Finalize            => DGSEM_Finalize
     end type DGSEM_t
 
 !
@@ -82,6 +104,7 @@
         subroutine DGSEM_construct( self )
             use Setup_class
             use QuadElementClass
+            use StopwatchClass
             implicit none
             class(DGSEM_t)   :: self
 !
@@ -91,6 +114,11 @@
 !
             type(MeshFile_t) :: meshFile
             integer          :: totalPolynomialOrder
+!
+!           Create an event to measure the preprocessing time
+!           -------------------------------------------------
+            call Stopwatch % CreateNewEvent("Preprocessing")
+            call Stopwatch % Start("Preprocessing")
 !
 !           Read the mesh file
 !           ------------------
@@ -141,10 +169,18 @@
 !           -----------------------------
             call meshFile % Destruct
 !
+!           Describe the problem file
+!           -------------------------
+            call DescribeProblemFile()
+!
 !           Set the initial condition to all flow variables
 !           -----------------------------------------------
             call self % SetInitialCondition()
             call self % Plotter % Export( self % mesh , './RESULTS/InitialCondition')     
+!
+!           Stop the preprocessing event time
+!           ---------------------------------
+            call Stopwatch % Pause("Preprocessing")
             
         end subroutine DGSEM_construct
             
@@ -180,7 +216,7 @@
 
             end if
 
-            call DGSpatial_ComputeTimeDerivative( self % mesh )
+            call DGSpatial_ComputeTimeDerivative( self % mesh , Setup % initialTime )
 
         end subroutine DGSEM_SetInitialCondition
       
@@ -253,5 +289,71 @@
             deallocate( t , Q ) 
    
         end subroutine DGSEM_loadRestartFile
+
+        subroutine DGSEM_Finalize( self )
+            use SMConstants
+            use Physics
+            use Setup_class
+            use DGTimeIntegrator
+            use MonitorsClass
+            use Headers
+            use StopwatchClass
+            implicit none
+            class(DGSEM_t)       :: self
+!
+!           ----------
+!           Interfaces            
+!           ----------
+!
+            interface
+               subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_ ) 
+                  use SMConstants
+                  use Setup_class
+                  use QuadMeshClass
+                  use QuadElementClass
+                  use Physics
+                  use MonitorsClass
+                  import DGSEM_t
+                  implicit none
+                  class(DGSEM_t)                      :: sem_
+                  class(Thermodynamics_t), intent(in) :: thermodynamics_
+                  class(Setup_t),          intent(in) :: Setup_
+                  class(RefValues_t),      intent(in) :: refValues_
+                  class(Dimensionless_t),  intent(in) :: dimensionless_
+                  class(Monitor_t),        intent(in) :: Monitors_
+               end subroutine Finalize
+            end interface
+
+            write(STD_OUT,*)
+            call Section_header("Solution analysis")
+
+            call Finalize ( self , Thermodynamics , Setup , refValues , dimensionless , Monitors) 
+
+            write(STD_OUT,*)
+            call Section_header("Simulation statistics")
+            write(STD_OUT,*)
+            write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Preprocessing time: ", Stopwatch % ElapsedTime("Preprocessing") , " (s)."
+            write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Simulation time: ", Stopwatch % ElapsedTime("Simulation") , " (s)."
+            write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Solver perfomance: ", &
+                  1.0e06_RP * Stopwatch % ElapsedTime("Simulation") / self % Integrator % no_of_iterations / size(self % Storage % Q), " (s/iter 1MDOF)."
+
+        end subroutine DGSEM_Finalize
+
+        subroutine DescribeProblemFile()
+            use Headers
+            implicit none
+            interface
+               function getProblemFileName() result (name)
+                  implicit none
+                  character(len = LINE_LENGTH)  :: name
+               end function getProblemFileName
+            end interface
+
+            write(STD_OUT,'(/)') 
+            call Section_header("Problem file")
+            write(STD_OUT,*)
+            write(STD_OUT , '(30X,A,A,A)') "-> ", "Linked problem file: " , trim(getProblemFileName())
+
+         end subroutine DescribeProblemFile
 
    end module DGSEM_class

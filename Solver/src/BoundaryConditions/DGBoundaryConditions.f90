@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////////////
 !
 !  Boundary conditions file
@@ -19,6 +40,7 @@ module DGBoundaryConditions
    public BoundaryCondition_t , Construct
    public PeriodicBC_t , DirichletBC_t , FarfieldBC_t , EulerWall_t , PressureOutletBC_t , PressureInletBC_t
    public RiemannBC_t , newDirichletBC_t
+   public BoundaryConditions_SetInitialCondition
 !
 !  ********************************************************************
    integer, parameter         :: STR_LEN_BC                       = 128
@@ -33,6 +55,20 @@ module DGBoundaryConditions
 !  ********************************************************************
 !
 !
+!  **********************************************
+!  Boundary condition function abstract procedure
+!  **********************************************
+!
+   abstract interface 
+      function BoundaryStateFunction(x , time ) result (state)
+         use SMConstants
+         implicit none
+         real(kind=RP), intent(in)           :: x(NDIM)
+         real(kind=RP), intent(in)           :: time
+         real(kind=RP)                       :: state(NCONS)
+      end function BoundaryStateFunction
+   end interface
+!
 !  **********************************
 !  Base class for boundary conditions
 !  **********************************
@@ -43,7 +79,9 @@ module DGBoundaryConditions
       integer                                           :: BCType
       integer(kind=1)                                   :: WeakType
       character(len=STR_LEN_BC)                         :: RiemannSolverName
+      character(len=STR_LEN_BC)                         :: BoundaryStateName
       procedure(RiemannSolverFunction), pointer, nopass :: RiemannSolver => NULL()
+      procedure(BoundaryStateFunction), pointer, nopass :: BoundaryState => NULL()
       contains
          procedure :: Construct        => BaseClass_Construct
          procedure :: SetRiemannSolver => BoundaryConditions_SetRiemannSolver
@@ -72,15 +110,11 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: DirichletBC_t
       real(kind=RP), dimension(NCONS)       :: q
-      real(kind=RP)                         :: p
-      procedure(ICFcn), pointer, nopass     :: IC => NULL()
       contains
          procedure ::      Construct => DirichletBC_Construct
          procedure ::      Associate => DirichletBC_Associate
          procedure ::      Describe  => DirichletBC_Describe
-#ifdef NAVIER_STOKES
          procedure :: UpdateSolution => DirichletBC_UpdateSolution
-#endif
    end type DirichletBC_t
 !
 !  *********************************
@@ -89,9 +123,6 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: FarfieldBC_t
       real(kind=RP), dimension(NCONS)       :: q
-      real(kind=RP)                       :: AngleOfAttack
-      real(kind=RP)                       :: Tt
-      real(kind=RP)                       :: pt
       contains
          procedure ::      Construct => FarfieldBC_Construct
          procedure ::      Associate => FarfieldBC_Associate
@@ -104,16 +135,13 @@ module DGBoundaryConditions
 !  ********************************
 !
    type, extends(BoundaryCondition_t)           :: PressureOutletBC_t
-      integer                                :: outflowType
-      real(kind=RP), dimension(NCONS)       :: q
-      real(kind=RP)                       :: AngleOfAttack
-      real(kind=RP)                       :: Tt
-      real(kind=RP)                       :: pt
+      integer                            :: outflowType
+      real(kind=RP), dimension(NCONS)    :: q
       contains
-         procedure ::      Construct => PressureOutletBC_Construct
-         procedure ::      Associate => PressureOutletBC_Associate
-         procedure ::      UpdateSolution    => PressureOutletBC_UpdateSolution
-         procedure ::      Describe  => PressureOutletBC_Describe
+         procedure ::      Construct      => PressureOutletBC_Construct
+         procedure ::      Associate      => PressureOutletBC_Associate
+         procedure ::      UpdateSolution => PressureOutletBC_UpdateSolution
+         procedure ::      Describe       => PressureOutletBC_Describe
    end type PressureOutletBC_t
 !
 !  ***************************************
@@ -122,19 +150,11 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: PressureInletBC_t
       real(kind=RP), dimension(NCONS) :: q
-      real(kind=RP)                   :: AngleOfAttack
-      real(kind=RP)                   :: p
-      real(kind=RP)                   :: Tt
-      real(kind=RP)                   :: pt
-      real(kind=RP)                   :: at
-      real(kind=RP)                   :: rhot
-      real(kind=RP)                   :: st
-      real(kind=RP)                   :: Ht
       contains
-         procedure ::      Construct => PressureInletBC_Construct
-         procedure ::      Associate => PressureInletBC_Associate
-         procedure ::      UpdateSolution    => PressureInletBC_UpdateSolution
-         procedure ::      Describe  => PressureInletBC_Describe
+         procedure ::      Construct      => PressureInletBC_Construct
+         procedure ::      Associate      => PressureInletBC_Associate
+         procedure ::      UpdateSolution => PressureInletBC_UpdateSolution
+         procedure ::      Describe       => PressureInletBC_Describe
    end type PressureInletBC_t
 !
 !  ********************************
@@ -143,15 +163,12 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: RiemannBC_t
       real(kind=RP), dimension(NCONS) :: q
-      real(kind=RP), dimension(NPRIM) :: w
-      real(kind=RP)                   :: AngleOfAttack
-      real(kind=RP)                   :: Rminus
       integer                         :: mode
       contains
-         procedure ::      Construct => RiemannBC_Construct
-         procedure ::      Associate => RiemannBC_Associate
-         procedure ::      UpdateSolution    => RiemannBC_UpdateSolution
-         procedure ::      Describe  => RiemannBC_Describe
+         procedure ::      Construct      => RiemannBC_Construct
+         procedure ::      Associate      => RiemannBC_Associate
+         procedure ::      UpdateSolution => RiemannBC_UpdateSolution
+         procedure ::      Describe       => RiemannBC_Describe
    end type RiemannBC_t
 !
 !  **************************************
@@ -162,11 +179,6 @@ module DGBoundaryConditions
       integer                         :: outflowPressure
       integer                         :: mode
       real(kind=RP), dimension(NCONS) :: q
-      real(kind=RP)                   :: AngleOfAttack
-      real(kind=RP)                   :: Mach
-      real(kind=RP)                   :: p
-      real(kind=RP)                   :: pt
-      real(kind=RP)                   :: rhot
       contains
          procedure ::      Construct      => newDirichletBC_Construct
          procedure ::      Associate      => newDirichletBC_Associate
@@ -180,9 +192,9 @@ module DGBoundaryConditions
 !
    type, extends(BoundaryCondition_t)           :: EulerWall_t
       contains
-         procedure   ::    Associate => EulerWall_Associate
-         procedure   ::    UpdateSolution    => EulerWall_UpdateSolution
-         procedure   ::    Describe  => EulerWall_Describe
+         procedure   ::    Associate      => EulerWall_Associate
+         procedure   ::    UpdateSolution => EulerWall_UpdateSolution
+         procedure   ::    Describe       => EulerWall_Describe
    end type EulerWall_t
 !
 !  *************************************
@@ -194,10 +206,10 @@ module DGBoundaryConditions
       integer                       :: wall_type
       real(kind=RP)                 :: v(NDIM)
       contains
-         procedure   ::    Construct => ViscousWall_Construct
-         procedure   ::    Associate => ViscousWall_Associate
-         procedure   ::    UpdateSolution    => ViscousWall_UpdateSolution
-         procedure   ::    Describe  => ViscousWall_Describe
+         procedure   ::    Construct      => ViscousWall_Construct
+         procedure   ::    Associate      => ViscousWall_Associate
+         procedure   ::    UpdateSolution => ViscousWall_UpdateSolution
+         procedure   ::    Describe       => ViscousWall_Describe
    end type ViscousWall_t
 !
 !  *******************
@@ -207,6 +219,8 @@ module DGBoundaryConditions
    interface Construct
       module procedure BoundaryConditions_construct
    end interface Construct
+
+   procedure(ICFcn), pointer     :: IC => NULL()
 !
 !///////////////////////////////////////////////////////////////////////////////////
 !
@@ -225,6 +239,7 @@ module DGBoundaryConditions
 #include "./newDirichlet.incf"
 #include "./Riemann.incf"
 #include "./ViscousWall.incf"
+#include "./BoundaryConditionFunctionDrivers.incf"
 
       subroutine BoundaryConditions_construct( self , marker)
          use Setup_class
@@ -392,6 +407,14 @@ module DGBoundaryConditions
 !        **********
 !
       end subroutine BoundaryConditions_SetRiemannSolver
+
+      subroutine BoundaryConditions_SetInitialCondition( IC_in )
+         implicit none
+         procedure(ICFcn), pointer      :: IC_in
+
+         IC => IC_in
+
+      end subroutine BoundaryConditions_SetInitialCondition
    
       subroutine BaseClass_Construct( self , marker , in_label)
          implicit none
@@ -416,10 +439,11 @@ module DGBoundaryConditions
 !
       end subroutine BaseClass_Associate
 
-      subroutine BaseClass_UpdateSolution( self , edge )
+      subroutine BaseClass_UpdateSolution( self , edge , time)
          implicit none
          class(BoundaryCondition_t)          :: self
          class(Edge_t)                       :: edge
+         real(kind=RP)                       :: time
 !
 !        *****************************************
 !           The base class does nothing
@@ -450,13 +474,21 @@ module DGBoundaryConditions
 
          associate ( gm1 => Thermodynamics % gm1 )
 
-         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Dirichlet."
-         write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-
+         write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary condition type: " , "Dirichlet."
+         write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
+         if ( .not. associated(self % BoundaryState) ) then
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , getPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , getTotalPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Temperature: "             , getTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total Temperature: "       , getTotalTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , sqrt( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP ) / ( getSoundSpeed(self % q) * self % q(IRHO) )
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Angle of attack: "         , atan2(self % q(IRHOV),self % q(IRHOU)) * 180.0_RP / PI
+         else
+            write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary state loaded: " , trim(self % BoundaryStateName)
+         end if
          end associate
 
       end subroutine DirichletBC_Describe
@@ -470,12 +502,19 @@ module DGBoundaryConditions
 
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Farfield."
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+         if ( .not. associated(self % BoundaryState) ) then
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , getPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , getTotalPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Temperature: "             , getTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total Temperature: "       , getTotalTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , sqrt( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP ) / ( getSoundSpeed(self % q) * self % q(IRHO) )
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Angle of attack: "         , atan2(self % q(IRHOV),self % q(IRHOU)) * 180.0_RP / PI
+         else
+            write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary state loaded: " , trim(self % BoundaryStateName)
+         end if
 
          end associate
 
@@ -490,12 +529,25 @@ module DGBoundaryConditions
 
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Pressure outlet."
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+         if ( self % outflowType .eq. REFLECTIVE_OUTFLOW ) then
+            write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Outflow type: "          , "Reflective"
+         elseif ( self % outflowType .eq. PARTIALLY_NON_REFLECTIVE_OUTFLOW ) then
+            write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Outflow type: "          , "Partially non-reflective"
+         end if
+ 
+         if ( .not. associated(self % BoundaryState) ) then
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , getPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , getTotalPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Temperature: "             , getTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total Temperature: "       , getTotalTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , sqrt( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP ) / ( getSoundSpeed(self % q) * self % q(IRHO) )
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Angle of attack: "         , atan2(self % q(IRHOV),self % q(IRHOU)) * 180.0_RP / PI
+         else
+            write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary state loaded: " , trim(self % BoundaryStateName)
+         end if
 
          end associate
 
@@ -510,14 +562,19 @@ module DGBoundaryConditions
 
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Pressure inlet."
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total temperature: "       , self % Tt * refValues % T
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total enthalpy: "          , self % Ht * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+         if ( .not. associated(self % BoundaryState) ) then
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , getPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , getTotalPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Temperature: "             , getTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total Temperature: "       , getTotalTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , sqrt( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP ) / ( getSoundSpeed(self % q) * self % q(IRHO) )
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Angle of attack: "         , atan2(self % q(IRHOV),self % q(IRHOU)) * 180.0_RP / PI
+         else
+            write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary state loaded: " , trim(self % BoundaryStateName)
+         end if
 
          end associate
 
@@ -549,14 +606,29 @@ module DGBoundaryConditions
 
 
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , self % Mach
-         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+         if ( .not. associated(self % BoundaryState) ) then
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , getPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , getTotalPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Temperature: "             , getTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total Temperature: "       , getTotalTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , sqrt( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP ) / ( getSoundSpeed(self % q) * self % q(IRHO) )
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Angle of attack: "         , atan2(self % q(IRHOV),self % q(IRHOU)) * 180.0_RP / PI
+         else
+            write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary state loaded: " , trim(self % BoundaryStateName)
+         end if
 
+
+!         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
+!         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , self % pt * refValues % p
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+!         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , self % Mach
+!         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+!
          end associate
 
       end subroutine newDirichletBC_Describe
@@ -570,11 +642,20 @@ module DGBoundaryConditions
 
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Boundary condition type: " , "Pressure inlet."
          write(STD_OUT , '(30X , A , A25 , A     )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
-         write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , gm1*(self % q(IRHOE) - 0.5_RP * ( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP) / self % q(IRHO) ) * refValues % p
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
-         write(STD_OUT , '(30X , A , A25 , I10   )') "-> " , "Angle of attack: "         , nint(self % AngleOfAttack * 180.0_RP / PI)
+
+         if ( .not. associated(self % BoundaryState) ) then
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Pressure: "                , getPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total pressure: "          , getTotalPressure(self % q) * refValues % p
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Temperature: "             , getTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.2 )') "-> " , "Total Temperature: "       , getTotalTemperature(self % q) * refValues % T
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Density: "                 , self % q(IRHO) * refValues % rho
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "              , self % q(IRHOU) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "              , self % q(IRHOV) / self % q(IRHO) * refValues % a
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Mach number: "             , sqrt( self % q(IRHOU)**2.0_RP + self % q(IRHOV)**2.0_RP ) / ( getSoundSpeed(self % q) * self % q(IRHO) )
+            write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Angle of attack: "         , atan2(self % q(IRHOV),self % q(IRHOU)) * 180.0_RP / PI
+         else
+            write(STD_OUT , '(30X , A , A25 , A)') "-> " , "Boundary state loaded: " , trim(self % BoundaryStateName)
+         end if
 
          end associate
 
@@ -611,6 +692,14 @@ module DGBoundaryConditions
          class(EulerWall_t)                :: self
 
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Boundary condition type: " , "Euler wall."
+!         if ( self % wall_type .eq. ADIABATIC_WALL ) then
+!            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Adiabatic"
+!         elseif ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+!            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Adiabatic"
+!            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall temperature: "   , self % Tw * refValues % T 
+!         end if
+
+
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
 
       end subroutine EulerWall_Describe
@@ -620,11 +709,51 @@ module DGBoundaryConditions
          class(ViscousWall_t)                :: self
 
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Boundary condition type: " , "Viscous wall."
+         if ( self % wall_type .eq. ADIABATIC_WALL ) then
+            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Adiabatic"
+         elseif ( self % wall_type .eq. ISOTHERMAL_WALL ) then
+            write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Wall type: "          , "Isothermal"
+            write(STD_OUT , '( 30X , A , A25 , F10.4 )') "-> " , "Wall temperature: "   , self % Tw * refValues % T 
+         end if
          write(STD_OUT , '( 30X , A , A25 , A )') "-> " , "Riemann solver: "          , trim(self % RiemannSolverName)
          write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "X-Velocity: "           , self % v(IX) * refValues % a
          write(STD_OUT , '(30X , A , A25 , F10.4 )') "-> " , "Y-Velocity: "           , self % v(IY) * refValues % a
 
       end subroutine ViscousWall_Describe
+
+      function getTotalPressure(q) result (pt)
+         implicit none
+         real(kind=RP)     :: q(NCONS)
+         real(kind=RP)     :: pt
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)  :: p , Msq
+
+         p = getPressure(q)
+         Msq = ( q(IRHOU) * q(IRHOU) + q(IRHOV) * q(IRHOV) ) / ( thermodynamics % gamma * p * q(IRHO) )
+         pt = p * (1.0_RP + 0.5_RP * thermodynamics % gm1 * Msq) ** (dimensionless % cp)
+         
+      end function getTotalPressure
+
+      function getTotalTemperature(q) result (Tt)
+         implicit none
+         real(kind=RP)     :: q(NCONS)
+         real(kind=RP)     :: Tt
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)  :: T , Msq
+
+         T = getTemperature(q)
+         Msq = ( q(IRHOU) * q(IRHOU) + q(IRHOV) * q(IRHOV) ) / ( thermodynamics % gamma * getPressure(q) * q(IRHO) )
+         Tt = T * (1.0_RP + 0.5_RP * thermodynamics % gm1 * Msq) 
+         
+      end function getTotalTemperature
 
 end module DGBoundaryConditions
 !

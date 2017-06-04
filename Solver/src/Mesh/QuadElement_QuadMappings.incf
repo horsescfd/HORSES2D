@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       subroutine QuadElement_SetMappings ( self ) 
          use MatrixOperations
          implicit none
@@ -7,13 +28,22 @@
          real(kind=RP)                 :: dX_edges(NDIM,0:self % spA % N, 0:self % spA % N, EDGES_PER_QUAD)
          real(kind=RP)                 :: dX(NDIM,NDIM,0:self % spA % N , 0:self % spA % N)
          real(kind=RP), pointer        :: xi(:) , eta(:)
+         real(kind=RP)                 :: xi_val(0:self % spA % N) , eta_val(0:self % spA % N) 
          integer, pointer              :: N 
          integer                       :: edge
          real(kind=RP), pointer        :: n1(:) , n2(:) , n3(:) , n4(:)
+         real(kind=RP)                 :: scal
 
          N       => self % spA % N
          xi(0:)  => self % spA % xi
          eta(0:) => self % spA % xi
+!
+!        Pointers to nodes coordinates
+!        -----------------------------
+         n1 => self % nodes(1) % n % X
+         n2 => self % nodes(2) % n % X
+         n3 => self % nodes(3) % n % X 
+         n4 => self % nodes(4) % n % X
 !
 !        Gather the edges data
 !        ---------------------
@@ -25,20 +55,130 @@
                      X_edges(IX:IY,iXi,0:self % spA % N,edge) = spread ( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                      dX_edges(IX:IY,iXi,0:self % spA % N ,edge) = spread( f % evaluatedX( xi(iXi) , self % edgesDirection(edge) )  , ncopies = self % spA % N +1 ,dim = 2)
                   end do
-   
+
+               type is (CurvedEdge_t)
+
+                  do iXi = 0 , self % spA % N
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % evaluatedX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                  end do
+
+               type is (SubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        xi_val = xi
+                        scal   = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi
+                        scal   = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        xi_val = 0.5_RP * xi
+                        scal   = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        xi_val = 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iXi = 0 , self % spA % N
+                     X_edges(IX:IY,iXi,0:self % spA % N , edge) =        spread ( f % evaluateX(  xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge)  = scal * spread ( f % evaluatedX( xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                  end do 
+
+               type is (CurvedSubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        xi_val = xi
+                        scal   = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi
+                        scal   = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        xi_val = 0.5_RP * xi
+                        scal   = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        xi_val = 0.5_RP + 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        xi_val = 0.5_RP * xi(N:0:-1)
+                        scal   = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iXi = 0 , self % spA % N
+                     X_edges(IX:IY,iXi,0:self % spA % N , edge) =        spread ( f % evaluateX(  xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge)  = scal * spread ( f % evaluatedX( xi_val(iXi) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2 )
+                  end do 
+
                type is (StraightBdryEdge_t)
    
                   do iXi = 0 , self % spA % N
-                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % evaluateX( xi(iXi) , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
-                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % evaluatedX( xi(iXi) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread ( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread ( f % getdX( iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 )
                   end do
    
                type is (CurvedBdryEdge_t)
    
                   do iXi = 0 , self % spA % N
-                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread( f % getX( iXi , self % edgesDirection(edge) )  , ncopies = self % spA % N + 1 , dim = 2 ) 
-                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 ) 
+                     X_edges(IX:IY,iXi,0:self % spA % N,edge)  = spread ( f % getX( iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 )
+                     dX_edges(IX:IY,iXi,0:self % spA % N,edge) = spread ( f % getdX(iXi , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2 )
                   end do
+
             end select
          end do 
 
@@ -50,12 +190,121 @@
                      X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluateX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                     dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluatedX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                   end do
+
+               type is (CurvedEdge_t)
+
+                  do iEta = 0 , self % spA % N
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluateX ( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluatedX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                  end do
+
+               type is (SubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        eta_val = eta 
+                        scal = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta
+                        scal = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        eta_val = 0.5_RP * eta
+                        scal = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        eta_val = 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iEta = 0 , self % spA % N
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge)  =        spread ( f % evaluateX ( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                     dX_edges(IX:IY,0:self % spA % N,iEta,edge) = scal * spread ( f % evaluatedX( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                  end do
    
+               type is (CurvedSubdividedEdge_t)
+
+                  if ( self % edgesDirection(edge) .eq. FORWARD ) then
+                     if ( self % quadPosition(edge) .eq. LEFT ) then
+!
+!                       Always forward and on [0,1]
+!                       ---------------------------
+                        eta_val = eta 
+                        scal = 1.0_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Forward and on [0.5,1]
+!                       ----------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta
+                        scal = 0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Forward and on [0,0.5]
+!                       ----------------------
+                        eta_val = 0.5_RP * eta
+                        scal = 0.5_RP
+                  
+                     end if
+      
+                  elseif ( self % edgesDirection(edge) .eq. BACKWARD ) then
+
+                     if ( self % quadPosition(edge) .eq. RIGHT_NORTH ) then
+!
+!                       Backwards and on [0.5,1]
+!                       ------------------------
+                        eta_val = 0.5_RP + 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     elseif ( self % quadPosition(edge) .eq. RIGHT_SOUTH ) then
+!
+!                       Backwards and on [0,0.5]
+!                       ------------------------
+                        eta_val = 0.5_RP * eta(N:0:-1)
+                        scal = -0.5_RP
+
+                     end if
+
+                  end if
+
+                  do iEta = 0 , self % spA % N
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge)  =        spread ( f % evaluateX ( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                     dX_edges(IX:IY,0:self % spA % N,iEta,edge) = scal * spread ( f % evaluatedX( eta_val(iEta) , FORWARD ) , ncopies = self % spA % N + 1 , dim = 2)
+                  end do
+ 
                type is (StraightBdryEdge_t)
    
                   do iEta = 0 , self % spA % N
-                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluateX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
-                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % evaluatedX( eta(iEta) , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                     X_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
+                    dX_edges(IX:IY,0:self % spA % N,iEta,edge) = spread ( f % getdX( iEta , self % edgesDirection(edge) ) , ncopies = self % spA % N + 1 , dim = 2)
                   end do
    
                type is (CurvedBdryEdge_t)
@@ -72,13 +321,8 @@
          self % jac = 0.0_RP
          self % Ja = 0.0_RP
 
-         n1 => self % nodes(1) % n % X
-         n2 => self % nodes(2) % n % X
-         n3 => self % nodes(3) % n % X 
-         n4 => self % nodes(4) % n % X
 
-         do iXi = 0 , self % spA % N
-         do iEta = 0 , self % spA % N
+         do iXi = 0 , self % spA % N   ; do iEta = 0 , self % spA % N
    
             self % X(iXi,iEta,IX:IY) = (1.0_RP - eta(iEta)) * X_edges(IX:IY,iXi,iEta,EBOTTOM) + &
                                                   xi(iXi)   * X_edges(IX:IY,iXi,iEta,ERIGHT)  + &
@@ -117,11 +361,8 @@
             self % Ja(iXi,iEta,IX,IY)    = -dX(IY,IX,iXi,iEta)       !    -Y_xi
             self % Ja(iXi,iEta,IY,IX)    = -dX(IX,IY,iXi,iEta)       !    -X_eta
             self % Ja(iXi,iEta,IY,IY)    = dX(IX,IX,iXi,iEta)        !    X_xi
- 
-         end do
-         end do
 
-   
+         end do                     ; end do
    
       end subroutine QuadElement_SetMappings
    
@@ -150,14 +391,24 @@
          end associate
    
       end function QuadElement_Compute_X
-
+!
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!        FIND POINTS WITH COORDINATES SUBROUTINES
+!        ----------------------------------------
+!/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
       subroutine QuadElement_FindPointWithCoords( self , x , xi , eta , isInside )
          implicit none
          class(QuadElement_t), intent(in)             :: self
          real(kind=RP),        intent(in)             :: x(NDIM)
          real(kind=RP),        intent(out)            :: xi , eta
          logical      ,        intent(out)            :: isInside
-!        -------------------------------------------------------------------
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          logical                                      :: curvilinear
          integer                                      :: edge
       
@@ -167,6 +418,13 @@
 !        -----------------------------------------------------
          do edge = 1 , EDGES_PER_QUAD
             select type ( f => self % edges(edge) % f )
+
+               type is (CurvedEdge_t)
+                  curvilinear = .true.
+
+               type is (CurvedSubdividedEdge_t)
+                  curvilinear = .true.
+
                type is (CurvedBdryEdge_t)
                   curvilinear = .true.
             
@@ -196,6 +454,11 @@
                return
             end if
          end if
+
+         if ( (xi .gt. 2.0_RP) .or. (xi .lt. -1.0_RP) .or. (eta .gt. 2.0_RP) .or. (eta .lt. -1.0_RP) ) then
+            isInside = .false.
+         end if
+
    
       end subroutine QuadElement_FindPointWithCoords
 !   
@@ -267,6 +530,7 @@
          integer                          :: iNode , iEdge
          integer                          :: no_of_intersections
          integer                          :: j 
+         integer, parameter               :: quadNodes(5) = [1,2,3,4,1]
 
          no_of_intersections = 0
 !   
@@ -294,6 +558,9 @@
 !                    The edge is horizontal
 !                    ----------------------
                      if ( almostEqual ( x(IY) , f % nodes(1) % n % x(IY) ) .and. ( newSign ( f % nodes(1) % n % x(IX) - x(IX)) .ne. newSign( f % nodes(2) % n % x(IX) - x(IX) ) )) then
+!
+!                       Is in the edge
+!                       --------------
                         isInside = .true.
                         return
    
@@ -318,7 +585,160 @@
                      
                   end if
     
+               type is ( CurvedEdge_t ) 
    
+                  associate ( N => f % spA % N )
+                  allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+   
+                  edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+                  edgePoints(IX:IY,1:N+1) = f % X(IX:IY,0:N)
+                  edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+                  
+                  do j = 0 , N+1
+!   
+!                    Find if crosses the line
+!                    ------------------------
+                     if ( almostEqual ( edgePoints(IY,j) , edgePoints(IY,j+1) ) ) then  
+!                    
+!                       The edge is horizontal
+!                       ----------------------
+                        if ( almostEqual ( x(IY) , edgePoints(IY,j) ) .and. ( newSign ( edgePoints(IX,j) - x(IX)) .ne. newSign( edgePoints(IX,j+1) - x(IX) )) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+   
+                     elseif ( newSign ( edgePoints(IY,j) - x(IY) ) .ne.  newSign ( edgePoints(IY,j+1) - x(IY) ) ) then
+!   
+!                       Crosses the line. Compute the x coordinate of the intersection
+!                       --------------------------------------------------------------
+                        xc = ( edgePoints(IX,j) * ( edgePoints(IY,j+1) - x(IY) )  + &
+                            edgePoints(IX,j+1) * ( x(IY) - edgePoints(IY,j) ) ) / &
+                          ( edgePoints(IY,j+1) - edgePoints(IY,j) )
+   
+                        if ( xc .lt. x(IX) ) then
+                           no_of_intersections = no_of_intersections + 1 
+   
+                        elseif ( almostEqual ( xc , x(IX) ) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+                     
+                     end if
+                  end do
+   
+                  deallocate ( edgePoints ) 
+   
+                  end associate
+ 
+               type is ( SubdividedEdge_t )
+!   
+!                 Find if crosses the line
+!                 ------------------------
+                  if ( almostEqual ( self % nodes(quadNodes(iEdge)) % n % x(IY) , self % nodes(quadNodes(iEdge+1)) % n % x(IY) ) ) then  
+!                    
+!                    The edge is horizontal
+!                    ----------------------
+                     if ( almostEqual ( x(IY) , self % nodes(quadNodes(iEdge)) % n % x(IY) )  &
+                              .and. ( newSign ( self % nodes(quadNodes(iEdge)) % n % x(IX) - x(IX)) &
+                              .ne. newSign( self % nodes(quadNodes(iEdge+1)) % n % x(IX) - x(IX) ) )) then
+!
+!                       Is in the edge
+!                       --------------
+                        isInside = .true.
+                        return
+   
+                     end if
+   
+                  elseif ( newSign ( self % nodes(quadNodes(iEdge)) % n % x(IY) - x(IY) ) .ne.  newSign ( self % nodes(quadNodes(iEdge+1)) % n % x(IY) - x(IY) ) ) then
+!   
+!                    Crosses the line. Compute the x coordinate of the intersection
+!                    --------------------------------------------------------------
+                     xc = ( self % nodes(quadNodes(iEdge)) % n % x(IX) * ( self % nodes(quadNodes(iEdge+1)) % n % X(IY) - x(IY) )  + &
+                            self % nodes(quadNodes(iEdge+quadNodes(iEdge))) % n % x(IX) * ( x(IY) - self % nodes(quadNodes(iEdge)) % n % x(IY) ) ) / &
+                          ( self % nodes(quadNodes(iEdge+quadNodes(iEdge))) % n % x(IY) - self % nodes(quadNodes(iEdge)) % n % x(IY) )
+   
+                     if ( xc .lt. x(IX) ) then
+                        no_of_intersections = no_of_intersections + 1 
+   
+                     elseif ( almostEqual ( xc , x(IX) ) ) then
+                        isInside = .true.
+                        return
+   
+                     end if
+                     
+                  end if
+
+               type is (CurvedSubdividedEdge_t)
+
+!
+!                 First, the element position with respect to the edge is needed to get the appropriate curve
+!                 -------------------------------------------------------------------------------------------
+                  associate ( N => f % storage(self % quadPosition(iEdge)) % spA % N )
+
+                  if ( self % quadPosition(iEdge) .eq. LEFT ) then 
+         
+                   allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+                   edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+                   edgePoints(IX:IY,1:N+1) = f % X(IX:IY,0:N)
+                   edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+
+                  elseif ( self % quadPosition(iEdge) .eq. RIGHT_NORTH ) then 
+
+                   allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+                   edgePoints(IX:IY,0)     = f % nodes(3) % n % x
+                   edgePoints(IX:IY,1:N+1) = f % X_N(IX:IY,0:N)
+                   edgePoints(IX:IY,N+2)   = f % nodes(2) % n % x
+
+                  elseif ( self % quadPosition(iEdge) .eq. RIGHT_SOUTH ) then
+      
+                    allocate ( edgePoints ( NDIM , 0 : N+2 ) )
+                    edgePoints(IX:IY,0)     = f % nodes(1) % n % x
+                    edgePoints(IX:IY,1:N+1) = f % X_S(IX:IY,0:N)
+                    edgePoints(IX:IY,N+2)   = f % nodes(3) % n % x
+
+                  end if
+
+                  
+                  do j = 0 , N+1
+!   
+!                    Find if crosses the line
+!                    ------------------------
+                     if ( almostEqual ( edgePoints(IY,j) , edgePoints(IY,j+1) ) ) then  
+!                    
+!                       The edge is horizontal
+!                       ----------------------
+                        if ( almostEqual ( x(IY) , edgePoints(IY,j) ) .and. ( newSign ( edgePoints(IX,j) - x(IX)) .ne. newSign( edgePoints(IX,j+1) - x(IX) )) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+   
+                     elseif ( newSign ( edgePoints(IY,j) - x(IY) ) .ne.  newSign ( edgePoints(IY,j+1) - x(IY) ) ) then
+!   
+!                       Crosses the line. Compute the x coordinate of the intersection
+!                       --------------------------------------------------------------
+                        xc = ( edgePoints(IX,j) * ( edgePoints(IY,j+1) - x(IY) )  + &
+                            edgePoints(IX,j+1) * ( x(IY) - edgePoints(IY,j) ) ) / &
+                          ( edgePoints(IY,j+1) - edgePoints(IY,j) )
+   
+                        if ( xc .lt. x(IX) ) then
+                           no_of_intersections = no_of_intersections + 1 
+   
+                        elseif ( almostEqual ( xc , x(IX) ) ) then
+                           isInside = .true.
+                           return
+   
+                        end if
+                     
+                     end if
+                  end do
+   
+                  deallocate ( edgePoints ) 
+   
+                  end associate
+
                type is ( StraightBdryEdge_t )
 !   
 !                 Find if crosses the line
@@ -537,11 +957,6 @@
             eta = eta + STEP * dx(IY)
    
             
-            if ( (xi .gt. 2.0_RP) .or. (xi .lt. -1.0_RP) .or. (eta .gt. 2.0_RP) .or. (eta .lt. -1.0_RP) ) then
-               print*, "The probe was not found in any element."
-               stop "Stopped"
-   
-            end if
    
          end do
    

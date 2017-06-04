@@ -1,9 +1,45 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 submodule(PhysicsNS)   VariableConversion
    implicit none
 
 #include "Defines.h"
 
    contains
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!           Compute dimensionless variables
+!
+      module pure function getDimensionlessVariables(QWithDim) result ( Q )
+         implicit none
+         real(kind=RP), intent(in)           :: QWithDim(1:NCONS)
+         real(kind=RP)                       :: Q(1:NCONS)
+
+         Q(IRHO)  = QWithDim(IRHO)  / refValues % rho
+         Q(IRHOU) = QWithDim(IRHOU) / ( refValues % rho * refValues % a )
+         Q(IRHOV) = QWithDim(IRHOV) / ( refValues % rho * refValues % a )
+         Q(IRHOE) = QWithDim(IRHOE) / refValues % p
+
+      end function getDimensionlessVariables
 !
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !           Compute pressure

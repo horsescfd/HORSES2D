@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 submodule (Plotter) Tecplot
    use SMConstants
 
@@ -254,6 +275,7 @@ submodule (Plotter) Tecplot
       subroutine Tecplot_StandardZone(self , mesh , eID ) 
          use QuadMeshClass
          use Physics
+         use DGSpatialDiscretizationMethods
          implicit none
          class(Tecplot_t)        :: self
          class(QuadMesh_t)       :: mesh
@@ -368,7 +390,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
             
                      case ("muart")
-                        write(self % fID,'(1X,ES17.10)',advance="no") mesh % elements(eID) % mu_a 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ArtificialDissipation % ElementViscosity( ArtificialDissipation , mesh % elements(eID) )
 #endif
 
                   end select                        
@@ -400,6 +422,7 @@ submodule (Plotter) Tecplot
          use Setup_Class
          use MatrixOperations
          use InterpolationAndDerivatives
+         use DGSpatialDiscretizationMethods
          implicit none
          class(Tecplot_t)        :: self
          class(QuadMesh_t)       :: mesh
@@ -553,7 +576,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
 
                      case ("muart")
-                        write(self % fID,'(1X,ES17.10)',advance="no") mesh % elements(eID) % mu_a 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ArtificialDissipation % ElementViscosity( ArtificialDissipation , mesh % elements(eID) )
 #endif
 
                   end select                        

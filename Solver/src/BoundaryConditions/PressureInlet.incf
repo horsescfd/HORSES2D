@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////
 !
 !           PRESSURE INLET BC
@@ -8,33 +29,35 @@
       subroutine PressureInletBC_Construct( self , marker , in_label)
          use Setup_class
          implicit none
-         class(PressureInletBC_t)      :: self
-         integer                   :: marker
-         character(len=*)          :: in_label
-         real(kind=RP), allocatable             :: pressure
-         real(kind=RP), allocatable         :: Temperature
-         real(kind=RP), allocatable         :: Mach
-         real(kind=RP), allocatable         :: AngleOfAttack
-         real(kind=RP)                          :: rho
-         real(kind=RP)                       :: V
+         class(PressureInletBC_t)   :: self
+         integer                    :: marker
+         character(len=*)           :: in_label
+         real(kind=RP), allocatable :: pressure
+         real(kind=RP), allocatable :: Temperature
+         real(kind=RP), allocatable :: Mach
+         real(kind=RP), allocatable :: AngleOfAttack
+         real(kind=RP)              :: rho
+         real(kind=RP)              :: V
+         character(len=STR_LEN_BC)  :: source
 
          call readValueInRegion( trim(Setup % bdry_file) , "pressure" , pressure , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Temperature", Temperature , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Mach" , Mach , in_label , "# end")
          call readValueInRegion( trim(Setup % bdry_file) , "Angle of attack" , AngleOfAttack , in_label , "# end")
+         call readValueInRegion( trim(Setup % bdry_file) , "Use function" , source , in_label , "# end")
          
          if ( allocated(pressure) ) then
-            pressure = pressure / refValues % p
+            pressure = pressure
          else
             allocate(pressure)
-            pressure = Setup % pressure_ref / refValues % p
+            pressure = Setup % pressure_ref 
          end if
 
          if ( allocated(Temperature) ) then
-            Temperature = Temperature / refValues % T
+            Temperature = Temperature 
          else
             allocate(Temperature)
-            Temperature = 1.0_RP
+            Temperature = Setup % temperature_ref
          end if
 
          if ( .not. allocated(Mach) ) then
@@ -49,31 +72,26 @@
             AngleOfAttack = 0.0_RP
          end if
 !
-!        Construct the state vector
-!        --------------------------
-#ifdef _DIMENSIONLESS_TAU
-         rho = pressure / Temperature
-         V = sqrt(thermodynamics % gamma) * Mach
-#else
-         rho = dimensionless % gammaMach2 * pressure / Temperature
-         V = Mach * sqrt(thermodynamics % gamma * pressure / Temperature )
-#endif
+!        Associate the Boundary State
+!        ----------------------------
+         call AssociateBoundaryConditionFunction ( trim(source) , self % BoundaryState )
 
+         if ( .not. associated(self % BoundaryState) ) then
+            V = Mach * sqrt( thermodynamics % Gamma * thermodynamics % R * Temperature )
+            rho = pressure / ( thermodynamics % R * Temperature ) 
+!   
+!           Construct the state vector
+!           --------------------------
+            associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv)
+            self % q(IRHO ) = rho
+            self % q(IRHOU) = rho * V * cos(AngleOfAttack)
+            self % q(IRHOV) = rho * V * sin(AngleOfAttack)
+            self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
+            end associate
 
-         associate ( gamma => Thermodynamics % Gamma , cv => Dimensionless % cv , gm1 => Thermodynamics % gm1 , gogm1 => Thermodynamics % gogm1 )
-         self % q(IRHO) = rho
-         self % q(IRHOU) = rho * V * cos(AngleOfAttack)
-         self % q(IRHOV) = rho * V * sin(AngleOfAttack)
-         self % q(IRHOE) = cv * pressure + 0.5_RP * rho * V * V
-         self % AngleOfAttack = AngleOfAttack
-         self % p             = pressure
-         self % Tt            = Temperature * ( 1.0_RP + 0.5_RP * gm1 * Mach * Mach)
-         self % pt            = pressure * ( self % Tt / Temperature ) ** gogm1 
-         self % rhot          = rho * ( self % pt / pressure ) ** (1.0_RP / gamma)
-         self % at            = sqrt(gamma * self % pt / self % rhot)
-         self % st            = self % pt / (self % rhot) ** gamma
-         self % Ht            = Temperature * Dimensionless % cp + 0.5_RP * gamma * Mach * Mach
-         end associate
+            self % q = getDimensionlessVariables( self % q ) 
+
+         end if
 
       end subroutine PressureInletBC_Construct
 
@@ -113,17 +131,20 @@
 
       end subroutine PressureInletBC_Associate
 
-      subroutine PressureInletBC_UpdateSolution( self , edge )
+      subroutine PressureInletBC_UpdateSolution( self , edge , time)
          implicit none
          class(PressureInletBC_t) :: self
          class(Edge_t)            :: edge
+         real(kind=RP)            :: time
          integer                  :: iXi
          integer                  :: N
          real(kind=RP)            :: rhoL , vnL , uL , vL , pL , ML , aL 
          real(kind=RP)            :: rhoR , vnR , uR , vR , pR , aR 
+         real(kind=RP)            :: uExt , vExt , pExt , MExtSq , atExtSq , sExt , ptExt
          real(kind=RP)            :: a , b , c
          real(kind=RP)            :: Rplus
          real(kind=RP)            :: q(NCONS) , F(NCONS,NDIM)
+         real(kind=RP)            :: qext(NCONS)
 !
          associate ( gamma => Thermodynamics % gamma , gm1 => Thermodynamics % gm1 , cp => Dimensionless % cp , cv => Dimensionless % cv)
 
@@ -133,6 +154,24 @@
          select type ( edge )
             type is (StraightBdryEdge_t) 
                do ixi = 0 , N
+!
+!                 Set the external state
+!                 ----------------------
+                  if ( associated ( self % BoundaryState ) ) then
+                     qext = self % BoundaryState( edge % x(1:NDIM , iXi) , time )
+                  else
+                     qext = self % q
+                  end if
+!
+!                 Compute the boundary state quantities
+!                 -------------------------------------
+                  uExt = qext(IRHOU) / qext(IRHO)
+                  vExt = qext(IRHOV) / qext(IRHO)
+                  pExt = gm1 * (qext(IRHOE) - 0.5_RP * ( qext(IRHOU) * uExt + qext(IRHOV) * vExt ) ) 
+                  MExtSq = ( uExt * uExt + vExt * vExt ) / ( gamma * pExt ) * qExt(IRHO) 
+                  atExtSq = gamma * pExt / qExt(IRHO) * ( 1.0_RP + 0.5_RP * gm1 * MExtSq )
+                  sExt = pExt / (qext(IRHO) ** gamma )
+                  ptExt = pExt * ( 1.0_RP + 0.5_RP * gm1 * MExtSq ) ** ( cp )
 !
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
@@ -156,7 +195,7 @@
 !
 !                       Supersonic
 !                       ----------
-                        q = self % q
+                        q = qext
                         F = inviscidflux( q )
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
 #ifdef NAVIER_STOKES
@@ -170,11 +209,11 @@
 !                       --------
                         a = (gamma+1.0_RP) / gm1
                         b = -2*Rplus
-                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - self % at * self % at
+                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - atExtSq
 
                         aR = (-b + sqrt(b*b - 4.0_RP * a * c) ) / (2.0_RP * a)
 
-                        rhoR = ( aR * aR / ( gamma * self % st ) ) ** (cv)
+                        rhoR = ( aR * aR / ( gamma * sExt ) ) ** (cv)
                         pR  = aR * aR * rhoR / gamma
                         vnR = Rplus - 2.0_RP * cv * aR
                         uR  = vnR * edge % n(IX,0) 
@@ -220,7 +259,7 @@
                         q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
                         q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
                         q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
+                        q(IRHOE) = cv * (2.0_RP * ptExt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
 
                         F = inviscidFlux(q)
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,0) + F(1:NCONS,IY) * edge % n(IY,0) ) * edge % dS(0)
@@ -228,7 +267,7 @@
                         edge % uSB(iXi , IRHO ) = q(IRHO)
                         edge % uSB(iXi , IRHOU) = q(IRHOU)
                         edge % uSB(iXi , IRHOV) = q(IRHOV)
-                        edge % uSB(iXi , IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
+                        edge % uSB(iXi , IRHOE) = cv * ptExt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
                         edge % viscousBCType(iXi) = DIRICHLET
 #endif
                      end if
@@ -240,6 +279,24 @@
 
             type is (CurvedBdryEdge_t) 
                do ixi = 0 , N
+!
+!                 Set the external state
+!                 ----------------------
+                  if ( associated ( self % BoundaryState ) ) then
+                     qext = self % BoundaryState( edge % x(1:NDIM , iXi) , time )
+                  else
+                     qext = self % q
+                  end if
+!
+!                 Compute the boundary state quantities
+!                 -------------------------------------
+                  uExt = qext(IRHOU) / qext(IRHO)
+                  vExt = qext(IRHOV) / qext(IRHO)
+                  pExt = gm1 * (qext(IRHOE) - 0.5_RP * ( qext(IRHOU) * uExt + qext(IRHOV) * vExt ) ) 
+                  MExtSq = ( uExt * uExt + vExt * vExt ) / ( gamma * pExt ) * qExt(IRHO) 
+                  atExtSq = gamma * pExt / qExt(IRHO) * ( 1.0_RP + 0.5_RP * gm1 * MExtSq )
+                  sExt = pExt / (qext(IRHO) ** gamma )
+                  ptExt = pExt * ( 1.0_RP + 0.5_RP * gm1 * MExtSq ) ** ( cp )
 !
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
@@ -263,7 +320,7 @@
 !
 !                       Supersonic
 !                       ----------
-                        q = self % q
+                        q = qExt
                         F = inviscidflux( q )
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
 #ifdef NAVIER_STOKES
@@ -277,11 +334,11 @@
 !                       --------
                         a = (gamma+1.0_RP) / gm1
                         b = -2*Rplus
-                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - self % at * self % at
+                        c = 0.5_RP * gm1 * ( Rplus * Rplus ) - atExtSq
 
                         aR = (-b + sqrt(b*b - 4.0_RP * a * c) ) / (2.0_RP * a)
 
-                        rhoR = ( aR * aR / ( gamma * self % st ) ) ** (cv)
+                        rhoR = ( aR * aR / ( gamma * sExt ) ) ** (cv)
                         pR  = aR * aR * rhoR / gamma
                         vnR = Rplus - 2.0_RP * cv * aR
                         uR  = vnR * edge % n(IX,iXi) 
@@ -327,7 +384,7 @@
                         q(IRHO) = edge % storage(1) % Q(iXi,IRHO)
                         q(IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
                         q(IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q(IRHOE) = cv * (2.0_RP * self % pt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
+                        q(IRHOE) = cv * (2.0_RP * ptExt - pL) +  0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL )
 
                         F = inviscidFlux(q)
                         edge % FB(iXi , 1:NCONS) = ( F(1:NCONS,IX) * edge % n (IX,iXi) + F(1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
@@ -335,7 +392,7 @@
                         edge % uSB(iXi , IRHO ) = q(IRHO)
                         edge % uSB(iXi , IRHOU) = q(IRHOU)
                         edge % uSB(iXi , IRHOV) = q(IRHOV)
-                        edge % uSB(iXi , IRHOE) = cv * self % pt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
+                        edge % uSB(iXi , IRHOE) = cv * ptExt + 0.5_RP * ( q(IRHOU) * uL + q(IRHOV) * vL ) 
                         edge % viscousBCType(iXi) = DIRICHLET
 #endif
                      end if

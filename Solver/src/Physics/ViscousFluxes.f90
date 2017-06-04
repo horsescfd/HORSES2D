@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////////////////
 !
 !     File: ViscousFluxes.f90
@@ -276,7 +297,7 @@ submodule (PhysicsNS)   ViscousFluxes
          F(IRHOU,IX) = 2.0_RP * ( - uDivRho * dq(IX,IRHO) + invRho * dq(IX,IRHOU)) + lambda * divV
          F(IRHOV,IY) = 2.0_RP * ( - vDivRho * dq(IY,IRHO) + invRho * dq(IY,IRHOV)) + lambda * divV
 
-                                                               !                      -                                             -
+                                                          !                      -                                             -
          F(IRHOU,IY) = - vDivRho * dq(IX,IRHO)  &         !        du   dv      |    u  drho    1  drhou    v  drho    1  drhov |
                        - uDivRho * dq(IY,IRHO)  &         !     mu -- + -- = mu | - --- ---- + --- ----- - --- ---- + --- ----- |
                        + invRho  * dq(IY,IRHOU) &         !        dy   dx      |   rho  dy    rho  dy     rho  dx    rho  dx   |

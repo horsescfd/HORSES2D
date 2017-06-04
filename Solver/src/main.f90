@@ -1,22 +1,41 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 #include "Defines.h"
 
 program main
     use SMConstants
     use DGSEM_Class
     use Setup_class
-!    use QuadMeshClass
-!    use QuadElementClass
+    use QuadMeshClass
+    use QuadElementClass
     use Headers
     use ChecksModule
     implicit none
-    type(DGSEM_t)          :: sem
-    integer                :: eID , edID
-   real(kind=RP)  :: tstart , tend
+    type(DGSEM_t) :: sem
 
 #ifdef NAVIER_STOKES
-    call Main_Header("Compressible Navier-Stokes equations high-order discontinuous Galerkin CFD 2D Solver")
+    call Main_Header("2D Compressible Navier-Stokes equations")
 #else
-    call Main_Header("Compressible Euler equations high-order discontinuous Galerkin CFD 2D Solver")
+    call Main_Header("2D Compressible Euler equations")
 #endif
 !
 !   Read the case file and load parameters on Setup class
@@ -35,11 +54,14 @@ program main
 !   Perform checks on the built framework
 !   -------------------------------------
     call checks( sem )
-
-    call cpu_time(tstart)
+!
+!   Time integration
+!   ----------------
     call sem % Integrate()
-    call cpu_time(tend)
-    print*, "Time: ",tend-tstart
+!
+!   Check with an analytical condition
+!   ----------------------------------
+    call sem % Finalize
 !
 !  Program finished
 !  ----------------

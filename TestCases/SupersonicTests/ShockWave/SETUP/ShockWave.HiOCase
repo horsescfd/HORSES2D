@@ -23,7 +23,7 @@
                  Default polynomial order    : 5
 
 !------------------------------------: Initialization
-                   Initial condition : Restart
+                   Initial condition : User-defined
                    Restart file      : ./RESULTS/InitialConditionP5.HiORst
 
 !---------------------------------------------: Inviscid discretization

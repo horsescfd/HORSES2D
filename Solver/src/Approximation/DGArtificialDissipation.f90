@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 #ifdef NAVIER_STOKES
 
 module DGArtificialDissipation
@@ -21,8 +42,8 @@ module DGArtificialDissipation
 !
    type ArtificialDissipation_t
       real(kind=RP)                                              :: Ceps
-      procedure(ElementViscosityFCN), private, nopass, pointer   :: ElementViscosity  => NULL()
-      procedure(EdgeViscosityFCN),    private, nopass, pointer   :: EdgeViscosity  => NULL()
+      procedure(ElementViscosityFCN),  nopass, pointer   :: ElementViscosity  => NULL()
+      procedure(EdgeViscosityFCN),     private , nopass, pointer   :: EdgeViscosity  => NULL()
       contains
          procedure   :: ComputeVolumeFluxes     => ArtificialDissipation_ComputeVolumeFluxes
          procedure   :: ComputeFaceFluxes       => ArtificialDissipation_ComputeFaceFluxes
@@ -60,7 +81,7 @@ module DGArtificialDissipation
          implicit none
          class(ArtificialDissipation_t), intent(in)   :: self
          class(Edge_t)                 , intent(in)   :: edge
-         real(kind=RP)                                :: mu(NDIM)
+         real(kind=RP)                                :: mu
       end function EdgeViscosityFCN
    end interface
 !
@@ -136,16 +157,17 @@ module DGArtificialDissipation
 
       end function ArtificialDissipation_ComputeVolumeFluxes
 
-      function ArtificialDissipation_ComputeFaceFluxes( self , edge , QL , QR , dQL , dQR , normal ) result ( F )
+      function ArtificialDissipation_ComputeFaceFluxes( self , edge , N , QL , QR , dQL , dQR , normal ) result ( F )
          implicit none
          class(ArtificialDissipation_t), intent (in) :: self
          class(Edge_t) ,                 intent (in) :: edge
-         real(kind=RP)              ,    intent (in) :: QL(0 : edge % spA % N , 1:NCONS)
-         real(kind=RP)              ,    intent (in) :: QR(0 : edge % spA % N , 1:NCONS)
-         real(kind=RP) ,                 intent (in) :: dQL(0 : edge % spA % N , 1:NDIM , 1:NCONS)
-         real(kind=RP) ,                 intent (in) :: dQR(0 : edge % spA % N , 1:NDIM , 1:NCONS)
-         real(kind=RP) ,                 intent (in) :: normal(1:NDIM , 0 : edge % spA % N )
-         real(kind=RP)                               :: F( 0 : edge % spA % N , 1 : NCONS)
+         integer,                        intent (in) :: N
+         real(kind=RP)              ,    intent (in) :: QL(0 : N , 1:NCONS)
+         real(kind=RP)              ,    intent (in) :: QR(0 : N , 1:NCONS)
+         real(kind=RP) ,                 intent (in) :: dQL(0 : N , 1:NDIM , 1:NCONS)
+         real(kind=RP) ,                 intent (in) :: dQR(0 : N , 1:NDIM , 1:NCONS)
+         real(kind=RP) ,                 intent (in) :: normal(1:NDIM , 0 : N )
+         real(kind=RP)                               :: F( 0 : N , 1 : NCONS)
 !
 !        ---------------------------
 !        The base class does nothing.
@@ -204,16 +226,17 @@ module DGArtificialDissipation
    
       end function LaplaceDissipation_ComputeVolumeFluxes
 
-      function LaplaceDissipation_ComputeFaceFluxes( self, edge , QL , QR , dQL , dQR , normal) result ( F )
+      function LaplaceDissipation_ComputeFaceFluxes( self, edge , N , QL , QR , dQL , dQR , normal) result ( F )
          implicit none
          class(LaplaceDissipation_t), intent(in)      :: self
          class(Edge_t)              , intent(in)      :: edge
-         real(kind=RP)              , intent(in)      :: QL(0 : edge % spA % N , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: QR(0 : edge % spA % N , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: dQL(0 : edge % spA % N , 1:NDIM , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: dQR(0 : edge % spA % N , 1:NDIM , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: normal(1:NDIM , 0 : edge % spA % N)
-         real(kind=RP)                                :: F( 0 : edge % spA % N , 1 : NCONS )
+         integer                    , intent(in)      :: N 
+         real(kind=RP)              , intent(in)      :: QL(0 : N , 1:NCONS)
+         real(kind=RP)              , intent(in)      :: QR(0 : N , 1:NCONS)
+         real(kind=RP)              , intent(in)      :: dQL(0 : N , 1:NDIM , 1:NCONS)
+         real(kind=RP)              , intent(in)      :: dQR(0 : N , 1:NDIM , 1:NCONS)
+         real(kind=RP)              , intent(in)      :: normal(1:NDIM , 0 : N)
+         real(kind=RP)                                :: F( 0 : N , 1 : NCONS )
 !
 !        ---------------
 !        Local variables
@@ -221,7 +244,7 @@ module DGArtificialDissipation
 !  
          real(kind=RP)  :: mu
 
-         mu = 0.5_RP *  sum(self % EdgeViscosity(self,edge))
+         mu = self % EdgeViscosity(self,edge)
          F =  - mu * edge % Area * ( QL - QR ) 
 
       end function LaplaceDissipation_ComputeFaceFluxes
@@ -242,7 +265,7 @@ module DGArtificialDissipation
          class(Edge_t)               , intent(in)     :: ed
          real(kind=RP)                                :: mu
          
-         mu = maxval(self % EdgeViscosity(self,ed))
+         mu = self % EdgeViscosity(self,ed)
 
       end function PhysicalDissipation_ComputeEdgeViscosity
 !
@@ -319,22 +342,26 @@ module DGArtificialDissipation
          implicit none
          class(ArtificialDissipation_t), intent(in) :: self
          class(Edge_t)      , intent(in)   :: ed
-         real(kind=RP)                     :: mu(NDIM)
+         real(kind=RP)                     :: mu
+         real(kind=RP)                     :: mu_n(size(ed % storage))
 
          if ( size( ed % storage ) .eq. 1 ) then
-            mu = self % ElementViscosity( self , ed % quads(1) % e )
+            mu_n(1) = self % ElementViscosity( self , ed % quads(1) % e )
    
-         else
-            mu(LEFT)  = self % ElementViscosity( self , ed % quads(LEFT) % e ) 
-            mu(RIGHT) = self % ElementViscosity( self , ed % quads(RIGHT) % e ) 
+         elseif ( size( ed % storage ) .eq. 2 ) then
+            mu_n(LEFT)  = self % ElementViscosity( self , ed % quads(LEFT) % e ) 
+            mu_n(RIGHT) = self % ElementViscosity( self , ed % quads(RIGHT) % e ) 
+
+         elseif ( size( ed % storage ) .eq. 3 ) then
+            mu_n(LEFT) = self % ElementViscosity( self , ed % quads(LEFT) % e ) 
+            mu_n(RIGHT_NORTH) = self % ElementViscosity( self , ed % quads(RIGHT_NORTH) % e ) 
+            mu_n(RIGHT_SOUTH) = self % ElementViscosity( self , ed % quads(RIGHT_SOUTH) % e ) 
 
          end if
 
+         mu = sum( mu_n ) / size(ed % storage)
+
       end function JumpsBasedEdgeViscosity
 
-!
-
-
 end module DGArtificialDissipation
-
 #endif

@@ -1,3 +1,24 @@
+!
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
 module Setup_class
     use SMConstants
     use ParamfileIO
@@ -6,7 +27,7 @@ module Setup_class
 #include "Defines.h"
 
     private
-    public  :: setup
+    public  :: setup , Setup_t
   
     integer, parameter          :: STR_LEN_SETUP = 128
     type Setup_t
@@ -79,6 +100,7 @@ module Setup_class
         real(kind=RP), allocatable   :: Ccfl
         real(kind=RP), allocatable   :: dt
         real(kind=RP), allocatable   :: simulationTime            
+        real(kind=RP), allocatable   :: residualTarget 
         integer, allocatable         :: no_of_iterations          
         real(kind=RP)                :: initialTime = 0.0_RP          
         integer                      :: initialIteration = 0
@@ -347,6 +369,11 @@ module Setup_class
           call readValue ( trim ( case_name )  , "Simulation time"                  , Setup % simulationTime    ) 
           call Setup_CheckWithDefault( Setup % simulationTime , 1.0_RP , "Simulation time" ) 
 !
+!         Request the residual convergence target
+!         ---------------------------------------
+          call readValue ( trim ( case_name )  , "Residual target"                  , Setup % residualTarget    ) 
+          call Setup_CheckWithDefault( Setup % residualTarget , 1.0e-12_RP , "Residual target" ) 
+!
 !         Request the number of iterations
 !         --------------------------------
           call readValue ( trim ( case_name )  , "Number of iterations"             , Setup % no_of_iterations  ) 
@@ -389,7 +416,7 @@ module Setup_class
 !         Output file type
 !         ----------------
           call readValue ( trim ( case_name )  , "Output file type"                 , Setup % outputType        ) 
-          call Setup_CheckWithDefault( Setup % outputType , "DGSEM" , "Output file type" ) 
+          call Setup_CheckWithDefault( Setup % outputType , "Interpolated" , "Output file type" ) 
 !
 !         Number of representation points
 !         -------------------------------

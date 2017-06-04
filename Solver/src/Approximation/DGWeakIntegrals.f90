@@ -1,4 +1,25 @@
 !
+!///////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
+!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the GNU General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+!
+!    This program is distributed in the hope that it will be useful,
+!    but WITHOUT ANY WARRANTY; without even the implied warranty of
+!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!    GNU General Public License for more details.
+!
+!    You should have received a copy of the GNU General Public License
+!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
 !///////////////////////////////////////////////////////////////////////////////////////////////
 !
 !        File:    DGWeakIntegrals.f90
@@ -463,7 +484,7 @@ module DGWeakIntegrals
 !
       end function Vector_StdVolumeGreen
 
-      pure function Vector_StdFace( ed , loc , u ) result ( faceInt )
+      pure function Vector_StdFace( ed , loc , Fu ) result ( faceInt )
 !
 !     ***************************************************************************************
 !           This computes the following weak integral with vectorial test function:
@@ -484,37 +505,18 @@ module DGWeakIntegrals
 !        
 !     ***************************************************************************************
 !
+         use NodesAndWeights_Class
          implicit none
          class(Edge_t), intent(in) :: ed
          integer,       intent(in) :: loc
-         real(kind=RP), intent(in) :: u (0 : ed % storage(loc) % spA % N , 1:NCONS)
+         real(kind=RP), intent(in) :: Fu (0 : ed % storage(loc) % spA % N , 1:NCONS , 1:NDIM)
          real(kind=RP)             :: faceInt(0 : ed % storage(loc) % spA % N , 0 : ed % storage(loc) % spA % N , 1:NDIM , 1:NCONS)
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         integer                       :: iXi , iEta , eq
-         real(kind=RP)                 :: loc_sign
-!
-!        -------------------------------------------------------------
-!>       If the edge is interior, it is precise to change the normal
-!>       sign so that it points towards the element outside
-!        -------------------------------------------------------------
-!
-         if ( loc .eq. LEFT ) then
-!
-!           Already points towards the outside
-!           ----------------------------------
-            loc_sign = 1.0_RP
-      
-         elseif ( loc .eq. RIGHT ) then
-!
-!           Change its sign
-!           ---------------
-            loc_sign = -1.0_RP
-
-         end if
+         integer                       :: iXi , iEta , eq , i 
 
          associate ( e => ed % quads(loc) % e ) 
 
@@ -522,97 +524,28 @@ module DGWeakIntegrals
 
             case (EBOTTOM)
             
-               select type ( ed ) 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX:IY,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IX:IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-                  
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IX,iXi) * ed % dS(iXi)
-                        faceInt(iXi,iEta,IY,eq) = u(iXi,eq) * e % spA % lbw(iEta,LEFT) * ed % n(IY,iXi) * ed % dS(iXi)
-                     end do ; end do ; end do
-
-               end select
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
+               end do ; end do ; end do
       
             case (ERIGHT)
 
-               select type ( ed ) 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-                  
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IX,iEta) * ed % dS(iEta)
-                        faceInt(iXi,iEta,IY,eq) = u(iEta,eq) * e % spA % lbw(iXi,RIGHT) * ed % n(IY,iEta) * ed % dS(iEta)
-                     end do ; end do ; end do
-
-               end select
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT) 
+               end do ; end do ; end do
                   
             case (ETOP)
 
-               select type ( ed ) 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = loc_sign * u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-                  
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IX,iXi) * ed % dS(iXi)
-                        faceInt(iXi,iEta,IY,eq) = u(iXi,eq) * e % spA % lbw(iEta,RIGHT) * ed % n(IY,iXi) * ed % dS(iXi)
-                     end do ; end do ; end do
-
-               end select
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
+               end do ; end do ; end do
    
             case (ELEFT)
 
-               select type ( ed ) 
+               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
+               end do ; end do ; end do
 
-                  type is (Edge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = loc_sign * u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-                  
-                  type is (StraightBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IX,0) * ed % dS(0)
-                        faceInt(iXi,iEta,IY,eq) = u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IY,0) * ed % dS(0)
-                     end do ; end do ; end do
-   
-                  type is (CurvedBdryEdge_t)
-                     do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                        faceInt(iXi,iEta,IX,eq) = u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IX,iEta) * ed % dS(iEta)
-                        faceInt(iXi,iEta,IY,eq) = u(iEta,eq) * e % spA % lbw(iXi,LEFT) * ed % n(IY,iEta) * ed % dS(iEta)
-                     end do ; end do ; end do
-
-                  
-
-               end select
             case default 
          end select
 
