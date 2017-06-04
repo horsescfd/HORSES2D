@@ -19,7 +19,6 @@
 !
 !////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-
 module DGSpatialDiscretizationMethods
    use SMConstants
    use Physics
@@ -33,10 +32,10 @@ module DGSpatialDiscretizationMethods
    implicit none
 !
 #include "Defines.h"
-
+!
    private
    public DGSpatial_Initialization  , DGSpatial_computeTimeDerivative , DGSpatial_interpolateSolutionToBoundaries
-   public DGSpatial_newTimeStep
+   public DGSpatial_newTimeStep , ArtificialDissipation
 !
 !  ************************************
 !  Inviscid and Viscous methods objects
@@ -425,7 +424,6 @@ module DGSpatialDiscretizationMethods
 !
          end if
 #endif
-           
 
       end subroutine DGSpatial_QDotFaceLoop_SubdividedEdge
 
@@ -636,6 +634,9 @@ module DGSpatialDiscretizationMethods
          call ed % ProjectFluxes( ed , FStar , FL , FR )
 
 #ifdef NAVIER_STOKES
+!
+!        Compute the Gradient Riemann solver
+!        -----------------------------------
          if ( ViscousMethod % computeRiemannGradientFluxes ) then
                call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , normal , GauxL , GauxR ) 
 

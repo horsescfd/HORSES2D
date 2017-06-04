@@ -40,7 +40,7 @@
 !------------------------------------: Artificial dissipation
          Artificial dissipation (0/1): 1
          Artificial dissipation type: Laplacian
-         Artificial dissipation intensity: 0.5
+         Artificial dissipation intensity: 0.1
          Artificial dissipation indicator: Jumps-based
 
 
@@ -59,7 +59,7 @@
                     Output file type: Interpolated
      Number of representation points: 10
                   Output interval   : 10
-                  Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach
+                  Save variables    : rho_rhou_rhov_rhoe_rhot_rhout_rhovt_rhoet_u_v_p_Mach_muart
 
 !
 !       **********************************

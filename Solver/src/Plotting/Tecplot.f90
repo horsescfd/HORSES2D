@@ -275,6 +275,7 @@ submodule (Plotter) Tecplot
       subroutine Tecplot_StandardZone(self , mesh , eID ) 
          use QuadMeshClass
          use Physics
+         use DGSpatialDiscretizationMethods
          implicit none
          class(Tecplot_t)        :: self
          class(QuadMesh_t)       :: mesh
@@ -389,7 +390,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
             
                      case ("muart")
-                        write(self % fID,'(1X,ES17.10)',advance="no") mesh % elements(eID) % mu_a 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ArtificialDissipation % ElementViscosity( ArtificialDissipation , mesh % elements(eID) )
 #endif
 
                   end select                        
@@ -421,6 +422,7 @@ submodule (Plotter) Tecplot
          use Setup_Class
          use MatrixOperations
          use InterpolationAndDerivatives
+         use DGSpatialDiscretizationMethods
          implicit none
          class(Tecplot_t)        :: self
          class(QuadMesh_t)       :: mesh
@@ -574,7 +576,7 @@ submodule (Plotter) Tecplot
                         write(self % fID,'(1X,ES17.10)',advance="no") ( vx(iXi,iEta) - uy(iXi,iEta) ) * refValues % a / refValues % L
 
                      case ("muart")
-                        write(self % fID,'(1X,ES17.10)',advance="no") mesh % elements(eID) % mu_a 
+                        write(self % fID,'(1X,ES17.10)',advance="no") ArtificialDissipation % ElementViscosity( ArtificialDissipation , mesh % elements(eID) )
 #endif
 
                   end select                        

@@ -42,8 +42,8 @@ module DGArtificialDissipation
 !
    type ArtificialDissipation_t
       real(kind=RP)                                              :: Ceps
-      procedure(ElementViscosityFCN), private, nopass, pointer   :: ElementViscosity  => NULL()
-      procedure(EdgeViscosityFCN),    private, nopass, pointer   :: EdgeViscosity  => NULL()
+      procedure(ElementViscosityFCN),  nopass, pointer   :: ElementViscosity  => NULL()
+      procedure(EdgeViscosityFCN),     private , nopass, pointer   :: EdgeViscosity  => NULL()
       contains
          procedure   :: ComputeVolumeFluxes     => ArtificialDissipation_ComputeVolumeFluxes
          procedure   :: ComputeFaceFluxes       => ArtificialDissipation_ComputeFaceFluxes
@@ -81,7 +81,7 @@ module DGArtificialDissipation
          implicit none
          class(ArtificialDissipation_t), intent(in)   :: self
          class(Edge_t)                 , intent(in)   :: edge
-         real(kind=RP)                                :: mu(NDIM)
+         real(kind=RP)                                :: mu
       end function EdgeViscosityFCN
    end interface
 !
@@ -244,7 +244,7 @@ module DGArtificialDissipation
 !  
          real(kind=RP)  :: mu
 
-         mu = 0.5_RP *  sum(self % EdgeViscosity(self,edge))
+         mu = self % EdgeViscosity(self,edge)
          F =  - mu * edge % Area * ( QL - QR ) 
 
       end function LaplaceDissipation_ComputeFaceFluxes
@@ -265,7 +265,7 @@ module DGArtificialDissipation
          class(Edge_t)               , intent(in)     :: ed
          real(kind=RP)                                :: mu
          
-         mu = maxval(self % EdgeViscosity(self,ed))
+         mu = self % EdgeViscosity(self,ed)
 
       end function PhysicalDissipation_ComputeEdgeViscosity
 !
@@ -342,22 +342,26 @@ module DGArtificialDissipation
          implicit none
          class(ArtificialDissipation_t), intent(in) :: self
          class(Edge_t)      , intent(in)   :: ed
-         real(kind=RP)                     :: mu(NDIM)
+         real(kind=RP)                     :: mu
+         real(kind=RP)                     :: mu_n(size(ed % storage))
 
          if ( size( ed % storage ) .eq. 1 ) then
-            mu = self % ElementViscosity( self , ed % quads(1) % e )
+            mu_n(1) = self % ElementViscosity( self , ed % quads(1) % e )
    
-         else
-            mu(LEFT)  = self % ElementViscosity( self , ed % quads(LEFT) % e ) 
-            mu(RIGHT) = self % ElementViscosity( self , ed % quads(RIGHT) % e ) 
+         elseif ( size( ed % storage ) .eq. 2 ) then
+            mu_n(LEFT)  = self % ElementViscosity( self , ed % quads(LEFT) % e ) 
+            mu_n(RIGHT) = self % ElementViscosity( self , ed % quads(RIGHT) % e ) 
+
+         elseif ( size( ed % storage ) .eq. 3 ) then
+            mu_n(LEFT) = self % ElementViscosity( self , ed % quads(LEFT) % e ) 
+            mu_n(RIGHT_NORTH) = self % ElementViscosity( self , ed % quads(RIGHT_NORTH) % e ) 
+            mu_n(RIGHT_SOUTH) = self % ElementViscosity( self , ed % quads(RIGHT_SOUTH) % e ) 
 
          end if
 
+         mu = sum( mu_n ) / size(ed % storage)
+
       end function JumpsBasedEdgeViscosity
 
-!
-
-
 end module DGArtificialDissipation
-
 #endif
