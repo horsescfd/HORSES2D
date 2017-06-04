@@ -146,11 +146,16 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in y-momentum: " , errors(IRHOV)
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in energy: "     , errors(IRHOE)
     write(STD_OUT , '(    30X , A , A50 , I0,A,I0)') "-> " , "Error in the final iteration: "     , finalIteration , "/",sem_ % Integrator % iter
-    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(expectedResiduals(1) - Monitors_ % residuals % values(IRHO ,1)) / expectedResiduals(1)
-    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(expectedResiduals(2) - Monitors_ % residuals % values(IRHOU,1)) / expectedResiduals(2)
-    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(expectedResiduals(3) - Monitors_ % residuals % values(IRHOV,1)) / expectedResiduals(3)
-    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(expectedResiduals(4) - Monitors_ % residuals % values(IRHOE,1)) / expectedResiduals(4)
+    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(expectedResiduals(1) - Monitors_ % residuals % values(IRHO ,1)) 
+    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(expectedResiduals(2) - Monitors_ % residuals % values(IRHOU,1)) 
+    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(expectedResiduals(3) - Monitors_ % residuals % values(IRHOV,1)) 
+    write(STD_OUT,'(30X,A,A50,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(expectedResiduals(4) - Monitors_ % residuals % values(IRHOE,1))
 
+    if ( (maxval(abs(expectedResiduals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-12_RP) .or. ( finalIteration .ne. sem_ % Integrator % iter ) ) then
+      write(STD_OUT , '(    30X , A , A)') "-> " , "Couette benchmark test failed"
+    else
+      write(STD_OUT , '(    30X , A , A)') "-> " , "Couette benchmark test succeeded"
+    end if
    
 
 end subroutine Finalize

@@ -80,12 +80,23 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     real(kind=RP), parameter :: cd = 2.1487956180577015E+01_RP
 
     write(STD_OUT,*)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(residuals(1) - Monitors_ % residuals % values(IRHO ,1)) / residuals(1)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1)) / residuals(2)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1)) / residuals(3)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1)) / residuals(4)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(residuals(1) - Monitors_ % residuals % values(IRHO ,1)) 
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1)) 
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1)) 
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1)) 
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in lift coefficient" , " : " , abs(cl - Monitors_ % surfaceMonitors(1) % values(1))
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in drag coefficient" , " : " , abs(cd - Monitors_ % surfaceMonitors(2) % values(1)) / cd
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in drag coefficient" , " : " , abs(cd - Monitors_ % surfaceMonitors(2) % values(1)) 
+
+    if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-12_RP)  &
+                           .or. ( abs(cl-Monitors_ % surfaceMonitors(1) % values(1)) .gt. 1.0e-12 ) .or. &
+                             ( abs(cd - Monitors_ % surfaceMonitors(2) % values(1) ) .gt. 1.0e-12 ) ) then
+      write(STD_OUT , '(    30X , A , A)') "-> " , "Cylinder Re=100 benchmark test failed"
+    else
+      write(STD_OUT , '(    30X , A , A )') "-> " , "Cylinder Re=100 benchmark test succeeded"
+    end if
+
+
+
 
 end subroutine Finalize
 

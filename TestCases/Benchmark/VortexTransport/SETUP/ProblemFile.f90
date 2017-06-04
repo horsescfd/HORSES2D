@@ -154,7 +154,14 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in y-momentum: " , errors(IRHOV)
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Error w.r.t. analytical solution in energy: "     , errors(IRHOE)
     write(STD_OUT , '(    30X , A , A50 , ES10.3)') "-> " , "Difference w.r.t. expected errors: "     , maxval(abs(errors - expectedErrors))
-    write(STD_OUT , '(    30X , A , A50 , I0    )') "-> " , "Expected final iteration: " , expectedIter
+    write(STD_OUT , '(    30X , A , A35 , I0,A,I0)') "-> " , "Error in the final iteration: "     , expectedIter , "/",sem_ % Integrator % iter
+
+    if ( (maxval(abs(errors-expectedErrors)) .gt. 1.0e-12_RP) .or. ( expectedIter .ne. sem_ % Integrator % iter ) ) then
+      write(STD_OUT , '(    30X , A , A )') "-> " , "Vortex transport benchmark test failed"
+    else
+      write(STD_OUT , '(    30X , A , A )') "-> " , "Vortex transport benchmark test succeeded"
+    end if
+   
      
 end subroutine Finalize
 

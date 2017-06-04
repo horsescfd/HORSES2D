@@ -79,11 +79,19 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     integer,       parameter :: finalIteration = 9884
 
     write(STD_OUT,*)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(residuals(1) - Monitors_ % residuals % values(IRHO ,1)) / residuals(1)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1)) / residuals(2)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1)) / residuals(3)
-    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1)) / residuals(4)
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in continuity residuals" , " : " , abs(residuals(1) - Monitors_ % residuals % values(IRHO ,1))
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1))
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1))
+    write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1))
     write(STD_OUT , '(    30X , A , A35 , I0,A,I0)') "-> " , "Error in the final iteration: "     , finalIteration , "/",sem_ % Integrator % iter
+
+    if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-12_RP) .or. ( finalIteration .ne. sem_ % Integrator % iter ) ) then
+      write(STD_OUT , '(    30X , A , A )') "-> " , "Ramp benchmark test failed"
+    else
+      write(STD_OUT , '(    30X , A , A )') "-> " , "Ramp benchmark test succeeded"
+    end if
+
+
 
 end subroutine Finalize
 

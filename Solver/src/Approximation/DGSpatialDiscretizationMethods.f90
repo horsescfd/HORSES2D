@@ -35,7 +35,10 @@ module DGSpatialDiscretizationMethods
 !
    private
    public DGSpatial_Initialization  , DGSpatial_computeTimeDerivative , DGSpatial_interpolateSolutionToBoundaries
-   public DGSpatial_newTimeStep , ArtificialDissipation
+   public DGSpatial_newTimeStep
+#ifdef NAVIER_STOKES
+   public ArtificialDissipation
+#endif
 !
 !  ************************************
 !  Inviscid and Viscous methods objects
