@@ -54,7 +54,7 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 
 end function UserDefinedInitialCondition
 
-subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) 
+function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) result(exit_code)
     use SMConstants
     use DGSEM_Class
     use Setup_class
@@ -70,6 +70,7 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     class(RefValues_t),      intent(in) :: refValues_
     class(Dimensionless_t),  intent(in) :: dimensionless_
     class(Monitor_t),       intent(in)  :: Monitors_
+    integer                             :: exit_code
 !
 !   ------------------------------------------------------------------------------
 !   This subroutine checks that the residuals, lift, and drag, match stored values
@@ -83,17 +84,17 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in x-momentum residuals" , " : " , abs(residuals(2) - Monitors_ % residuals % values(IRHOU,1))
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in y-momentum residuals" , " : " , abs(residuals(3) - Monitors_ % residuals % values(IRHOV,1))
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1))
-    write(STD_OUT , '(    30X , A , A35 , I0,A,I0)') "-> " , "Error in the final iteration: "     , finalIteration , "/",sem_ % Integrator % iter
+    write(STD_OUT , '(    30X , A , A35 , A ,I0,A,I0)') "-> " , "Error in the final iteration" , " : "  , finalIteration , "/",sem_ % Integrator % iter
 
     if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-12_RP) .or. ( finalIteration .ne. sem_ % Integrator % iter ) ) then
-      write(STD_OUT , '(    30X , A , A )') "-> " , "Ramp benchmark test failed"
+      write(STD_OUT , '(    30X , A , A35,A,A)') "-> " , "Ramp benchmark test" , " : " ,  "failed."
+      exit_code = FAILED
     else
-      write(STD_OUT , '(    30X , A , A )') "-> " , "Ramp benchmark test succeeded"
+      write(STD_OUT , '(    30X , A , A35,A,A)') "-> " , "Ramp benchmark test" , " : " ,  "succeeded."
+      exit_code = SUCCESSFUL
     end if
 
-
-
-end subroutine Finalize
+end function Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
    use SMConstants

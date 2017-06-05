@@ -290,7 +290,7 @@
    
         end subroutine DGSEM_loadRestartFile
 
-        subroutine DGSEM_Finalize( self )
+        function DGSEM_Finalize( self ) result ( exit_code )
             use SMConstants
             use Physics
             use Setup_class
@@ -300,13 +300,14 @@
             use StopwatchClass
             implicit none
             class(DGSEM_t)       :: self
+            integer              :: exit_code
 !
 !           ----------
 !           Interfaces            
 !           ----------
 !
             interface
-               subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_ ) 
+               function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_ ) result(exit_code)
                   use SMConstants
                   use Setup_class
                   use QuadMeshClass
@@ -321,13 +322,14 @@
                   class(RefValues_t),      intent(in) :: refValues_
                   class(Dimensionless_t),  intent(in) :: dimensionless_
                   class(Monitor_t),        intent(in) :: Monitors_
-               end subroutine Finalize
+                  integer                             :: exit_code
+               end function Finalize
             end interface
 
             write(STD_OUT,*)
             call Section_header("Solution analysis")
 
-            call Finalize ( self , Thermodynamics , Setup , refValues , dimensionless , Monitors) 
+            exit_code = Finalize ( self , Thermodynamics , Setup , refValues , dimensionless , Monitors) 
 
             write(STD_OUT,*)
             call Section_header("Simulation statistics")
@@ -337,7 +339,7 @@
             write(STD_OUT,'(30X,A,A20,ES10.3,A)') "-> ","Solver perfomance: ", &
                   1.0e06_RP * Stopwatch % ElapsedTime("Simulation") / self % Integrator % no_of_iterations / size(self % Storage % Q), " (s/iter 1MDOF)."
 
-        end subroutine DGSEM_Finalize
+        end function DGSEM_Finalize
 
         subroutine DescribeProblemFile()
             use Headers

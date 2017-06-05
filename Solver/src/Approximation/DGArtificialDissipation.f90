@@ -311,7 +311,7 @@ module DGArtificialDissipation
          gk = gk / ( e % edges(EBOTTOM) % f % Area + e % edges(ERIGHT) % f % Area &
                     +e % edges(ETOP) % f % Area + e % edges(ELEFT) % f % Area )
 
-         if ( gk .gt. 1.0e-8 ) then
+         if ( gk .gt. 1.0e-8_RP ) then
             gk = log10(gk)
          else
             gk = -HUGE(1.0_RP)
@@ -359,7 +359,7 @@ module DGArtificialDissipation
 
          end if
 
-         mu = sum( mu_n ) / size(ed % storage)
+         mu = sum( mu_n ) / (1.0_RP * size(ed % storage) )
 
       end function JumpsBasedEdgeViscosity
 

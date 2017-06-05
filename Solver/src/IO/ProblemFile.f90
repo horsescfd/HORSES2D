@@ -54,7 +54,7 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 
 end function UserDefinedInitialCondition
 
-subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) 
+function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) result(exit_code)
     use SMConstants
     use DGSEM_Class
     use Setup_class
@@ -70,9 +70,12 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     class(RefValues_t),      intent(in) :: refValues_
     class(Dimensionless_t),  intent(in) :: dimensionless_
     class(Monitor_t),       intent(in)  :: Monitors_
+    integer                             :: exit_code
 
     write(STD_OUT , '(/,30X,A,A,A)') "-> ", "Nothing to be done."
-end subroutine Finalize
+    exit_code = SUCCESSFUL
+
+end function Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
    use SMConstants

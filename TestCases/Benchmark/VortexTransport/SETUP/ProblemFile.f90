@@ -70,7 +70,7 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 
 end function UserDefinedInitialCondition
 
-subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) 
+function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) result(exit_code)
     use SMConstants
     use DGSEM_Class
     use Setup_class
@@ -86,6 +86,7 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     class(RefValues_t),      intent(in) :: refValues_
     class(Dimensionless_t),  intent(in) :: dimensionless_
     class(Monitor_t),       intent(in)  :: Monitors_
+    integer                             :: exit_code
 !
 !   ************************************************
 !   Compute the error w.r.t. the analytical solution
@@ -157,13 +158,15 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     write(STD_OUT , '(    30X , A , A35 , I0,A,I0)') "-> " , "Error in the final iteration: "     , expectedIter , "/",sem_ % Integrator % iter
 
     if ( (maxval(abs(errors-expectedErrors)) .gt. 1.0e-12_RP) .or. ( expectedIter .ne. sem_ % Integrator % iter ) ) then
-      write(STD_OUT , '(    30X , A , A )') "-> " , "Vortex transport benchmark test failed"
+      write(STD_OUT , '(    30X , A , A50,A,A)') "-> " , "Inviscid vortex transport benchmark test" , " : " ,  "failed."
+      exit_code = FAILED
     else
-      write(STD_OUT , '(    30X , A , A )') "-> " , "Vortex transport benchmark test succeeded"
+      write(STD_OUT , '(    30X , A , A50,A,A)') "-> " , "Inviscid vortex transport benchmark test" , " : " ,  "succeeded."
+      exit_code = SUCCESSFUL
     end if
    
      
-end subroutine Finalize
+end function Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
    use SMConstants

@@ -25,7 +25,7 @@ function getProblemFileName() result ( Name )
    implicit none
    character(len=LINE_LENGTH)    :: Name
 
-   Name = "Cylinder problem file"
+   Name = "Cylinder Re 100 BR1 problem file"
 
 end function getProblemFileName
 
@@ -54,7 +54,7 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
 
 end function UserDefinedInitialCondition
 
-subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) 
+function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_ , Monitors_) result(exit_code)
     use SMConstants
     use DGSEM_Class
     use Setup_class
@@ -70,6 +70,7 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     class(RefValues_t),      intent(in) :: refValues_
     class(Dimensionless_t),  intent(in) :: dimensionless_
     class(Monitor_t),       intent(in)  :: Monitors_
+    integer                             :: exit_code
 !
 !   ------------------------------------------------------------------------------
 !   This subroutine checks that the residuals, lift, and drag, match stored values
@@ -87,18 +88,17 @@ subroutine Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionles
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in lift coefficient" , " : " , abs(cl - Monitors_ % surfaceMonitors(1) % values(1))
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in drag coefficient" , " : " , abs(cd - Monitors_ % surfaceMonitors(2) % values(1)) 
 
-    if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-12_RP)  &
+    if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-11_RP)  &
                            .or. ( abs(cl-Monitors_ % surfaceMonitors(1) % values(1)) .gt. 1.0e-12 ) .or. &
                              ( abs(cd - Monitors_ % surfaceMonitors(2) % values(1) ) .gt. 1.0e-12 ) ) then
-      write(STD_OUT , '(    30X , A , A)') "-> " , "Cylinder Re=100 benchmark test failed"
+      write(STD_OUT , '(    30X , A , A35,A,A)') "-> " , "Cylinder Re 100 BR1 benchmark test" , " : " ,  "failed."
+      exit_code = FAILED
     else
-      write(STD_OUT , '(    30X , A , A )') "-> " , "Cylinder Re=100 benchmark test succeeded"
+      write(STD_OUT , '(    30X , A , A35,A,A)') "-> " , "Cylinder Re 100 BR1 benchmark test" , " : " ,  "succeeded."
+      exit_code = SUCCESSFUL
     end if
 
-
-
-
-end subroutine Finalize
+end function Finalize
 
 function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
    use SMConstants

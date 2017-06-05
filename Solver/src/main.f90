@@ -31,6 +31,7 @@ program main
     use ChecksModule
     implicit none
     type(DGSEM_t) :: sem
+    integer       :: exit_code
 
 #ifdef NAVIER_STOKES
     call Main_Header("2D Compressible Navier-Stokes equations")
@@ -61,13 +62,15 @@ program main
 !
 !   Check with an analytical condition
 !   ----------------------------------
-    call sem % Finalize
+    exit_code = sem % Finalize()
 !
 !  Program finished
 !  ----------------
    write(STD_OUT , '(/,/,30X,A)') "\x1B[1;32m ****************** \x1B[0m"
    write(STD_OUT , '(30X,A)' ) "\x1B[1;32m Program finished! \x1B[0m"
    write(STD_OUT , '(30X,A,/,/)') "\x1B[1;32m ****************** \x1B[0m"
+
+   call exit(exit_code)
 
 end program main
 

@@ -90,12 +90,12 @@ Paramfile: SMConstants
 DGTimeIntegrator: SMConstants QuadMesh DGSpatialDiscretizationMethods Setup FileWriting Plotter Monitors Stopwatch
 Monitors: SMConstants Setup Paramfile Physics QuadMesh
 Storage: SMConstants
-main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class
+main: SMConstants NodesAndWeightsClass Physics MeshFile DGSEM_class Checks
 
 
 # --------------- DO NOT EDIT ----------------------------------------------------
 
-F90_REMOVE=ProblemFile.f90
+F90_REMOVE=ProblemFile.f90 Checks.f90
 F90_INCLUDE=-I$(SRC_DIR)/Mesh/ -I$(SRC_DIR)/Generic/
 
 OBJS_F90:= $(notdir $(wildcard $(SRC_DIR)/**/*.f90)) $(notdir $(wildcard $(SRC_DIR)/*.f90))
@@ -121,8 +121,10 @@ ifeq ($(COMPILER),gfortran)
    FC=gfortran
    ifeq ($(MODE),DEBUG)
       FFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
+      CHECKFFLAGS = -ffree-line-length-0 -cpp -O0 -g -fcheck=all -Wno-unused-variable -fbacktrace -fbounds-check -finit-real=snan -Wall -ffpe-trap=invalid,zero,overflow -fcheck-array-temporaries -fbackslash -fcheck=pointer
    else 
       FFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
+      CHECKFFLAGS = -cpp -ffree-line-length-0 -O3 -ftree-vectorize  -ftree-vectorizer-verbose=0 -fbackslash
    endif
    LIBS += -L$(BLAS_LIB) -L$(LAPACK_LIB) -llapack -lblas -L$(NETCDF_LIB) -lnetcdff $(PROBLEM_LIB)
 else ifeq ($(COMPILER),ifort)
@@ -130,8 +132,10 @@ else ifeq ($(COMPILER),ifort)
    FC=ifort
    ifeq ($(MODE),DEBUG)
      FFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
+     CHECKFFLAGS = -cpp -O0 -g -warn all -fpscomp logicals -mkl -traceback -check all -check bounds -check uninit -ftrapuv -debug all -gen-interfaces -warn interfaces -ftrace=full -assume ieee_fpe_flags -ftz -fp-model precise -fp-speculation=off -assume bscc
    else ifeq ($(MODE),RELEASE)
      FFLAGS = -cpp -O3 -mkl -assume bscc
+     CHECKFFLAGS = -cpp -O0 -mkl -assume bscc
      
    else ifeq ($(MODE),VTUNE)
      FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc -fopenmp
@@ -183,7 +187,7 @@ def_navier_stokes_macro:
 # ---------- Executable rule -------------------
 $(EXECUTABLE): $(OBJS) 
 	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) -o $(BIN_DIR)/$(EXECUTABLE) $(INCLUDE) \
-	$(OBJS_EXEC) $(LIBS)
+	$(OBJS_EXEC) $(BUILD_DIR)/Checks.o $(LIBS)
 
 # ---------- Library rule
 ProblemFile: src/IO/ProblemFile.f90
@@ -193,6 +197,10 @@ ProblemFile: src/IO/ProblemFile.f90
 # ---------- Default compilation rule -----------
 $(OBJS): % : $(or $(wildcard $(SRC_DIR)/**/%.f90), $(wildcard $(SRC_DIR)/%.f90))
 	$(FC) $(FFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c $(or $(wildcard $(SRC_DIR)/**/$@.f90),$(wildcard $(SRC_DIR)/$@.f90)) -o $(BUILD_DIR)/$@.o
+
+# ---------- Rule for the Checks subroutine ----------
+Checks: ./src/Generic/Checks.f90
+	$(FC) $(CHECKFFLAGS) $(NS_COMP) $(GLOB_MACROS) $(INCLUDE) $(MOD_FLAG)$(INC_DIR) -c ./src/Generic/Checks.f90 -o $(BUILD_DIR)/Checks.o
 
 
 clean:  printHeader

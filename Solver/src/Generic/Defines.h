@@ -154,4 +154,6 @@
 !     *************************************************************************
 !
 #define errorMessage(UNIT) write(UNIT,'(A,A,A,I0)') "Error in file " , __FILE__ , ", line ",__LINE__
+#define SUCCESSFUL 0 
+#define FAILED 99
 
