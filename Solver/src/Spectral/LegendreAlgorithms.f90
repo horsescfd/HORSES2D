@@ -2,7 +2,8 @@
 !///////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !    HORSES2D - A high-order discontinuous Galerkin spectral element solver.
-!    Copyright (C) 2017  Juan Manzanero Torrico (juan.manzanero@upm.es)
+!    Copyright (C) 2009  David A. Kopriva 
+!    Copyright (C) 2011  Gonzalo Rubio Calzado (g.rubio@upm.es)
 !
 !    This program is free software: you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by

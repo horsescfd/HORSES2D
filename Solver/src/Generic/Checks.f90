@@ -25,12 +25,33 @@ module ChecksModule
    implicit none
 !
 #include "Defines.h"
+
+    private
+    public Checks_t , PerformChecks , Checks
+
+    type Checks_t
+      logical                    :: meshTests = .false.
+      real(kind=RP)              :: errorElementsMapping
+      real(kind=RP)              :: errorEdgesMapping
+      real(kind=RP)              :: domainVolume
+      real(kind=RP), allocatable :: surfaces(:)
+      real(kind=RP)              :: errorElementsInterpolation
+      real(kind=RP)              :: errorEdgesInterpolation
+      real(kind=RP)              :: metricIdentities
+      real(kind=RP)              :: errorTrigonometricQDot
+      real(kind=RP)              :: errorPolynomicQDot
+      real(kind=RP)              :: errorTrigonometricdQ
+      real(kind=RP)              :: errorPolynomicdQ
+    end type Checks_t
+
+    type(Checks_t),  allocatable    :: Checks
+      
 !  ========   
    contains
 !  ========   
 !
 !
-      subroutine checks( sem )
+      subroutine PerformChecks( sem )
           use DGSEM_Class
           use Headers
           use NodesAndWeights_class
@@ -64,6 +85,8 @@ module ChecksModule
             call Section_Header("Performing tests on the built framework") 
             write(STD_OUT , '(/)')
 
+            allocate ( Checks )
+
             call CheckMesh( sem % mesh )
    
             call CheckMappings( sem % mesh )
@@ -81,7 +104,7 @@ module ChecksModule
 
          end if
 
-        end subroutine checks
+        end subroutine PerformChecks
 
         subroutine CheckMesh( mesh )
             use QuadElementClass
@@ -278,6 +301,7 @@ module ChecksModule
             end do
 
             write(STD_OUT , '(30X,A,A,/)') "-> ", "All tests succeeded."
+            Checks % meshTests = .true.
 
         end subroutine CheckMesh
       
@@ -351,6 +375,7 @@ module ChecksModule
             end do
 
             write(STD_OUT , '(30X,A,A,ES10.3,A,I0,A)') "-> ", "Maximum error found in elements mapping: ",error,"  (Cell ",current,")."
+            Checks % errorElementsMapping = error
 
 !
 !           This is to test the extrapolation to boundaries of the normal vectors from elements
@@ -371,13 +396,17 @@ module ChecksModule
             end do
 
             write(STD_OUT , '(30X,A,A,ES10.3,A,I0,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,", in " , location , ")."
+            Checks % errorEdgesMapping = error
 
 !           Compute the volume of the domain
             write(STD_OUT , '(30X,A,A35,F16.10,A)') "-> ", "Computed domain volume: " , mesh % VolumeIntegral("One") * RefValues % L**2.0_RP,"."
+            Checks % domainVolume = mesh % VolumeIntegral("One") * RefValues % L ** 2
 
 !           Compute faces surface            
+            allocate ( Checks % surfaces ( size(mesh % Zones) - 1 ) )  
             do zone = 1 , size(mesh % Zones) - 1
                write(STD_OUT,'(30X,A,A35,F16.10,A)') "-> ", "Computed surface in zone " // trim(mesh % Zones(zone) % Name) // ": ",mesh % ScalarScalarSurfaceIntegral("Surface",zone) * RefValues % L ,"." 
+               Checks % surfaces(zone) = mesh % ScalarScalarSurfaceIntegral("Surface" , zone) * RefValues % L
             end do
             
         end subroutine CheckMappings
@@ -415,40 +444,21 @@ module ChecksModule
           end do
 
           write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in quads: " , error,"."
+          Checks % errorElementsInterpolation = error
 
-!          error = 0.0_RP
+          error = 0.0_RP
 !      
-!          do edID = 1 , mesh % no_of_edges
-!            do quad = 1 , size(mesh % edges(edID) % f % quads)
-!               do iXi = 0 , mesh % edges(edID) % f % spA % N
-!
-!                  direction = mesh % edges(edID) % f % quads(quad) % e % edgesDirection( mesh % edges(edID) % f % edgeLocation(quad) )
-!
-!                  if ( mesh % edges(edID) % f % transform(quad) ) then 
-!                     if ( direction .eq. FORWARD ) then
-!                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , &
-!                                                      mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
-!                     else
-!                        currentError = norm2( matmul( mesh % edges(edID) % f % T_forward(iXi,0:mesh % edges(edID) % f % NLow) , mesh % edges(edID) % f % storage(quad) % Q(0:,1:NCONS)) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
-!                     end if
-!                  else
-!                     if ( direction .eq. FORWARD ) then
-!                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,iXi) ) )
-!                     else
-!                        currentError = norm2( mesh % edges(edID) % f % storage(quad) % Q(iXi,1:NCONS) - mesh % IC(mesh % edges(edID) % f % x(:,mesh % edges(edID) % f % spA % N - iXi) ) )
-!                     end if
-!
-!                  end if
-!
-!                  if (currentError .gt. error) then
-!                     error = currentError
-!                  end if
-!               end do
-!            end do
-!          end do
-!      
-!          write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
-          print*, "WARNING! Initial condition interpolation error in edges is not implemented:"
+          do edID = 1 , mesh % no_of_edges
+
+            currentError = CheckInterpolationToEdges( mesh % edges(edID) % f , mesh ) 
+
+            if (currentError .gt. error) then
+               error = currentError
+            end if
+         end do
+
+          write(STD_OUT , '(30X,A,A50,ES16.10,A)') "-> ", "Initial condition interpolation error in edges: " , error,"."
+         Checks % errorEdgesInterpolation = error
 
         end subroutine CheckInterpolationToBoundaries
 
@@ -505,6 +515,7 @@ module ChecksModule
          end do
 
          write(STD_OUT , '(30X,A,A50,F16.10,A,I0,A)') "-> ", "Maximum discrete metric identities residual: " , error," (element " , elem, "). "
+         Checks % metricIdentities = error
 
         end subroutine CheckMetricIdentities
 
@@ -541,6 +552,7 @@ module ChecksModule
           real(kind=RP)       :: dSy(0:e % spA % N) 
           real(kind=RP)       :: dSe(NDIM,0:e % spA % N) 
           logical             :: trA
+          integer             :: i 
 !
 !         Initialization
 !         --------------
@@ -573,23 +585,65 @@ module ChecksModule
 !
 !         Get the edge normal vector referred to the element spectral basis
 !         -----------------------------------------------------------------
-!TODO: curved edges/subdivided/p-adaption,...
           if (( e % quadPosition(loc) .eq. LEFT )) then
              select type (ed => e % edges(loc) % f)
                 type is (Edge_t)
                    dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+            
+                type is (CurvedEdge_t)
+                  do i = 0 , e % spA % N
+                     dSe(IX,i) = dot_product( ed % dS * ed % n(IX,:) , ed % spA % lj(e % spA % xi(i)) )
+                     dSe(IY,i) = dot_product( ed % dS * ed % n(IY,:) , ed % spA % lj(e % spA % xi(i)) )
+                  end do
+
                 type is (SubdividedEdge_t)
                    dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+
+                type is (CurvedSubdividedEdge_t)
+                   dSe(IX,:) = ed % dS * ed % n(IX,:) 
+                   dSe(IY,:) = ed % dS * ed % n(IY,:)
+
              end select
 
           elseif (( e % quadPosition(loc) .eq. RIGHT) ) then
              select type (ed => e % edges(loc) % f)
                 type is (Edge_t)
                    dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+
+                type is (CurvedEdge_t)
+                   if ( e % edgesDirection(loc) .eq. FORWARD ) then
+                     do i = 0 , e % spA % N
+                        dSe(IX,i) = -dot_product( ed % dS * ed % n(IX,:) , ed % spA % lj(e % spA % xi(i)) )
+                        dSe(IY,i) = -dot_product( ed % dS * ed % n(IY,:) , ed % spA % lj(e % spA % xi(i)) )
+                     end do
+                   else
+                     do i = 0 , e % spA % N
+                        dSe(IX,i) = -dot_product( ed % dS * ed % n(IX,:) , ed % spA % lj(e % spA % xi(e % spA % N-i)) )
+                        dSe(IY,i) = -dot_product( ed % dS * ed % n(IY,:) , ed % spA % lj(e % spA % xi(e % spA % N-i)) )
+                     end do
+                   end if
+
                 type is (SubdividedEdge_t)
                    dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
+
+                type is (CurvedSubdividedEdge_t)
+                  if ( e % edgesDirection(loc) .eq. FORWARD ) then
+                     do i = 0 , e % spA % N
+                        dSe(IX,i) = -dot_product( ed % dS_N * ed % normal_N(IX,:) , ed % spA_N % lj(e % spA % xi(i)) )
+                        dSe(IY,i) = -dot_product( ed % dS_N * ed % normal_N(IY,:) , ed % spA_N % lj(e % spA % xi(i)) )
+                     end do
+
+                  elseif ( e % edgesDirection(loc) .eq. BACKWARD ) then
+                     do i = 0 , e % spA % N
+                        dSe(IX,i) = -dot_product( ed % dS_N * ed % normal_N(IX,:) , ed % spA_N % lj(e % spA % xi(e % spA % N-i)) )
+                        dSe(IY,i) = -dot_product( ed % dS_N * ed % normal_N(IY,:) , ed % spA_N % lj(e % spA % xi(e % spA % N-i)) )
+                     end do
+
+                  end if
+
                 type is (StraightBdryEdge_t)
                    dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+
                 type is (CurvedBdryEdge_t)
                    if ( e % edgesDirection(loc) .eq. FORWARD ) then
                       dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
@@ -598,12 +652,28 @@ module ChecksModule
                       dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
                       dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
                    end if
+
              end select
   
           elseif ( e % quadPosition(loc) .eq. RIGHT_SOUTH ) then
              select type ( ed => e % edges(loc) % f )
                 type is (SubdividedEdge_t)
                    dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
+
+                type is (CurvedSubdividedEdge_t)
+                  if ( e % edgesDirection(loc) .eq. FORWARD ) then
+                     do i = 0 , e % spA % N
+                        dSe(IX,i) = -dot_product( ed % dS_S * ed % normal_S(IX,:) , ed % spA_S % lj(e % spA % xi(i)) )
+                        dSe(IY,i) = -dot_product( ed % dS_S * ed % normal_S(IY,:) , ed % spA_S % lj(e % spA % xi(i)) )
+                     end do
+
+                  elseif ( e % edgesDirection(loc) .eq. BACKWARD ) then
+                     do i = 0 , e % spA % N
+                        dSe(IX,i) = -dot_product( ed % dS_S * ed % normal_S(IX,:) , ed % spA_S % lj(e % spA % xi(e % spA % N-i)) )
+                        dSe(IY,i) = -dot_product( ed % dS_S * ed % normal_S(IY,:) , ed % spA_S % lj(e % spA % xi(e % spA % N-i)) )
+                     end do
+                  
+                  end if  
              end select
 
           end if
@@ -616,6 +686,194 @@ module ChecksModule
           end if
 
         end function CheckEdgeMapping
+
+        function CheckInterpolationToEdges( ed , mesh ) result ( error ) 
+          use Headers
+          use DGSpatialDiscretizationMethods
+          use QuadMeshClass
+          use QuadElementClass
+          class(Edge_t),   intent(in)     :: ed
+          class(QuadMesh_t), intent(in)   :: mesh
+          real(kind=RP)                   :: error
+          real(kind=RP)                   :: QL(0:ed % spA % N , 1:NCONS)
+          real(kind=RP)                   :: QR(0:ed % spA % N , 1:NCONS)
+          real(kind=RP), allocatable      :: QLN(:,:) , QRN(:,:) , QLS(:,:) , QRS(:,:)
+          integer                         :: i 
+          real(kind=RP)                   :: localError
+
+          error = 0.0_RP
+
+          select type ( f => ed ) 
+
+            type is ( Edge_t )
+
+               call f % ProjectSolution( f , QL , QR )
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QL(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QR(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+   
+            type is ( CurvedEdge_t ) 
+
+               call f % ProjectSolution( f , QL , QR )
+
+                do i = 0 , ed % spA % N
+                  localError = maxval(abs(QL(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QR(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+            type is ( SubdividedEdge_t ) 
+
+               allocate ( QLN(0:f % spA_N % N , 1:NCONS) )
+               allocate ( QRN(0:f % spA_N % N , 1:NCONS) )
+               allocate ( QLS(0:f % spA_S % N , 1:NCONS) )
+               allocate ( QRS(0:f % spA_S % N , 1:NCONS) )
+
+               QLN = matmul ( f % T_LN_FWD , ed % storage ( LEFT        ) % Q ) 
+               QLS = matmul ( f % T_LS_FWD , ed % storage ( LEFT        ) % Q ) 
+               QRN = matmul ( f % T_RN_FWD , ed % storage ( RIGHT_NORTH ) % Q ) 
+               QRS = matmul ( f % T_RS_FWD , ed % storage ( RIGHT_SOUTH ) % Q ) 
+
+                do i = 0 , ed % spA % N
+                  localError = maxval(abs(QLN(i,:) - getDimensionlessVariables ( mesh % IC( f % x_N(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QRN(i,:) - getDimensionlessVariables ( mesh % IC( f % x_N(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QLS(i,:) - getDimensionlessVariables ( mesh % IC( f % x_S(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QRS(i,:) - getDimensionlessVariables ( mesh % IC( f % x_S(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               deallocate( QLN , QRN , QLS , QRS )
+
+            type is ( CurvedSubdividedEdge_t )
+
+               allocate ( QLN(0:f % spA_N % N , 1:NCONS) )
+               allocate ( QRN(0:f % spA_N % N , 1:NCONS) )
+               allocate ( QLS(0:f % spA_S % N , 1:NCONS) )
+               allocate ( QRS(0:f % spA_S % N , 1:NCONS) )
+
+               QLN = matmul ( f % T_LN_FWD , ed % storage ( LEFT        ) % Q ) 
+               QLS = matmul ( f % T_LS_FWD , ed % storage ( LEFT        ) % Q ) 
+               QRN = matmul ( f % T_RN_FWD , ed % storage ( RIGHT_NORTH ) % Q ) 
+               QRS = matmul ( f % T_RS_FWD , ed % storage ( RIGHT_SOUTH ) % Q ) 
+
+                do i = 0 , ed % spA % N
+                  localError = maxval(abs(QLN(i,:) - getDimensionlessVariables ( mesh % IC( f % x_N(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QRN(i,:) - getDimensionlessVariables ( mesh % IC( f % x_N(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QLS(i,:) - getDimensionlessVariables ( mesh % IC( f % x_S(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(QRS(i,:) - getDimensionlessVariables ( mesh % IC( f % x_S(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+               deallocate( QLN , QRN , QLS , QRS )
+
+            type is ( StraightBdryEdge_t ) 
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(ed % storage(1) % Q(i,:) - getDimensionlessVariables ( mesh % IC( f % x(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+            type is ( CurvedBdryEdge_t )
+
+               do i = 0 , ed % spA % N
+                  localError = maxval(abs(ed % storage(1) % Q(i,:) - getDimensionlessVariables ( mesh % IC( f % x(:,i) ) )))
+
+                  if ( localError .gt. error ) then
+                     error = localError
+                  end if
+
+               end do
+
+         end select
+   
+        end function CheckInterpolationToEdges
    
         subroutine Integration_checks( sem ) 
           use DGSEM_Class
@@ -733,14 +991,7 @@ module ChecksModule
 
                   localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
 
-                  elementIsInterior = .true.
-
-!                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-!                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-!                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-!                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-
-                  if ( (localerror .gt. error) .and. elementIsInterior ) then
+                  if ( (localerror .gt. error) ) then
                      error = localerror
                      elem = eID
 
@@ -752,6 +1003,7 @@ module ChecksModule
             end associate
          end do
          write(STD_OUT , '(30X,A,A60,ES16.10,A,I0,A)') "-> ", "Polynomic initial condition time derivative error: " , error," (cell  ",elem,")."
+         Checks % errorPolynomicQDot = error
 !
 !        Apply the "ChecksTrigonometric" initial condition
 !        ------------------------------------
@@ -759,7 +1011,6 @@ module ChecksModule
          call setLCheck(L)
          call sem % mesh % SetInitialCondition("ChecksTrigonometric")
          call sem % mesh % ApplyInitialCondition()
-
 
          call DGSpatial_ComputeTimeDerivative( sem % mesh , Setup % initialTime )
 
@@ -775,13 +1026,7 @@ module ChecksModule
 
                   localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
                   
-                  elementIsInterior = .true.
-!                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-!                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-!                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-!                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-
-                  if ( (localerror .gt. error) .and. elementIsInterior ) then
+                  if ( (localerror .gt. error) ) then
 
                      error = localerror
                      elem = eID
@@ -793,9 +1038,10 @@ module ChecksModule
             end associate
          end do
          write(STD_OUT , '(30X,A,A60,ES16.10,A,I0,A)') "-> ", "Trigonometric initial condition time derivative error: " , error," (cell  ",elem,")."
+         Checks % errorTrigonometricQDot = error 
 !
-!        Return to the problem initial condition and RiemannSolvers
-!        ----------------------------------------------------------
+!        Return to the problem initial condition
+!        ---------------------------------------
          call sem % SetInitialCondition ( verbose = .false. )
 
         end subroutine CheckQDot
@@ -849,16 +1095,9 @@ module ChecksModule
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
                   dQ = dQPolynomicFcn(x,L)
 
-                  elementIsInterior = .true.
-
-                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-
                   localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) )
 
-                  if ( (localerror .gt. error) .and. elementIsInterior ) then
+                  if ( (localerror .gt. error) ) then
                      error = localerror
                      elem = eID
                   end if
@@ -868,6 +1107,7 @@ module ChecksModule
          end do
 
          write(STD_OUT , '(30X,A,A50,ES16.10,A,I0,A)') "-> ", "Error in gradients for polynomic state: " , error," (cell  ",elem,")."
+         Checks % errorPolynomicdQ = error
 !
 !        Set the trigonometric initial condition
 !        -----------------------------------
@@ -890,16 +1130,9 @@ module ChecksModule
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
                   dQ = dQTrigonometricFcn(x , L )
 
-                  elementIsInterior = .true.
-
-                  if ( e % edges(EBOTTOM) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ETOP) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ELEFT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-                  if ( e % edges(ERIGHT) % f % edgeType .ne. FACE_INTERIOR ) elementIsInterior = .false.
-
                   localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) ) * L
 
-                  if ( (localerror .gt. error) .and. elementIsInterior ) then
+                  if ( (localerror .gt. error) ) then
                      error = localerror
                      elem = eID
                   end if
@@ -909,7 +1142,7 @@ module ChecksModule
          end do
 
          write(STD_OUT , '(30X,A,A50,ES16.10,A,I0,A)') "-> ", "Error in gradients for trigonometric state: " , error," (cell  ",elem,")."
-
+         Checks % errorTrigonometricdQ = error 
 !
 !        Return to the problem initial condition and RiemannSolvers
 !        ----------------------------------------------------------

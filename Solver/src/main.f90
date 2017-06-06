@@ -23,11 +23,10 @@
 
 program main
     use SMConstants
-    use DGSEM_Class
-    use Setup_class
-    use QuadMeshClass
-    use QuadElementClass
     use Headers
+    use Setup_class
+    use Physics
+    use DGSEM_Class
     use ChecksModule
     implicit none
     type(DGSEM_t) :: sem
@@ -54,7 +53,7 @@ program main
 !
 !   Perform checks on the built framework
 !   -------------------------------------
-    call checks( sem )
+    call PerformChecks( sem )
 !
 !   Time integration
 !   ----------------

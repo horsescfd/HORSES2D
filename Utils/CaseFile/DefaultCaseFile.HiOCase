@@ -1,7 +1,7 @@
 !
-!       ******************
-! 	     * parameter file *
-!	     ******************
+!       ////////////////////////////
+! 	    // Default parameter file //
+!	   ////////////////////////////
 !
 
 !-------------------------------------: Geometry
@@ -62,10 +62,11 @@
                      Save variables: rho_rhou_rhov_rhoe_u_v_p_Mach_vort_rhot_rhout_rhovt_rhoet_muart
 
 !
-!       *************************
-! 	     * boundary mapping file *
-!	     *************************
+!       ///////////////////////////////////
+! 	    // Default boundary mapping file //
+!	   ///////////////////////////////////
 !
+
 # define p-Refinement
    zoneID: value
 # end
