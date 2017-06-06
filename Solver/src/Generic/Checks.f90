@@ -359,218 +359,15 @@ module ChecksModule
             current = 0
 
             do eID = 1 , mesh % no_of_elements
-               if ( allocated(dSx) ) deallocate(dSx) 
-               if ( allocated(dSy) ) deallocate(dSy) 
-               if ( allocated(dSe) ) deallocate(dSe) 
-               associate( e => mesh % elements(eID) )
-               
-               allocate( dSx ( 0 : e % spA % N ) )
-               allocate( dSy ( 0 : e % spA % N ) )
-               allocate( dSe ( NDIM , 0 : e % spA % N ) )
-
-!              BOTTOM Edge
-!              -----------
-               dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
-               dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(0.0_RP) , e % spA % N + 1 )
-
-               if (( e % quadPosition(EBOTTOM) .eq. LEFT )) then
-                  select type (ed => e % edges(EBOTTOM) % f)
-                     type is (Edge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                  end select
-
-               elseif (( e % quadPosition(EBOTTOM) .eq. RIGHT) ) then
-                  select type (ed => e % edges(EBOTTOM) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        if ( e % edgesDirection(EBOTTOM) .eq. FORWARD ) then
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
-                        else
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                        end if
-                  end select
-   
-               elseif ( e % quadPosition(EBOTTOM) .eq. RIGHT_SOUTH ) then
-                  select type ( ed => e % edges(EBOTTOM) % f )
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
-                  end select
-
-               end if
-               
-               if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
-                  current = eID
-                  location = EBOTTOM
-               end if
-               if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(IY,0:e % spA % N) ) )
-                  current = eID 
-                  location = EBOTTOM
-               end if
-
-!              RIGHT Edge
-!              -----------
-               dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
-               dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(1.0_RP) , e % spA % N + 1 , trA = .true.)
-               
-               if (( e % quadPosition(ERIGHT) .eq. LEFT )) then
-                  select type (ed => e % edges(ERIGHT) % f)
-                     type is (Edge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                  end select
-
-               elseif (( e % quadPosition(ERIGHT) .eq. RIGHT)) then
-                  select type (ed => e % edges(ERIGHT) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        if ( e % edgesDirection(ERIGHT) .eq. FORWARD ) then
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
-                        else
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                        end if
-                  end select
-
-               elseif ( e % quadPosition(ERIGHT) .eq. RIGHT_SOUTH ) then
-                  select type ( ed => e % edges(ERIGHT) % f)
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                  end select 
-
-               end if
- 
-               if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
-                  current = eID
-                  location = ERIGHT
-               end if
-
-               if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(IY,:) ) )
-                  current = eID 
-                  location = ERIGHT
-               end if              
-
-!              TOP Edge
-!              -----------
-               dSx = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
-               dSy = MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,2) , e % spA % lj(1.0_RP) , e % spA % N + 1 )
-
-               if (( e % quadPosition(ETOP) .eq. LEFT )) then
-                  select type (ed => e % edges(ETOP) % f)
-                     type is (Edge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                  end select
-
-               elseif ( e % quadPosition(ETOP) .eq. RIGHT ) then
-                  select type (ed => e % edges(ETOP) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        if ( e % edgesDirection(ETOP) .eq. FORWARD ) then
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
-                        else
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                        end if
-                  end select
-
-               elseif ( e % quadPosition(ETOP) .eq. RIGHT_SOUTH ) then
-                  select type ( ed => e % edges(ETOP) % f ) 
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-
-                  end select
-               end if
-   
-               if ( maxval(abs(dSx - dSe(IX,:) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(IX,:) ) )
-                  current = eID
-                  location = ETOP
-               end if
-               if (  maxval(abs(dSy - dSe(IY,:) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(IY,:) ) )
-                  current = eID 
-                  location = ETOP
-               end if              
-
-!              LEFT Edge
-!              -----------
-               dSx = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,1,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
-               dSy = -MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,2,1) , e % spA % lj(0.0_RP) , e % spA % N + 1 , trA = .true.)
-
-               if (( e % quadPosition(ELEFT) .eq. LEFT )) then
-                  select type (ed => e % edges(ELEFT) % f)
-                     type is (Edge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                  end select
-
-               elseif ( e % quadPosition(ELEFT) .eq. RIGHT ) then
-                  select type (ed => e % edges(ELEFT) % f)
-                     type is (Edge_t)
-                        dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (StraightBdryEdge_t)
-                        dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                     type is (CurvedBdryEdge_t)
-                        if ( e % edgesDirection(ELEFT) .eq. FORWARD ) then
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
-                        else
-                           dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
-                           dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
-                        end if
-                  end select
-
-               elseif ( e % quadPosition(ELEFT) .eq. RIGHT_SOUTH ) then
-                  select type ( ed => e % edges(ELEFT) % f ) 
-                     type is (SubdividedEdge_t)
-                        dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
-                  end select 
-
-               end if
-               
-               if ( maxval(abs(dSx - dSe(IX,:) )) .gt. error ) then
-                  error =  maxval(abs(dSx - dSe(IX,:) )) 
-                  current = eID
-                  location = ELEFT
-               end if
-               if (  maxval(abs(dSy - dSe(IY,:) ))  .gt. error ) then
-                  error =  maxval(abs(dSy - dSe(IY,:) ) )
-                  current = eID 
-                  location = ELEFT
-               end if              
-
-              
-               end associate
+               do i = 1 , 4
+                  localerror = CheckEdgeMapping( mesh % elements(eID) , 1 )
+      
+                  if ( localerror .gt. error ) then
+                     error = localerror
+                     current = eID
+                     location = i
+                  end if
+               end do
             end do
 
             write(STD_OUT , '(30X,A,A,ES10.3,A,I0,A,I0,A)') "-> ", "Maximum error found in edges mapping: ",error,"  (Cell ",current,", in " , location , ")."
@@ -710,6 +507,115 @@ module ChecksModule
          write(STD_OUT , '(30X,A,A50,F16.10,A,I0,A)') "-> ", "Maximum discrete metric identities residual: " , error," (element " , elem, "). "
 
         end subroutine CheckMetricIdentities
+
+        function CheckEdgeMapping( e , loc  ) result(error)
+!
+!         ************************************************************
+!              This function checks that the surface jacobian of
+!           each edge matches that interpolated from the element 
+!           general mapping.
+!         ************************************************************
+!
+          use DGSEM_Class
+          use SMConstants
+          use Physics
+          use NodesAndWeights_class
+          use QuadMeshClass
+          use QuadElementClass
+          use MeshFileClass
+          use Setup_class
+          use MatrixOperations
+          class(QuadElement_t), intent(in) :: e
+          integer      , intent(in)        :: loc
+          real(kind=RP)                    :: error
+
+!
+!         ---------------
+!         Local variables
+!         ---------------
+!
+          real(kind=RP)       :: mapping_sign
+          real(kind=RP)       :: local_coord
+          integer             :: coord_vector
+          real(kind=RP)       :: dSx(0:e % spA % N) 
+          real(kind=RP)       :: dSy(0:e % spA % N) 
+          real(kind=RP)       :: dSe(NDIM,0:e % spA % N) 
+          logical             :: trA
+!
+!         Initialization
+!         --------------
+          error = 0.0_RP
+
+          if ( (loc .eq. EBOTTOM) .or. (loc .eq. ELEFT) ) then
+            mapping_sign = -1.0_RP 
+            local_coord = 0.0_RP
+
+          else 
+            mapping_sign = 1.0_RP
+            local_coord = 1.0_RP
+
+          end if
+
+          if ( (loc .eq. EBOTTOM) .or. (loc .eq. ETOP) ) then
+            trA = .false.
+            coord_vector = 2
+      
+          else
+            trA = .true.
+            coord_vector = 1
+
+          end if
+!
+!         Get the element mapping
+!         -----------------------
+          dSx = mapping_sign * MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,IX,coord_vector) , e % spA % lj(local_coord) , e % spA % N + 1 , trA = trA)
+          dSy = mapping_sign * MatrixTimesVector_F( e % Ja(0:e % spA % N,0:e % spA % N,IY,coord_vector) , e % spA % lj(local_coord) , e % spA % N + 1 , trA = trA)
+!
+!         Get the edge normal vector referred to the element spectral basis
+!         -----------------------------------------------------------------
+!TODO: curved edges/subdivided/p-adaption,...
+          if (( e % quadPosition(loc) .eq. LEFT )) then
+             select type (ed => e % edges(loc) % f)
+                type is (Edge_t)
+                   dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                type is (SubdividedEdge_t)
+                   dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+             end select
+
+          elseif (( e % quadPosition(loc) .eq. RIGHT) ) then
+             select type (ed => e % edges(loc) % f)
+                type is (Edge_t)
+                   dSe = -spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                type is (SubdividedEdge_t)
+                   dSe = -spread( ed % dS_N(0) * ed % normal_N(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
+                type is (StraightBdryEdge_t)
+                   dSe = spread( ed % dS(0) * ed % n(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 ) 
+                type is (CurvedBdryEdge_t)
+                   if ( e % edgesDirection(loc) .eq. FORWARD ) then
+                      dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,0 : e % spA % N)
+                      dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,0 : e % spA % N)
+                   else
+                      dSe(IX,0 : e % spA % N) = ed % dS * ed % n(IX,e % spA % N : 0 : -1)
+                      dSe(IY,0 : e % spA % N) = ed % dS * ed % n(IY,e % spA % N : 0 : -1)
+                   end if
+             end select
+  
+          elseif ( e % quadPosition(loc) .eq. RIGHT_SOUTH ) then
+             select type ( ed => e % edges(loc) % f )
+                type is (SubdividedEdge_t)
+                   dSe = -spread( ed % dS_S(0) * ed % normal_S(IX:IY,0) , ncopies = e % spA % N + 1 , dim = 2 )
+             end select
+
+          end if
+          
+          if ( maxval(abs(dSx - dSe(IX,0:e % spA % N) )) .gt. error ) then
+             error =  maxval(abs(dSx - dSe(IX,0:e % spA % N) ) )
+          end if
+          if (  maxval(abs(dSy - dSe(IY,0:e % spA % N) ))  .gt. error ) then
+             error =  maxval(abs(dSy - dSe(IY,0:e % spA % N) ) )
+          end if
+
+        end function CheckEdgeMapping
    
         subroutine Integration_checks( sem ) 
           use DGSEM_Class
