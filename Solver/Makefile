@@ -139,6 +139,7 @@ else ifeq ($(COMPILER),ifort)
      
    else ifeq ($(MODE),VTUNE)
      FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc -fopenmp
+     CHECKFFLAGS = -g -debug -cpp -O0 -mkl -assume bscc -fopenmp
 
    endif
    LIBS += -L$(NETCDF_LIB) -lnetcdff $(PROBLEM_LIB)

@@ -108,7 +108,7 @@ module DGWeakIntegrals
 !        ----------------------------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      function Scalar_StdVolumeGreen( e , F) result ( volInt )
+      pure function Scalar_StdVolumeGreen( e , F) result ( volInt )
 !
 !     ***************************************************************************
 !           Computes a weak volume integrals with:
@@ -132,16 +132,19 @@ module DGWeakIntegrals
 !
          use MatrixOperations
          implicit none
-         class(QuadElement_t)             :: e
+         class(QuadElement_t), intent(in) :: e
          real(kind=RP), intent(in)        :: F(0:e % spA % N , 0:e % spA % N, 1:NCONS , 1:NDIM)
          real(kind=RP)                    :: volInt(0:e % spA % N, 0:e % spA % N , 1:NCONS)
-!        ----------------------------------------------------------------------------------------------
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          real(kind=RP)                    :: contravariant_F( 0 : e % spA % N , 0 : e % spA % N , 1:NCONS )
          real(kind=RP)                    :: contravariant_G( 0 : e % spA % N , 0 : e % spA % N , 1:NCONS )
-         integer, pointer                 :: N
-         integer                          :: eq
-   
-         N => e % spA % N
+         integer                          :: eq , i , j , l , N 
+
+         N = e % spA % N 
  
          do eq = 1 , NCONS
 !           
@@ -159,11 +162,16 @@ module DGWeakIntegrals
 
          end do
 
-  
-
-         volInt =    MatrixMultiplyInIndex_F(contravariant_F , e % spA % hatD , N+1 , N+1 , NCONS , IX)          &
-                   + MatrixMultiplyInIndex_F(contravariant_G , e % spA % hatD , N+1 , N+1 , NCONS , IY)
+         volInt = 0.0_RP
    
+          do eq = 1 , NCONS
+            do l = 0 , e % spA % N
+               do j = 0 , e % spA % N ; do i = 0 , e % spA % N  
+                  volInt(i,j,eq) = volInt(i,j,eq) + e % spA % trHatD(i,l) * contravariant_F(l,j,eq) + e % spA % trHatD(j,l) * contravariant_G(i,l,eq)
+               end do                 ; end do
+            end do
+          end do
+     
       end function Scalar_StdVolumeGreen
 
       pure function Scalar_StdFace( ed , loc , F ) result ( faceInt )
@@ -418,7 +426,7 @@ module DGWeakIntegrals
 !        ----------------------------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      function Vector_StdVolumeGreen( e , u ) result (volInt)
+      pure function Vector_StdVolumeGreen( e , u ) result (volInt)
 !
 !     ***************************************************************************
 !           Computes a weak volume integrals with:
@@ -440,46 +448,38 @@ module DGWeakIntegrals
 !
          use MatrixOperations
          implicit none
-         class(QuadElement_t), target     :: e
-         real(kind=RP), intent(in)        :: u(0:e % spA % N , 0:e % spA % N, 1:NCONS)
-         real(kind=RP)                    :: volInt(0:e % spA % N, 0:e % spA % N , 1:NDIM , 1:NCONS)
+         class(QuadElement_t), intent (in) :: e
+         real(kind=RP),        intent (in) :: u(0:e % spA % N , 0:e % spA % N, 1:NCONS)
+         real(kind=RP)                     :: volInt(0:e % spA % N, 0:e % spA % N , 1:NDIM , 1:NCONS)
 !        ----------------------------------------------------------------------------------------------
-         integer, pointer                 :: N
-         real(kind=RP), pointer           :: JaXi(:,:,:) , JaEta(:,:,:)
-         real(kind=RP)                    :: contravariantU(0:e % spA % N, 0:e % spA % N, 1:NDIM)
-         integer                          :: eq
+         real(kind=RP)                    :: contravariantU_F(0:e % spA % N, 0:e % spA % N, 1:NDIM)
+         real(kind=RP)                    :: contravariantU_G(0:e % spA % N, 0:e % spA % N, 1:NDIM)
+         integer                          :: eq , i , j , l
+
+         volInt = 0.0_RP
    
-         N => e % spA % N
-         JaXi (0:,0:,1:)    => e % Ja(0:,0:,1:,IX)
-         JaEta(0:,0:,1:)    => e % Ja(0:,0:,1:,IY)
-!
-!>       Perform the xi-component of the test function divergence
-!        --------------------------------------------------------
          do eq = 1 , NCONS
 !
 !>          contravariantU^xi = U * Ja^xi
 !           -----------------------------
-            contravariantU(:,:,IX) = u(:,:,eq) * JaXi(:,:,IX) 
-            contravariantU(:,:,IY) = u(:,:,eq) * JaXi(:,:,IY) 
-!
-!>          Compute the volume integral
-!           ---------------------------           
-            volInt(:,:,:,eq) = MatrixMultiplyInIndex_F( contravariantU , e % spA % hatD , N+1 , N+1 , NDIM , IX ) 
-         end do
-!
-!>       Perform the eta-component of the test function divergence
-!        ---------------------------------------------------------
-         do eq = 1 , NCONS
+            contravariantU_F(:,:,IX) = u(:,:,eq) * e % Ja(:,:,IX,IX) 
+            contravariantU_F(:,:,IY) = u(:,:,eq) * e % Ja(:,:,IY,IX) 
 !
 !>          contravariantU^eta = U * Ja^eta
-!           -------------------------------
-            contravariantU(:,:,IX) = u(:,:,eq) * JaEta(:,:,IX) 
-            contravariantU(:,:,IY) = u(:,:,eq) * JaEta(:,:,IY) 
+!           -----------------------------
+            contravariantU_G(:,:,IX) = u(:,:,eq) * e % Ja(:,:,IX,IY) 
+            contravariantU_G(:,:,IY) = u(:,:,eq) * e % Ja(:,:,IY,IY) 
 !
 !>          Compute the volume integral
 !           ---------------------------           
-            volInt(:,:,:,eq) =   volInt(:,:,:,eq)  &
-                               + MatrixMultiplyInIndex_F( contravariantU , e % spA % hatD , N+1 , N+1 , NDIM , IY ) 
+            do l = 0 , e % spA % N 
+               do j = 0 , e % spA % N ; do i = 0 , e % spA % N
+                  volInt(i,j,IX,eq) = volInt(i,j,IX,eq) + contravariantU_F(l,j,IX) * e % spA % trHatD(i,l) &
+                                                        + contravariantU_G(i,l,IX) * e % spA % trHatD(j,l)
+                  volInt(i,j,IY,eq) = volInt(i,j,IY,eq) + contravariantU_F(l,j,IY) * e % spA % trHatD(i,l) &
+                                                        + contravariantU_G(i,l,IY) * e % spA % trHatD(j,l)
+               end do                 ; end do
+            end do
          end do
 !
       end function Vector_StdVolumeGreen

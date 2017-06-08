@@ -50,6 +50,7 @@ module nodesAndWeights_class
         real(kind=RP), pointer    :: DT(:,:)
         real(kind=RP), pointer    :: MD(:,:)
         real(kind=RP), pointer    :: hatD(:,:)
+        real(kind=RP), pointer    :: trHatD(:,:)
         real(kind=RP), pointer    :: trMD(:,:)
         real(kind=RP), pointer    :: tildeMTD(:,:)
         real(kind=RP), pointer    :: lb(:,:)
@@ -191,6 +192,7 @@ module nodesAndWeights_class
             allocate ( self % D      ( 0:N,0:N )  ) 
             allocate ( self % DT     ( 0:N,0:N )  ) 
             allocate ( self % hatD   ( 0:N,0:N )  ) 
+            allocate ( self % trHatD ( 0:N,0:N )  ) 
             allocate ( self % MD     ( 0:N,0:N )  ) 
             allocate ( self % trMD   ( 0:N,0:N )  ) 
             allocate ( self % lb     ( 0:N,2   )  ) 
@@ -306,10 +308,11 @@ module nodesAndWeights_class
 !           -----------------------------------------
 !
             call PolynomialDerivativeMatrix( N , self % xi , self % D )
-            self % DT   = transpose( self % D )
-            self % MD   = matmul( self % M , self % D )
-            self % trMD = transpose( self % MD )
-            self % hatD = matmul( self % MD , self % Minv )
+            self % DT     = transpose( self % D )
+            self % MD     = matmul( self % M , self % D )
+            self % trMD   = transpose( self % MD )
+            self % hatD   = matmul( self % MD , self % Minv )
+            self % trHatD = transpose( self % hatD )
 
 !       
 !           --------------------------------------------

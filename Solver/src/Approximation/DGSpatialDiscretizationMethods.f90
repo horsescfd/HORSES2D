@@ -1406,6 +1406,7 @@ module DGSpatialDiscretizationMethods
          class(QuadElement_t), pointer :: e
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
+         integer                       :: i , l 
 
 !$omp do private(eID,ed,eq,N,e) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
@@ -1416,29 +1417,41 @@ module DGSpatialDiscretizationMethods
 !           Prolong the BOTTOM edge
 !           -----------------------   
             ed => e % edges(EBOTTOM) % f
+            ed % storage(e % quadPosition(EBOTTOM) ) % Q = 0.0_RP
             do eq = 1 , NCONS
-               ed % storage(e % quadPosition(EBOTTOM)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,LEFT) , N+1 )
+               do l = 0 , e % spA % N ; do i = 0 , e % spA % N
+                  ed % storage(e % quadPosition(EBOTTOM)) % Q(i,eq) = ed % storage(e % quadPosition(EBOTTOM)) % Q(i,eq) + e % Q(i,l,eq) * e % spA % lb(l,LEFT)
+               end do                 ; end do
             end do
 !
 !           Prolong the RIGHT edge. TODOO: implement MatrixTimesVectorInIndex to avoid transposes.
 !           -----------------------   
             ed => e % edges(ERIGHT) % f
+            ed % storage(e % quadPosition(ERIGHT) ) % Q = 0.0_RP
             do eq = 1 , NCONS
-               ed % storage(e % quadPosition(ERIGHT)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,RIGHT) , N+1 , trA = .true.)
+               do i = 0 , e % spA % N ; do l = 0 , e % spA % N
+                  ed % storage(e % quadPosition(ERIGHT)) % Q(i,eq) = ed % storage(e % quadPosition(ERIGHT)) % Q(i,eq) + e % Q(l,i,eq) * e % spA % lb(l,RIGHT) 
+               end do                 ; end do
             end do
 !
 !           Prolong the TOP edge
 !           -----------------------   
             ed => e % edges(ETOP) % f
+            ed % storage(e % quadPosition(ETOP) ) % Q = 0.0_RP
             do eq = 1 , NCONS
-               ed % storage(e % quadPosition(ETOP)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,RIGHT) , N+1 )
+               do l = 0 , e % spA % N ; do i = 0 , e % spA % N
+                  ed % storage(e % quadPosition(ETOP)) % Q(i,eq) = ed % storage(e % quadPosition(ETOP)) % Q(i,eq) + e % Q(i,l,eq) * e % spA % lb(l,RIGHT) 
+               end do                 ; end do
             end do
 !
 !           Prolong the LEFT edge. TODOO: implement MatrixTimesVectorInIndex to avoid transposes.
 !           -----------------------   
             ed => e % edges(ELEFT) % f
+            ed % storage(e % quadPosition(ELEFT) ) % Q = 0.0_RP
             do eq = 1 , NCONS
-               ed % storage(e % quadPosition(ELEFT)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,LEFT) , N+1 , trA = .true.)
+               do i = 0 , e % spA % N ; do l = 0 , e % spA % N
+                  ed % storage(e % quadPosition(ELEFT)) % Q(i,eq) = ed % storage(e % quadPosition(ELEFT)) % Q(i,eq) + e % Q(l,i,eq) * e % spA % lb(l,LEFT)
+               end do                 ; end do
             end do
         
          end do
