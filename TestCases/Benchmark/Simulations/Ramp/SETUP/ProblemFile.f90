@@ -86,7 +86,7 @@ function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_
     write(STD_OUT,'(30X,A,A35,A,ES10.3)') "-> ", "Error found in energy residuals" , " : " , abs(residuals(4) - Monitors_ % residuals % values(IRHOE,1))
     write(STD_OUT , '(    30X , A , A35 , A ,I0,A,I0)') "-> " , "Error in the final iteration" , " : "  , finalIteration , "/",sem_ % Integrator % iter
 
-    if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-12_RP) .or. ( finalIteration .ne. sem_ % Integrator % iter ) ) then
+    if ( (maxval(abs(residuals - Monitors_ % residuals % values(:,1))) .gt. 1.0e-11_RP) .or. ( finalIteration .ne. sem_ % Integrator % iter ) ) then
       write(STD_OUT , '(    30X , A , A35,A,A)') "-> " , "Ramp benchmark test" , " : " ,  "failed."
       exit_code = FAILED
     else

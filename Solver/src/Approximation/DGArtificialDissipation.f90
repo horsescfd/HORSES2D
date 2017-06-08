@@ -147,7 +147,7 @@ module DGArtificialDissipation
          implicit none
          class(ArtificialDissipation_t), intent (in) :: self
          class(QuadElement_t)      ,     intent (in) :: e
-         real(kind=RP)                                :: F( 0 : e % spA % N , 0 : e % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)                                :: F( 1 : NCONS , 0 : e % spA % N , 0 : e % spA % N , 1:NDIM)
 !
 !        ---------------------------
 !        The base class does nothing.
@@ -162,12 +162,12 @@ module DGArtificialDissipation
          class(ArtificialDissipation_t), intent (in) :: self
          class(Edge_t) ,                 intent (in) :: edge
          integer,                        intent (in) :: N
-         real(kind=RP)              ,    intent (in) :: QL(0 : N , 1:NCONS)
-         real(kind=RP)              ,    intent (in) :: QR(0 : N , 1:NCONS)
-         real(kind=RP) ,                 intent (in) :: dQL(0 : N , 1:NDIM , 1:NCONS)
-         real(kind=RP) ,                 intent (in) :: dQR(0 : N , 1:NDIM , 1:NCONS)
+         real(kind=RP)              ,    intent (in) :: QL(1 : NCONS , 0 : N )
+         real(kind=RP)              ,    intent (in) :: QR(1 : NCONS , 0 : N )
+         real(kind=RP) ,                 intent (in) :: dQL(1 : NCONS , 0 : N , 1:NDIM )
+         real(kind=RP) ,                 intent (in) :: dQR(1 : NCONS , 0 : N , 1:NDIM )
          real(kind=RP) ,                 intent (in) :: normal(1:NDIM , 0 : N )
-         real(kind=RP)                               :: F( 0 : N , 1 : NCONS)
+         real(kind=RP)                               :: F( 1 : NCONS , 0 : N )
 !
 !        ---------------------------
 !        The base class does nothing.
@@ -209,20 +209,19 @@ module DGArtificialDissipation
          implicit none
          class(LaplaceDissipation_t) , intent(in) :: self
          class(QuadElement_t)        , intent(in) :: e
-         real(kind=RP)                            :: F( 0 : e % spA % N , 0 : e % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)                            :: F( 1 : NCONS , 0 : e % spA % N , 0 : e % spA % N , 1:NDIM)
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !  
-         real(kind=RP)         :: dQ( 0 : e % spA % N , 0 : e % spA % N , 1 : NDIM , 1 : NCONS )
+         real(kind=RP)         :: dQ( 1 : NCONS , 0 : e % spA % N , 0 : e % spA % N , 1 : NDIM )
          real(kind=RP)         :: mu
 
          dQ = e % ComputeInteriorGradient()
          mu = self % ElementViscosity(self,e)
 
-         F(:,:,:,IX) = mu * dQ(:,:,IX,:) 
-         F(:,:,:,IY) = mu * dQ(:,:,IY,:) 
+         F = mu * dQ 
    
       end function LaplaceDissipation_ComputeVolumeFluxes
 
@@ -231,12 +230,12 @@ module DGArtificialDissipation
          class(LaplaceDissipation_t), intent(in)      :: self
          class(Edge_t)              , intent(in)      :: edge
          integer                    , intent(in)      :: N 
-         real(kind=RP)              , intent(in)      :: QL(0 : N , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: QR(0 : N , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: dQL(0 : N , 1:NDIM , 1:NCONS)
-         real(kind=RP)              , intent(in)      :: dQR(0 : N , 1:NDIM , 1:NCONS)
+         real(kind=RP)              , intent(in)      :: QL(1:NCONS ,  0 : N )
+         real(kind=RP)              , intent(in)      :: QR(1:NCONS ,  0 : N )
+         real(kind=RP)              , intent(in)      :: dQL(1:NCONS ,  0 : N , 1:NDIM )
+         real(kind=RP)              , intent(in)      :: dQR(1:NCONS ,  0 : N , 1:NDIM )
          real(kind=RP)              , intent(in)      :: normal(1:NDIM , 0 : N)
-         real(kind=RP)                                :: F( 0 : N , 1 : NCONS )
+         real(kind=RP)                                :: F(1 : NCONS , 0 : N )
 !
 !        ---------------
 !        Local variables

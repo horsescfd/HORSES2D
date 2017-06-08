@@ -301,14 +301,15 @@ submodule (Plotter) Tecplot
 !
 !        Point to the quantities
 !        -----------------------
-         rho(0:,0:)  => mesh % elements(eID) % Q(0:,0:,IRHO) 
-         rhou(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOU)
-         rhov(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOV)
-         rhoe(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOE)
-         rhot(0:,0:)  => mesh % elements(eID) % QDot(0:,0:,IRHO) 
-         rhout(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
-         rhovt(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
-         rhoet(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
+         rho(0:,0:)  => mesh % elements(eID) % Q(IRHO,0:,0:) 
+         rhou(0:,0:) => mesh % elements(eID) % Q(IRHOU,0:,0:)
+         rhov(0:,0:) => mesh % elements(eID) % Q(IRHOV,0:,0:)
+         rhoe(0:,0:) => mesh % elements(eID) % Q(IRHOE,0:,0:)
+         rhot(0:,0:)  => mesh % elements(eID) % QDot(IRHO,0:,0:) 
+         rhout(0:,0:) => mesh % elements(eID) % QDot(IRHOU,0:,0:)
+         rhovt(0:,0:) => mesh % elements(eID) % QDot(IRHOV,0:,0:)
+         rhoet(0:,0:) => mesh % elements(eID) % QDot(IRHOE,0:,0:)
+
 #ifdef NAVIER_STOKES
    if ( self % no_of_variables .ne. 0 ) then
          du = getStrainTensor( N , mesh % elements(eID) % Q , mesh % elements(eID) % dQ )
@@ -463,14 +464,14 @@ submodule (Plotter) Tecplot
 !
 !        Point to the quantities
 !        -----------------------
-         rhoDG(0:,0:)  => mesh % elements(eID) % Q(0:,0:,IRHO) 
-         rhouDG(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOU)
-         rhovDG(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOV)
-         rhoeDG(0:,0:) => mesh % elements(eID) % Q(0:,0:,IRHOE)
-         rhotDG(0:,0:)  => mesh % elements(eID) % QDot(0:,0:,IRHO) 
-         rhoutDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOU)
-         rhovtDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOV)
-         rhoetDG(0:,0:) => mesh % elements(eID) % QDot(0:,0:,IRHOE)
+         rhoDG(0:,0:)  => mesh % elements(eID) % Q(IRHO,0:,0:) 
+         rhouDG(0:,0:) => mesh % elements(eID) % Q(IRHOU,0:,0:)
+         rhovDG(0:,0:) => mesh % elements(eID) % Q(IRHOV,0:,0:)
+         rhoeDG(0:,0:) => mesh % elements(eID) % Q(IRHOE,0:,0:)
+         rhotDG(0:,0:)  => mesh % elements(eID) % QDot(IRHO,0:,0:) 
+         rhoutDG(0:,0:) => mesh % elements(eID) % QDot(IRHOU,0:,0:)
+         rhovtDG(0:,0:) => mesh % elements(eID) % QDot(IRHOV,0:,0:)
+         rhoetDG(0:,0:) => mesh % elements(eID) % QDot(IRHOE,0:,0:)
 
 #ifdef NAVIER_STOKES
       if ( self % no_of_variables .ne. 0 ) then

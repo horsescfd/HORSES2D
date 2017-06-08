@@ -48,9 +48,9 @@
                   associate ( N => e % spA % N ) 
 
                   if ( allocated(variable) ) deallocate (variable)
-                  allocate ( variable(0:N , 0 : e % spA % N) )
+                  allocate ( variable(1:NCONS , 0 : e % spA % N) )
 
-                  variable = getPressure( N , self % elements(eID) % Q ) / ( self % elements(eID) % Q(:,:,IRHO) ** thermodynamics % gamma ) - 1.0_RP
+                  variable = getPressure( N , self % elements(eID) % Q ) / ( self % elements(eID) % Q(IRHO,:,:) ** thermodynamics % gamma ) - 1.0_RP
                   variable = variable * variable * e % jac
                   val = val + BilinearForm_F( variable , e % spA % w , e % spA % w ) 
 
@@ -181,19 +181,19 @@
 
                         type is (Edge_t)
                            do j = 0 , N
-                              Q = f % storage(1) % Q(j,:)
+                              Q = f % storage(1) % Q(:,j)
                               val(IX:IY) = val(IX:IY) + getPressure( Q ) * f % spA % w(j) * f % n(IX:IY,0) * f % dS(0)
                            end do
 
                         type is (StraightBdryEdge_t)
                            do j = 0 , N
-                              Q = f % storage(1) % Q(j,:)
+                              Q = f % storage(1) % Q(:,j)
                               val(IX:IY) = val(IX:IY) + getPressure( Q ) * f % spA % w(j) * f % n(IX:IY,0) * f % dS(0)
                            end do
 
                         type is (CurvedBdryEdge_t)
                            do j = 0 , N
-                              Q = f % storage(1) % Q(j,:)
+                              Q = f % storage(1) % Q(:,j)
                               val(IX:IY) = val(IX:IY) + getPressure( Q ) * f % spA % w(j) * f % n(IX:IY,j) * f % dS(j) 
                            end do
 
@@ -217,6 +217,7 @@
             real(kind=RP)                 :: val
 !           --------------------------------------------------------------
             integer                       :: edID
+            integer                       :: i 
 
             val = 0.0_RP
 
@@ -230,13 +231,19 @@
 
                      select type ( f )
                         type is (Edge_t)
-                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) )
+                           do i = 0 , f % spA % N
+                              val = val + f % spA % w(i) * (f % storage(1) % Q(IRHOU,i) * f % n(IX,0) + f % storage(1) % Q(IRHOV,i) * f % n(IY,0)) * f % dS(0) 
+                           end do
 
                         type is (StraightBdryEdge_t)
-                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) )
+                           do i = 0 , f % spA % N 
+                              val = val + f % spA % w(i) * (f % storage(1) % Q(IRHOU,i) * f % n(IX,0) + f % storage(1) % Q(IRHOV,i) * f % n(IY,0)) * f % dS(0) 
+                           end do
 
                         type is (CurvedBdryEdge_t)
-                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0:N) ) * f % dS(0:N) )
+                           do i = 0 , f % spA % N
+                              val = val + f % spA % w(i) * (f % storage(1) % Q(IRHOU,i) * f % n(IX,i) + f % storage(1) % Q(IRHOV,i) * f % n(IY,i) ) * f % dS(i) 
+                           end do
 
                      end select
 
@@ -252,13 +259,19 @@
 
                      select type ( f )
                         type is (Edge_t)
-                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) / f % storage(1) % Q(0:N,IRHO) )
+                           do i = 0 , f % spA % N
+                              val = val + f % spA % w(i) * ( f % storage(1) % Q(IRHOU,i) * f % n(IX,0) + f % storage(1) % Q(IRHOV,i)  * f % n(IY,0) ) * f % dS(0) / f % storage(1) % Q(IRHO , i)
+                           end do
 
                         type is (StraightBdryEdge_t)
-                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0) ) * f % dS(0) / f % storage(1) % Q(0:N,IRHO) )
+                           do i = 0 , f % spA % N
+                              val = val + f % spA % w(i) * ( f % storage(1) % Q(IRHOU,i) * f % n(IX,0) + f % storage(1) % Q(IRHOV,i) * f % n(IY,0) ) * f % dS(0) / f % storage(1) % Q(IRHO,i)
+                           end do
 
                         type is (CurvedBdryEdge_t)
-                           val = val + dot_product ( f % spA % w , ( f % storage(1) % Q(0:N,IRHOU) * f % n(IX,0:N) + f % storage(1) % Q(0:N,IRHOV) * f % n(IY,0:N) ) * f % dS(0:N) / f % storage(1) % Q(0:N,IRHO) )
+                           do i = 0 , f % spA % N
+                              val = val + f % spA % w(i) * ( f % storage(1) % Q(IRHOU,i) * f % n(IX,i) + f % storage(1) % Q(IRHOV,i) * f % n(IY,i) ) * f % dS(i) / f % storage(1) % Q(IRHO,i)
+                           end do
 
                      end select
 
@@ -296,8 +309,8 @@
                      associate ( N => f % spA % N )
                      allocate ( tau(0:N , 1:NDIM , 1:NDIM ) )
 
-                     dQ => f % storage(1) % dQ ( 0:N,1:NDIM,1:NCONS ) 
-                     Q  => f % storage(1) % Q  ( 0:N,1:NCONS)
+                     dQ(1:,0:,1:) => f % storage(1) % dQ ( 1:NCONS,0:N,1:NDIM) 
+                     Q(1:,0:)     => f % storage(1) % Q  ( 1:NCONS,0:N)
                      tau = ComputeViscousTensor( N , Q , dQ )
 
                      select type ( f )

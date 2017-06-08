@@ -39,30 +39,26 @@
                stop "Stopped"
 
             type is (StraightBdryEdge_t)
-               allocate ( edge % FB  ( 0:N , NCONS )  ) 
-               allocate ( edge % uB  ( 0:N , NCONS )  ) 
+               allocate ( edge % FB  ( NCONS , 0:N)  ) 
+               allocate ( edge % uB  ( NCONS , 0:N)  ) 
 
                edge % inviscidBCType = self % WeakType
-
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               allocate ( edge % uSB ( 0:N , NCONS            )  ) 
-!               edge % uSB(0: , 1:) => edge % storage(1) % Q(0:,1:)
+               allocate ( edge % uSB ( NCONS , 0:N )  ) 
                edge % viscousBCType = ADIABATIC 
 #endif
  
             type is (CurvedBdryEdge_t)
-               allocate ( edge % FB  ( 0:N , NCONS )  ) 
-               allocate ( edge % uB  ( 0:N , NCONS )  ) 
+               allocate ( edge % FB  ( NCONS , 0:N )  ) 
+               allocate ( edge % uB  ( NCONS , 0:N )  ) 
 
                edge % inviscidBCType = self % WeakType
-
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               allocate ( edge % uSB ( 0:N , NCONS            )  ) 
-!               edge % uSB(0: , 1:) => edge % storage(1) % Q(0:,1:)
+               allocate ( edge % uSB ( NCONS , 0:N )  ) 
                edge % viscousBCType = ADIABATIC 
 #endif
 
@@ -77,10 +73,11 @@
          class(EulerWall_t)                  :: self
          class(Edge_t)                       :: edge
          real(kind=RP)                       :: time
-         real(kind=RP)                       :: q(0 : edge % spA % N , NCONS) , F(0:edge % spA % N , NCONS,NDIM)
+         real(kind=RP)                       :: q(NCONS , 0 : edge % spA % N) , F(NCONS,0:edge % spA % N,NDIM)
          real(kind=RP)                       :: rhovn(0 : edge % spA % N) , rhovt(0 : edge % spA % N)
          real(kind=RP)                       :: p(0 : edge % spA % N)
          integer                             :: iXi
+         integer                             :: dimID
          
          associate( N => edge % spA % N , gm1 => Thermodynamics % gm1 , gamma => Thermodynamics % gamma , Mach => Dimensionless % Mach )
    
@@ -89,14 +86,14 @@
 !
 !              The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
 !              -----------------------------------------------------------------------------------------------------------------------------------
-               rhovn = (edge % storage(1) % Q(0:N,IRHOU) * edge % n(IX,0) + edge % storage(1) % Q(0:N,IRHOV) * edge % n(IY,0) )
-               rhovt = (-edge % storage(1) % Q(0:N,IRHOU) * edge % n(IY,0) + edge % storage(1) % Q(0:N,IRHOV) * edge % n(IX,0) )
+               rhovn = (edge % storage(1) % Q(IRHOU,0:N) * edge % n(IX,0) + edge % storage(1) % Q(IRHOV,0:N) * edge % n(IY,0) )
+               rhovt = (-edge % storage(1) % Q(IRHOU,0:N) * edge % n(IY,0) + edge % storage(1) % Q(IRHOV,0:N) * edge % n(IX,0) )
                p     = getPressure( N , edge % storage(1) % Q )
 
-               q(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
-               q(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - rhovn * edge % n(IX,0)
-               q(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - rhovn * edge % n(IY,0)
-               q(0:N,IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(0:N,IRHO)
+               q(IRHO,0:N)  = edge % storage(1) % Q(IRHO,0:N)
+               q(IRHOU,0:N) = edge % storage(1) % Q(IRHOU,0:N) - rhovn * edge % n(IX,0)
+               q(IRHOV,0:N) = edge % storage(1) % Q(IRHOV,0:N) - rhovn * edge % n(IY,0)
+               q(IRHOE,0:N) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(IRHO,0:N)
 !
 !              Compute the fluxex from the built state
 !              ---------------------------------------
@@ -104,14 +101,17 @@
 !
 !              Compute the normal flux
 !              -----------------------
-               edge % FB(0:N,1:NCONS) = (F(0:N,1:NCONS,IX) * edge % n(IX,0) + F(0:N,1:NCONS,IY) * edge % n(IY,0)) * edge % dS(0)
+               edge % FB = 0.0_RP
+               do dimID = 1 , NDIM  ; do iXi = 0 , N
+                  edge % FB(:,iXi) = edge % FB(:,iXi) + F(:,iXi,dimID) * edge % n(dimID,0) * edge % dS(0)
+               end do               ; end do
 !
 !              Compute the variables state
 !              ---------------------------
-               edge % uB(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
-               edge % uB(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - 2.0_RP * rhovn * edge % n(IX,0)
-               edge % uB(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - 2.0_RP * rhovn * edge % n(IY,0)
-               edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+               edge % uB(IRHO,0:N)  = edge % storage(1) % Q(IRHO,0:N)
+               edge % uB(IRHOU,0:N) = edge % storage(1) % Q(IRHOU,0:N) - 2.0_RP * rhovn * edge % n(IX,0)
+               edge % uB(IRHOV,0:N) = edge % storage(1) % Q(IRHOV,0:N) - 2.0_RP * rhovn * edge % n(IY,0)
+               edge % uB(IRHOE,0:N) = edge % storage(1) % Q(IRHOE,0:N)
 #ifdef NAVIER_STOKES   
                edge % uSB = q
 #endif
@@ -120,14 +120,14 @@
 !
 !              The flux is computed by substracting the normal velocity to the interior state. Pressure and density are gathered from the interior
 !              -----------------------------------------------------------------------------------------------------------------------------------
-               rhovn = (edge % storage(1) % Q(0:N,IRHOU) * edge % n(IX,0:N) + edge % storage(1) % Q(0:N,IRHOV) * edge % n(IY,0:N) )
-               rhovt = (edge % storage(1) % Q(0:N,IRHOU) * edge % n(IY,0:N) - edge % storage(1) % Q(0:N,IRHOV) * edge % n(IX,0:N) )
+               rhovn = (edge % storage(1) % Q(IRHOU,0:N) * edge % n(IX,0:N) + edge % storage(1) % Q(IRHOV,0:N) * edge % n(IY,0:N) )
+               rhovt = (edge % storage(1) % Q(IRHOU,0:N) * edge % n(IY,0:N) - edge % storage(1) % Q(IRHOV,0:N) * edge % n(IX,0:N) )
                p     = getPressure( N , edge % storage(1) % Q )
 
-               q(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
-               q(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - rhovn * edge % n(IX,0:N)
-               q(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - rhovn * edge % n(IY,0:N)
-               q(0:N,IRHOE) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(0:N,IRHO)
+               q(IRHO,0:N)  = edge % storage(1) % Q(IRHO,0:N)
+               q(IRHOU,0:N) = edge % storage(1) % Q(IRHOU,0:N) - rhovn * edge % n(IX,0:N)
+               q(IRHOV,0:N) = edge % storage(1) % Q(IRHOV,0:N) - rhovn * edge % n(IY,0:N)
+               q(IRHOE,0:N) = Dimensionless % cv * p + 0.5_RP * rhovt * rhovt / edge % storage(1) % Q(IRHO,0:N)
 !
 !              Compute the fluxex from the built state
 !              ---------------------------------------
@@ -135,16 +135,16 @@
 !
 !              Compute the normal flux
 !              -----------------------
-               do iXi = 0 , N
-                  edge % FB(iXi,1:NCONS) = (F(iXi,1:NCONS,IX) * edge % n(IX,iXi) + F(iXi,1:NCONS,IY) * edge % n(IY,iXi) ) * edge % dS(iXi)
-               end do
+               do dimID = 1 , NDIM  ; do iXi = 0 , N
+                  edge % FB(:,iXi) = edge % FB(:,iXi) + F(:,iXi,dimID) * edge % n(dimID,iXi) * edge % dS(iXi)
+               end do               ; end do
 !
 !              Compute the variables state
 !              ---------------------------
-               edge % uB(0:N,IRHO)  = edge % storage(1) % Q(0:N,IRHO)
-               edge % uB(0:N,IRHOU) = edge % storage(1) % Q(0:N,IRHOU) - 2.0_RP * rhovn * edge % n(IX,0:N)
-               edge % uB(0:N,IRHOV) = edge % storage(1) % Q(0:N,IRHOV) - 2.0_RP * rhovn * edge % n(IY,0:N)
-               edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+               edge % uB(IRHO,0:N)  = edge % storage(1) % Q(IRHO,0:N)
+               edge % uB(IRHOU,0:N) = edge % storage(1) % Q(IRHOU,0:N) - 2.0_RP * rhovn * edge % n(IX,0:N)
+               edge % uB(IRHOV,0:N) = edge % storage(1) % Q(IRHOV,0:N) - 2.0_RP * rhovn * edge % n(IY,0:N)
+               edge % uB(IRHOE,0:N) = edge % storage(1) % Q(IRHOE,0:N)
 #ifdef NAVIER_STOKES
                edge % uSB = q 
 #endif

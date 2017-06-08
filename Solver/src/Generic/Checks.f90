@@ -433,7 +433,7 @@ module ChecksModule
             do iXi = 0 , mesh % elements(eID) % spA % N
                do iEta = 0 , mesh % elements(eiD) % spA % N
                
-                  currentError = norm2( mesh % elements(eID) % Q(iXi,iEta,:) - getDimensionlessVariables( mesh % IC(mesh % elements(eID) % x(:,iXi,iEta) ) ) ) 
+                  currentError = norm2( mesh % elements(eID) % Q(:,iXi,iEta) - getDimensionlessVariables( mesh % IC(mesh % elements(eID) % x(:,iXi,iEta) ) ) ) 
                   if (currentError .gt. error) then
                      error = currentError
                   end if
@@ -695,8 +695,8 @@ module ChecksModule
           class(Edge_t),   intent(in)     :: ed
           class(QuadMesh_t), intent(in)   :: mesh
           real(kind=RP)                   :: error
-          real(kind=RP)                   :: QL(0:ed % spA % N , 1:NCONS)
-          real(kind=RP)                   :: QR(0:ed % spA % N , 1:NCONS)
+          real(kind=RP)                   :: QL(1:NCONS,0:ed % spA % N)
+          real(kind=RP)                   :: QR(1:NCONS,0:ed % spA % N)
           real(kind=RP), allocatable      :: QLN(:,:) , QRN(:,:) , QLS(:,:) , QRS(:,:)
           integer                         :: i 
           real(kind=RP)                   :: localError
@@ -710,7 +710,7 @@ module ChecksModule
                call f % ProjectSolution( f , QL , QR )
 
                do i = 0 , ed % spA % N
-                  localError = maxval(abs(QL(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+                  localError = maxval(abs(QL(:,i) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
 
                   if ( localError .gt. error ) then
                      error = localError
@@ -719,7 +719,7 @@ module ChecksModule
                end do
 
                do i = 0 , ed % spA % N
-                  localError = maxval(abs(QR(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+                  localError = maxval(abs(QR(:,i) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
 
                   if ( localError .gt. error ) then
                      error = localError
@@ -732,7 +732,7 @@ module ChecksModule
                call f % ProjectSolution( f , QL , QR )
 
                 do i = 0 , ed % spA % N
-                  localError = maxval(abs(QL(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+                  localError = maxval(abs(QL(:,i) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
 
                   if ( localError .gt. error ) then
                      error = localError
@@ -741,7 +741,7 @@ module ChecksModule
                end do
 
                do i = 0 , ed % spA % N
-                  localError = maxval(abs(QR(i,:) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
+                  localError = maxval(abs(QR(:,i) - getDimensionlessVariables ( mesh % IC( ed % x(:,i) ) )))
 
                   if ( localError .gt. error ) then
                      error = localError
@@ -756,10 +756,10 @@ module ChecksModule
                allocate ( QLS(0:f % spA_S % N , 1:NCONS) )
                allocate ( QRS(0:f % spA_S % N , 1:NCONS) )
 
-               QLN = matmul ( f % T_LN_FWD , ed % storage ( LEFT        ) % Q ) 
-               QLS = matmul ( f % T_LS_FWD , ed % storage ( LEFT        ) % Q ) 
-               QRN = matmul ( f % T_RN_FWD , ed % storage ( RIGHT_NORTH ) % Q ) 
-               QRS = matmul ( f % T_RS_FWD , ed % storage ( RIGHT_SOUTH ) % Q ) 
+               QLN = matmul ( f % T_LN_FWD , transpose( ed % storage ( LEFT        ) % Q )) 
+               QLS = matmul ( f % T_LS_FWD , transpose( ed % storage ( LEFT        ) % Q ) )
+               QRN = matmul ( f % T_RN_FWD , transpose( ed % storage ( RIGHT_NORTH ) % Q ) )
+               QRS = matmul ( f % T_RS_FWD , transpose( ed % storage ( RIGHT_SOUTH ) % Q ) )
 
                 do i = 0 , ed % spA % N
                   localError = maxval(abs(QLN(i,:) - getDimensionlessVariables ( mesh % IC( f % x_N(:,i) ) )))
@@ -806,10 +806,10 @@ module ChecksModule
                allocate ( QLS(0:f % spA_S % N , 1:NCONS) )
                allocate ( QRS(0:f % spA_S % N , 1:NCONS) )
 
-               QLN = matmul ( f % T_LN_FWD , ed % storage ( LEFT        ) % Q ) 
-               QLS = matmul ( f % T_LS_FWD , ed % storage ( LEFT        ) % Q ) 
-               QRN = matmul ( f % T_RN_FWD , ed % storage ( RIGHT_NORTH ) % Q ) 
-               QRS = matmul ( f % T_RS_FWD , ed % storage ( RIGHT_SOUTH ) % Q ) 
+               QLN = matmul ( f % T_LN_FWD , transpose( ed % storage ( LEFT        ) % Q ) ) 
+               QLS = matmul ( f % T_LS_FWD , transpose( ed % storage ( LEFT        ) % Q ) ) 
+               QRN = matmul ( f % T_RN_FWD , transpose( ed % storage ( RIGHT_NORTH ) % Q ) ) 
+               QRS = matmul ( f % T_RS_FWD , transpose( ed % storage ( RIGHT_SOUTH ) % Q ) ) 
 
                 do i = 0 , ed % spA % N
                   localError = maxval(abs(QLN(i,:) - getDimensionlessVariables ( mesh % IC( f % x_N(:,i) ) )))
@@ -852,7 +852,7 @@ module ChecksModule
             type is ( StraightBdryEdge_t ) 
 
                do i = 0 , ed % spA % N
-                  localError = maxval(abs(ed % storage(1) % Q(i,:) - getDimensionlessVariables ( mesh % IC( f % x(:,i) ) )))
+                  localError = maxval(abs(ed % storage(1) % Q(:,i) - getDimensionlessVariables ( mesh % IC( f % x(:,i) ) )))
 
                   if ( localError .gt. error ) then
                      error = localError
@@ -863,7 +863,7 @@ module ChecksModule
             type is ( CurvedBdryEdge_t )
 
                do i = 0 , ed % spA % N
-                  localError = maxval(abs(ed % storage(1) % Q(i,:) - getDimensionlessVariables ( mesh % IC( f % x(:,i) ) )))
+                  localError = maxval(abs(ed % storage(1) % Q(:,i) - getDimensionlessVariables ( mesh % IC( f % x(:,i) ) )))
 
                   if ( localError .gt. error ) then
                      error = localError
@@ -989,7 +989,7 @@ module ChecksModule
 
                   QDot = QDotPolynomicFCN( x , L )
 
-                  localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
+                  localerror = maxval(abs([e % QDot(1:NCONS,iXi,iEta) - QDot(1:4)]))
 
                   if ( (localerror .gt. error) ) then
                      error = localerror
@@ -1024,7 +1024,7 @@ module ChecksModule
                   x = e % X(iXi , iEta , IX:IY)
                   QDot = QDotTrigonometricFCN( x , L )
 
-                  localerror = maxval(abs([e % QDot(iXi,iEta,1:4) - QDot(1:4)]))
+                  localerror = maxval(abs([e % QDot(1:NCONS,iXi,iEta) - QDot(1:4)]))
                   
                   if ( (localerror .gt. error) ) then
 
@@ -1095,7 +1095,7 @@ module ChecksModule
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
                   dQ = dQPolynomicFcn(x,L)
 
-                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) )
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(1:NCONS,iXi,iEta,1:NDIM) - transpose(dQ) ) )
 
                   if ( (localerror .gt. error) ) then
                      error = localerror
@@ -1130,7 +1130,7 @@ module ChecksModule
                   x = sem % mesh % elements(eID) % x(iXi,iEta,IX:IY) 
                   dQ = dQTrigonometricFcn(x , L )
 
-                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(iXi,iEta,1:NDIM,1:NCONS) - dQ ) ) * L
+                  localerror = maxval(abs(sem % mesh % elements(eID) % dQ(1:NCONS,iXi,iEta,1:NDIM) - transpose(dQ) ) ) * L
 
                   if ( (localerror .gt. error) ) then
                      error = localerror

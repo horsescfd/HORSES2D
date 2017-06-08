@@ -95,8 +95,10 @@ module NetCDFInterface
 !        Put it back into variable mode
 !        ------------------------------
          call check ( NF90_ENDDEF ( ncid ) )
-
-         
+!
+!        Close file
+!        ----------
+         call check ( NF90_CLOSE( ncid ) )
           
       end subroutine putDimension
 
@@ -310,11 +312,16 @@ module NetCDFInterface
 
                end if
 
+               call check ( NF90_CLOSE ( ncid ) )
                return
 
              end if
 
          end do
+!
+!        Close file
+         call check ( NF90_CLOSE ( ncid ) )
+         
 
       end subroutine getDouble1DVariable
          
@@ -378,11 +385,15 @@ module NetCDFInterface
 
                end if
 
+               call check ( NF90_CLOSE ( ncid ) )
                return
 
              end if
 
          end do
+!
+!        Close file
+         call check ( NF90_CLOSE ( ncid ) )
 
       end subroutine getDouble2DVariable
 
@@ -436,11 +447,15 @@ module NetCDFInterface
 
                end if
 
+               call check ( NF90_CLOSE ( ncid ) )
                return
 
              end if
 
          end do
+!
+!        Close file
+         call check ( NF90_CLOSE ( ncid ) )
 
       end subroutine getInteger1DVariable
 
@@ -503,11 +518,16 @@ module NetCDFInterface
 
                end if
 
+               call check ( NF90_CLOSE ( ncid ) )
                return
 
              end if
 
          end do
+!
+!        Close file
+         call check ( NF90_CLOSE ( ncid ) )
+
 
       end subroutine getInteger2DVariable
 
@@ -549,11 +569,14 @@ module NetCDFInterface
               
                call check ( NF90_GET_VAR( ncid , varID , var(1:dims(1)) ) )
 
+               call check ( NF90_CLOSE ( ncid ) )
                return
 
              end if
 
          end do
+
+         call check ( NF90_CLOSE ( ncid ) )
 
       end subroutine getCharacterVariable
 

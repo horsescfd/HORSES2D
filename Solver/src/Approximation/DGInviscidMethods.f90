@@ -190,7 +190,7 @@ module DGInviscidMethods
          implicit none  
          class(InviscidMethod_t), intent (in)    :: self
          class(QuadElement_t),    intent (in)    :: e
-         real(kind=RP)                           :: F(0:e % spA % N , 0:e % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                           :: F( 1 : NCONS , 0:e % spA % N , 0:e % spA % N , 1:NDIM)
 
          F = InviscidFlux( e % spA % N , e % Q )
 

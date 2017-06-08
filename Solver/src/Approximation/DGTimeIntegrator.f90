@@ -486,9 +486,9 @@ module DGTimeIntegrator
             do iXi = 0 , mesh % elements(eID) % spA % N
                do iEta = 0 , mesh % elements(eID) % spA % N
 
-                  umax = max(umax , norm2( e % Q(iXi,iEta,IRHOU:IRHOV)) / e % Q(iXi,iEta,IRHO))
-                  amax = max(amax , sqrt( gamma * gm1 * (e % Q(iXi,iEta,IRHOE) /  e % Q(iXi,iEta,IRHO) - 0.5_RP * ( e % Q(iXi,iEta,IRHOU)/ e % Q(iXi,iEta,IRHO))**2.0_RP &
-                                                                                                       - 0.5_RP * ( e % Q(iXi,iEta,IRHOV)/ e % Q(iXi,iEta,IRHO))**2.0_RP )))
+                  umax = max(umax , norm2( e % Q(IRHOU:IRHOV,iXi,iEta)) / e % Q(IRHO,iXi,iEta))
+                  amax = max(amax , sqrt( gamma * gm1 * (e % Q(IRHOE,iXi,iEta) /  e % Q(IRHO,iXi,iEta) - 0.5_RP * ( e % Q(IRHOU,iXi,iEta)/ e % Q(IRHO,iXi,iEta))**2.0_RP &
+                                                                                                       - 0.5_RP * ( e % Q(IRHOV,iXi,iEta)/ e % Q(IRHO,iXi,iEta))**2.0_RP )))
              
                end do
             end do

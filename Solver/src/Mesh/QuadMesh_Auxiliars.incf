@@ -29,10 +29,10 @@
             residuals = 0.0_RP
          
             do eID = 1 , self % no_of_elements
-               residuals(IRHO)  = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(:,:,IRHO))) )
-               residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOU))) )
-               residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOV))) )
-               residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(:,:,IRHOE))) )
+               residuals(IRHO)  = max( residuals(IRHO) , maxval(abs(self % elements(eID) % QDot(IRHO,:,:))) )
+               residuals(IRHOU) = max( residuals(IRHOU) , maxval(abs(self % elements(eID) % QDot(IRHOU,:,:))) )
+               residuals(IRHOV) = max( residuals(IRHOV) , maxval(abs(self % elements(eID) % QDot(IRHOV,:,:))) )
+               residuals(IRHOE) = max( residuals(IRHOE) , maxval(abs(self % elements(eID) % QDot(IRHOE,:,:))) )
             end do   
 
          end function Mesh_ComputeResiduals
@@ -92,13 +92,13 @@ elloop:     do eID = 1 , self % no_of_elements
 
 
                   type is (Edge_t)
-                     localJumps = maxval( abs ( f % storage(LEFT) % Q(0:N,1:NCONS) - f % storage(RIGHT) % Q(0:N,1:NCONS) ) )
+                     localJumps = maxval( abs ( f % storage(LEFT) % Q(1:NCONS,0:N) - f % storage(RIGHT) % Q(1:NCONS,0:N) ) )
    
                   type is (StraightBdryEdge_t)
-                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
+                     localJumps = maxval( abs ( f % storage(1) % Q(1:NCONS,0:N) - f % uB(1:NCONS,0:N) ) ) 
 
                   type is (CurvedBdryEdge_t)
-                     localJumps = maxval( abs ( f % storage(1) % Q(0:N,1:NCONS) - f % uB(0:N,1:NCONS) ) ) 
+                     localJumps = maxval( abs ( f % storage(1) % Q(1:NCONS,0:N) - f % uB(1:NCONS,0:N) ) ) 
    
                end select
                end associate

@@ -108,13 +108,13 @@
                         edge1 % inviscidBCType = WEAK_RIEMANN
                         edge2 % inviscidBCType = WEAK_RIEMANN
 
-                        edge1 % uB(0:,1:)    => edge2 % storage(1) % Q(0:,1:)
-                        edge2 % uB(0:,1:)    => edge1 % storage(1) % Q(0:,1:)
+                        edge1 % uB(1:,0:)    => edge2 % storage(1) % Q(1:,0:)
+                        edge2 % uB(1:,0:)    => edge1 % storage(1) % Q(1:,0:)
 #ifdef NAVIER_STOKES
-                        edge1 % uSB(0:,1:)   => edge2 % storage(1) % Q(0:,1:)
-                        edge2 % uSB(0:,1:)   => edge1 % storage(1) % Q(0:,1:)
-                        edge1 % gB(0:,1:,1:)   => edge2 % storage(1) % dQ(0:,1:,1:)
-                        edge2 % gB(0:,1:,1:)   => edge1 % storage(1) % dQ(0:,1:,1:)
+                        edge1 % uSB(1:,0:)   => edge2 % storage(1) % Q(1:,0:)
+                        edge2 % uSB(1:,0:)   => edge1 % storage(1) % Q(1:,0:)
+                        edge1 % gB(1:,0:,1:)   => edge2 % storage(1) % dQ(1:,0:,1:)
+                        edge2 % gB(1:,0:,1:)   => edge1 % storage(1) % dQ(1:,0:,1:)
                         edge1 % viscousBCType = PERIODIC
                         edge2 % viscousBCType = PERIODIC
 #endif

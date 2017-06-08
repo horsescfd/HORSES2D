@@ -114,14 +114,14 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % uB(NCONS,0:N) )
 
                edge % inviscidBCType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               allocate( edge % uSB(0:N,1:NCONS) )
+               allocate( edge % uSB(NCONS,0:N) )
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
                   edge % ViscousBCType = DIRICHLET
@@ -133,14 +133,14 @@
 #endif
    
             type is (CurvedBdryEdge_t)
-               allocate( edge % uB(0:N,NCONS) )
+               allocate( edge % uB(NCONS,0:N) )
 
                edge % inviscidBCType = self % WeakType
 
                edge % RiemannSolver => self % RiemannSolver
 
 #ifdef NAVIER_STOKES
-               allocate( edge % uSB(0:N,1:NCONS) )
+               allocate( edge % uSB(NCONS,0:N) )
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
                   edge % ViscousBCType = DIRICHLET
@@ -189,61 +189,61 @@
          select type ( edge ) 
             type is (StraightBdryEdge_t)
 
-               edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
-               edge % uB(0 : N , IRHOU) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IX) - edge % storage(1) % Q(0 : N , IRHOU)
-               edge % uB(0 : N , IRHOV) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IY) - edge % storage(1) % Q(0 : N , IRHOV) 
-               Ek = 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % uB(0:N,IRHOU) + edge % uB(0:N,IRHOV) * edge % uB(0:N,IRHOV) ) / edge % uB(0:N,IRHO)
+               edge % uB(IRHO  , 0 : N )  =  edge % storage(1) % Q(IRHO , 0 : N )
+               edge % uB(IRHOU , 0 : N ) = 2.0_RP * edge % uB(IRHO,0:N) * self % v(IX) - edge % storage(1) % Q(IRHOU,0:N)
+               edge % uB(IRHOV , 0 : N ) = 2.0_RP * edge % uB(IRHO,0:N) * self % v(IY) - edge % storage(1) % Q(IRHOV,0:N) 
+               Ek = 0.5_RP * ( edge % uB(IRHOU,0:N) * edge % uB(IRHOU,0:N) + edge % uB(IRHOV,0:N) * edge % uB(IRHOV,0:N) ) / edge % uB(IRHO,0:N)
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uB(0:N,IRHOE) = dimensionless % cv * edge % uB(0:N,IRHO) * stateConstant * self % Tw + Ek
+                  edge % uB(IRHOE,0:N) = dimensionless % cv * edge % uB(IRHO,0:N) * stateConstant * self % Tw + Ek
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+                  edge % uB(IRHOE,0:N) = edge % storage(1) % Q(IRHOE,0:N)
 
                end if
 
 #ifdef NAVIER_STOKES
-               edge % uSB(0:N,IRHO) = edge % storage(1) % Q(0:N,IRHO)
-               edge % uSB(0:N,IRHOU) = edge % uSB(0:N,IRHO) * self % v(IX)
-               edge % uSB(0:N,IRHOV) = edge % uSB(0:N,IRHO) * self % v(IY)
+               edge % uSB(IRHO,0:N) = edge % storage(1) % Q(IRHO,0:N)
+               edge % uSB(IRHOU,0:N) = edge % uSB(IRHO,0:N) * self % v(IX)
+               edge % uSB(IRHOV,0:N) = edge % uSB(IRHO,0:N) * self % v(IY)
    
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uSB(0:N,IRHOE) =   dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw &
-                                          + 0.5_RP * ( edge % uSB(0:N,IRHOU) * edge % uSB(0:N,IRHOU) + edge % uSB(0:N,IRHOV) * edge % uSB(0:N,IRHOV) ) / edge % uSB(0:N,IRHO) 
+                  edge % uSB(IRHOE,0:N) =   dimensionless % cv * edge % uSB(IRHO,0:N) * stateConstant * self % Tw &
+                                          + 0.5_RP * ( edge % uSB(IRHOU,0:N) * edge % uSB(IRHOU,0:N) + edge % uSB(IRHOV,0:N) * edge % uSB(IRHOV,0:N) ) / edge % uSB(IRHO,0:N) 
    
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % uSB(0:N,IRHOE) =   edge % storage(1) % Q(0:N,IRHOE)  - Ek &
-                                          + 0.5_RP * edge % uSB(0:N,IRHO) * ( self % v(IX) * self % v(IX) + self % v(IY) * self % v(IY) ) 
+                  edge % uSB(IRHOE,0:N) =   edge % storage(1) % Q(IRHOE,0:N)  - Ek &
+                                          + 0.5_RP * edge % uSB(IRHO,0:N) * ( self % v(IX) * self % v(IX) + self % v(IY) * self % v(IY) ) 
                endif
 #endif
 
             type is (CurvedBdryEdge_t)
 
-               edge % uB(0 : N , IRHO)  =  edge % storage(1) % Q(0 : N , IRHO )
-               edge % uB(0 : N , IRHOU) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IX) - edge % storage(1) % Q(0 : N , IRHOU)
-               edge % uB(0 : N , IRHOV) = 2.0_RP * edge % uB(0:N , IRHO) * self % v(IY) - edge % storage(1) % Q(0 : N , IRHOV) 
-               Ek = 0.5_RP * ( edge % uB(0:N,IRHOU) * edge % uB(0:N,IRHOU) + edge % uB(0:N,IRHOV) * edge % uB(0:N,IRHOV) ) / edge % uB(0:N,IRHO)
+               edge % uB(IRHO,0:N)  =  edge % storage(1) % Q(IRHO,0:N)
+               edge % uB(IRHOU,0:N) = 2.0_RP * edge % uB(IRHO,0:N) * self % v(IX) - edge % storage(1) % Q(IRHOU,0:N)
+               edge % uB(IRHOV,0:N) = 2.0_RP * edge % uB(IRHO,0:N) * self % v(IY) - edge % storage(1) % Q(IRHOV,0:N) 
+               Ek = 0.5_RP * ( edge % uB(IRHOU,0:N) * edge % uB(IRHOU,0:N) + edge % uB(IRHOV,0:N) * edge % uB(IRHOV,0:N) ) / edge % uB(IRHO,0:N)
 
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uB(0:N,IRHOE) = dimensionless % cv * edge % uB(0:N,IRHO) * stateConstant * self % Tw + Ek
+                  edge % uB(IRHOE,0:N) = dimensionless % cv * edge % uB(IRHO,0:N) * stateConstant * self % Tw + Ek
 
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % uB(0:N,IRHOE) = edge % storage(1) % Q(0:N,IRHOE)
+                  edge % uB(IRHOE,0:N) = edge % storage(1) % Q(IRHOE,0:N)
 
                end if
 
 #ifdef NAVIER_STOKES
-               edge % uSB(0:N,IRHO) = edge % storage(1) % Q(0:N,IRHO)
-               edge % uSB(0:N,IRHOU) = edge % uSB(0:N,IRHO) * self % v(IX)
-               edge % uSB(0:N,IRHOV) = edge % uSB(0:N,IRHO) * self % v(IY)
+               edge % uSB(IRHO,0:N) = edge % storage(1) % Q(IRHO,0:N)
+               edge % uSB(IRHOU,0:N) = edge % uSB(IRHO,0:N) * self % v(IX)
+               edge % uSB(IRHOV,0:N) = edge % uSB(IRHO,0:N) * self % v(IY)
    
                if ( self % wall_type .eq. ISOTHERMAL_WALL ) then
-                  edge % uSB(0:N,IRHOE) =   dimensionless % cv * edge % uSB(0:N,IRHO) * stateConstant * self % Tw &
-                                          + 0.5_RP * ( edge % uSB(0:N,IRHOU) * edge % uSB(0:N,IRHOU) + edge % uSB(0:N,IRHOV) * edge % uSB(0:N,IRHOV) ) / edge % uSB(0:N,IRHO) 
+                  edge % uSB(IRHOE,0:N) =   dimensionless % cv * edge % uSB(IRHO,0:N) * stateConstant * self % Tw &
+                                          + 0.5_RP * ( edge % uSB(IRHOU,0:N) * edge % uSB(IRHOU,0:N) + edge % uSB(IRHOV,0:N) * edge % uSB(IRHOV,0:N) ) / edge % uSB(IRHO,0:N) 
    
                elseif ( self % wall_type .eq. ADIABATIC_WALL ) then
-                  edge % uSB(0:N,IRHOE) =   edge % storage(1) % Q(0:N,IRHOE)  - Ek &
-                                          + 0.5_RP * edge % uSB(0:N,IRHO) * ( self % v(IX) * self % v(IX) + self % v(IY) * self % v(IY) ) 
+                  edge % uSB(IRHOE,0:N) =   edge % storage(1) % Q(IRHOE,0:N)  - Ek &
+                                          + 0.5_RP * edge % uSB(IRHO,0:N)* ( self % v(IX) * self % v(IX) + self % v(IY) * self % v(IY) ) 
                endif
 #endif
             class default

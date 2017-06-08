@@ -128,7 +128,7 @@ function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_
             analytical(IRHOV) = analytical(IRHOV) / ( refValues_ % rho * refValues_ % a )
             analytical(IRHOE) = analytical(IRHOE) / refValues_ % p
 
-            localErrors = abs(analytical - sem_ % mesh % elements(eID) % Q(i,j,1:NCONS) )
+            localErrors = abs(analytical - sem_ % mesh % elements(eID) % Q(1:NCONS,i,j) )
 
             if ( localErrors(IRHO) .gt. errors(IRHO) ) then
                errors(IRHO) = localErrors(IRHO)

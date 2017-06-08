@@ -30,10 +30,10 @@
         
 
             associate ( N => self % spA % N )
-             self % Q    ( 0:N , 0:N , 1:NCONS          ) => storage % Q    ( self % address: ) 
-             self % QDot ( 0:N , 0:N , 1:NCONS          ) => storage % QDot ( self % address: ) 
+             self % Q    ( 1:NCONS , 0:N , 0:N           ) => storage % Q    ( self % address: ) 
+             self % QDot ( 1:NCONS , 0:N , 0:N           ) => storage % QDot ( self % address: ) 
 #ifdef NAVIER_STOKES
-             self % dQ   ( 0:N , 0:N , 1:NDIM , 1:NCONS ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
+             self % dQ   ( 1:NCONS , 0:N , 0:N , 1:NDIM  ) => storage % dQ   ( (self % address-1)*NDIM + 1: ) 
 #endif
             end associate
 
@@ -51,28 +51,38 @@
 !   
             implicit none  
             class(QuadElement_t)   :: self
-            real(kind=RP)          :: dQ(0:self % spA % N , 0:self % spA % N , 1:NDIM , 1:NCONS)
+            real(kind=RP)          :: dQ(1:NCONS , 0:self % spA % N , 0:self % spA % N , 1:NDIM )
 !           -------------------------------------------------------------
-            real(kind=RP)              :: dxiQ (0:self % spA % N,0:self % spA % N, 1:NCONS)
-            real(kind=RP)              :: detaQ(0:self % spA % N,0:self % spA % N, 1:NCONS)
-            integer                    :: var
+            real(kind=RP)              :: dxiQ (1:NCONS,0:self % spA % N,0:self % spA % N)
+            real(kind=RP)              :: detaQ(1:NCONS,0:self % spA % N,0:self % spA % N)
+            integer                    :: var , j , l , i 
    
             associate( N => self % spA % N )
             
-            dxiQ  = MatrixMultiplyInIndex_F( self % Q , self % spA % DT , N+1 , N+1 , NCONS , IX)
-            detaQ = MatrixMultiplyInIndex_F( self % Q , self % spA % DT , N+1 , N+1 , NCONS , IY)
+            dxiQ = 0.0_RP
+            detaQ = 0.0_RP
 
-            do var = 1 , NCONS
+            do j = 0 , self % spA % N ; do l = 0 , self % spA % N ; do i = 0 , self % spA % N 
+                  dxiQ(:,i,j) = dxiQ(:,i,j) + self % spA % D(i,l) * self % Q(:,l,j)
+            end do                    ; end do                    ; end do
+
+
+            do j = 0 , self % spA % N ; do l = 0 , self % spA % N ; do i = 0 , self % spA % N 
+                  detaQ(:,i,j) = detaQ(:,i,j) + self % spA % DT(l,j) * self % Q(:,i,l)
+            end do                    ; end do                    ; end do
+
+            do i = 0 , self % spA % N ; do j = 0 , self % spA % N
 !              
 !              x-direction gradient
 !              --------------------
-               dQ(0:N,0:N,IX,var) = (dxiQ(0:N,0:N,var) * self % Ja(0:N,0:N,1,1) + detaQ(0:N,0:N,var) * self % Ja(0:N,0:N,1,2)) / self % jac(0:N,0:N)
+               dQ(:,i,j,IX) = (dxiQ(:,i,j) * self % Ja(i,j,1,1) + detaQ(:,i,j) * self % Ja(i,j,1,2)) / self % jac(i,j)
 !              
 !              y-direction gradient
 !              --------------------
-               dQ(0:N,0:N,IY,var) = (dxiQ(0:N,0:N,var) * self % Ja(0:N,0:N,2,1) + detaQ(0:N,0:N,var) * self % Ja(0:N,0:N,2,2)) / self % jac(0:N,0:N)
+               dQ(:,i,j,IY) = (dxiQ(:,i,j) * self % Ja(i,j,2,1) + detaQ(:,i,j) * self % Ja(i,j,2,2)) / self % jac(i,j)
 
-            end do
+            end do                    ; end do
+
             end associate
             
       end function QuadElement_ComputeInteriorGradient
