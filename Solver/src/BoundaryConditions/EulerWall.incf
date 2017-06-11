@@ -135,6 +135,7 @@
 !
 !              Compute the normal flux
 !              -----------------------
+               edge % FB = 0.0_RP
                do dimID = 1 , NDIM  ; do iXi = 0 , N
                   edge % FB(:,iXi) = edge % FB(:,iXi) + F(:,iXi,dimID) * edge % n(dimID,iXi) * edge % dS(iXi)
                end do               ; end do

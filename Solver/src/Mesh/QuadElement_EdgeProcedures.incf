@@ -941,7 +941,6 @@
             integer     :: eq , i , l , dimID
 
             QL = 0.0_RP 
-
             do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                QL(:,i) = QL(:,i) + ed % T_forward(i,l) * ed % storage(LEFT) % Q(:,l)
             end do                     ; end do
@@ -951,7 +950,6 @@
 #ifdef NAVIER_STOKES
 
             dQL = 0.0_RP
-
             do dimID = 1 , NDIM  ; do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                dQL(:,i,dimID) = dQL(:,i,dimID) + ed % T_forward(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
             end do               ; end do                     ; end do
@@ -980,7 +978,6 @@
             integer     :: i , l , dimID
 
             QL = 0.0_RP 
-
             do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                QL(:,i) = QL(:,i) + ed % T_forward(i,l) * ed % storage(LEFT) % Q(:,l)
             end do                     ; end do
@@ -992,7 +989,6 @@
 #ifdef NAVIER_STOKES
 
             dQL = 0.0_RP
-
             do dimID = 1 , NDIM  ; do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                dQL(:,i,dimID) = dQL(:,i,dimID) + ed % T_forward(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
             end do               ; end do                     ; end do
@@ -1025,7 +1021,6 @@
             QL = ed % storage(LEFT) % Q
 
             QR = 0.0_RP 
-
             do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                QR(:,i) = QR(:,i) + ed % T_forward(i,l) * ed % storage(RIGHT) % Q(:,l)
             end do                     ; end do
@@ -1035,7 +1030,6 @@
             dQL = ed % storage(LEFT) % dQ
 
             dQR = 0.0_RP 
-
             do dimID = 1 , NDIM ;   do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                dQR(:,i,dimID)    = dQR(:,i,dimID) +  ed % T_forward(i,l) * ed % storage(RIGHT) % dQ(:,l,dimID)
             end do              ;   end do                     ; end do
@@ -1064,7 +1058,6 @@
             QL = ed % storage(LEFT) % Q
 
             QR = 0.0_RP
-
             do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
                QR(:,ed % spA % N - i) = QR(:,ed % spA % N - i) + ed % T_forward(i,l) * ed % storage(RIGHT) % Q(:,l)
             end do                     ; end do
@@ -1074,7 +1067,6 @@
             dQL = ed % storage(LEFT) % dQ
 
             dQR = 0.0_RP 
-
             do dimID = 1 , NDIM ;   do l = 0 , ed % NLow    ; do i = 0 , ed % spA % N 
                dQR(:,ed % spA % N - i,dimID)    = dQR(:,ed % spA % N - i,dimID) +  ed % T_forward(i,l) * ed % storage(RIGHT) % dQ(:,l,dimID)
             end do              ;   end do                     ; end do
@@ -1208,7 +1200,7 @@
 
             FR = 0.0_RP
             do l = 0 , ed % spA % N  ; do i = 0 , ed % NLow
-               FR(: , ed % spA % N - i) = FR(:,ed % spA % N - i) - ed % T_backward(i,l) * F(:,l) 
+               FR(: , ed % NLow - i) = FR(:,ed % NLow - i) - ed % T_backward(i,l) * F(:,l) 
             end do                   ; end do
 
          end subroutine Edge_ProjectFluxesType6
@@ -1264,7 +1256,6 @@
             integer     :: i , dimID , l
 
             GL = 0.0_RP 
-
             do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
                GL(:,i,dimID)    = GL(:,i,dimID) + ed % T_backward(i,l) * GL_edge(:,l,dimID)
             end do              ;   end do                     ; end do
@@ -1288,6 +1279,7 @@
 !
             integer     :: i , dimID , l
 
+            GL = 0.0_RP
             do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
                GL(:,i,dimID)    = GL(:,i,dimID) + ed % T_backward(i,l) * GL_edge(:,l,dimID)
             end do              ;   end do                     ; end do
@@ -1316,7 +1308,6 @@
             GL = GL_edge
 
             GR = 0.0_RP
-
             do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
                GR(:,i,dimID)    = GR(:,i,dimID) + ed % T_backward(i,l) * GR_edge(:,l,dimID)
             end do              ;   end do                     ; end do
@@ -1341,9 +1332,8 @@
             GL = GL_edge
 
             GR = 0.0_RP
-
             do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
-               GR(:,ed % spA % N - i,dimID)    = GR(:,ed % spA % N - i,dimID) + ed % T_backward(i,l) * GR_edge(:,l,dimID)
+               GR(:,ed % NLow - i,dimID)    = GR(:,ed % NLow - i,dimID) + ed % T_backward(i,l) * GR_edge(:,l,dimID)
             end do              ;   end do                     ; end do
            
          end subroutine Edge_ProjectGradientFluxesType6

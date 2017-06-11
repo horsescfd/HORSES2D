@@ -67,6 +67,7 @@ function BC1_Driver(x,time) result(state)
    implicit none
    real(kind=RP),    intent(in)                 :: x(NDIM)
    real(kind=RP),    intent(in)                 :: time
+   real(kind=RP)                                :: stateWithDimensions(NCONS)
    real(kind=RP)                                :: state(NCONS)
    interface
       function BoundaryConditionFunction1(x,time, Thermodynamics_ , Setup_ , refValues_ , dimensionless_ ) result (state)
@@ -83,8 +84,9 @@ function BC1_Driver(x,time) result(state)
          real(kind=RP)                                 :: state(NCONS)
       end function BoundaryConditionFunction1
    end interface
-      
-   state = getDimensionlessVariables( BoundaryConditionFunction1(x,time,Thermodynamics,Setup,refValues,dimensionless) )
+
+   stateWithDimensions = BoundaryConditionFunction1(x,time,Thermodynamics,Setup,refValues,dimensionless) 
+   state = getDimensionlessVariables( stateWithDimensions )
 
 end function BC1_Driver
 

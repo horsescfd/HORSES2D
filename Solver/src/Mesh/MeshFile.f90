@@ -399,11 +399,14 @@ module MeshFileClass
             integer                    :: points_of_edge( POINTS_PER_EDGE )
             integer                    :: pos
             integer                    :: threeEdgesNode , j  , k
+            integer                    :: oneDArray(1)
+            integer                    :: edgeToRemove(2)
 !
 !           This subroutine removes the divided edges information
 !           -----------------------------------------------------
 mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
-               edges = mesh % points_of_edges % SearchIfPresent( ONE , [threeEdgesNode] , POINTS_PER_QUAD , atts) 
+               oneDArray = threeEdgesNode
+               edges = mesh % points_of_edges % SearchIfPresent( ONE , oneDArray , POINTS_PER_QUAD , atts) 
 
                if ( edges     ( POINTS_PER_QUAD ) .ne. -1 )  cycle  ! It has four associated edges      -> Is not subdivided
                if ( edges     ( THREE           ) .eq. -1 )  cycle  ! It has already been merged
@@ -427,7 +430,8 @@ mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
 !              Gather all the edges that emerge from each point
 !              ------------------------------------------------
                do j = 1 , POINTS_PER_SUBDIVIDED_EDGE
-                  neigh_edges = mesh % points_of_edges % SearchIfPresent( ONE , [points(j)] , 2 * POINTS_PER_QUAD ) 
+                  oneDArray = points(j)
+                  neigh_edges = mesh % points_of_edges % SearchIfPresent( ONE , oneDArray , 2 * POINTS_PER_QUAD ) 
 
                   do k = 1 , 2 * POINTS_PER_QUAD
                      if ( neigh_edges(k) .eq. -1 ) cycle 
@@ -440,6 +444,9 @@ mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
                      elseif ( (points_of_edge(TWO) .ne. points(j)) .and. (points_of_edge(TWO) .ne. threeEdgesNode) ) then
                         point = points_of_edge(TWO)
 
+                     else
+                        point = -1
+
                      end if
 
                      if ( any( points .eq. point ) ) then       
@@ -450,13 +457,16 @@ mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
 !
 !                       Remove the three edges
 !                       ----------------------
-                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , [newSubdividedEdge(ONE) , newSubdividedEdge(TWO)] )
+                        edgeToRemove = [newSubdividedEdge(ONE) , newSubdividedEdge(TWO)]
+                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , edgeToRemove )
                         call  mesh % points_of_edges % Remove ( pos )
 
-                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , [newSubdividedEdge(ONE) , newSubdividedEdge(THREE) ] )
+                        edgeToRemove = [newSubdividedEdge(ONE) , newSubdividedEdge(THREE)]
+                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , edgeToRemove )
                         call  mesh % points_of_edges % Remove ( pos )
 
-                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , [newSubdividedEdge(TWO) , newSubdividedEdge(THREE) ] )
+                        edgeToRemove = [newSubdividedEdge(TWO) , newSubdividedEdge(THREE)]
+                        pos = mesh % points_of_edges % Search ( POINTS_PER_EDGE , edgeToRemove )
                         call  mesh % points_of_edges % Remove ( pos )
 !
 !                       Add the new subdivided edge

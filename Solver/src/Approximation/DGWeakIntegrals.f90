@@ -525,9 +525,11 @@ module DGWeakIntegrals
          class(QuadElement_t), intent (in) :: e
          real(kind=RP),        intent (in) :: u(1:NCONS , 0:e % spA % N , 0:e % spA % N)
          real(kind=RP)                     :: volInt(1:NCONS , 0:e % spA % N, 0:e % spA % N , 1:NDIM)
-!        ----------------------------------------------------------------------------------------------
-         real(kind=RP)                    :: contravariantU_F(1:NCONS,0:e % spA % N, 0:e % spA % N, 1:NDIM)
-         real(kind=RP)                    :: contravariantU_G(1:NCONS,0:e % spA % N, 0:e % spA % N, 1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
          integer                          :: eq , i , j , l , dimID
 
          volInt = 0.0_RP
@@ -590,25 +592,25 @@ module DGWeakIntegrals
 
             case (EBOTTOM)
             
-               do dimID = 1 , NDIM ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
                   faceInt(:,iXi,iEta,dimID) = Fu(:,iXi,dimID) * e % spA % lbw(iEta,LEFT)
                end do ;              end do ;                   end do
       
             case (ERIGHT)
 
-               do dimID = 1 , NDIM ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
                   faceInt(:,iXi,iEta,dimID) = Fu(:,iEta,dimID) * e % spA % lbw(iXi,RIGHT) 
                end do ; end do ; end do
                   
             case (ETOP)
 
-               do dimID = 1 , NDIM ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
                   faceInt(:,iXi,iEta,dimID) = Fu(:,iXi,dimID) * e % spA % lbw(iEta,RIGHT)
                end do ; end do ; end do
    
             case (ELEFT)
 
-               do dimID = 1 , NDIM ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
                   faceInt(:,iXi,iEta,dimID) = Fu(:,iEta,dimID) * e % spA % lbw(iXi,LEFT)
                end do ; end do ; end do
 

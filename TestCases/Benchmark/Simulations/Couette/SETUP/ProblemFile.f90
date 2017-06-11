@@ -54,6 +54,7 @@ function UserDefinedInitialCondition(x , Thermodynamics_ , Setup_ , refValues_ ,
    val(IRHOU) = val(IRHO) * refValues_ % V * 0.5_RP * ( x(IY) + 1.0_RP ) 
    val(IRHOV) = 0.0_RP
    val(IRHOE) = thermodynamics_ % cv * val(IRHO) * T + 0.5_RP * val(IRHOU) * val(IRHOU)/ val(IRHO)
+
    if ( (x(IX)*x(IX) + x(IY)*x(IY)) .lt. 0.005_RP ) then
       val(IRHOU) = 1.005_RP * val(IRHOU) 
    end if
@@ -120,7 +121,7 @@ function Finalize( sem_ , Thermodynamics_ , Setup_ , refValues_ , dimensionless_
             analytical(IRHOV) = analytical(IRHOV) / ( refValues_ % rho * refValues_ % a )
             analytical(IRHOE) = analytical(IRHOE) / refValues_ % p
 
-            localErrors = abs(analytical - sem_ % mesh % elements(eID) % Q(i,j,1:NCONS) )
+            localErrors = abs(analytical - sem_ % mesh % elements(eID) % Q(1:NCONS,i,j) )
 
             if ( localErrors(IRHO) .gt. errors(IRHO) ) then
                errors(IRHO) = localErrors(IRHO)

@@ -212,15 +212,15 @@ module DGViscousMethods
 
       module pure function BR1_RiemannSolver_Adiabatic( self , edge , N , invh_edge , u , g , uB , normal ) result ( Fstar )
          implicit none
-         class(BR1Method_t), intent(in)     :: self
-         integer      ,          intent(in)     :: N 
-         class(Edge_t)         , intent(in)     :: edge
-         real(kind=RP),          intent(in)     :: invh_edge
-         real(kind=RP),          intent(in)     :: u(1:NCONS , 0:N)
-         real(kind=RP),          intent(in)     :: g(1:NCONS , 0:N , 1:NDIM)
-         real(kind=RP),          intent(in)     :: uB(1:NCONS , 0:N)
-         real(kind=RP),          intent(in)     :: normal(NDIM , 0:N)
-         real(kind=RP)                          :: Fstar(1:NCONS , 0:N)
+         class(BR1Method_t), intent(in) :: self
+         integer      ,      intent(in) :: N
+         class(Edge_t),      intent(in) :: edge
+         real(kind=RP),      intent(in) :: invh_edge
+         real(kind=RP),      intent(in) :: u      ( 1:NCONS , 0:N          )
+         real(kind=RP),      intent(in) :: g      ( 1:NCONS , 0:N , 1:NDIM )
+         real(kind=RP),      intent(in) :: uB     ( 1:NCONS , 0:N          )
+         real(kind=RP),      intent(in) :: normal ( 1:NDIM  , 0:N          )
+         real(kind=RP)                  :: Fstar  ( 1:NCONS , 0:N          )
       end function BR1_RiemannSolver_Adiabatic
    end interface
 !
@@ -396,6 +396,7 @@ module DGViscousMethods
          end select
 
          call ViscousMethod % describe()
+
       end function ViscousMethod_Initialization
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -565,7 +566,7 @@ module DGViscousMethods
 !        ----------------------------
          call ed % ProjectFluxes( ed , uStar , uStarL , uStarR ) 
 !
-!        Compute the solution flux
+!        Compute the solution flux: the (-1) sign in uStarR has already been accounted.
 !        -------------------------
          FuStarL(:,:,IX) = uStarL * ed % dS(0) * ed % n(IX,0)
          FuStarL(:,:,IY) = uStarL * ed % dS(0) * ed % n(IY,0)
@@ -607,7 +608,7 @@ module DGViscousMethods
             FuStar(:,i,dimID) = uStar(:,i) * ed % dS(i) * ed % n(dimID,i)
          end do              ;   end do
 !
-!        Return its value to each element frame
+!        Return its value to each element frame: the (-1) sign for FuStarR is accounted inside.
 !        --------------------------------------
          call ed % ProjectFluxes( ed , FuStar(:,:,IX) , FuStarL(:,:,IX) , FuStarR(:,:,IX) )
          call ed % ProjectFluxes( ed , FuStar(:,:,IY) , FuStarL(:,:,IY) , FuStarR(:,:,IY) )
@@ -642,22 +643,22 @@ module DGViscousMethods
 !        Get the solution projection onto the edge
 !        -----------------------------------------
          QLN = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_N % N 
             QLN(:,i)    = QLN(:,i) + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
          end do                     ; end do
 
          QLS = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_S % N 
             QLS(:,i)    = QLS(:,i) + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
          end do                     ; end do
 
          QRN = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(RIGHT_NORTH) % spA % N    ; do i = 0 , ed % spA_N % N 
             QRN(:,i)    = QRN(:,i) + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % Q(:,l)
          end do                     ; end do
 
          QRS = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N    ; do i = 0 , ed % spA_S % N 
             QRS(:,i)    = QRS(:,i) + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % Q(:,l)
          end do                     ; end do
 !
@@ -669,24 +670,28 @@ module DGViscousMethods
 !        Return the flux to each element space
 !        -------------------------------------
          uStarL = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N  
-            uStarL(:,i) = uStarL(:,i) + ed % T_LN_BKW(i,l) * uStarN(:,l) + ed % T_LS_BKW(i,l) * uStarS(:,l) 
+         do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+            uStarL(:,i) = uStarL(:,i) + 0.5_RP * ed % T_LN_BKW(i,l) * uStarN(:,l) 
+         end do                     ; end do
+
+         do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+            uStarL(:,i) = uStarL(:,i) + 0.5_RP * ed % T_LS_BKW(i,l) * uStarS(:,l) 
          end do                     ; end do
 
          uStarRN = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N  
-            uStarRN(:,i) = uStarRN(:,i) - ed % T_RN_BKW(i,l) * uStarN(:,l)  
+         do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(RIGHT_NORTH) % spA % N  
+            uStarRN(:,i) = uStarRN(:,i) + ed % T_RN_BKW(i,l) * uStarN(:,l)  
          end do                     ; end do
 
          uStarRS = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N  
-            uStarRS(:,i) = uStarRS(:,i) - ed % T_RS_BKW(i,l) * uStarS(:,l)  
+         do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(RIGHT_SOUTH) % spA % N  
+            uStarRS(:,i) = uStarRS(:,i) + ed % T_RS_BKW(i,l) * uStarS(:,l)  
          end do                     ; end do
 !
 !        Compute the solution fluxes
 !        ---------------------------
-         FuStarL(:,:,IX)  = uStarL  * ed % dS(0)   * ed % n(IX,0)
-         FuStarL(:,:,IY)  = uStarL  * ed % dS(0)   * ed % n(IY,0)
+         FuStarL (:,:,IX) = uStarL   * ed % dS(0)   * ed % n(IX,0)
+         FuStarL (:,:,IY) = uStarL   * ed % dS(0)   * ed % n(IY,0)
          FuStarRN(:,:,IX) = -uStarRN * ed % dS_N(0) * ed % normal_N(IX,0)
          FuStarRN(:,:,IY) = -uStarRN * ed % dS_N(0) * ed % normal_N(IY,0)
          FuStarRS(:,:,IX) = -uStarRS * ed % dS_S(0) * ed % normal_S(IX,0)
@@ -721,22 +726,22 @@ module DGViscousMethods
 !        Get the solution projection onto the edge
 !        -----------------------------------------
          QLN = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_N % N 
             QLN(:,i)    = QLN(:,i) + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
          end do                     ; end do
 
          QLS = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_S % N 
             QLS(:,i)    = QLS(:,i) + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
          end do                     ; end do
 
          QRN = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(RIGHT_NORTH) % spA % N    ; do i = 0 , ed % spA_N % N 
             QRN(:,i)    = QRN(:,i) + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % Q(:,l)
          end do                     ; end do
 
          QRS = 0.0_RP
-         do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N 
+         do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N    ; do i = 0 , ed % spA_S % N 
             QRS(:,i)    = QRS(:,i) + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % Q(:,l)
          end do                     ; end do
 !
@@ -758,17 +763,21 @@ module DGViscousMethods
 !        Return the flux to each element space
 !        -------------------------------------
          FuStarL = 0.0_RP
-         do dimID = 1 , NDIM  ; do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N  
-            FuStarL(:,i,dimID) = FuStarL(:,i,dimID) + ed % T_LN_BKW(i,l) * FuStarN(:,l,dimID) + ed % T_LS_BKW(i,l) * FuStarS(:,l,dimID) 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+            FuStarL(:,i,dimID) = FuStarL(:,i,dimID) + ed % T_LN_BKW(i,l) * FuStarN(:,l,dimID) 
+         end do                     ; end do               ; end do
+
+         do dimID = 1 , NDIM  ; do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+            FuStarL(:,i,dimID) = FuStarL(:,i,dimID) + ed % T_LS_BKW(i,l) * FuStarS(:,l,dimID) 
          end do                     ; end do               ; end do
 
          FuStarRN = 0.0_RP
-         do dimID = 1 , NDIM  ; do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N  
+         do dimID = 1 , NDIM  ; do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(RIGHT_NORTH) % spA % N  
             FuStarRN(:,i,dimID) = FuStarRN(:,i,dimID) - ed % T_RN_BKW(i,l) * FuStarN(:,l,dimID)  
          end do               ; end do                     ; end do
 
          FuStarRS = 0.0_RP
-         do dimID = 1 , NDIM  ; do l = 0 , ed % spA % N    ; do i = 0 , ed % spA % N  
+         do dimID = 1 , NDIM  ; do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(RIGHT_SOUTH) % spA % N  
             FuStarRS(:,i,dimID) = FuStarRS(:,i,dimID) - ed % T_RS_BKW(i,l) * FuStarS(:,l,dimID)
          end do               ; end do                     ; end do
 
@@ -930,9 +939,11 @@ module DGViscousMethods
                write(STD_OUT,'(30X,A,A15,F10.4)') "-> ","Epsilon: " , self % epsilon
             
             type is (BR1Method_t)
-!           ---------------------
-!              Nothing to add 
-!           ---------------------
+!
+!              ---------------------
+!                 Nothing to add 
+!              ---------------------
+!
             class default
 
          end select

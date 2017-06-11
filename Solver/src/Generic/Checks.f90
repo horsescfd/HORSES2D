@@ -423,6 +423,7 @@ module ChecksModule
           real(kind=RP)                :: currentError = 0.0_RP
           integer                      :: iXi , iEta 
           integer                      :: direction
+          real(kind=RP)                :: x(NDIM)
  
           write(STD_OUT,'(/)')
           call SubSection_Header("Checking the interpolation to boundaries")
@@ -432,8 +433,8 @@ module ChecksModule
           do eID = 1 , mesh % no_of_elements
             do iXi = 0 , mesh % elements(eID) % spA % N
                do iEta = 0 , mesh % elements(eiD) % spA % N
-               
-                  currentError = norm2( mesh % elements(eID) % Q(:,iXi,iEta) - getDimensionlessVariables( mesh % IC(mesh % elements(eID) % x(:,iXi,iEta) ) ) ) 
+                  x = mesh % elements(eID) % x(iXi,iEta,:)
+                  currentError = norm2( mesh % elements(eID) % Q(:,iXi,iEta) - getDimensionlessVariables( mesh % IC(x) ) ) 
                   if (currentError .gt. error) then
                      error = currentError
                   end if
