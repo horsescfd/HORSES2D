@@ -175,7 +175,7 @@ module DGSpatialDiscretizationMethods
 !        -------------------------------
          integer                 :: eID
          integer                 :: edID
-         integer                 :: eq
+         integer                 :: i , j 
          class(Edge_t), pointer  :: f
 !
 !        ************
@@ -224,11 +224,11 @@ module DGSpatialDiscretizationMethods
 !        ***********************
 !
 !$omp barrier
-!$omp do private(eq) schedule(runtime)
+!$omp do private(i,j) schedule(runtime)
          do eID = 1 , mesh % no_of_elements 
-            do eq = 1 , NCONS
-               mesh % elements(eID) % QDot(:,:,eq) = mesh % elements(eID) % QDot(:,:,eq) / mesh % elements(eID) % Jac
-            end do
+            do j = 0 , mesh % elements(eID) % spA % N ; do i = 0 , mesh % elements(eID) % spA % N
+               mesh % elements(eID) % QDot(:,i,j) = mesh % elements(eID) % QDot(:,i,j) / mesh % elements(eID) % Jac(i,j)
+            end do                                    ; end do
          end do
 !$omp end do
 
@@ -244,10 +244,10 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          class(QuadElement_t)          :: e 
-         real(kind=RP)       :: Fi ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real(kind=RP)       :: Fv ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real(kind=RP)       :: Fa ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
-         real(kind=RP)       :: F  ( 0:e % spA % N , 0:e % spA % N , 1:NCONS   , 1:NDIM )
+         real(kind=RP)       :: Fi ( 1:NCONS , 0:e % spA % N , 0:e % spA % N , 1:NDIM )
+         real(kind=RP)       :: Fv ( 1:NCONS , 0:e % spA % N , 0:e % spA % N , 1:NDIM )
+         real(kind=RP)       :: Fa ( 1:NCONS , 0:e % spA % N , 0:e % spA % N , 1:NDIM )
+         real(kind=RP)       :: F  ( 1:NCONS , 0:e % spA % N , 0:e % spA % N , 1:NDIM )
          real(kind=RP), pointer :: QDot(:,:,:)
 
          Fi = InviscidMethod % ComputeInnerFluxes( e )
@@ -262,7 +262,7 @@ module DGSpatialDiscretizationMethods
          F = Fi
 #endif
 
-         QDot(0:,0:,1:) => e % QDot
+         QDot(1:,0:,0:) => e % QDot
          QDot = ScalarWeakIntegrals % StdVolumeGreen(e , F)
   
       end subroutine DGSpatial_QDotVolumeLoop
@@ -271,14 +271,14 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(Edge_t)           :: ed
-         real(kind=RP)          :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)          :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)          :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)          :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)          :: FiL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  )
+         real(kind=RP)          :: FiR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  )
+         real(kind=RP)          :: FvL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  )
+         real(kind=RP)          :: FvR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  )
+         real(kind=RP)          :: GL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  , 1 : NDIM)
+         real(kind=RP)          :: GR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  , 1 : NDIM)
+         real(kind=RP)          :: FL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  )
+         real(kind=RP)          :: FR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  )
          real(kind=RP), pointer :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
@@ -287,12 +287,12 @@ module DGSpatialDiscretizationMethods
 !
 !        Add the contribution to the LEFT element
 !        ----------------------------------------
-         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
 !
 !        Add the contribution to the RIGHT element
 !        -----------------------------------------
-         QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(RIGHT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT , FR ) 
 
 #ifdef NAVIER_STOKES
@@ -303,12 +303,12 @@ module DGSpatialDiscretizationMethods
 !
 !           Add the contribution to the LEFT element
 !           ----------------------------------------
-            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
 !
 !           Add the contribution to the RIGHT element
 !           -----------------------------------------
-            QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(RIGHT) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT , GR ) 
 !
          end if
@@ -321,14 +321,14 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(CurvedEdge_t)         :: ed
-         real(kind=RP)           :: FiL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FiR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FvL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FvR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: GL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)           :: GR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS , 1 : NDIM)
-         real(kind=RP)           :: FL ( 0 : ed % storage ( LEFT  ) % spA % N , 1 : NCONS )
-         real(kind=RP)           :: FR ( 0 : ed % storage ( RIGHT ) % spA % N , 1 : NCONS )
+         real(kind=RP)           :: FiL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  )
+         real(kind=RP)           :: FiR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  )
+         real(kind=RP)           :: FvL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  )
+         real(kind=RP)           :: FvR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  )
+         real(kind=RP)           :: GL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  , 1 : NDIM)
+         real(kind=RP)           :: GR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  , 1 : NDIM)
+         real(kind=RP)           :: FL ( 1:NCONS , 0 : ed % storage ( LEFT  ) % spA % N  )
+         real(kind=RP)           :: FR ( 1:NCONS , 0 : ed % storage ( RIGHT ) % spA % N  )
          real(kind=RP), pointer  :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FR) and the Gradient Riemann Solver (GL,GR)
@@ -337,12 +337,12 @@ module DGSpatialDiscretizationMethods
 !
 !        Add the contribution to the LEFT element
 !        ----------------------------------------
-         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
 !
 !        Add the contribution to the RIGHT element
 !        -----------------------------------------
-         QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(RIGHT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT , FR ) 
 
 #ifdef NAVIER_STOKES
@@ -353,17 +353,16 @@ module DGSpatialDiscretizationMethods
 !
 !           Add the contribution to the LEFT element
 !           ----------------------------------------
-            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
 !
 !           Add the contribution to the RIGHT element
 !           -----------------------------------------
-            QDot(0:,0:,1:) => ed % quads(RIGHT) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(RIGHT) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT , GR ) 
 !
          end if
 #endif
-           
 
       end subroutine DGSpatial_QDotFaceLoop_CurvedInterior
 
@@ -371,18 +370,18 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(SubdividedEdge_t) :: ed
-         real(kind=RP)          :: FiL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FvL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: GL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)          :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)          :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)          :: FL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)          :: FRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)          :: FiL  ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N             )
+         real(kind=RP)          :: FiRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N             )
+         real(kind=RP)          :: FiRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N             )
+         real(kind=RP)          :: FvL  ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N             )
+         real(kind=RP)          :: FvRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N             )
+         real(kind=RP)          :: FvRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N             )
+         real(kind=RP)          :: GL   ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N  , 1 : NDIM )
+         real(kind=RP)          :: GRN  ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N  , 1 : NDIM )
+         real(kind=RP)          :: GRS  ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N  , 1 : NDIM )
+         real(kind=RP)          :: FL   ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N             )
+         real(kind=RP)          :: FRN  ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N             )
+         real(kind=RP)          :: FRS  ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N             )
          real(kind=RP), pointer :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FRN,FRS) and the Gradient Riemann Solver (GL,GRN,GRS)
@@ -391,17 +390,17 @@ module DGSpatialDiscretizationMethods
 !
 !        Add the contribution to the LEFT element
 !        ----------------------------------------
-         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
 !
 !        Add the contribution to the RIGHT-NORTH element
 !        -----------------------------------------------
-         QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(RIGHT_NORTH) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_NORTH , FRN ) 
 !
 !        Add the contribution to the RIGHT-SOUTH element
 !        -----------------------------------------------
-         QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(RIGHT_SOUTH) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_SOUTH , FRS ) 
 
 #ifdef NAVIER_STOKES
@@ -412,17 +411,17 @@ module DGSpatialDiscretizationMethods
 !
 !           Add the contribution to the LEFT element
 !           ----------------------------------------
-            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
 !
 !           Add the contribution to the RIGHT-NORTH element
 !           -----------------------------------------------
-            QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(RIGHT_NORTH) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_NORTH , GRN ) 
 !
 !           Add the contribution to the RIGHT-SOUTH element
 !           -----------------------------------------------
-            QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(RIGHT_SOUTH) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_SOUTH , GRS ) 
 !
          end if
@@ -434,18 +433,18 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(CurvedSubdividedEdge_t) :: ed
-         real(kind=RP)                :: FiL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FiRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FiRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FvL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FvRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FvRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: GL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                :: GRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                :: GRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                :: FL   ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FRN  ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS            )
-         real(kind=RP)                :: FRS  ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS            )
+         real(kind=RP)                :: FiL  ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N             )
+         real(kind=RP)                :: FiRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N             )
+         real(kind=RP)                :: FiRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N             )
+         real(kind=RP)                :: FvL  ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N             )
+         real(kind=RP)                :: FvRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N             )
+         real(kind=RP)                :: FvRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N             )
+         real(kind=RP)                :: GL   ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N  , 1 : NDIM )
+         real(kind=RP)                :: GRN  ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N  , 1 : NDIM )
+         real(kind=RP)                :: GRS  ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N  , 1 : NDIM )
+         real(kind=RP)                :: FL   ( 1:NCONS , 0 : ed % storage ( LEFT        ) % spA % N             )
+         real(kind=RP)                :: FRN  ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N             )
+         real(kind=RP)                :: FRS  ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N             )
          real(kind=RP), pointer       :: QDot(:,:,:)
 !
 !        Compute the Riemann Solver (FL,FRN,FRS) and the Gradient Riemann Solver (GL,GRN,GRS)
@@ -454,17 +453,17 @@ module DGSpatialDiscretizationMethods
 !
 !        Add the contribution to the LEFT element
 !        ----------------------------------------
-         QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , LEFT  , FL ) 
 !
 !        Add the contribution to the RIGHT-NORTH element
 !        -----------------------------------------------
-         QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(RIGHT_NORTH) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_NORTH , FRN ) 
 !
 !        Add the contribution to the RIGHT-SOUTH element
 !        -----------------------------------------------
-         QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(RIGHT_SOUTH) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace ( ed , RIGHT_SOUTH , FRS ) 
 
 #ifdef NAVIER_STOKES
@@ -475,17 +474,17 @@ module DGSpatialDiscretizationMethods
 !
 !           Add the contribution to the LEFT element
 !           ----------------------------------------
-            QDot(0:,0:,1:) => ed % quads(LEFT) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(LEFT) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , LEFT  , GL ) 
 !
 !           Add the contribution to the RIGHT-NORTH element
 !           -----------------------------------------------
-            QDot(0:,0:,1:) => ed % quads(RIGHT_NORTH) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(RIGHT_NORTH) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_NORTH , GRN ) 
 !
 !           Add the contribution to the RIGHT-SOUTH element
 !           -----------------------------------------------
-            QDot(0:,0:,1:) => ed % quads(RIGHT_SOUTH) % e % QDot
+            QDot(1:,0:,0:) => ed % quads(RIGHT_SOUTH) % e % QDot
             QDot = QDot - ScalarWeakIntegrals % StdGradientFace ( ed , RIGHT_SOUTH , GRS ) 
 !
          end if
@@ -497,13 +496,13 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(StraightBdryEdge_t)  :: ed
-         real(kind=RP)             :: G ( 0 : ed % spA % N , 1:NCONS , 1:NDIM )  
-         real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
+         real(kind=RP)             :: G ( 1:NCONS , 0 : ed % spA % N  , 1:NDIM )  
+         real(kind=RP)             :: F ( 1:NCONS , 0 : ed % spA % N )
          real(kind=RP), pointer :: QDot(:,:,:)
 
          call ComputeRiemannSolver_StraightBdryEdge( ed , F , G )
 
-         QDot(0:,0:,1:) => ed % quads(1) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(1) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace( ed , 1 , F )
 
 #ifdef NAVIER_STOKES
@@ -519,13 +518,13 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(CurvedBdryEdge_t)    :: ed
-         real(kind=RP)             :: G ( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
-         real(kind=RP)             :: F ( 0 : ed % spA % N , 1:NCONS)
+         real(kind=RP)             :: G ( 1:NCONS , 0 : ed % spA % N  , 1:NDIM)
+         real(kind=RP)             :: F ( 1:NCONS , 0 : ed % spA % N )
          real(kind=RP), pointer :: QDot(:,:,:)
 
          call ComputeRiemannSolver_CurvedBdryEdge( ed , F , G )
 
-         QDot(0:,0:,1:) => ed % quads(1) % e % QDot
+         QDot(1:,0:,0:) => ed % quads(1) % e % QDot
          QDot = QDot - ScalarWeakIntegrals % StdFace( ed , 1 , F )
 
 #ifdef NAVIER_STOKES
@@ -568,26 +567,26 @@ module DGSpatialDiscretizationMethods
          use MatrixOperations
          implicit none
          type(Edge_t)                :: ed
-         real(kind=RP)               :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
-         real(kind=RP)               :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
-         real(kind=RP), intent (out) :: GL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
-         real(kind=RP), intent (out) :: GR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)               :: FL( 1:NCONS , 0 : ed % storage(LEFT ) % spA % N )
+         real(kind=RP)               :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+         real(kind=RP), intent (out) :: GL( 1:NCONS , 0 : ed % storage(LEFT ) % spA % N  , 1:NDIM)
+         real(kind=RP), intent (out) :: GR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1:NDIM)
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP)          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real(kind=RP) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)          :: Fi    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP)          :: Fstar ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) , target :: QL    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) , target :: QR    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) , target :: dQL   ( 1:NCONS , 0 : ed % spA % N , 1 : NDIM  ) 
+         real(kind=RP) , target :: dQR   ( 1:NCONS , 0 : ed % spA % N , 1 : NDIM  ) 
 #ifdef NAVIER_STOKES
-         real(kind=RP) :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP) :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP) :: Fv    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) :: Fa    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) :: GauxL ( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM ) 
+         real(kind=RP) :: GauxR ( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM ) 
 #endif
          real(kind=RP)           :: normal(NDIM , 0 : ed % spA % N )
          integer                    :: eq , iDim , i 
@@ -678,26 +677,26 @@ module DGSpatialDiscretizationMethods
          use MatrixOperations
          implicit none
          type(CurvedEdge_t)          :: ed
-         real(kind=RP)               :: FL( 0 : ed % storage(LEFT ) % spA % N , NCONS )
-         real(kind=RP)               :: FR( 0 : ed % storage(RIGHT) % spA % N , NCONS )
-         real(kind=RP), intent (out) :: GL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
-         real(kind=RP), intent (out) :: GR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)               :: FL( 1:NCONS , 0 : ed % storage(LEFT ) % spA % N )
+         real(kind=RP)               :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+         real(kind=RP), intent (out) :: GL( 1:NCONS , 0 : ed % storage(LEFT ) % spA % N  , 1:NDIM)
+         real(kind=RP), intent (out) :: GR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1:NDIM)
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: Fi    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP)          :: Fstar ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) , target :: QL    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) , target :: QR    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP) , target :: dQL   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
-         real(kind=RP) , target :: dQR   ( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)          :: Fi    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP)          :: Fstar ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) , target :: QL    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) , target :: QR    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP) , target :: dQL   ( 1:NCONS , 0 : ed % spA % N , 1 : NDIM  ) 
+         real(kind=RP) , target :: dQR   ( 1:NCONS , 0 : ed % spA % N , 1 : NDIM  ) 
 #ifdef NAVIER_STOKES
-         real(kind=RP)  :: Fv    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP)  :: Fa    ( 0 : ed % spA % N , 1 : NCONS            ) 
-         real(kind=RP)  :: GauxL ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: GauxR ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: Fv    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP)  :: Fa    ( 1:NCONS , 0 : ed % spA % N             ) 
+         real(kind=RP)  :: GauxL ( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM ) 
+         real(kind=RP)  :: GauxR ( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM ) 
 #endif
          integer :: eq , dimID , i 
 !
@@ -731,11 +730,11 @@ module DGSpatialDiscretizationMethods
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
 !        --------------------------------------------------------------------------------
-         do eq = 1 , NCONS 
+         do i = 0 , ed % spA % N 
 #ifdef NAVIER_STOKES
-            FStar(:,eq) = ( Fi(:,eq) - Fv(:,eq) - Fa(:,eq) ) * ed % dS
+            FStar(:,i) = ( Fi(:,i) - Fv(:,i) - Fa(:,i) ) * ed % dS(i)
 #else
-            FStar(:,eq) = Fi(:,eq) * ed % dS 
+            FStar(:,i) = Fi(:,i) * ed % dS(i) 
 #endif
          end do
 !
@@ -747,9 +746,9 @@ module DGSpatialDiscretizationMethods
          if ( ViscousMethod % computeRiemannGradientFluxes ) then
                call ViscousMethod % GradientRiemannSolver ( ed , ed % spA % N , QL , QR , ed % n , GauxL , GauxR ) 
 
-               do dimID = 1 , NDIM    ; do eq = 1 , NCONS
-                  GauxL(:,eq,dimID) = GauxL(:,eq,dimID) * ed % dS
-                  GauxR(:,eq,dimID) = GauxR(:,eq,dimID) * ed % dS
+               do dimID = 1 , NDIM    ; do i = 0 , ed % spA % N 
+                  GauxL(:,i,dimID) = GauxL(:,i,dimID) * ed % dS(i)
+                  GauxR(:,i,dimID) = GauxR(:,i,dimID) * ed % dS(i)
                end do                 ; end do
 
                call ed % ProjectGradientFluxes( ed , GauxL , GauxR , GL , GR )
@@ -764,42 +763,42 @@ module DGSpatialDiscretizationMethods
          use MatrixOperations
          implicit none
          type(SubdividedEdge_t)              :: ed
-         real(kind=RP) ,         intent(out) :: FL  ( 0 : ed % storage ( LEFT        )  % spA % N , NCONS            )
-         real(kind=RP) ,         intent(out) :: FRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , NCONS            )
-         real(kind=RP) ,         intent(out) :: FRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , NCONS            )
-         real(kind=RP) ,         intent(out) :: GL  ( 0 : ed % storage ( LEFT        )  % spA % N , 1:NCONS , 1:NDIM )
-         real(kind=RP) ,         intent(out) :: GRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , 1:NCONS , 1:NDIM )
-         real(kind=RP) ,         intent(out) :: GRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: FL  ( 1:NCONS , 0 : ed % storage ( LEFT        )  % spA % N           )
+         real(kind=RP) ,         intent(out) :: FRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH )  % spA % N           )
+         real(kind=RP) ,         intent(out) :: FRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH )  % spA % N           )
+         real(kind=RP) ,         intent(out) :: GL  ( 1:NCONS , 0 : ed % storage ( LEFT        )  % spA % N  , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH )  % spA % N  , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH )  % spA % N  , 1:NDIM )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: FiN    ( 0 : ed % spA_N % N , 1 : NCONS            )      ! -----------------------------
-         real(kind=RP)          :: FstarN ( 0 : ed % spA_N % N , 1 : NCONS            )      !     Variables in the NORTH
-         real(kind=RP) , target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  mortar.
-         real(kind=RP) , target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  
-         real(kind=RP) , target :: dQLN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! 
-         real(kind=RP) , target :: dQRN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
-         real(kind=RP)          :: FiS    ( 0 : ed % spA_S % N , 1 : NCONS            )      ! -----------------------------
-         real(kind=RP)          :: FstarS ( 0 : ed % spA_S % N , 1 : NCONS            )      !     Variables in the SOUTH
-         real(kind=RP) , target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  mortar.
-         real(kind=RP) , target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  
-         real(kind=RP) , target :: dQLS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! 
-         real(kind=RP) , target :: dQRS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+         real(kind=RP)          :: FiN    ( 1:NCONS , 0 : ed % spA_N % N             )      ! -----------------------------
+         real(kind=RP)          :: FstarN ( 1:NCONS , 0 : ed % spA_N % N             )      !     Variables in the NORTH
+         real(kind=RP) , target :: QLN    ( 1:NCONS , 0 : ed % spA_N % N             )      !  mortar.
+         real(kind=RP) , target :: QRN    ( 1:NCONS , 0 : ed % spA_N % N             )      !  
+         real(kind=RP) , target :: dQLN   ( 1:NCONS , 0 : ed % spA_N % N , 1 : NDIM  )      ! 
+         real(kind=RP) , target :: dQRN   ( 1:NCONS , 0 : ed % spA_N % N , 1 : NDIM  )      ! -----------------------------
+         real(kind=RP)          :: FiS    ( 1:NCONS , 0 : ed % spA_S % N             )      ! -----------------------------
+         real(kind=RP)          :: FstarS ( 1:NCONS , 0 : ed % spA_S % N             )      !     Variables in the SOUTH
+         real(kind=RP) , target :: QLS    ( 1:NCONS , 0 : ed % spA_S % N             )      !  mortar.
+         real(kind=RP) , target :: QRS    ( 1:NCONS , 0 : ed % spA_S % N             )      !  
+         real(kind=RP) , target :: dQLS   ( 1:NCONS , 0 : ed % spA_S % N , 1 : NDIM  )      ! 
+         real(kind=RP) , target :: dQRS   ( 1:NCONS , 0 : ed % spA_S % N , 1 : NDIM  )      ! -----------------------------
 #ifdef NAVIER_STOKES
-         real(kind=RP)  :: FvN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
-         real(kind=RP)  :: FaN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
-         real(kind=RP)  :: GauxLN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: GauxRN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: FvS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
-         real(kind=RP)  :: FaS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
-         real(kind=RP)  :: GauxLS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: GauxRS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: FvN    ( 1:NCONS , 0 : ed % spA_N % N             ) 
+         real(kind=RP)  :: FaN    ( 1:NCONS , 0 : ed % spA_N % N             ) 
+         real(kind=RP)  :: GauxLN ( 1:NCONS , 0 : ed % spA_N % N  , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRN ( 1:NCONS , 0 : ed % spA_N % N  , 1 : NDIM ) 
+         real(kind=RP)  :: FvS    ( 1:NCONS , 0 : ed % spA_S % N             ) 
+         real(kind=RP)  :: FaS    ( 1:NCONS , 0 : ed % spA_S % N             ) 
+         real(kind=RP)  :: GauxLS ( 1:NCONS , 0 : ed % spA_S % N  , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRS ( 1:NCONS , 0 : ed % spA_S % N  , 1 : NDIM ) 
 #endif
          real(kind=RP) :: normal_N(NDIM , 0 : ed % spA_N % N )
          real(kind=RP) :: normal_S(NDIM , 0 : ed % spA_S % N )
-         integer       :: eq , iDim , i 
+         integer       :: eq , iDim , i , l , dimID
 !
 !        Compute the normal
 !        ------------------
@@ -819,10 +818,25 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the solution projection onto the edge
 !        -----------------------------------------
-         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
-         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
-         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
-         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+         QLN = 0.0_RP
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_N % N 
+            QLN(:,i)    = QLN(:,i) + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
+         end do                                     ; end do
+
+         QLS = 0.0_RP
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_S % N 
+            QLS(:,i)    = QLS(:,i) + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
+         end do                                     ; end do
+
+         QRN = 0.0_RP
+         do l = 0 , ed % storage(RIGHT_NORTH) % spA % N    ; do i = 0 , ed % spA_N % N 
+            QRN(:,i)    = QRN(:,i) + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % Q(:,l)
+         end do                                            ; end do
+
+         QRS = 0.0_RP
+         do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N    ; do i = 0 , ed % spA_S % N 
+            QRS(:,i)    = QRS(:,i) + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % Q(:,l)
+         end do                                            ; end do
 !
 !        Compute the inviscid Riemann solver
 !        -----------------------------------
@@ -832,12 +846,25 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the gradient projection onto the edge
 !        -----------------------------------------
-         do eq = 1 , NCONS
-            call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLN(:,:,eq) ) 
-            call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLS(:,:,eq) ) 
-            call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % dQ(:,:,eq) , dQRN(:,:,eq) ) 
-            call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % dQ(:,:,eq) , dQRS(:,:,eq) ) 
-         end do
+         dQLN = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(LEFT) % spA % N ; do i = 0 , ed % spA_N % N 
+            dQLN(:,i,dimID)   = dQLN(:,i,dimID)    + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
+
+         dQLS = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(LEFT) % spA % N ; do i = 0 , ed % spA_S % N 
+            dQLS(:,i,dimID)   = dQLS(:,i,dimID)    + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
+
+         dQRN = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(RIGHT_NORTH) % spA % N ; do i = 0 , ed % spA_N % N 
+            dQRN(:,i,dimID)   = dQRN(:,i,dimID)    + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
+
+         dQRS = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N ; do i = 0 , ed % spA_S % N 
+            dQRS(:,i,dimID)   = dQRS(:,i,dimID)    + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
 !
 !        Compute the viscous Riemann solver
 !        ----------------------------------
@@ -860,9 +887,24 @@ module DGSpatialDiscretizationMethods
 !
 !        Return the resulting Riemann flux to each element frame
 !        -------------------------------------------------------
-         FL =  Mat_x_Mat_F( ed % T_LN_BKW , FStarN , ed % spA % N + 1, NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FStarS , ed % spA % N + 1, NCONS )
-         call Mat_x_Mat( ed % T_RN_BKW , FStarN , FRN )
-         call Mat_x_Mat( ed % T_RS_BKW , FStarS , FRS )
+         FL = 0.0_RP
+         do l = 0 , ed % spA_N % N  ; do i = 0 , ed % storage(LEFT) % spA % N  
+            FL(:,i) = FL(:,i) + ed % T_LN_BKW(i,l) * FStarN(:,l)
+         end do                     ; end do
+
+         do l = 0 , ed % spA_S % N  ; do i = 0 , ed % storage(LEFT) % spA % N  
+            FL(:,i) = FL(:,i) + ed % T_LS_BKW(i,l) * FStarS(:,l) 
+         end do                     ; end do
+
+         FRN = 0.0_RP
+         do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(RIGHT_NORTH) % spA % N  
+            FRN(:,i) = FRN(:,i) - ed % T_RN_BKW(i,l) * FStarN(:,l)  
+         end do                     ; end do
+
+         FRS = 0.0_RP
+         do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(RIGHT_SOUTH) % spA % N  
+            FRS(:,i) = FRS(:,i) - ed % T_RS_BKW(i,l) * FStarS(:,l)  
+         end do                     ; end do
       
 #ifdef NAVIER_STOKES
          if ( ViscousMethod % computeRiemannGradientFluxes ) then
@@ -881,22 +923,27 @@ module DGSpatialDiscretizationMethods
 !
 !           Return the resulting Riemann flux to each element frame
 !           -------------------------------------------------------
-            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1 , NCONS )
-            GL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IY) , ed % spA % N + 1 , NCONS )
+            GL = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+               GL(:,i,dimID) = GL(:,i,dimID) + ed % T_LN_BKW(i,l) * GauxLN(:,l,dimID)
+            end do              ; end do                     ; end do
 
-            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IX) , GRN(:,:,IX) )
-            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IY) , GRN(:,:,IY) )
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+               GL(:,i,dimID) = GL(:,i,dimID) + ed % T_LS_BKW(i,l) * GauxLS(:,l,dimID) 
+            end do              ; end do                     ; end do
+ 
+            GRN = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(RIGHT_NORTH) % spA % N  
+               GRN(:,i,dimID) = GRN(:,i,dimID) + ed % T_RN_BKW(i,l) * GauxRN(:,l,dimID)  
+            end do               ; end do                     ; end do
 
-            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IX) , GRS(:,:,IX) )
-            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IY) , GRS(:,:,IY) )
-
+            GRS = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(RIGHT_SOUTH) % spA % N  
+               GRS(:,i,dimID) = GRS(:,i,dimID) + ed % T_RS_BKW(i,l) * GauxRS(:,l,dimID)  
+            end do               ; end do                     ; end do
+ 
          end if
 #endif
-!
-!        Change RIGHT fluxes signs to account for the normal direction
-!        ------------------------------------------------------------- 
-         FRN = -FRN
-         FRS = -FRS
 
       end subroutine ComputeRiemannSolver_SubdividedEdge
 
@@ -905,40 +952,40 @@ module DGSpatialDiscretizationMethods
          use MatrixOperations
          implicit none
          type(CurvedSubdividedEdge_t)        :: ed
-         real(kind=RP) ,         intent(out) :: FL  ( 0 : ed % storage ( LEFT        )  % spA % N , NCONS            )
-         real(kind=RP) ,         intent(out) :: FRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , NCONS            )
-         real(kind=RP) ,         intent(out) :: FRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , NCONS            )
-         real(kind=RP) ,         intent(out) :: GL  ( 0 : ed % storage ( LEFT        )  % spA % N , 1:NCONS , 1:NDIM )
-         real(kind=RP) ,         intent(out) :: GRN ( 0 : ed % storage ( RIGHT_NORTH )  % spA % N , 1:NCONS , 1:NDIM )
-         real(kind=RP) ,         intent(out) :: GRS ( 0 : ed % storage ( RIGHT_SOUTH )  % spA % N , 1:NCONS , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: FL  ( 1:NCONS , 0 : ed % storage ( LEFT        )  % spA % N            )
+         real(kind=RP) ,         intent(out) :: FRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH )  % spA % N            )
+         real(kind=RP) ,         intent(out) :: FRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH )  % spA % N            )
+         real(kind=RP) ,         intent(out) :: GL  ( 1:NCONS , 0 : ed % storage ( LEFT        )  % spA % N  , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRN ( 1:NCONS , 0 : ed % storage ( RIGHT_NORTH )  % spA % N  , 1:NDIM )
+         real(kind=RP) ,         intent(out) :: GRS ( 1:NCONS , 0 : ed % storage ( RIGHT_SOUTH )  % spA % N  , 1:NDIM )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: FiN    ( 0 : ed % spA_N % N , 1 : NCONS            )      ! -----------------------------
-         real(kind=RP)          :: FstarN ( 0 : ed % spA_N % N , 1 : NCONS            )      !     Variables in the NORTH
-         real(kind=RP) , target :: QLN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  mortar.
-         real(kind=RP) , target :: QRN    ( 0 : ed % spA_N % N , 1 : NCONS            )      !  
-         real(kind=RP) , target :: dQLN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! 
-         real(kind=RP) , target :: dQRN   ( 0 : ed % spA_N % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
-         real(kind=RP)          :: FiS    ( 0 : ed % spA_S % N , 1 : NCONS            )      ! -----------------------------
-         real(kind=RP)          :: FstarS ( 0 : ed % spA_S % N , 1 : NCONS            )      !     Variables in the SOUTH
-         real(kind=RP) , target :: QLS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  mortar.
-         real(kind=RP) , target :: QRS    ( 0 : ed % spA_S % N , 1 : NCONS            )      !  
-         real(kind=RP) , target :: dQLS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! 
-         real(kind=RP) , target :: dQRS   ( 0 : ed % spA_S % N , 1 : NDIM , 1 : NCONS )      ! -----------------------------
+         real(kind=RP)          :: FiN    ( 1:NCONS , 0 : ed % spA_N % N             )      ! -----------------------------
+         real(kind=RP)          :: FstarN ( 1:NCONS , 0 : ed % spA_N % N             )      !     Variables in the NORTH
+         real(kind=RP) , target :: QLN    ( 1:NCONS , 0 : ed % spA_N % N             )      !  mortar.
+         real(kind=RP) , target :: QRN    ( 1:NCONS , 0 : ed % spA_N % N             )      !  
+         real(kind=RP) , target :: dQLN   ( 1:NCONS , 0 : ed % spA_N % N , 1 : NDIM  )      ! 
+         real(kind=RP) , target :: dQRN   ( 1:NCONS , 0 : ed % spA_N % N , 1 : NDIM  )      ! -----------------------------
+         real(kind=RP)          :: FiS    ( 1:NCONS , 0 : ed % spA_S % N             )      ! -----------------------------
+         real(kind=RP)          :: FstarS ( 1:NCONS , 0 : ed % spA_S % N             )      !     Variables in the SOUTH
+         real(kind=RP) , target :: QLS    ( 1:NCONS , 0 : ed % spA_S % N             )      !  mortar.
+         real(kind=RP) , target :: QRS    ( 1:NCONS , 0 : ed % spA_S % N             )      !  
+         real(kind=RP) , target :: dQLS   ( 1:NCONS , 0 : ed % spA_S % N , 1 : NDIM  )      ! 
+         real(kind=RP) , target :: dQRS   ( 1:NCONS , 0 : ed % spA_S % N , 1 : NDIM  )      ! -----------------------------
 #ifdef NAVIER_STOKES
-         real(kind=RP)  :: FvN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
-         real(kind=RP)  :: FaN    ( 0 : ed % spA_N % N , 1 : NCONS            ) 
-         real(kind=RP)  :: GauxLN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: GauxRN ( 0 : ed % spA_N % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: FvS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
-         real(kind=RP)  :: FaS    ( 0 : ed % spA_S % N , 1 : NCONS            ) 
-         real(kind=RP)  :: GauxLS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
-         real(kind=RP)  :: GauxRS ( 0 : ed % spA_S % N , 1 : NCONS , 1 : NDIM ) 
+         real(kind=RP)  :: FvN    ( 1:NCONS , 0 : ed % spA_N % N             ) 
+         real(kind=RP)  :: FaN    ( 1:NCONS , 0 : ed % spA_N % N             ) 
+         real(kind=RP)  :: GauxLN ( 1:NCONS , 0 : ed % spA_N % N  , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRN ( 1:NCONS , 0 : ed % spA_N % N  , 1 : NDIM ) 
+         real(kind=RP)  :: FvS    ( 1:NCONS , 0 : ed % spA_S % N             ) 
+         real(kind=RP)  :: FaS    ( 1:NCONS , 0 : ed % spA_S % N             ) 
+         real(kind=RP)  :: GauxLS ( 1:NCONS , 0 : ed % spA_S % N  , 1 : NDIM ) 
+         real(kind=RP)  :: GauxRS ( 1:NCONS , 0 : ed % spA_S % N  , 1 : NDIM ) 
 #endif
-         integer       :: eq , dimID , i 
+         integer       :: eq , dimID , i , l 
 !
 !        Compute the edge artificial dissipation
 !        ---------------------------------------
@@ -948,10 +995,25 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the solution projection onto the edge
 !        -----------------------------------------
-         call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q , QLN ) 
-         call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q , QLS ) 
-         call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q , QRN ) 
-         call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q , QRS ) 
+         QLN = 0.0_RP
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_N % N 
+            QLN(:,i)    = QLN(:,i) + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
+         end do                                     ; end do
+
+         QLS = 0.0_RP
+         do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_S % N 
+            QLS(:,i)    = QLS(:,i) + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % Q(:,l)
+         end do                                     ; end do
+
+         QRN = 0.0_RP
+         do l = 0 , ed % storage(RIGHT_NORTH) % spA % N    ; do i = 0 , ed % spA_N % N 
+            QRN(:,i)    = QRN(:,i) + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % Q(:,l)
+         end do                                            ; end do
+
+         QRS = 0.0_RP
+         do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N    ; do i = 0 , ed % spA_S % N 
+            QRS(:,i)    = QRS(:,i) + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % Q(:,l)
+         end do                                            ; end do
 !
 !        Compute the inviscid Riemann solver
 !        -----------------------------------
@@ -961,12 +1023,25 @@ module DGSpatialDiscretizationMethods
 !
 !        Get the gradient projection onto the edge
 !        -----------------------------------------
-         do eq = 1 , NCONS
-            call Mat_x_Mat ( ed % T_LN_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLN(:,:,eq) ) 
-            call Mat_x_Mat ( ed % T_LS_FWD , ed % storage ( LEFT        )  % dQ(:,:,eq) , dQLS(:,:,eq) ) 
-            call Mat_x_Mat ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % dQ(:,:,eq) , dQRN(:,:,eq) ) 
-            call Mat_x_Mat ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % dQ(:,:,eq) , dQRS(:,:,eq) ) 
-         end do
+         dQLN = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(LEFT) % spA % N ; do i = 0 , ed % spA_N % N 
+            dQLN(:,i,dimID)   = dQLN(:,i,dimID)    + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
+
+         dQLS = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(LEFT) % spA % N ; do i = 0 , ed % spA_S % N 
+            dQLS(:,i,dimID)   = dQLS(:,i,dimID)    + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
+
+         dQRN = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(RIGHT_NORTH) % spA % N ; do i = 0 , ed % spA_N % N 
+            dQRN(:,i,dimID)   = dQRN(:,i,dimID)    + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
+
+         dQRS = 0.0_RP 
+         do dimID = 1 , NDIM  ; do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N ; do i = 0 , ed % spA_S % N 
+            dQRS(:,i,dimID)   = dQRS(:,i,dimID)    + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % dQ(:,l,dimID)
+         end do               ; end do                  ; end do 
 !
 !        Compute the viscous Riemann solver
 !        ----------------------------------
@@ -981,22 +1056,43 @@ module DGSpatialDiscretizationMethods
 !
 !        The resulting flux is: FStar = ( Inviscid - Viscous - ArtificialDissipation ) dS
 !        --------------------------------------------------------------------------------
-         do eq = 1 , NCONS
+         do i = 0 , ed % spA_N % N 
 #ifdef NAVIER_STOKES
-            FStarN(:,eq) = ( FiN(:,eq) - FvN(:,eq) - FaN(:,eq) ) * ed % dS_N
-            FStarS(:,eq) = ( FiS(:,eq) - FvS(:,eq) - FaS(:,eq) ) * ed % dS_S
+            FStarN(:,i) = ( FiN(:,i) - FvN(:,i) - FaN(:,i) ) * ed % dS_N(i)
 #else
-            FStarN(:,eq) = FiN(:,eq) * ed % dS_N
-            FStarS(:,eq) = FiS(:,eq) * ed % dS_S
+            FStarN(:,i) = FiN(:,i) * ed % dS_N(i)
+#endif
+         end do
+
+         do i = 0 , ed % spA_S % N 
+#ifdef NAVIER_STOKES
+            FStarS(:,i) = ( FiS(:,i) - FvS(:,i) - FaS(:,i) ) * ed % dS_S(i)
+#else
+            FStarS(:,i) = FiS(:,i) * ed % dS_S(i)
 #endif
          end do
 !
 !        Return the resulting Riemann flux to each element frame
 !        -------------------------------------------------------
-         FL =  Mat_x_Mat_F( ed % T_LN_BKW , FStarN , ed % spA % N + 1, NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , FStarS , ed % spA % N + 1, NCONS )
-         call Mat_x_Mat( ed % T_RN_BKW , FStarN , FRN )
-         call Mat_x_Mat( ed % T_RS_BKW , FStarS , FRS )
-      
+         FL = 0.0_RP
+         do l = 0 , ed % spA_N % N  ; do i = 0 , ed % storage(LEFT) % spA % N  
+            FL(:,i) = FL(:,i) + ed % T_LN_BKW(i,l) * FStarN(:,l)
+         end do                     ; end do
+
+         do l = 0 , ed % spA_S % N  ; do i = 0 , ed % storage(LEFT) % spA % N  
+            FL(:,i) = FL(:,i) + ed % T_LS_BKW(i,l) * FStarS(:,l) 
+         end do                     ; end do
+
+         FRN = 0.0_RP
+         do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(RIGHT_NORTH) % spA % N  
+            FRN(:,i) = FRN(:,i) - ed % T_RN_BKW(i,l) * FStarN(:,l)  
+         end do                     ; end do
+
+         FRS = 0.0_RP
+         do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(RIGHT_SOUTH) % spA % N  
+            FRS(:,i) = FRS(:,i) - ed % T_RS_BKW(i,l) * FStarS(:,l)  
+         end do                     ; end do
+ 
 #ifdef NAVIER_STOKES
          if ( ViscousMethod % computeRiemannGradientFluxes ) then
 !
@@ -1007,31 +1103,39 @@ module DGSpatialDiscretizationMethods
 !
 !           Scale it with the surface Jacobian
 !           ----------------------------------
-            do dimID = 1 , NDIM     ; do eq = 1 , NCONS
-               GauxLN(:,eq,dimID) = GauxLN(:,eq,dimID) * ed % dS_N
-               GauxLS(:,eq,dimID) = GauxLS(:,eq,dimID) * ed % dS_S
-               GauxRN(:,eq,dimID) = GauxRN(:,eq,dimID) * ed % dS_N
-               GauxRS(:,eq,dimID) = GauxRS(:,eq,dimID) * ed % dS_S
+            do dimID = 1 , NDIM     ; do i = 0 , ed % spA_N % N
+               GauxLN(:,i,dimID) = GauxLN(:,i,dimID) * ed % dS_N(i)
+               GauxRN(:,i,dimID) = GauxRN(:,i,dimID) * ed % dS_N(i)
+            end do                  ; end do
+
+            do dimID = 1 , NDIM     ; do i = 0 , ed % spA_S % N
+               GauxLS(:,i,dimID) = GauxLS(:,i,dimID) * ed % dS_S(i)
+               GauxRS(:,i,dimID) = GauxRS(:,i,dimID) * ed % dS_S(i)
             end do                  ; end do
 !
 !           Return the resulting Riemann flux to each element frame
 !           -------------------------------------------------------
-            GL(:,:,IX) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IX) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IX) , ed % spA % N + 1 , NCONS )
-            GL(:,:,IY) = Mat_x_Mat_F( ed % T_LN_BKW , GauxLN(:,:,IY) , ed % spA % N + 1 , NCONS ) + Mat_x_Mat_F( ed % T_LS_BKW , GauxLS(:,:,IY) , ed % spA % N + 1 , NCONS )
+            GL = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+               GL(:,i,dimID) = GL(:,i,dimID) + ed % T_LN_BKW(i,l) * GauxLN(:,l,dimID)
+            end do              ; end do                     ; end do
 
-            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IX) , GRN(:,:,IX) )
-            call Mat_x_Mat( ed % T_RN_BKW , GauxRN(:,:,IY) , GRN(:,:,IY) )
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(LEFT) % spA % N  
+               GL(:,i,dimID) = GL(:,i,dimID) + ed % T_LS_BKW(i,l) * GauxLS(:,l,dimID) 
+            end do              ; end do                     ; end do
+ 
+            GRN = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_N % N    ; do i = 0 , ed % storage(RIGHT_NORTH) % spA % N  
+               GRN(:,i,dimID) = GRN(:,i,dimID) + ed % T_RN_BKW(i,l) * GauxRN(:,l,dimID)  
+            end do               ; end do                     ; end do
 
-            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IX) , GRS(:,:,IX) )
-            call Mat_x_Mat( ed % T_RS_BKW , GauxRS(:,:,IY) , GRS(:,:,IY) )
-
+            GRS = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % spA_S % N    ; do i = 0 , ed % storage(RIGHT_SOUTH) % spA % N  
+               GRS(:,i,dimID) = GRS(:,i,dimID) + ed % T_RS_BKW(i,l) * GauxRS(:,l,dimID)  
+            end do               ; end do                     ; end do
+ 
          end if
 #endif
-!
-!        Change RIGHT fluxes signs to account for the normal direction
-!        ------------------------------------------------------------- 
-         FRN = -FRN
-         FRS = -FRS
 
       end subroutine ComputeRiemannSolver_CurvedSubdividedEdge
 
@@ -1039,31 +1143,31 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(StraightBdryEdge_t)      :: ed
-         real(kind=RP)                 :: F( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: G( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)                 :: F( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: G( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)                 :: Fi( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Q (0 : ed % spA % N , 1:NCONS) 
-         real(kind=RP)                 :: Qb(0 : ed % spA % N , 1:NCONS)
+         real(kind=RP)                 :: Fi( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: Q (1:NCONS , 0 : ed % spA % N ) 
+         real(kind=RP)                 :: Qb(1:NCONS , 0 : ed % spA % N )
 #ifdef NAVIER_STOKES
-         real(kind=RP)                 :: Fv( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Fa( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Gv( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                 :: Gaux( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                 :: dQ (0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
-         real(kind=RP)                 :: dQb(0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
+         real(kind=RP)                 :: Fv( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: Fa( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: Gv( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM )
+         real(kind=RP)                 :: Gaux( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM )
+         real(kind=RP)                 :: dQ (1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+         real(kind=RP)                 :: dQb(1:NCONS , 0 : ed % spA % N , 1 : NDIM )
          real(kind=RP)                 :: Q1D  ( 1 : NCONS )
          real(kind=RP)                 :: Qb1D ( 1 : NCONS )
-         real(kind=RP)                 :: dQ1D ( 1 : NDIM , 1 : NCONS ) 
-         real(kind=RP)                 :: dQb1D( 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)                 :: dQ1D ( 1 : NCONS , 1 : NDIM  ) 
+         real(kind=RP)                 :: dQb1D( 1 : NCONS , 1 : NDIM  ) 
 #endif
          real(kind=RP)                 :: normal( NDIM , 0 : ed % spA % N )
          integer, pointer              :: N
-         integer                       :: iXi
+         integer                       :: iXi , i , dimID
          procedure(RiemannSolverFunction), pointer    :: RiemannSolver
 
          N => ed % spA % N
@@ -1114,7 +1218,9 @@ module DGSpatialDiscretizationMethods
 
                else
                   Q  = ed % storage(1) % Q
-                  Qb = ed % uB( ed % spA % N : 0 : -1 , 1:NCONS )
+                  do i = 0 , ed % spA % N 
+                     Qb(:,i) = ed % uB(:,ed % spA % N - i )
+                  end do
                   Fi = RiemannSolver ( ed % spA % N , Q , Qb , normal ) * ed % dS(0)
 
                end if
@@ -1138,8 +1244,13 @@ module DGSpatialDiscretizationMethods
                Q  = ed % storage(1) % Q
                dQ = ed % storage(1) % dQ
 
-               Qb  = ed % uB(N:0:-1,1:NCONS)
-               dQb = ed % gB(N:0:-1,1:NDIM,1:NCONS)
+               do i = 0 , ed % spA % N 
+                  Qb(:,i)  = ed % uB(:,N-i)
+               end do
+         
+               do dimID = 1 , NDIM  ; do i = 0 , ed % spA % N 
+                  dQb(:,i,dimID) = ed % gB(:,ed % spA % N - i , dimID)
+               end do               ; end do
 
                Fv = ViscousMethod % RiemannSolver( ed , N , ed % invh , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
                Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQb , normal ) * ed % dS(0)
@@ -1194,20 +1305,20 @@ module DGSpatialDiscretizationMethods
    
                   case ( DIRICHLET )
    
-                     Q1D  = ed % storage(1) % Q(iXi,:)
-                     dQ1D = ed % storage(1) % dQ(iXi,:,:)
-                     Qb1D  = ed % uSB(iXi,:)
-                     Fv(iXi,:) = ViscousMethod % RiemannSolver_Dirichlet ( ed , ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
+                     Q1D  = ed % storage(1) % Q(:,iXi)
+                     dQ1D = ed % storage(1) % dQ(:,iXi,:)
+                     Qb1D  = ed % uSB(:,iXi)
+                     Fv(:,iXi) = ViscousMethod % RiemannSolver_Dirichlet ( ed , ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
 
                      if ( ViscousMethod % computeRiemannGradientFluxes ) then
-                        Gv(iXi,:,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( ed , Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
+                        Gv(:,iXi,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( ed , Q1D , Qb1D , ed % n(IX:IY,0) ) * ed % dS(0)
                      end if
 
                   case ( NEUMANN )
 
-                     Fv(iXi,:)   = 0.0_RP
-                     Fa(iXi,:)   = 0.0_RP
-                     Gv(iXi,:,:) = 0.0_RP
+                     Fv(:,iXi)   = 0.0_RP
+                     Fa(:,iXi)   = 0.0_RP
+                     Gv(:,iXi,:) = 0.0_RP
          
                 end select
              end do
@@ -1231,27 +1342,27 @@ module DGSpatialDiscretizationMethods
          use QuadElementClass
          implicit none
          type(CurvedBdryEdge_t)      :: ed
-         real(kind=RP)                 :: F( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: G( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
+         real(kind=RP)                 :: F( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: G( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)                 :: Fi( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Q(0 : ed % spA % N , 1:NCONS) 
-         real(kind=RP)                 :: Qb(0 : ed % spA % N , 1:NCONS)
+         real(kind=RP)                 :: Fi( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: Q(1:NCONS , 0 : ed % spA % N ) 
+         real(kind=RP)                 :: Qb(1:NCONS , 0 : ed % spA % N )
 #ifdef NAVIER_STOKES
-         real(kind=RP)                 :: Fv( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Fa( 0 : ed % spA % N , 1 : NCONS )
-         real(kind=RP)                 :: Gv( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                 :: Gaux( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-         real(kind=RP)                 :: dQ (0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
-         real(kind=RP)                 :: dQb(0 : ed % spA % N , 1 : NDIM , 1 : NCONS)
+         real(kind=RP)                 :: Fv( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: Fa( 1:NCONS , 0 : ed % spA % N  )
+         real(kind=RP)                 :: Gv( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM )
+         real(kind=RP)                 :: Gaux( 1:NCONS , 0 : ed % spA % N  , 1 : NDIM )
+         real(kind=RP)                 :: dQ (1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+         real(kind=RP)                 :: dQb(1:NCONS , 0 : ed % spA % N , 1 : NDIM )
          real(kind=RP)                 :: Q1D  ( 1 : NCONS )
          real(kind=RP)                 :: Qb1D ( 1 : NCONS )
-         real(kind=RP)                 :: dQ1D ( 1 : NDIM , 1 : NCONS ) 
-         real(kind=RP)                 :: dQb1D( 1 : NDIM , 1 : NCONS ) 
+         real(kind=RP)                 :: dQ1D ( 1 : NCONS , 1 : NDIM  ) 
+         real(kind=RP)                 :: dQb1D( 1 : NCONS , 1 : NDIM  ) 
 #endif
          integer, pointer              :: N
          integer                       :: iXi , dimID , eq , i
@@ -1296,12 +1407,23 @@ module DGSpatialDiscretizationMethods
                if ( .not. ed % inverse ) then       ! This just occurs in periodic BCs
                   Q = ed % storage(1) % Q
                   Qb = ed % uB
-                  Fi = RiemannSolver ( ed % spA % N , Q , Qb , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 )
+                  Fi = RiemannSolver ( ed % spA % N , Q , Qb , ed % n ) 
+                  do i = 0 , ed % spA % N
+                     Fi(:,i) = Fi(:,i) * ed % dS(i)
+                  end do
 
                else
                   Q = ed % storage(1) % Q
-                  Qb = ed % uB( ed % spA % N : 0 : -1 , 1:NCONS )
-                  Fi = RiemannSolver ( ed % spA % N , Q , Qb , ed % n ) * spread( ed % dS , ncopies = NCONS , dim = 2 )
+
+                  do i = 0 , ed % spA % N 
+                     Qb(:,i) = ed % uB( : , ed % spA % N - i )
+                  end do
+
+                  Fi = RiemannSolver ( ed % spA % N , Q , Qb , ed % n ) 
+
+                  do i = 0 , ed % spA % N
+                     Fi(:,i) = Fi(:,i) * ed % dS(i)
+                  end do
 
                end if
          end select
@@ -1326,16 +1448,16 @@ module DGSpatialDiscretizationMethods
             Fv = ViscousMethod % RiemannSolver_Adiabatic( ed , N , ed % invh , Q , dQ , Qb , ed % n ) 
             Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , Q , Qb , dQ , dQ , ed % n )  
 
-            do eq = 1 , NCONS
-               Fv(:,eq) = Fv(:,eq) * ed % dS
-               Fa(:,eq) = Fa(:,eq) * ed % dS
+            do i = 0 , ed % spA % N 
+               Fv(:,i) = Fv(:,i) * ed % dS(i)
+               Fa(:,i) = Fa(:,i) * ed % dS(i)
             end do
 
             if ( ViscousMethod % computeRiemannGradientFluxes ) then
                Gv = ViscousMethod % GradientRiemannSolver_Adiabatic( ed , N , Q , Qb , ed % n ) 
                
-               do dimID = 1 , NDIM     ; do eq = 1 , NCONS
-                  Gv(:,eq,dimID) = Gv(:,eq,dimID) * ed % dS
+               do dimID = 1 , NDIM     ; do i = 0 , ed % spA % N 
+                  Gv(:,i,dimID) = Gv(:,i,dimID) * ed % dS(i)
                end do                  ; end do
 
             end if
@@ -1346,8 +1468,8 @@ module DGSpatialDiscretizationMethods
 !           -------------------------------------
             Fa = ArtificialDissipation % ComputeFaceFluxes( ed , ed % spA % N , ed % storage(1) % Q , ed % uSB , ed % storage(1) % dQ , ed % storage(1) % dQ , ed % n )
             
-            do eq = 1 , NCONS
-               Fa(:,eq) = Fa(:,eq) * ed % dS
+            do i = 0 , ed % spA % N 
+               Fa(:,i) = Fa(:,i) * ed % dS(i)
             end do
 
             do iXi = 0 , ed % spA % N
@@ -1355,20 +1477,20 @@ module DGSpatialDiscretizationMethods
    
                   case ( DIRICHLET )
    
-                     Q1D  = ed % storage(1) % Q(iXi,:)
-                     dQ1D = ed % storage(1) % dQ(iXi,:,:)
-                     Qb1D  = ed % uSB(iXi,:)
-                     Fv(iXi,:) = ViscousMethod % RiemannSolver_Dirichlet ( ed , ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+                     Q1D  = ed % storage(1) % Q(:,iXi)
+                     dQ1D = ed % storage(1) % dQ(:,iXi,:)
+                     Qb1D  = ed % uSB(:,iXi)
+                     Fv(:,iXi) = ViscousMethod % RiemannSolver_Dirichlet ( ed , ed % spA % N , ed % invh , Q1D , dQ1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
 
                      if ( ViscousMethod % computeRiemannGradientFluxes ) then
-                        Gv(iXi,:,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( ed , Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
+                        Gv(:,iXi,:) = ViscousMethod % GradientRiemannSolver_BoundaryCondition( ed , Q1D , Qb1D , ed % n(IX:IY,iXi) ) * ed % dS(iXi)
                      end if
 
                   case ( NEUMANN )
 
-                     Fv(iXi,:)   = 0.0_RP
-                     Fa(iXi,:)   = 0.0_RP
-                     Gv(iXi,:,:) = 0.0_RP
+                     Fv(:,iXi)   = 0.0_RP
+                     Fa(:,iXi)   = 0.0_RP
+                     Gv(:,iXi,:) = 0.0_RP
          
                 end select
 
@@ -1406,8 +1528,9 @@ module DGSpatialDiscretizationMethods
          class(QuadElement_t), pointer :: e
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
+         integer                       :: i , l 
 
-!$omp do private(eID,ed,eq,N,e) schedule(runtime)
+!$omp do private(l,i,ed,eq,N,e) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1416,30 +1539,34 @@ module DGSpatialDiscretizationMethods
 !           Prolong the BOTTOM edge
 !           -----------------------   
             ed => e % edges(EBOTTOM) % f
-            do eq = 1 , NCONS
-               ed % storage(e % quadPosition(EBOTTOM)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,LEFT) , N+1 )
-            end do
+            ed % storage(e % quadPosition(EBOTTOM) ) % Q = 0.0_RP
+            do l = 0 , e % spA % N ; do i = 0 , e % spA % N
+               ed % storage(e % quadPosition(EBOTTOM)) % Q(:,i) = ed % storage(e % quadPosition(EBOTTOM)) % Q(:,i) + e % Q(:,i,l) * e % spA % lb(l,LEFT)
+            end do                 ; end do
 !
-!           Prolong the RIGHT edge. TODOO: implement MatrixTimesVectorInIndex to avoid transposes.
-!           -----------------------   
+!           Prolong the RIGHT edge
+!           ----------------------   
             ed => e % edges(ERIGHT) % f
-            do eq = 1 , NCONS
-               ed % storage(e % quadPosition(ERIGHT)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,RIGHT) , N+1 , trA = .true.)
-            end do
+            ed % storage(e % quadPosition(ERIGHT) ) % Q = 0.0_RP
+            do i = 0 , e % spA % N ; do l = 0 , e % spA % N
+               ed % storage(e % quadPosition(ERIGHT)) % Q(:,i) = ed % storage(e % quadPosition(ERIGHT)) % Q(:,i) + e % Q(:,l,i) * e % spA % lb(l,RIGHT) 
+            end do                 ; end do
 !
 !           Prolong the TOP edge
-!           -----------------------   
+!           --------------------   
             ed => e % edges(ETOP) % f
-            do eq = 1 , NCONS
-               ed % storage(e % quadPosition(ETOP)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,RIGHT) , N+1 )
-            end do
+            ed % storage(e % quadPosition(ETOP) ) % Q = 0.0_RP
+            do l = 0 , e % spA % N ; do i = 0 , e % spA % N
+               ed % storage(e % quadPosition(ETOP)) % Q(:,i) = ed % storage(e % quadPosition(ETOP)) % Q(:,i) + e % Q(:,i,l) * e % spA % lb(l,RIGHT) 
+            end do                 ; end do
 !
-!           Prolong the LEFT edge. TODOO: implement MatrixTimesVectorInIndex to avoid transposes.
-!           -----------------------   
+!           Prolong the LEFT edge
+!           ---------------------   
             ed => e % edges(ELEFT) % f
-            do eq = 1 , NCONS
-               ed % storage(e % quadPosition(ELEFT)) % Q(0:N,eq) = MatrixTimesVector_F( e % Q(0:N,0:N,eq) , e % spA % lb(0:N,LEFT) , N+1 , trA = .true.)
-            end do
+            ed % storage(e % quadPosition(ELEFT) ) % Q = 0.0_RP
+            do i = 0 , e % spA % N ; do l = 0 , e % spA % N
+               ed % storage(e % quadPosition(ELEFT)) % Q(:,i) = ed % storage(e % quadPosition(ELEFT)) % Q(:,i) + e % Q(:,l,i) * e % spA % lb(l,LEFT)
+            end do                 ; end do
         
          end do
 !$omp end do
@@ -1454,12 +1581,13 @@ module DGSpatialDiscretizationMethods
          implicit none
          class(QuadMesh_t) :: mesh
 !        --------------------------------------------------------------------
-         integer                       :: eID , eq , iDim
+         integer                       :: eID , eq , dimID
          class(QuadElement_t), pointer :: e
          class(Edge_t), pointer        :: ed
          integer, pointer              :: N
+         integer                       :: i , l
 
-!$omp do private(e,N,eq,iDim,ed) schedule(runtime)
+!$omp do private(l,i,ed,eq,N,e,dimID) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
 
             e => mesh % elements(eID) 
@@ -1468,34 +1596,38 @@ module DGSpatialDiscretizationMethods
 !           Prolong the BOTTOM edge
 !           -----------------------   
             ed => e % edges(EBOTTOM) % f
-            do eq = 1 , NCONS ; do iDim = 1 , NDIM
-               ed % storage(e % quadPosition(EBOTTOM)) % dQ(0:N,iDim,eq) = MatrixTimesVector_F( e % dQ(0:N,0:N,iDim,eq) , e % spA % lb(0:N,LEFT) , N+1 )
-            end do            ; end do
+            ed % storage(e % quadPosition(EBOTTOM) ) % dQ = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , e % spA % N ; do i = 0 , e % spA % N
+               ed % storage(e % quadPosition(EBOTTOM)) % dQ(:,i,dimID) = ed % storage(e % quadPosition(EBOTTOM)) % dQ(:,i,dimID) + e % dQ(:,i,l,dimID) * e % spA % lb(l,LEFT)
+            end do               ; end do                 ; end do
 !
-!           Prolong the RIGHT edge. TODOO: implement MatrixTimesVectorInIndex to avoid transposes.
-!           -----------------------   
+!           Prolong the RIGHT edge
+!           ----------------------   
             ed => e % edges(ERIGHT) % f
-            do eq = 1 , NCONS ; do iDim = 1 , NDIM
-               ed % storage(e % quadPosition(ERIGHT)) % dQ(0:N,iDim,eq) = MatrixTimesVector_F( e % dQ(0:N,0:N,iDim,eq) , e % spA % lb(0:N,RIGHT) , N+1 , trA = .true.)
-            end do            ; end do
+            ed % storage(e % quadPosition(ERIGHT) ) % dQ = 0.0_RP
+            do dimID = 1 , NDIM  ; do i = 0 , e % spA % N ; do l = 0 , e % spA % N
+               ed % storage(e % quadPosition(ERIGHT)) % dQ(:,i,dimID) = ed % storage(e % quadPosition(ERIGHT)) % dQ(:,i,dimID) + e % dQ(:,l,i,dimID) * e % spA % lb(l,RIGHT) 
+            end do               ; end do                 ; end do 
 !
 !           Prolong the TOP edge
-!           -----------------------   
+!           --------------------   
             ed => e % edges(ETOP) % f
-            do eq = 1 , NCONS ; do iDim = 1 , NDIM
-               ed % storage(e % quadPosition(ETOP)) % dQ(0:N,iDim,eq) = MatrixTimesVector_F( e % dQ(0:N,0:N,iDim,eq) , e % spA % lb(0:N,RIGHT) , N+1 )
-            end do            ; end do
+            ed % storage(e % quadPosition(ETOP) ) % dQ = 0.0_RP
+            do dimID = 1 , NDIM ; do l = 0 , e % spA % N ; do i = 0 , e % spA % N
+               ed % storage(e % quadPosition(ETOP)) % dQ(:,i,dimID) = ed % storage(e % quadPosition(ETOP)) % dQ(:,i,dimID) + e % dQ(:,i,l,dimID) * e % spA % lb(l,RIGHT) 
+            end do              ; end do                 ; end do
 !
-!           Prolong the LEFT edge. TODOO: implement MatrixTimesVectorInIndex to avoid transposes.
-!           -----------------------   
+!           Prolong the LEFT edge
+!           ---------------------   
             ed => e % edges(ELEFT) % f
-            do eq = 1 , NCONS ; do iDim = 1 , NDIM
-               ed % storage(e % quadPosition(ELEFT)) % dQ(0:N,iDim,eq) = MatrixTimesVector_F( e % dQ(0:N,0:N,iDim,eq) , e % spA % lb(0:N,LEFT) , N+1 , trA = .true.)
-            end do            ; end do
+            ed % storage(e % quadPosition(ELEFT) ) % dQ = 0.0_RP
+            do dimID = 1 , NDIM ; do i = 0 , e % spA % N ; do l = 0 , e % spA % N
+               ed % storage(e % quadPosition(ELEFT)) % dQ(:,i,dimID) = ed % storage(e % quadPosition(ELEFT)) % dQ(:,i,dimID) + e % dQ(:,l,i,dimID) * e % spA % lb(l,LEFT)
+            end do              ; end do                 ; end do
         
          end do
 !$omp end do
- 
+            
       end subroutine DGSpatial_interpolateGradientsToBoundaries
 #endif
 

@@ -59,25 +59,39 @@ submodule (PhysicsNS)  InviscidFluxes
       module pure function inviscidFlux1D(N,u) result(val)
          implicit none
          integer, intent(in)       :: N
-         real(kind=RP), intent(in) :: u(0:N,1:NCONS)
-         real(kind=RP)             :: val(0:N,1:NCONS,1:NDIM)
-         real(kind=RP)             :: vx(0:N) , vy(0:N)  , p(0:N)
+         real(kind=RP), intent(in) :: u(1:NCONS,0:N)
+         real(kind=RP), target     :: val(1:NCONS,0:N,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         integer                   :: i 
+         real(kind=RP)             :: vx , vy , p , invRho
+         real(kind=RP), pointer    :: f(:,:) , g(:,:)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
-         vx = u(:,IRHOU) / u(:,IRHO)
-         vy = u(:,IRHOV) / u(:,IRHO)
-         p  = gm1 * ( u(:,IRHOE) - 0.5_RP * u(:,IRHOU) * vx - 0.5_RP * u(:,IRHOV) * vy )
-         
-         val(:,IRHO,IX)  = u(:,IRHOU)
-         val(:,IRHOU,IX) = u(:,IRHOU) * vx + p 
-         val(:,IRHOV,IX) = u(:,IRHOU) * vy
-         val(:,IRHOE,IX) = (u(:,IRHOE) + p) * vx
+         f(1:,0:) => val(1:,0:,IX)
+         g(1:,0:) => val(1:,0:,IY)
 
-         val(:,IRHO,IY)  = u(:,IRHOV)
-         val(:,IRHOU,IY) = val(:,IRHOV,IX)
-         val(:,IRHOV,IY) = u(:,IRHOV) * vy + p
-         val(:,IRHOE,IY) = (u(:,IRHOE) + p) * vy
+         do i = 0 , N
+            invRho = 1.0_RP / u(IRHO,i)
+            vx = u(IRHOU,i) * invRho
+            vy = u(IRHOV,i) * invRho
+            p  = gm1 * ( u(IRHOE,i) - 0.5_RP * u(IRHOU,i) * vx - 0.5_RP * u(IRHOV,i) * vy )
+         
+            f(IRHO ,i) = u(IRHOU,i)
+            f(IRHOU,i) = u(IRHOU,i) * vx + p
+            f(IRHOV,i) = u(IRHOU,i) * vy
+            f(IRHOE,i) = ( u(IRHOE,i) + p ) * vx
+
+            g(IRHO ,i) = u(IRHOV,i)  
+            g(IRHOU,i) = f(IRHOV,i)
+            g(IRHOV,i) = u(IRHOV,i) * vy + p
+            g(IRHOE,i) = (u(IRHOE,i) + p) * vy 
+
+         end do
 
 #ifdef _DIMENSIONLESS_TAU
          val = val * dimensionless % invSqrtGammaMach
@@ -90,25 +104,39 @@ submodule (PhysicsNS)  InviscidFluxes
       module pure function InviscidFlux2D(N,u) result(val)
          implicit none
          integer, intent(in)       :: N
-         real(kind=RP), intent(in) :: u(0:N,0:N,1:NCONS)
-         real(kind=RP)             :: val(0:N,0:N,1:NCONS,1:NDIM)
-         real(kind=RP)             :: vx(0:N,0:N) , vy(0:N,0:N)  , p(0:N,0:N)
+         real(kind=RP), intent(in) :: u(1:NCONS,0:N,0:N)
+         real(kind=RP), target     :: val(1:NCONS,0:N,0:N,1:NDIM)
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         integer                   :: i , j
+         real(kind=RP)             :: vx , vy , p , invRho
+         real(kind=RP), pointer    :: f(:,:,:) , g(:,:,:)
 
          associate ( Gamma => Thermodynamics % Gamma , gm1 => Thermodynamics % gm1 , Mach => Dimensionless % Mach ) 
     
-         vx = u(:,:,IRHOU) / u(:,:,IRHO)
-         vy = u(:,:,IRHOV) / u(:,:,IRHO)
-         p  = gm1 * ( u(:,:,IRHOE) - 0.5_RP * u(:,:,IRHOU) * vx - 0.5_RP * u(:,:,IRHOV) * vy )
-         
-         val(:,:,IRHO,IX)  = u(:,:,IRHOU)
-         val(:,:,IRHOU,IX) = u(:,:,IRHOU) * vx + p 
-         val(:,:,IRHOV,IX) = u(:,:,IRHOU) * vy
-         val(:,:,IRHOE,IX) = (u(:,:,IRHOE) + p) * vx
+         f(1:,0:,0:) => val(1:,0:,0:,IX)
+         g(1:,0:,0:) => val(1:,0:,0:,IY)
 
-         val(:,:,IRHO,IY)  = u(:,:,IRHOV)
-         val(:,:,IRHOU,IY) = val(:,:,IRHOV,IX)
-         val(:,:,IRHOV,IY) = u(:,:,IRHOV) * vy + p
-         val(:,:,IRHOE,IY) = (u(:,:,IRHOE) + p) * vy
+         do j = 0 , N ;    do i = 0 , N
+            invRho = 1.0_RP / u(IRHO,i,j)
+            vx = u(IRHOU,i,j) * invRho
+            vy = u(IRHOV,i,j) * invRho
+            p  = gm1 * ( u(IRHOE,i,j) - 0.5_RP * u(IRHOU,i,j) * vx - 0.5_RP * u(IRHOV,i,j) * vy )
+         
+            f(IRHO ,i,j) = u(IRHOU,i,j)
+            f(IRHOU,i,j) = u(IRHOU,i,j) * vx + p
+            f(IRHOV,i,j) = u(IRHOU,i,j) * vy
+            f(IRHOE,i,j) = ( u(IRHOE,i,j) + p ) * vx
+
+            g(IRHO ,i,j) = u(IRHOV,i,j)  
+            g(IRHOU,i,j) = f(IRHOV,i,j)
+            g(IRHOV,i,j) = u(IRHOV,i,j) * vy + p
+            g(IRHOE,i,j) = (u(IRHOE,i,j) + p) * vy 
+
+         end do ;          end do
 
 #ifdef _DIMENSIONLESS_TAU
          val = val * dimensionless % invSqrtGammaMach

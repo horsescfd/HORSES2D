@@ -55,7 +55,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Local variables   
 !        ---------------
 !
-         integer     :: eID , edID , iDim , eq
+         integer     :: eID , edID , i , j , dimID
          real(kind=RP), pointer  :: dQ(:,:,:,:)
          class(Edge_t), pointer  :: f
 !
@@ -63,7 +63,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        --------------------
 !$omp do private(dQ) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
-            dQ(0:,0:,1:,1:)   => mesh % elements(eID) % dQ
+            dQ(1:,0:,0:,1:)   => mesh % elements(eID) % dQ
             dQ = - VectorWeakIntegrals % StdVolumeGreen( mesh % elements(eID) , mesh % elements(eID) % Q )
          end do
 !$omp end do 
@@ -100,11 +100,11 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Perform the scaling with the jacobian
 !        -------------------------------------
 !$omp barrier
-!$omp do private(iDim,eq) schedule(runtime)
+!$omp do private(dimID,i,j) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
-            do iDim = 1 , NDIM   ; do eq = 1 , NCONS
-               mesh % elements(eID) % dQ(:,:,iDim,eq) = mesh % elements(eID) % dQ(:,:,iDim,eq) / mesh % elements(eID) % jac
-            end do               ; end do
+            do dimID = 1 , NDIM   ; do i = 0 , mesh % elements(eID) % spA % N  ; do j = 0 , mesh % elements(eID) % spA % N 
+               mesh % elements(eID) % dQ(:,i,j,dimID) = mesh % elements(eID) % dQ(:,i,j,dimID) / mesh % elements(eID) % jac(i,j)
+            end do               ; end do                    ; end do
          end do
 !$omp end do
 
@@ -116,20 +116,20 @@ submodule (DGViscousMethods)  DGViscous_BR1
          implicit none
          class(ViscousMethod_t)        :: ViscousMethod
          type(Edge_t)                  :: ed
-         real(kind=RP)                 :: FuStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
-         real(kind=RP)                 :: FuStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                 :: FuStarL( 1 : NCONS , 0 : ed % storage(LEFT ) % spA % N  , 1:NDIM)
+         real(kind=RP)                 :: FuStarR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1:NDIM)
          real(kind=RP), pointer        :: dQ(:,:,:,:)
 
          call ViscousMethod % ComputeSolutionRiemann( ed , FuStarL , FuStarR )
 !
 !>       Add the contribution to the LEFT element
 !        ----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(LEFT) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
 !
 !>       Add the contribution to the RIGHT element
 !        -----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(RIGHT) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , FuStarR ) 
 
       end subroutine BR1_dQFaceLoop_Interior
@@ -145,20 +145,20 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: FuStarL( 0 : ed % storage(LEFT ) % spA % N , 1:NCONS , 1:NDIM)
-         real(kind=RP)          :: FuStarR( 0 : ed % storage(RIGHT) % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarL( 1 : NCONS , 0 : ed % storage(LEFT ) % spA % N  , 1:NDIM)
+         real(kind=RP)          :: FuStarR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1:NDIM)
          real(kind=RP), pointer :: dQ(:,:,:,:)
 
          call ViscousMethod % ComputeSolutionRiemann( ed , FuStarL , FuStarR )
 !
 !>       Add the contribution to the LEFT element
 !        ----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(LEFT) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
 !
 !>       Add the contribution to the RIGHT element
 !        -----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(RIGHT) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT , FuStarR ) 
 
       end subroutine BR1_dQFaceLoop_CurvedInterior
@@ -174,26 +174,26 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: FuStarL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1:NDIM)
-         real(kind=RP)          :: FuStarRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1:NDIM)
-         real(kind=RP)          :: FuStarRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarL  ( 1 : NCONS , 0 : ed % storage ( LEFT        ) % spA % N  , 1:NDIM)
+         real(kind=RP)          :: FuStarRN ( 1 : NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N  , 1:NDIM)
+         real(kind=RP)          :: FuStarRS ( 1 : NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N  , 1:NDIM)
          real(kind=RP), pointer :: dQ(:,:,:,:)
 
          call ViscousMethod % ComputeSubdividedSolutionRiemann( ed , FuStarL , FuStarRN , FuStarRS )
 !
 !>       Add the contribution to the LEFT element
 !        ----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(LEFT) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
 !
 !>       Add the contribution to the RIGHT-NORTH element
 !        -----------------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_NORTH) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(RIGHT_NORTH) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_NORTH , FuStarRN ) 
 !
 !>       Add the contribution to the RIGHT-SOUTH element
 !        -----------------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_SOUTH) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(RIGHT_SOUTH) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_SOUTH , FuStarRS ) 
 
       end subroutine BR1_dQFaceLoop_Subdivided
@@ -209,26 +209,26 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: FuStarL  ( 0 : ed % storage ( LEFT        ) % spA % N , 1 : NCONS , 1:NDIM)
-         real(kind=RP)          :: FuStarRN ( 0 : ed % storage ( RIGHT_NORTH ) % spA % N , 1 : NCONS , 1:NDIM)
-         real(kind=RP)          :: FuStarRS ( 0 : ed % storage ( RIGHT_SOUTH ) % spA % N , 1 : NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStarL  ( 1 : NCONS , 0 : ed % storage ( LEFT        ) % spA % N  , 1:NDIM)
+         real(kind=RP)          :: FuStarRN ( 1 : NCONS , 0 : ed % storage ( RIGHT_NORTH ) % spA % N  , 1:NDIM)
+         real(kind=RP)          :: FuStarRS ( 1 : NCONS , 0 : ed % storage ( RIGHT_SOUTH ) % spA % N  , 1:NDIM)
          real(kind=RP), pointer :: dQ(:,:,:,:)
 
          call ViscousMethod % ComputeSubdividedSolutionRiemann( ed , FuStarL , FuStarRN , FuStarRS )
 !
 !>       Add the contribution to the LEFT element
 !        ----------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(LEFT) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(LEFT) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , LEFT , FuStarL )
 !
 !>       Add the contribution to the RIGHT-NORTH element
 !        -----------------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_NORTH) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(RIGHT_NORTH) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_NORTH , FuStarRN ) 
 !
 !>       Add the contribution to the RIGHT-SOUTH element
 !        -----------------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(RIGHT_SOUTH) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(RIGHT_SOUTH) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , RIGHT_SOUTH , FuStarRS ) 
 
       end subroutine BR1_dQFaceLoop_CurvedSubdivided
@@ -244,14 +244,14 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)                    :: FuStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                    :: FuStar( 1 : NCONS , 0 : ed % spA % N , 1:NDIM)
          real(kind=RP), pointer           :: dQ(:,:,:,:)
       
          call ViscousMethod % ComputeSolutionRiemann( ed , FuStar ) 
 !
 !>       Add the contribution to the element
 !        -----------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(1) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(1) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , FuStar )
 !
       end subroutine BR1_dQFaceLoop_StraightBdry
@@ -267,14 +267,14 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)          :: FuStar( 0 : ed % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)          :: FuStar( 1 : NCONS , 0 : ed % spA % N  , 1:NDIM)
          real(kind=RP), pointer :: dQ(:,:,:,:)
 
          call ViscousMethod % ComputeSolutionRiemann( ed , FuStar )
 !
 !>       Add the boundary contribution to the element
 !        --------------------------------------------
-         dQ(0:,0:,1:,1:)   => ed % quads(1) % e % dQ
+         dQ(1:,0:,0:,1:)   => ed % quads(1) % e % dQ
          dQ = dQ + VectorWeakIntegrals % StdFace( ed , 1 , FuStar )
 !
       end subroutine BR1_dQFaceLoop_CurvedBdry         
@@ -300,7 +300,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
          implicit none
          class(BR1Method_t),   intent(in)   :: self
          class(QuadElement_t), intent(in)   :: e
-         real(kind=RP)                      :: Fv(0 : e % spA % N , 0 : e % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                      :: Fv( 1:NCONS , 0 : e % spA % N , 0 : e % spA % N , 1:NDIM)
 !
 !        Compute the cartesian flux
 !        --------------------------
@@ -317,9 +317,9 @@ submodule (DGViscousMethods)  DGViscous_BR1
          implicit none
          class(BR1Method_t), intent(in) :: self
          integer, intent(in)            :: N
-         real(kind=RP), intent(in)      :: uL(0:N , 1:NCONS)
-         real(kind=RP), intent(in)      :: uR(0:N , 1:NCONS)
-         real(kind=RP)                  :: uStar(0:N,1:NCONS)
+         real(kind=RP), intent(in)      :: uL(1 : NCONS , 0:N )
+         real(kind=RP), intent(in)      :: uR(1 : NCONS , 0:N )
+         real(kind=RP)                  :: uStar(1 : NCONS , 0:N)
 !
 !        Perform the average
 !        -------------------
@@ -341,20 +341,20 @@ submodule (DGViscousMethods)  DGViscous_BR1
          class(Edge_t)     , intent(in)   :: edge
          integer, intent(in)              :: N
          real(kind=RP), intent(in)        :: invh_edge
-         real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: dUL(0:N, 1:NDIM , 1:NCONS)
-         real(kind=RP), intent(in)        :: dUR(0:N, 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in)        :: uL(1 : NCONS , 0:N )
+         real(kind=RP), intent(in)        :: uR(1 : NCONS , 0:N )
+         real(kind=RP), intent(in)        :: dUL(1 : NCONS , 0:N, 1:NDIM )
+         real(kind=RP), intent(in)        :: dUR(1 : NCONS , 0:N, 1:NDIM )
          real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
-         real(kind=RP)                    :: Fstar(0:N , 1:NCONS)
+         real(kind=RP)                    :: Fstar( 1 : NCONS , 0:N )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         integer           :: eq
-         real(kind=RP)     :: FL(0:N , 1:NCONS , 1:NDIM)
-         real(kind=RP)     :: FR(0:N , 1:NCONS , 1:NDIM)
+         integer           :: i , dimID
+         real(kind=RP)     :: FL(1:NCONS , 0:N , 1:NDIM)
+         real(kind=RP)     :: FR(1:NCONS , 0:N , 1:NDIM)
 !
 !        Compute the LEFT and RIGHT viscous fluxes
 !        -----------------------------------------
@@ -363,9 +363,10 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
 !        Perform the average and the projection along the edge normal
 !        ------------------------------------------------------------
-         do eq = 1 , NCONS
-            Fstar(:,eq) = 0.5_RP * ( ( FL(:,eq,IX) + FR(:,eq,IX) ) * normal(IX,:) + ( FL(:,eq,IY) + FR(:,eq,IY) ) * normal(IY,:) )  
-         end do
+         Fstar = 0.0_RP
+         do dimID = 1 , NDIM  ; do i = 0 , N
+            Fstar(:,i) = Fstar(:,i) + 0.5_RP * ( FL(:,i,dimID) + FR(:,i,dimID) ) * normal(dimID,i)
+         end do               ; end do
 
       end function BR1_RiemannSolver
 
@@ -413,18 +414,18 @@ submodule (DGViscousMethods)  DGViscous_BR1
          class(Edge_t)     , intent(in)  :: edge
          integer      ,      intent (in) :: N
          real(kind=RP),      intent (in) :: invh_edge
-         real(kind=RP),      intent (in) :: u      ( 0:N  , NCONS      )
-         real(kind=RP),      intent (in) :: g      ( 0:N  , NDIM,NCONS )
-         real(kind=RP),      intent (in) :: uB     ( 0:N  , NCONS      )
-         real(kind=RP),      intent (in) :: normal ( NDIM , 0:N        )
-         real(kind=RP)                   :: Fstar  ( 0:N  , 1:NCONS    )
+         real(kind=RP),      intent (in) :: u      ( NCONS , 0:N         )
+         real(kind=RP),      intent (in) :: g      ( NCONS , 0:N  , NDIM )
+         real(kind=RP),      intent (in) :: uB     ( NCONS , 0:N         )
+         real(kind=RP),      intent (in) :: normal ( NDIM  , 0:N         )
+         real(kind=RP)                   :: Fstar  ( 1:NCONS , 0:N       )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)     :: F(0:N , 1:NCONS , 1:NDIM)
-         integer           :: eq
+         real(kind=RP)     :: F(1:NCONS , 0:N , 1:NDIM)
+         integer           :: i , dimID
 !
 !        Compute the Adiabatic viscous flux based on the interior points
 !        ---------------------------------------------------------------
@@ -432,9 +433,10 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !
 !        Perform the projection along the boundary normal
 !        ------------------------------------------------
-         do eq = 1 , NCONS
-            FStar(:,eq) = F(:,eq,IX) * normal(IX,:) + F(:,eq,IY) * normal(IY,:)
-         end do
+         FStar = 0.0_RP 
+         do dimID = 1 , NDIM ;   do i = 0 , N
+            FStar(:,i) = FStar(:,i) + F(:,i,dimID) * normal(dimID,i)
+         end do              ;   end do
  
       end function BR1_RiemannSolver_Adiabatic
 

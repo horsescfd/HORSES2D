@@ -53,7 +53,6 @@ submodule (DGViscousMethods)  DGViscous_IP
 !        ---------------
 !
          integer     :: eID , edID , iDim , eq
-         real(kind=RP), pointer  :: dQ(:,:,:,:)
 !
 !        Just compute the interior gradient
 !        ----------------------------------
@@ -78,7 +77,7 @@ submodule (DGViscousMethods)  DGViscous_IP
          implicit none
          class(IPMethod_t),   intent(in)   :: self
          class(QuadElement_t), intent(in)   :: e
-         real(kind=RP)                      :: Fv(0 : e % spA % N , 0 : e % spA % N , 1:NCONS , 1:NDIM)
+         real(kind=RP)                      :: Fv(1 : NCONS , 0 : e % spA % N , 0 : e % spA % N , 1:NDIM)
 !
 !        Compute the cartesian flux
 !        --------------------------
@@ -100,20 +99,20 @@ submodule (DGViscousMethods)  DGViscous_IP
          class(Edge_t)    , intent(in)    :: edge
          integer, intent(in)              :: N
          real(kind=RP), intent(in)        :: invh_edge
-         real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: dUL(0:N, 1:NDIM , 1:NCONS)
-         real(kind=RP), intent(in)        :: dUR(0:N, 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in)        :: uL(1:NCONS , 0:N )
+         real(kind=RP), intent(in)        :: uR(1:NCONS , 0:N )
+         real(kind=RP), intent(in)        :: dUL(1:NCONS , 0:N, 1:NDIM )
+         real(kind=RP), intent(in)        :: dUR(1:NCONS , 0:N, 1:NDIM )
          real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
-         real(kind=RP)                    :: Fstar(0:N , 1:NCONS)
+         real(kind=RP)                    :: Fstar(1:NCONS , 0:N )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         integer           :: eq
-         real(kind=RP)     :: FL(0:N , 1:NCONS , 1:NDIM)
-         real(kind=RP)     :: FR(0:N , 1:NCONS , 1:NDIM)
+         integer           :: dimID , i
+         real(kind=RP)     :: FL(1:NCONS , 0:N , 1:NDIM)
+         real(kind=RP)     :: FR(1:NCONS , 0:N , 1:NDIM)
          real(kind=RP)     :: penalty
 !
 !        Compute the penalty parameter
@@ -127,12 +126,12 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Perform the average and the projection along the edge normal
 !        ------------------------------------------------------------
-         do eq = 1 , NCONS
-            Fstar(:,eq) = 0.5_RP * ( ( FL(:,eq,IX) + FR(:,eq,IX) ) * normal(IX,:) + ( FL(:,eq,IY) + FR(:,eq,IY) ) * normal(IY,:) ) 
-         end do
+         Fstar = 0.0_RP
+         do dimID = 1 , NDIM     ; do i = 0 , N
+            Fstar(:,i) = Fstar(:,i) + 0.5_RP * ( FL(:,i,dimID) + FR(:,i,dimID) ) * normal(dimID,i) 
+         end do                  ; end do
 
          Fstar = Fstar - penalty * ( uL - uR )
-
 
       end function IP_RiemannSolver
 
@@ -180,23 +179,23 @@ submodule (DGViscousMethods)  DGViscous_IP
 !        ************************************************************************************************
 !
          implicit none
-         class(IPMethod_t), intent (in) :: self
+         class(IPMethod_t), intent (in)  :: self
          class(Edge_t)    ,  intent(in)  :: edge
          integer      ,      intent (in) :: N
          real(kind=RP),      intent (in) :: invh_edge
-         real(kind=RP),      intent (in) :: u      ( 0:N  , NCONS      )
-         real(kind=RP),      intent (in) :: g      ( 0:N  , NDIM,NCONS )
-         real(kind=RP),      intent (in) :: uB     ( 0:N  , NCONS      )
-         real(kind=RP),      intent (in) :: normal ( NDIM , 0:N        )
-         real(kind=RP)                   :: Fstar  ( 0:N  , 1:NCONS    )
+         real(kind=RP) , intent (in)     :: u      ( 1 : NCONS , 0 : N                )
+         real(kind=RP) , intent (in)     :: g      ( 1 : NCONS , 0 : N     , 1 : NDIM )
+         real(kind=RP) , intent (in)     :: uB     ( 1 : NCONS , 0 : N                )
+         real(kind=RP) , intent (in)     :: normal ( 1 : NDIM  , 0 : N                )
+         real(kind=RP)                   :: Fstar  ( 1 : NCONS , 0 : N                )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)     :: F(0:N , 1:NCONS , 1:NDIM)
+         real(kind=RP)     :: F(1 : NCONS , 0:N , 1:NDIM)
          real(kind=RP)     :: penalty 
-         integer           :: eq
+         integer           :: dimID , i
 !
 !        Compute the Adiabatic viscous flux based on the interior points
 !        ---------------------------------------------------------------
@@ -204,9 +203,10 @@ submodule (DGViscousMethods)  DGViscous_IP
 !
 !        Perform the projection along the boundary normal
 !        ------------------------------------------------
-         do eq = 1 , NCONS
-            FStar(:,eq) = F(:,eq,IX) * normal(IX,:) + F(:,eq,IY) * normal(IY,:)
-         end do
+         Fstar = 0.0_RP
+         do dimID = 1 , NDIM  ; do i = 0 , N
+            FStar(:,i) = Fstar(:,i) + F(:,i,dimID) * normal(dimID,i)
+         end do               ; end do
 
          penalty = self % sigma0 * (dimensionless % mu + edge % mu_a) * N * N * invh_edge
          Fstar = Fstar - penalty * ( u - uB )
@@ -222,25 +222,24 @@ submodule (DGViscousMethods)  DGViscous_IP
          class(IPMethod_t), intent(in)   :: self
          class(Edge_t)    , intent(in)    :: edge
          integer, intent(in)              :: N
-         real(kind=RP), intent(in)        :: uL(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: uR(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
-         real(kind=RP), intent(out)       :: GstarL(0:N , 1:NCONS , 1:NDIM)
-         real(kind=RP), intent(out)       :: GstarR(0:N , 1:NCONS , 1:NDIM)
+         real(kind=RP), intent(in)        :: uL(1:NCONS , 0:N )
+         real(kind=RP), intent(in)        :: uR(1:NCONS , 0:N )
+         real(kind=RP), intent(in)        :: normal(IX:IY , 0:N)
+         real(kind=RP), intent(out)       :: GstarL(1:NCONS , 0:N  , 1:NDIM)
+         real(kind=RP), intent(out)       :: GstarR(1:NCONS , 0:N  , 1:NDIM)
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)        :: falseGradient (0:N , 1:NDIM , 1:NCONS)
-         integer              :: eq
+         real(kind=RP)        :: falseGradient (1:NCONS , 0:N , 1:NDIM)
+         integer              :: i , dimID
 !
 !        The false gradients are the interfaces jumps (pointing from L -> R)
 !        -------------------------------------------------------------------
-         do eq = 1 , NCONS
-            falseGradient(:,IX,eq) = (UL(:,eq) - UR(:,eq)) * normal(IX,:)
-            falseGradient(:,IY,eq) = (UL(:,eq) - UR(:,eq)) * normal(IY,:)
-         end do
+         do dimID = 1 , NDIM  ; do i = 0 , N
+            falseGradient(:,i,dimID) = (UL(:,i) - UR(:,i)) * normal(dimID,i)
+         end do               ; end do
 !
 !        Compute the fluxes
 !        ------------------
@@ -266,13 +265,13 @@ submodule (DGViscousMethods)  DGViscous_IP
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)        :: falseGradient (1:NDIM , 1:NCONS)
+         real(kind=RP)        :: falseGradient (1:NCONS , 1:NDIM)
          integer              :: eq
 !
 !        The false gradients are the interfaces jumps (pointing from L -> R)
 !        -------------------------------------------------------------------
-         falseGradient(IX,:) = (u - uB) * normal(IX)
-         falseGradient(IY,:) = (u - uB) * normal(IY)
+         falseGradient(:,IX) = (u - uB) * normal(IX)
+         falseGradient(:,IY) = (u - uB) * normal(IY)
 !
 !        Compute the fluxes
 !        ------------------
@@ -289,24 +288,23 @@ submodule (DGViscousMethods)  DGViscous_IP
          class(IPMethod_t), intent(in)   :: self
          class(Edge_t)    , intent(in)    :: edge
          integer, intent(in)              :: N
-         real(kind=RP), intent(in)        :: u(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: uB(0:N , 1:NCONS)
-         real(kind=RP), intent(in)        :: normal(IX:IY,0:N)
-         real(kind=RP)                    :: Gstar(0:N , 1:NCONS , 1:NDIM)
+         real(kind=RP), intent(in)        :: u(1:NCONS , 0:N )
+         real(kind=RP), intent(in)        :: uB(1:NCONS , 0:N )
+         real(kind=RP), intent(in)        :: normal(IX:IY, 0:N)
+         real(kind=RP)                    :: Gstar(1:NCONS , 0:N  , 1:NDIM)
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         real(kind=RP)        :: falseGradient (0:N , 1:NDIM , 1:NCONS)
-         integer              :: eq
+         real(kind=RP)        :: falseGradient (1:NCONS,0:N , 1:NDIM)
+         integer              :: i , dimID
 !
 !        The false gradients are the interfaces jumps (pointing from L -> R)
 !        -------------------------------------------------------------------
-         do eq = 1 , NCONS
-            falseGradient(:,IX,eq) = (u(:,eq) - uB(:,eq)) * normal(IX,:)
-            falseGradient(:,IY,eq) = (u(:,eq) - uB(:,eq)) * normal(IY,:)
-         end do
+         do dimID = 1 , NDIM  ; do i = 0 , N
+            falseGradient(:,i,dimID) = (u(:,i) - uB(:,i)) * normal(dimID,i)
+         end do               ; end do
 !
 !        Compute the fluxes
 !        ------------------

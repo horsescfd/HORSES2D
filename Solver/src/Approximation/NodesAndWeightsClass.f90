@@ -306,10 +306,10 @@ module nodesAndWeights_class
 !           -----------------------------------------
 !
             call PolynomialDerivativeMatrix( N , self % xi , self % D )
-            self % DT   = transpose( self % D )
-            self % MD   = matmul( self % M , self % D )
-            self % trMD = transpose( self % MD )
-            self % hatD = matmul( self % MD , self % Minv )
+            self % DT     = transpose ( self % D                  ) 
+            self % MD     = matmul    ( self % M , self % D       ) 
+            self % trMD   = transpose ( self % MD                 ) 
+            self % hatD   = matmul    ( self % Minv , self % trMD ) 
 
 !       
 !           --------------------------------------------

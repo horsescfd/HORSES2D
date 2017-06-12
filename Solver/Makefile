@@ -50,7 +50,7 @@ RiemannSolvers: Physics SMConstants InviscidFluxes
 InviscidFluxes: Physics SMConstants
 IntegerArrayLinkedList: Qsort
 ViscousFluxes: Physics SMConstants
-DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter Stopwatch
+DGSEM_class: Physics SMConstants NodesAndWeightsClass Setup ProblemFile QuadMesh MeshFile DGSpatialDiscretizationMethods DGTimeIntegrator Storage DGBoundaryConditions Plotter Stopwatch
 Plotter: SMConstants
 Tecplot: Plotter
 NodesAndWeightsClass: SMConstants InterpolationAndDerivatives LegendreAlgorithms MatrixOperations Physics
@@ -139,6 +139,7 @@ else ifeq ($(COMPILER),ifort)
      
    else ifeq ($(MODE),VTUNE)
      FFLAGS = -g -debug -cpp -O3 -mkl -assume bscc -fopenmp
+     CHECKFFLAGS = -g -debug -cpp -O0 -mkl -assume bscc -fopenmp
 
    endif
    LIBS += -L$(NETCDF_LIB) -lnetcdff $(PROBLEM_LIB)
@@ -162,7 +163,7 @@ INCLUDE= -I$(INC_DIR) -I$(NETCDF_INC) $(F90_INCLUDE)
 all: 	printHeader createFolders def_navier_stokes_macro ProblemFile $(EXECUTABLE)
 
 runcyl: 	
-	(cd ../TestCases/Cases/Cylinder && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase)		
+	(cd ../TestCases/Cases/Cylinder && ../../../Solver/bin/$(EXECUTABLE) ./SETUP/Cylinder.HiOCase -check)		
 
 debugcyl:
 	(cd ../TestCases/Cases/FlowOverCircle && gdb ./$(EXECUTABLE))		

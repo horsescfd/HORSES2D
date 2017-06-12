@@ -112,7 +112,7 @@
                stop "Stopped"
       
             type is (StraightBdryEdge_t)
-               allocate ( edge % uB  ( 0:N , NCONS )  ) 
+               allocate ( edge % uB  ( NCONS , 0:N )  ) 
                
                edge % inviscidBCType = self % WeakType
 
@@ -120,17 +120,17 @@
 
                if ( .not. associated ( self % BoundaryState ) ) then
                   do i = 0 , N
-                     edge % uB(i , 1:NCONS) = self % q
+                     edge % uB(:,i) = self % q
                   end do
 
                end if
 
 #ifdef NAVIER_STOKES
-               allocate ( edge % uSB  ( 0:N , NCONS )  ) 
+               allocate ( edge % uSB  ( NCONS , 0:N )  ) 
 #endif
 
             type is (CurvedBdryEdge_t)
-               allocate ( edge % uB  ( 0:N , NCONS )  ) 
+               allocate ( edge % uB  ( NCONS , 0:N )  ) 
 
                edge % inviscidBCType = self % WeakType
 
@@ -138,13 +138,13 @@
 
                if ( .not. associated ( self % BoundaryState ) ) then
                   do i = 0 , N
-                     edge % uB(i , 1:NCONS) = self % q
+                     edge % uB(:,i) = self % q
                   end do
 
                end if
 
 #ifdef NAVIER_STOKES
-               allocate ( edge % uSB  ( 0:N , NCONS )  ) 
+               allocate ( edge % uSB  ( NCONS , 0:N )  ) 
 #endif
 
          end select
@@ -180,18 +180,18 @@
 !                 Get uB if comes from a Boundary State function
 !                 ----------------------------------------------
                   if ( associated ( self % BoundaryState ) ) then
-                     edge % uB(iXi,:) = self % BoundaryState( edge % x(1:NDIM , iXi) , time )
+                     edge % uB(:,iXi) = self % BoundaryState( edge % x(1:NDIM , iXi) , time )
                   end if
 #ifdef NAVIER_STOKES
 !
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % storage(1) % Q(iXi , IRHO)
-                  uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
-                  vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
+                  rhoL = edge % storage(1) % Q(IRHO , iXi)
+                  uL  = edge % storage(1) % Q(IRHOU , iXi) / rhoL
+                  vL  = edge % storage(1) % Q(IRHOV , iXi) / rhoL
                   vnL = uL * edge % n (IX , 0) + vL * edge % n(IY, 0)
-                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
-                        ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
+                  pL  = gm1 * ( edge % storage(1) % Q(IRHOE , iXi) - 0.5_RP * &
+                        ( edge % storage(1) % Q(IRHOU,iXi) * uL + edge % storage(1) % Q(IRHOV,iXi) * vL ) )
                   aL  = sqrt( gamma * pL / rhoL ) 
                   ML  = sqrt(uL * uL + vL * vL) / aL
 !
@@ -205,7 +205,7 @@
 !
 !                       Supersonic
 !                       ----------
-                        edge % uSB(iXi,:) = edge % uB(iXi,:)
+                        edge % uSB(:,iXi) = edge % uB(:,iXi)
                         edge % viscousBCType(iXi) = DIRICHLET
       
                      else
@@ -214,12 +214,12 @@
 !                       --------
                         pR = pL
 
-                        edge % uSB(iXi,IRHO ) = edge % uB(iXi,IRHO )
-                        edge % uSB(iXi,IRHOU) = edge % uB(iXi,IRHOU)
-                        edge % uSB(iXi,IRHOV) = edge % uB(iXi,IRHOV)
-                        edge % uSB(iXi,IRHOE) =   cv * pR      & 
-                                                + 0.5_RP * ( edge % uSB(iXi,IRHOU) * edge % uSB(iXi,IRHOU)  &
-                                                + edge % uSB(iXi,IRHOV) * edge % uSB(iXi,IRHOV) ) / edge % uSB(iXi,IRHO)
+                        edge % uSB(IRHO  , iXi) = edge % uB(IRHO  , iXi)
+                        edge % uSB(IRHOU , iXi) = edge % uB(IRHOU , iXi)
+                        edge % uSB(IRHOV , iXi) = edge % uB(IRHOV , iXi)
+                        edge % uSB(IRHOE , iXi) =   cv * pR      & 
+                                                + 0.5_RP * ( edge % uSB(IRHOU , iXi) * edge % uSB(IRHOU , iXi)  &
+                                                + edge % uSB(IRHOV , iXi) * edge % uSB(IRHOV , iXi) ) / edge % uSB(IRHO , iXi)
                         edge % viscousBCType(iXi) = DIRICHLET
                      end if
     
@@ -231,18 +231,18 @@
 !
 !                       Supersonic
 !                       ----------
-                        edge % uSB(iXi,:) = edge % storage(1) % Q(iXi, 1:NCONS)
+                        edge % uSB(:,iXi) = edge % storage(1) % Q(:,iXi)
                         edge % viscousBCType(iXi) = NEUMANN
 
                      else
 !
 !                       Subsonic
 !                       --------
-                        edge % uSB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
-                        edge % uSB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
-                        edge % uSB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q = edge % uB(iXi,:)
-                        edge % uSB(iXi,IRHOE) = cv * getPressure( q ) +  0.5_RP * ( edge % uSB(iXi,IRHOU) * uL + edge % uSB(iXi,IRHOV) * vL )
+                        edge % uSB(IRHO  , iXi)  = edge % storage(1) % Q(IRHO , iXi)
+                        edge % uSB(IRHOU , iXi) = edge % storage(1) % Q(IRHOU , iXi)
+                        edge % uSB(IRHOV , iXi) = edge % storage(1) % Q(IRHOV , iXi)
+                        q = edge % uB(:,iXi)
+                        edge % uSB(IRHOE,iXi) = cv * getPressure( q ) +  0.5_RP * ( edge % uSB(IRHOU,iXi) * uL + edge % uSB(IRHOV,iXi) * vL )
                         edge % viscousBCType(iXi) = DIRICHLET
 
                      end if
@@ -256,21 +256,21 @@
 !                 Get uB if comes from a Boundary State function
 !                 ----------------------------------------------
                   if ( associated ( self % BoundaryState ) ) then
-                     edge % uB(iXi,:) = self % BoundaryState( edge % x(1:NDIM , iXi) , time ) 
+                     edge % uB(:,iXi) = self % BoundaryState( edge % x(1:NDIM , iXi) , time ) 
                   end if
 #ifdef NAVIER_STOKES
 
 !
 !                 first stage: determine the boundary flow character
 !                 --------------------------------------------------
-                  rhoL = edge % storage(1) % Q(iXi , IRHO)
-                  uL  = edge % storage(1) % Q(iXi , IRHOU) / rhoL
-                  vL  = edge % storage(1) % Q(iXi , IRHOV) / rhoL
-                  vnL = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
-                  pL  = gm1 * ( edge % storage(1) % Q(iXi , IRHOE) - 0.5_RP * &
-                        ( edge % storage(1) % Q(iXi,IRHOU) * uL + edge % storage(1) % Q(iXi,IRHOV) * vL ) )
-                  aL  = sqrt( gamma * pL / rhoL ) 
-                  ML  = sqrt(uL * uL + vL * vL) / aL
+                  rhoL = edge % storage(1) % Q(IRHO  , iXi)
+                  uL   = edge % storage(1) %  Q(IRHOU , iXi) / rhoL
+                  vL   = edge % storage(1) %  Q(IRHOV , iXi) / rhoL
+                  vnL  = uL * edge % n (IX , iXi) + vL * edge % n(IY, iXi)
+                  pL   = gm1 * ( edge % storage(1) % Q(IRHOE , iXi) - 0.5_RP * &
+                        ( edge % storage(1) % Q(IRHOU , iXi) * uL + edge % storage(1) % Q(IRHOV , iXi) * vL ) )
+                  aL   = sqrt( gamma * pL / rhoL ) 
+                  ML   = sqrt(uL * uL + vL * vL) / aL
 !
 !                 second stage: compute the "right" state depending on the result
 !                 ---------------------------------------------------------------
@@ -282,7 +282,7 @@
 !
 !                       Supersonic
 !                       ----------
-                        edge % uSB(iXi,:) = edge % uB(iXi,:)
+                        edge % uSB(:,iXi) = edge % uB(:,iXi)
                         edge % viscousBCType(iXi) = DIRICHLET
       
                      else
@@ -291,12 +291,12 @@
 !                       --------
                         pR = pL
 
-                        edge % uSB(iXi,IRHO ) = edge % uB(iXi,IRHO )
-                        edge % uSB(iXi,IRHOU) = edge % uB(iXi,IRHOU)
-                        edge % uSB(iXi,IRHOV) = edge % uB(iXi,IRHOV)
-                        edge % uSB(iXi,IRHOE) =   cv * pR      & 
-                                                + 0.5_RP * ( edge % uSB(iXi,IRHOU) * edge % uSB(iXi,IRHOU)  &
-                                                + edge % uSB(iXi,IRHOV) * edge % uSB(iXi,IRHOV) ) / edge % uSB(iXi,IRHO)
+                        edge % uSB(IRHO  , iXi ) = edge % uB(IRHO  , iXi )
+                        edge % uSB(IRHOU , iXi ) = edge % uB(IRHOU , iXi )
+                        edge % uSB(IRHOV , iXi ) = edge % uB(IRHOV , iXi)
+                        edge % uSB(IRHOE , iXi ) =   cv * pR      & 
+                                                + 0.5_RP * ( edge % uSB(IRHOU,iXi) * edge % uSB(IRHOU,iXi)  &
+                                                + edge % uSB(IRHOV,iXi) * edge % uSB(IRHOV,iXi) ) / edge % uSB(IRHO,iXi)
                         edge % viscousBCType(iXi) = DIRICHLET
 
                      end if
@@ -309,18 +309,18 @@
 !
 !                       Supersonic
 !                       ----------
-                        edge % uSB(iXi,:) = edge % storage(1) % Q(iXi, 1:NCONS)
+                        edge % uSB(:,iXi) = edge % storage(1) % Q(1:NCONS,iXi)
                         edge % viscousBCType(iXi) = NEUMANN
 
                      else
 !
 !                       Subsonic
 !                       --------
-                        edge % uSB(iXi,IRHO)  = edge % storage(1) % Q(iXi,IRHO)
-                        edge % uSB(iXi,IRHOU) = edge % storage(1) % Q(iXi,IRHOU)
-                        edge % uSB(iXi,IRHOV) = edge % storage(1) % Q(iXi,IRHOV)
-                        q = edge % uB(iXi,:)
-                        edge % uSB(iXi,IRHOE) = cv * getPressure( q ) +  0.5_RP * ( edge % uSB(iXi,IRHOU) * uL + edge % uSB(iXi,IRHOV) * vL )
+                        edge % uSB(IRHO  , iXi)  = edge % storage(1) % Q(IRHO ,iXi)
+                        edge % uSB(IRHOU , iXi)  = edge % storage(1) % Q(IRHOU,iXi)
+                        edge % uSB(IRHOV , iXi)  = edge % storage(1) % Q(IRHOV,iXi)
+                        q = edge % uB(:,iXi)
+                        edge % uSB(IRHOE,iXi) = cv * getPressure( q ) +  0.5_RP * ( edge % uSB(IRHOU,iXi) * uL + edge % uSB(IRHOV,iXi) * vL )
                         edge % viscousBCType(iXi) = DIRICHLET
 
                      end if

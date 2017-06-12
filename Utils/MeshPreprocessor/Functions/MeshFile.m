@@ -17,6 +17,7 @@ classdef MeshFile
         p_refinementZoneConditions
         p_refinementElements
         mode
+        markerNames
     end
     
     properties (Dependent)
@@ -26,6 +27,7 @@ classdef MeshFile
         y_curvilinear_coords
         pRefinement_zones        
         no_of_pRefinementzones
+        no_of_bdrymarkers
     end
     
     methods
@@ -435,6 +437,10 @@ classdef MeshFile
             end
         end
         
+        function value = get.no_of_bdrymarkers(self)
+            value = max(self.bdrymarker_of_edges);
+        end
+        
         function Plot(self)
 %
 %           Create new figure
@@ -485,7 +491,7 @@ classdef MeshFile
             N3_ID       = netcdf.defDim(ncid,'three',3);
             N4_ID       = netcdf.defDim(ncid,'four',4);    
             NChar_ID    = netcdf.defDim(ncid,'character_length',20);
-            Nmarkers_ID = netcdf.defDim(ncid,'no_of_markers',4); % 5
+            Nmarkers_ID = netcdf.defDim(ncid,'no_of_markers',self.no_of_bdrymarkers);
             NPzones_ID  = netcdf.defDim(ncid,'no_of_pRefinementzones',self.no_of_pRefinementzones);
 %           *********
 %           Variables
@@ -501,11 +507,9 @@ classdef MeshFile
             end
             pRefinementZones_ID = netcdf.defVar(ncid,'pRefinement_zones','NC_INT',Nel_ID);
     
-            marker1_ID = netcdf.defVar(ncid , 'marker1','NC_CHAR',NChar_ID);
-            marker2_ID = netcdf.defVar(ncid , 'marker2','NC_CHAR',NChar_ID);
-            marker3_ID = netcdf.defVar(ncid , 'marker3','NC_CHAR',NChar_ID);
-            marker4_ID = netcdf.defVar(ncid , 'marker4','NC_CHAR',NChar_ID);
-           % marker5_ID = netcdf.defVar(ncid , 'marker5','NC_CHAR',NChar_ID);
+            for i = 1:self.no_of_bdrymarkers
+                marker_IDs{i} = netcdf.defVar(ncid , ['marker',num2str(i)],'NC_CHAR',NChar_ID);
+            end
     
 %           ===================    
             netcdf.endDef(ncid);    
@@ -525,11 +529,11 @@ classdef MeshFile
             else
                 netcdf.putVar(ncid , pRefinementZones_ID , self.p_refinementElements);
             end
-            netcdf.putVar(ncid , marker1_ID , ['bottom',blanks(20-6)]);
-            netcdf.putVar(ncid , marker2_ID , ['top',blanks(20-3)]);
-            netcdf.putVar(ncid , marker3_ID , ['left',blanks(20-4)]);
-            netcdf.putVar(ncid , marker4_ID , ['right',blanks(20-5)]);
-            %netcdf.putVar(ncid , marker5_ID , ['circle',blanks(20-6)]);
+            
+            for i = 1 : self.no_of_bdrymarkers
+                netcdf.putVar(ncid , marker_IDs{i} , [self.markerNames{i},blanks(20-length(self.markerNames{i}))]);
+            end
+
             netcdf.close(ncid);
             
             

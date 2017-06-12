@@ -281,8 +281,8 @@ module QuadElementClass
             import Edge_t
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1 : NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1 : NCONS , 0 : ed % spA % N ) 
          end subroutine ProjectSolutionFCN
     end interface
 
@@ -292,10 +292,10 @@ module QuadElementClass
             import Edge_t
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1 : NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1 : NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1 : NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1 : NCONS , 0 : ed % spA % N , 1 : NDIM ) 
          end subroutine ProjectSolutionAndGradientFCN
     end interface
 
@@ -305,9 +305,9 @@ module QuadElementClass
             import Edge_t
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(in)     :: F ( 1 : NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N )
          end subroutine ProjectFluxesFCN
     end interface
 
@@ -317,10 +317,10 @@ module QuadElementClass
             import Edge_t
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N , 1 : NDIM )
          end subroutine ProjectGradientFluxesFCN
     end interface
 !
@@ -396,9 +396,9 @@ module QuadElementClass
 !               These two arrays were before 
 !               allocated inside each element.
 !               Now they are just linked.
-!                   allocate ( self % Q    ( 0:N , 0:N , NCONS        )  ) 
-!                   allocate ( self % QDot ( 0:N , 0:N , NCONS        )  ) 
-!                   allocate ( self % dQ   ( 0:N , 0:N , NDIM , NGRAD )  ) 
+!                   allocate ( self % Q    ( NCONS , 0:N , 0:N ,      )  ) 
+!                   allocate ( self % QDot ( NCONS , 0:N , 0:N ,      )  ) 
+!                   allocate ( self % dQ   ( NCONS , 0:N , 0:N , NDIM )  ) 
 !            -------------------------------------------------------------
 !
              self % address = address

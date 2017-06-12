@@ -762,58 +762,58 @@ readloop:do
             select case ( trim( self % variable ) )
    
                case ("rho")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHO , 0:N , 0:N )  , self % l_xi , self % l_eta , rho   ) 
                   self % values(bufferPosition) = rho * refValues % rho
     
                case ("rhou")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOU , 0:N , 0:N )  , self % l_xi , self % l_eta , rhou  ) 
                   self % values(bufferPosition) = rhou * refValues % rho * refValues % a
     
                case ("rhov")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOV , 0:N , 0:N )  , self % l_xi , self % l_eta , rhov  ) 
                   self % values(bufferPosition) = rhov * refValues % rho * refValues % a
     
                case ("rhoe")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoe  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOE , 0:N , 0:N )  , self % l_xi , self % l_eta , rhoe  ) 
                   self % values(bufferPosition) = rhoe * refValues % rho * refValues % p
     
                case ("rhot")
-                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rhot  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( IRHO , 0:N , 0:N  )  , self % l_xi , self % l_eta , rhot  ) 
                   self % values(bufferPosition) = rhot * refValues % rho / refValues % tc
     
                case ("rhout")
-                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhout ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( IRHOU , 0:N , 0:N )  , self % l_xi , self % l_eta , rhout ) 
                   self % values(bufferPosition) = rhout * refValues % rho * refValues % a / refValues % tc
     
                case ("rhovt")
-                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhovt ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( IRHOV , 0:N , 0:N )  , self % l_xi , self % l_eta , rhovt ) 
                   self % values(bufferPosition) = rhovt * refValues % rho * refValues % a / refValues % tc
     
                case ("rhoet")
-                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoet ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % QDot ( IRHOE , 0:N , 0:N  )  , self % l_xi , self % l_eta , rhoet ) 
                   self % values(bufferPosition) = rhoet * refValues % rho * refValues % p / refValues % tc
     
                case ("u")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHO  , 0:N , 0:N )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOU , 0:N , 0:N )  , self % l_xi , self % l_eta , rhou  ) 
                   self % values(bufferPosition) = rhou / rho * refValues % a
     
                case ("v")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHO  , 0:N , 0:N )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOV , 0:N , 0:N )  , self % l_xi , self % l_eta , rhov  ) 
                   self % values(bufferPosition) = rhov / rho * refValues % a
        
                case ("p")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOE )  , self % l_xi , self % l_eta , rhoe  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHO  , 0:N , 0:N )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOU , 0:N , 0:N )  , self % l_xi , self % l_eta , rhou  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOV , 0:N , 0:N )  , self % l_xi , self % l_eta , rhov  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOE , 0:N , 0:N )  , self % l_xi , self % l_eta , rhoe  ) 
                   self % values(bufferPosition) = Thermodynamics % gm1 * ( rhoe - 0.5_RP * ( rhou * rhou + rhov * rhov ) / rho ) * refValues % p
           
                case ("Mach")
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHO  )  , self % l_xi , self % l_eta , rho   ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOU )  , self % l_xi , self % l_eta , rhou  ) 
-                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( 0:N , 0:N , IRHOV )  , self % l_xi , self % l_eta , rhov  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHO  , 0:N , 0:N )  , self % l_xi , self % l_eta , rho   ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOU , 0:N , 0:N )  , self % l_xi , self % l_eta , rhou  ) 
+                  call BilinearForm ( mesh % elements ( self % eID )  % Q    ( IRHOV , 0:N , 0:N )  , self % l_xi , self % l_eta , rhov  ) 
                   self % values(bufferPosition) = sqrt(rhou * rhou + rhov * rhov) / rho / sqrt(Thermodynamics % gamma)
     
                case default

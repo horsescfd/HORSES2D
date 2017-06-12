@@ -749,8 +749,8 @@
          pure subroutine Edge_ProjectSolutionType1( ed , QL , QR ) 
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
 
             QL = ed % storage(LEFT) % Q
             QR = ed % storage(RIGHT) % Q
@@ -760,11 +760,19 @@
          pure subroutine Edge_ProjectSolutionType2( ed , QL , QR )
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer     :: i 
             QL = ed % storage(LEFT) % Q
-            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+            do i = 0 , ed % spA % N
+               QR(:,i) = ed % storage(RIGHT) % Q( : , ed % spA % N - i )
+            end do
 
          end subroutine Edge_ProjectSolutionType2
 
@@ -772,17 +780,22 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: i , l
 
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
             QR = ed % storage(RIGHT) % Q
+
+            QL = 0.0_RP
+
+            do l = 0 , ed % NLow    ; do i = 0 , ed % spA % N 
+               QL(:,i) = QL(:,i) + ed % T_forward(i,l) * ed % storage(LEFT) % Q(:,l)
+            end do                     ; end do
 
          end subroutine Edge_ProjectSolutionType3
 
@@ -790,17 +803,24 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: eq , i , l
 
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+            QL = 0.0_RP 
+
+            do l = 0 , ed % NLow    ; do i = 0 , ed % spA % N 
+               QL(:,i) = QL(:,i) + ed % T_forward(i,l) * ed % storage(LEFT) % Q(:,l)
+            end do                     ; end do
+
+            do i = 0 , ed % spA % N 
+               QR(:,i) = ed % storage(RIGHT) % Q( : , ed % spA % N - i )
+            end do                  
 
          end subroutine Edge_ProjectSolutionType4
 
@@ -808,17 +828,22 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: eq , i , l
  
             QL = ed % storage(LEFT) % Q
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+
+            QR = 0.0_RP 
+
+            do l = 0 , ed % NLow    ; do i = 0 , ed % spA % N 
+               QR(:,i) = QR(:,i) + ed % T_forward(i,l) * ed % storage(RIGHT) % Q(:,l)
+            end do                     ; end do
 
          end subroutine Edge_ProjectSolutionType5
 
@@ -826,28 +851,32 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: eq , i , l 
   
             QL = ed % storage(LEFT) % Q
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-            QR = QR( ed % spA % N : 0 : -1 , 1 : NCONS ) 
+
+            QR = 0.0_RP
+
+            do l = 0 , ed % NLow    ; do i = 0 , ed % spA % N 
+               QR(:,ed % spA % N - i) = QR(:,ed % spA % N - i) + ed % T_forward(i,l) * ed % storage(RIGHT) % Q(:,l)
+            end do                     ; end do
 
          end subroutine Edge_ProjectSolutionType6
 
          pure subroutine Edge_ProjectSolutionAndGradientType1( ed , QL , QR , dQL , dQR) 
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1:NCONS , 0 : ed % spA % N , 1 : NDIM ) 
 
             QL = ed % storage(LEFT) % Q
             QR = ed % storage(RIGHT) % Q
@@ -865,17 +894,30 @@
          pure subroutine Edge_ProjectSolutionAndGradientType2( ed , QL , QR , dQL , dQR )
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1:NCONS , 0 : ed % spA % N , 1 : NDIM ) 
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i , dimID
             
             QL = ed % storage(LEFT) % Q
-            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+
+            do i = 0 , ed % spA % N 
+               QR(:,i) = ed % storage(RIGHT) % Q( : , ed % spA % N - i )
+            end do
 
 #ifdef NAVIER_STOKES
             dQL = ed % storage(LEFT) % dQ
-            dQR = ed % storage(RIGHT) % dQ ( ed % spA % N : 0 : -1 , 1 : NDIM , 1 : NCONS )
+
+            do dimID = 1 , NDIM  ; do i = 0 , ed % spA % N 
+               dQR(:,i,dimID) = ed % storage(RIGHT) % dQ ( : , ed % spA % N - i , dimID )
+            end do               ; end do
+
 #else
             dQL = 0.0_RP
             dQR = 0.0_RP
@@ -887,24 +929,31 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1:NCONS , 0 : ed % spA % N , 1 : NDIM ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: eq , i , l , dimID
 
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
+            QL = 0.0_RP 
+            do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               QL(:,i) = QL(:,i) + ed % T_forward(i,l) * ed % storage(LEFT) % Q(:,l)
+            end do                     ; end do
+
             QR = ed % storage(RIGHT) % Q
 
 #ifdef NAVIER_STOKES
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
-            end do
+
+            dQL = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               dQL(:,i,dimID) = dQL(:,i,dimID) + ed % T_forward(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
+            end do               ; end do                     ; end do
+
             dQR = ed % storage(RIGHT) % dQ
 #else
             dQL = 0.0_RP
@@ -917,25 +966,36 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1:NCONS , 0 : ed % spA % N , 1 : NDIM ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: i , l , dimID
 
-            call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % Q , QL)
-            QR = ed % storage(RIGHT) % Q( ed % spA % N : 0 : -1 , 1 : NCONS )
+            QL = 0.0_RP 
+            do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               QL(:,i) = QL(:,i) + ed % T_forward(i,l) * ed % storage(LEFT) % Q(:,l)
+            end do                     ; end do
+
+            do i = 0 , ed % spA % N 
+               QR(:,i) = ed % storage(RIGHT) % Q( : , ed % spA % N - i )
+            end do
 
 #ifdef NAVIER_STOKES
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(LEFT) % dQ(:,:,eq) , dQL(:,:,eq) )
-            end do
-            dQR = ed % storage(RIGHT) % dQ( ed % spA % N : 0 : -1 , 1 : NDIM , 1 : NCONS )
+
+            dQL = 0.0_RP
+            do dimID = 1 , NDIM  ; do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               dQL(:,i,dimID) = dQL(:,i,dimID) + ed % T_forward(i,l) * ed % storage(LEFT) % dQ(:,l,dimID)
+            end do               ; end do                     ; end do
+
+            do dimID = 1 , NDIM ; do i = 0 , ed % spA % N 
+               dQR(:,i,dimID) = ed % storage(RIGHT) % dQ( : , ed % spA % N - i , dimID)
+            end do              ; end do
 #else
             dQL = 0.0_RP
             dQR = 0.0_RP
@@ -947,25 +1007,32 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1:NCONS , 0 : ed % spA % N , 1 : NDIM ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: i , l , dimID
  
             QL = ed % storage(LEFT) % Q
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
+
+            QR = 0.0_RP 
+            do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               QR(:,i) = QR(:,i) + ed % T_forward(i,l) * ed % storage(RIGHT) % Q(:,l)
+            end do                     ; end do
 
 #ifdef NAVIER_STOKES
+
             dQL = ed % storage(LEFT) % dQ
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
-            end do
+
+            dQR = 0.0_RP 
+            do dimID = 1 , NDIM ;   do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               dQR(:,i,dimID)    = dQR(:,i,dimID) +  ed % T_forward(i,l) * ed % storage(RIGHT) % dQ(:,l,dimID)
+            end do              ;   end do                     ; end do
 #else
             dQL = 0.0_RP
             dQR = 0.0_RP
@@ -977,27 +1044,33 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(out)    :: QL( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: QR( 0 : ed % spA % N , 1 : NCONS ) 
-            real(kind=RP), intent(out)    :: dQL( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS )
-            real(kind=RP), intent(out)    :: dQR( 0 : ed % spA % N , 1 : NDIM , 1 : NCONS ) 
+            real(kind=RP), intent(out)    :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: QR( 1:NCONS , 0 : ed % spA % N ) 
+            real(kind=RP), intent(out)    :: dQL( 1:NCONS , 0 : ed % spA % N , 1 : NDIM )
+            real(kind=RP), intent(out)    :: dQR( 1:NCONS , 0 : ed % spA % N , 1 : NDIM ) 
 !
 !           ---------------
 !           Local variables
 !           ---------------
 !
-            integer     :: eq
+            integer     :: l , i , dimID 
   
             QL = ed % storage(LEFT) % Q
-            call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % Q , QR)
-            QR = QR( ed % spA % N : 0 : -1 , 1 : NCONS ) 
+
+            QR = 0.0_RP
+            do l = 0 , ed % NLow       ; do i = 0 , ed % spA % N 
+               QR(:,ed % spA % N - i) = QR(:,ed % spA % N - i) + ed % T_forward(i,l) * ed % storage(RIGHT) % Q(:,l)
+            end do                     ; end do
 
 #ifdef NAVIER_STOKES
+
             dQL = ed % storage(LEFT) % dQ
-            do eq = 1 , NCONS
-               call Mat_x_Mat( ed % T_forward , ed % storage(RIGHT) % dQ(:,:,eq) , dQR(:,:,eq) )
-            end do
-            dQR = ed % storage(RIGHT) % dQ( ed % spA % N : 0 : -1 , 1 : NDIM , 1 : NCONS )
+
+            dQR = 0.0_RP 
+            do dimID = 1 , NDIM ;   do l = 0 , ed % NLow    ; do i = 0 , ed % spA % N 
+               dQR(:,ed % spA % N - i,dimID)    = dQR(:,ed % spA % N - i,dimID) +  ed % T_forward(i,l) * ed % storage(RIGHT) % dQ(:,l,dimID)
+            end do              ;   end do                     ; end do
+
 #else
             dQL = 0.0_RP
             dQR = 0.0_RP
@@ -1008,9 +1081,9 @@
          pure subroutine Edge_ProjectFluxesType1( ed , F , FL , FR) 
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(in)     :: F  ( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL ( 1:NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR ( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
 
             FL = F
             FR = -F
@@ -1020,12 +1093,21 @@
          pure subroutine Edge_ProjectFluxesType2( ed , F , FL , FR )
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
-            
+            real(kind=RP), intent(in)     :: F ( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL( 1:NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i 
+
             FL = F
-            FR = -F( ed % spA % N : 0 : -1 , 1 : NCONS )
+   
+            do i = 0 , ed % spA % N 
+               FR(:,ed % spA % N - i) = - F( : , i )
+            end do
 
          end subroutine Edge_ProjectFluxesType2
 
@@ -1033,11 +1115,21 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(in)     :: F ( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL( 1:NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i , l 
 
-            call Mat_x_Mat( ed % T_backward , F , FL)
+            FL = 0.0_RP
+            do l = 0 , ed % spA % N  ; do i = 0 , ed % NLow
+               FL(: , i) = FL(:,i) + ed % T_backward(i,l) * F(:,l) 
+            end do                   ; end do
+
             FR = -F
             
          end subroutine Edge_ProjectFluxesType3
@@ -1046,12 +1138,24 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(in)     :: F ( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL( 1:NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i , l 
 
-            call Mat_x_Mat( ed % T_backward , F , FL )
-            FR = -F( ed % spA % N : 0 : -1 , 1 : NCONS )
+            FL = 0.0_RP
+            do l = 0 , ed % spA % N  ; do i = 0 , ed % NLow
+               FL(: , i) = FL(:,i) + ed % T_backward(i,l) * F(:,l) 
+            end do                   ; end do
+
+            do i = 0 , ed % spA % N
+               FR(:,i) = -F( : , ed % spA % N - i )
+            end do
 
          end subroutine Edge_ProjectFluxesType4
 
@@ -1059,36 +1163,55 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
+            real(kind=RP), intent(in)     :: F ( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL( 1:NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i , l 
 
             FL = F
-            call Mat_x_Mat( ed % T_backward , -F , FR )
-           
+
+            FR = 0.0_RP
+            do l = 0 , ed % spA % N  ; do i = 0 , ed % NLow
+               FR(: , i) = FR(:,i) - ed % T_backward(i,l) * F(:,l) 
+            end do                   ; end do
+
          end subroutine Edge_ProjectFluxesType5
 
          pure subroutine Edge_ProjectFluxesType6( ed , F , FL , FR )
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: F ( 0 : ed % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS )
-            real(kind=RP), intent(out)    :: FR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS )
-            
+            real(kind=RP), intent(in)     :: F ( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP), intent(out)    :: FL( 1:NCONS , 0 : ed % storage(LEFT) % spA % N )
+            real(kind=RP), intent(out)    :: FR( 1:NCONS , 0 : ed % storage(RIGHT) % spA % N )
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i , l 
+
             FL = F
-            call Mat_x_Mat( ed % T_backward , F , FR )
-            FR = -FR( ed % Nlow : 0 : -1 , 1 : NCONS )
+
+            FR = 0.0_RP
+            do l = 0 , ed % spA % N  ; do i = 0 , ed % NLow
+               FR(: , ed % NLow - i) = FR(:,ed % NLow - i) - ed % T_backward(i,l) * F(:,l) 
+            end do                   ; end do
 
          end subroutine Edge_ProjectFluxesType6
 
          pure subroutine Edge_ProjectGradientFluxesType1( ed , GL_edge , GR_edge , GL , GR) 
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1 : NDIM )
 
             GL = GL_edge
             GR = GR_edge
@@ -1098,13 +1221,22 @@
          pure subroutine Edge_ProjectGradientFluxesType2( ed , GL_edge , GR_edge , GL , GR)
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
-            
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1 : NDIM )
+!
+!           ---------------
+!           Local variables
+!           ---------------
+!
+            integer        :: i  , dimID
+
             GL = GL_edge
-            GR = GR_edge( ed % spA % N : 0 : -1 , 1 : NCONS , 1 : NDIM )
+         
+            do dimID = 1 , NDIM  ; do i = 0 , ed % spA % N 
+               GR(:,ed % spA % N - i , dimID) = GR_edge( : , i , dimID )
+            end do               ; end do
 
          end subroutine Edge_ProjectGradientFluxesType2
 
@@ -1112,13 +1244,22 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
-               
-            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IX) , GL(:,:,IX) )
-            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IY) , GL(:,:,IY) )
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1 : NDIM )
+!
+!           ---------------
+!           Local variables               
+!           ---------------
+!
+            integer     :: i , dimID , l
+
+            GL = 0.0_RP 
+            do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
+               GL(:,i,dimID)    = GL(:,i,dimID) + ed % T_backward(i,l) * GL_edge(:,l,dimID)
+            end do              ;   end do                     ; end do
+
             GR = GR_edge
             
          end subroutine Edge_ProjectGradientFluxesType3
@@ -1127,14 +1268,25 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
-               
-            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IX) , GL(:,:,IX) )
-            call Mat_x_Mat( ed % T_backward , GL_edge(:,:,IY) , GL(:,:,IY) )
-            GR = GR_edge( ed % spA % N : 0 : -1 , 1 : NCONS , 1 : NDIM)
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1 : NDIM )
+!
+!           ---------------
+!           Local variables               
+!           ---------------
+!
+            integer     :: i , dimID , l
+
+            GL = 0.0_RP
+            do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
+               GL(:,i,dimID)    = GL(:,i,dimID) + ed % T_backward(i,l) * GL_edge(:,l,dimID)
+            end do              ;   end do                     ; end do
+
+            do dimID = 1 , NDIM  ; do i = 0 , ed % spA % N 
+               GR(:,ed % spA % N - i , dimID) = GR_edge( : , i , dimID )
+            end do               ; end do
 
          end subroutine Edge_ProjectGradientFluxesType4
 
@@ -1142,14 +1294,23 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1 : NDIM )
+!
+!           ---------------
+!           Local variables               
+!           ---------------
+!
+            integer     :: i , dimID , l
 
             GL = GL_edge
-            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IX) , GR(:,:,IX) )
-            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IY) , GR(:,:,IY) )
+
+            GR = 0.0_RP
+            do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
+               GR(:,i,dimID)    = GR(:,i,dimID) + ed % T_backward(i,l) * GR_edge(:,l,dimID)
+            end do              ;   end do                     ; end do
            
          end subroutine Edge_ProjectGradientFluxesType5
 
@@ -1157,17 +1318,24 @@
             use MatrixOperations
             implicit none
             class(Edge_t), intent(in)     :: ed
-            real(kind=RP), intent(in)     :: GL_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(in)     :: GR_edge ( 0 : ed % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GL( 0 : ed % storage(LEFT) % spA % N , 1 : NCONS , 1 : NDIM )
-            real(kind=RP), intent(out)    :: GR( 0 : ed % storage(RIGHT) % spA % N , 1 : NCONS , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GL_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(in)     :: GR_edge ( 1 : NCONS , 0 : ed % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GL( 1 : NCONS , 0 : ed % storage(LEFT) % spA % N  , 1 : NDIM )
+            real(kind=RP), intent(out)    :: GR( 1 : NCONS , 0 : ed % storage(RIGHT) % spA % N  , 1 : NDIM )
+!
+!           ---------------
+!           Local variables               
+!           ---------------
+!
+            integer     :: i , dimID , l
 
             GL = GL_edge
-            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IX) , GR(:,:,IX) )
-            call Mat_x_Mat( ed % T_backward , GR_edge(:,:,IY) , GR(:,:,IY) )
 
-            GR = GR( ed % Nlow : 0 : -1 , 1 : NCONS , 1 : NDIM )
-
+            GR = 0.0_RP
+            do dimID = 1 , NDIM ;   do l = 0 , ed % spA % N    ; do i = 0 , ed % NLow
+               GR(:,ed % NLow - i,dimID)    = GR(:,ed % NLow - i,dimID) + ed % T_backward(i,l) * GR_edge(:,l,dimID)
+            end do              ;   end do                     ; end do
+           
          end subroutine Edge_ProjectGradientFluxesType6
 !
 !//////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1188,104 +1356,15 @@
 !           Local variables
 !           ---------------
 !
-            real(kind=RP)     :: QL( 0 : ed % spA % N )
-            real(kind=RP)     :: QR( 0 : ed % spA % N )
+            real(kind=RP)     :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP)     :: QR( 1:NCONS , 0 : ed % spA % N )
             real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N )
    
-            if ( ed % transform(LEFT) .and. ed % inverse ) then
-!    
-!           ---------------------------------------------------------
-!>          First case: LEFT needs p-Adaption, and RIGHT is reversed.
-!           ---------------------------------------------------------
-!   
-!              Transform the LEFT edge
-!              -----------------------            
-               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
-!   
-!              Invert the RIGHT edge
-!              ---------------------
-               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
-   
-            elseif ( ed % transform(LEFT) ) then
-!    
-!           ----------------------------------
-!>          Second case: LEFT needs p-Adaption.
-!           ----------------------------------
-!   
-!              Transform the LEFT 
-!              -----------------------
-               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
-!   
-!              Get the RIGHT edge state
-!              ------------------------
-               QR = ed % storage(RIGHT) % Q(:,var)
-   
-            elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
-!    
-!           ---------------------------------------------------------
-!>          Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
-!           ---------------------------------------------------------
-!   
-!              Get the LEFT edge 
-!              -----------------
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Transform the RIGHT edge 
-!              ------------------------
-               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-!   
-!              Invert the RIGHT edge 
-!              ---------------------
-               QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
-   
-            elseif ( ed % transform(RIGHT) ) then
-!    
-!           -----------------------------------
-!>          Fourth case: RIGHT needs p-Adaption.
-!           -----------------------------------
-!   
-!              Get the LEFT edge
-!              -----------------
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Transform the RIGHT edge
-!              ------------------------
-               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-            
-            elseif ( ed % inverse ) then
-!    
-!           -----------------------------
-!>          Fifth case: RIGHT is reversed.
-!           -----------------------------
-!   
-!              Get the LEFT edge
-!              -----------------
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Invert the RIGHT edge
-!              ---------------------
-               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
-   
-            else
-!    
-!           -----------------------------------------------------------------------
-!>          Sixth case: Default case: neither p-Adaption nor inversion are required.
-!           -----------------------------------------------------------------------
-!   
-!              Get the LEFT edge 
-!              -----------------   
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Get the RIGHT edge
-!              ------------------
-               QR = ed % storage(RIGHT) % Q(:,var)
-            
-            end if
-   
+            call ed % ProjectSolution(ed , QL , QR)
 !   
 !           Compute the Jumps
 !           -----------------
-            nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+            nodalJumps = 2.0_RP * ( QL(var,:) - QR(var,:) ) / ( QL(var,:) + QR(var,:) )
             jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS(0))
    
          end function Edge_ComputeJumps
@@ -1301,104 +1380,15 @@
 !           Local variables
 !           ---------------
 !
-            real(kind=RP)     :: QL( 0 : ed % spA % N )
-            real(kind=RP)     :: QR( 0 : ed % spA % N )
+            real(kind=RP)     :: QL( 1:NCONS , 0 : ed % spA % N )
+            real(kind=RP)     :: QR( 1:NCONS , 0 : ed % spA % N )
             real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N )
    
-            if ( ed % transform(LEFT) .and. ed % inverse ) then
-!    
-!           ---------------------------------------------------------
-!>          First case: LEFT needs p-Adaption, and RIGHT is reversed.
-!           ---------------------------------------------------------
-!   
-!              Transform the LEFT edge
-!              -----------------------            
-               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
-!   
-!              Invert the RIGHT edge
-!              ---------------------
-               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var )
-   
-            elseif ( ed % transform(LEFT) ) then
-!    
-!           ----------------------------------
-!>          Second case: LEFT needs p-Adaption.
-!           ----------------------------------
-!   
-!              Transform the LEFT 
-!              -----------------------
-               QL = MatrixTimesVector_F( ed % T_forward , ed % storage(LEFT) % Q(:,var) , ed % spA % N + 1 )
-!   
-!              Get the RIGHT edge state
-!              ------------------------
-               QR = ed % storage(RIGHT) % Q(:,var)
-   
-            elseif ( ed % transform(RIGHT) .and.  ed % inverse ) then
-!    
-!           ---------------------------------------------------------
-!>          Third case: RIGHT needs p-Adaption, and RIGHT is reversed.
-!           ---------------------------------------------------------
-!   
-!              Get the LEFT edge 
-!              -----------------
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Transform the RIGHT edge 
-!              ------------------------
-               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-!   
-!              Invert the RIGHT edge 
-!              ---------------------
-               QR(0:ed % spA % N) = QR(ed % spA % N : 0 : -1)
-   
-            elseif ( ed % transform(RIGHT) ) then
-!    
-!           -----------------------------------
-!>          Fourth case: RIGHT needs p-Adaption.
-!           -----------------------------------
-!   
-!              Get the LEFT edge
-!              -----------------
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Transform the RIGHT edge
-!              ------------------------
-               QR = MatrixTimesVector_F( ed % T_forward , ed % storage(RIGHT) % Q(:,var) , ed % spA % N + 1 )
-            
-            elseif ( ed % inverse ) then
-!    
-!           -----------------------------
-!>          Fifth case: RIGHT is reversed.
-!           -----------------------------
-!   
-!              Get the LEFT edge
-!              -----------------
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Invert the RIGHT edge
-!              ---------------------
-               QR = ed % storage(RIGHT) % Q(ed % spA % N : 0 : -1 , var)
-   
-            else
-!    
-!           -----------------------------------------------------------------------
-!>          Sixth case: Default case: neither p-Adaption nor inversion are required.
-!           -----------------------------------------------------------------------
-!   
-!              Get the LEFT edge 
-!              -----------------   
-               QL = ed % storage(LEFT) % Q(:,var)
-!   
-!              Get the RIGHT edge
-!              ------------------
-               QR = ed % storage(RIGHT) % Q(:,var)
-            
-            end if
-   
+            call ed % ProjectSolution(ed,QL,QR)  
 !   
 !           Compute the Jumps
 !           -----------------
-            nodalJumps = 2.0_RP * ( QL - QR ) / ( QL + QR )
+            nodalJumps = 2.0_RP * ( QL(var,:) - QR(var,:) ) / ( QL(var,:) + QR(var,:) )
             jumps = sum( ed % spA % w * nodalJumps * nodalJumps * ed % dS)
    
          end function CurvedEdge_ComputeJumps
@@ -1414,6 +1404,7 @@
 !           Local variables
 !           ---------------
 !
+            integer               :: l , i 
             real(kind=RP)         :: nodalJumps_N ( 0 : ed % spA_N % N )
             real(kind=RP)         :: nodalJumps_S ( 0 : ed % spA_S % N )
             real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N ) 
@@ -1425,10 +1416,25 @@
 !
 !           Get the solution projection onto the edge
 !           -----------------------------------------
-            QLN = MatrixTimesVector_F ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_N % N ) 
-            QLS = MatrixTimesVector_F ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_S % N ) 
-            QRN = MatrixTimesVector_F ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q(:,var) , ed % spA_N % N ) 
-            QRS = MatrixTimesVector_F ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q(:,var) , ed % spA_S % N ) 
+            QLN = 0.0_RP
+            do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_N % N 
+               QLN(i)    = QLN(i) + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % Q(var,l)
+            end do                                     ; end do
+   
+            QLS = 0.0_RP
+            do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_S % N 
+               QLS(i)    = QLS(i) + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % Q(var,l)
+            end do                                     ; end do
+   
+            QRN = 0.0_RP
+            do l = 0 , ed % storage(RIGHT_NORTH) % spA % N    ; do i = 0 , ed % spA_N % N 
+               QRN(i)    = QRN(i) + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % Q(var,l)
+            end do                                            ; end do
+   
+            QRS = 0.0_RP
+            do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N    ; do i = 0 , ed % spA_S % N 
+               QRS(i)    = QRS(i) + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % Q(var,l)
+            end do                                            ; end do
 !   
 !           Compute the Jumps
 !           -----------------
@@ -1450,6 +1456,7 @@
 !           Local variables
 !           ---------------
 !
+            integer               :: l , i 
             real(kind=RP)         :: nodalJumps_N ( 0 : ed % spA_N % N )
             real(kind=RP)         :: nodalJumps_S ( 0 : ed % spA_S % N )
             real(kind=RP), target :: QLN    ( 0 : ed % spA_N % N ) 
@@ -1461,10 +1468,25 @@
 !
 !           Get the solution projection onto the edge
 !           -----------------------------------------
-            QLN = MatrixTimesVector_F ( ed % T_LN_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_N % N ) 
-            QLS = MatrixTimesVector_F ( ed % T_LS_FWD , ed % storage ( LEFT        )  % Q(:,var) , ed % spA_S % N ) 
-            QRN = MatrixTimesVector_F ( ed % T_RN_FWD , ed % storage ( RIGHT_NORTH )  % Q(:,var) , ed % spA_N % N ) 
-            QRS = MatrixTimesVector_F ( ed % T_RS_FWD , ed % storage ( RIGHT_SOUTH )  % Q(:,var) , ed % spA_S % N ) 
+            QLN = 0.0_RP
+            do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_N % N 
+               QLN(i)    = QLN(i) + ed % T_LN_FWD(i,l) * ed % storage(LEFT) % Q(var,l)
+            end do                                     ; end do
+   
+            QLS = 0.0_RP
+            do l = 0 , ed % storage(LEFT) % spA % N    ; do i = 0 , ed % spA_S % N 
+               QLS(i)    = QLS(i) + ed % T_LS_FWD(i,l) * ed % storage(LEFT) % Q(var,l)
+            end do                                     ; end do
+   
+            QRN = 0.0_RP
+            do l = 0 , ed % storage(RIGHT_NORTH) % spA % N    ; do i = 0 , ed % spA_N % N 
+               QRN(i)    = QRN(i) + ed % T_RN_FWD(i,l) * ed % storage(RIGHT_NORTH) % Q(var,l)
+            end do                                            ; end do
+   
+            QRS = 0.0_RP
+            do l = 0 , ed % storage(RIGHT_SOUTH) % spA % N    ; do i = 0 , ed % spA_S % N 
+               QRS(i)    = QRS(i) + ed % T_RS_FWD(i,l) * ed % storage(RIGHT_SOUTH) % Q(var,l)
+            end do                                            ; end do
 !   
 !           Compute the Jumps
 !           -----------------
@@ -1486,6 +1508,7 @@
 !           Local variables
 !           ---------------
 !
+            integer           :: i 
             real(kind=RP)     :: QL( 0 : ed % spA % N )
             real(kind=RP)     :: QR( 0 : ed % spA % N )
             real(kind=RP)     :: nodalJumps ( 0 : ed % spA % N ) 
@@ -1498,15 +1521,17 @@
 !
 !           Get the LEFT edge
 !           -----------------
-            QL = ed % storage(1) % Q(:,var)
+            QL = ed % storage(1) % Q(var,:)
 !
 !           Invert the RIGHT edge
 !           ---------------------
+            do i = 0 , ed % spA % N
 #ifdef NAVIER_STOKES
-            QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
+               QR(i) = ed % uSB(var , ed % spA % N - i)
 #else
-            QR(0:ed % spA % N) = ed % uB(ed % spA % N : 0 : -1 , var )
+               QR(i) = ed % uB(var , ed % spA % N - i)
 #endif
+            end do
 
          else
 ! 
@@ -1516,17 +1541,15 @@
 !
 !           Get the LEFT edge 
 !           -----------------   
-            QL = ed % storage(1) % Q(:,var)
+            QL = ed % storage(1) % Q(var,:)
 !
 !           Get the RIGHT edge
 !           ------------------
 #ifdef NAVIER_STOKES
-            QR = ed % uSB(:,var)
+            QR = ed % uSB(var,:)
 #else
-            QR = ed % uB(:,var)
+            QR = ed % uB(var,:)
 #endif
-      
-         
          end if
 !
 !        Compute the Jumps
@@ -1547,6 +1570,7 @@
 !           Local variables
 !           ---------------
 !
+            integer           :: i 
             real(kind=RP)     :: QL( 0 : ed % spA % N )
             real(kind=RP)     :: QR( 0 : ed % spA % N )
             real(kind=RP)     :: nodalJumps( 0 : ed % spA % N ) 
@@ -1559,32 +1583,30 @@
 !
 !           Get the LEFT edge
 !           -----------------
-            QL = ed % storage(1) % Q(:,var)
+            QL = ed % storage(1) % Q(var,:)
 !
 !           Invert the RIGHT edge
 !           ---------------------
+            do i = 0 , ed % spA % N
 #ifdef NAVIER_STOKES
-            QR(0:ed % spA % N) = ed % uSB(ed % spA % N : 0 : -1 , var )
+               QR(i) = ed % uSB(var , ed % spA % N - i)
 #else
-            QR(0:ed % spA % N) = ed % uB(ed % spA % N : 0 : -1 , var )
+               QR(i) = ed % uB(var , ed % spA % N - i)
 #endif
+            end do
 
          else
 ! 
-!        -----------------------------------------------------------------------
-!>       Second case: Default case: neither p-Adaption nor inversion are required.
-!        -----------------------------------------------------------------------
-!
 !           Get the LEFT edge 
 !           -----------------   
-            QL = ed % storage(1) % Q(:,var)
+            QL = ed % storage(1) % Q(var,:)
 !
 !           Get the RIGHT edge
 !           ------------------
 #ifdef NAVIER_STOKES
-            QR = ed % uSB(:,var)
+            QR = ed % uSB(var,:)
 #else
-            QR = ed % uB(:,var)
+            QR = ed % uB(var,:)
 #endif
          
          end if
@@ -1610,9 +1632,9 @@
 
             self % spA => spA
 
-            allocate ( self % Q  ( 0 : self % spA % N , NCONS )  ) 
+            allocate ( self % Q  ( NCONS , 0 : self % spA % N )  ) 
 #ifdef NAVIER_STOKES
-            allocate ( self % dQ ( 0 : self % spA % N , NDIM  , NCONS ) ) 
+            allocate ( self % dQ ( NCONS , 0 : self % spA % N , NDIM ) ) 
 #endif
 
          end subroutine BoundaryData_Initialize

@@ -108,7 +108,7 @@ module DGWeakIntegrals
 !        ----------------------------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      function Scalar_StdVolumeGreen( e , F) result ( volInt )
+      pure function Scalar_StdVolumeGreen( e , F) result ( volInt )
 !
 !     ***************************************************************************
 !           Computes a weak volume integrals with:
@@ -132,38 +132,52 @@ module DGWeakIntegrals
 !
          use MatrixOperations
          implicit none
-         class(QuadElement_t)             :: e
-         real(kind=RP), intent(in)        :: F(0:e % spA % N , 0:e % spA % N, 1:NCONS , 1:NDIM)
-         real(kind=RP)                    :: volInt(0:e % spA % N, 0:e % spA % N , 1:NCONS)
-!        ----------------------------------------------------------------------------------------------
-         real(kind=RP)                    :: contravariant_F( 0 : e % spA % N , 0 : e % spA % N , 1:NCONS )
-         real(kind=RP)                    :: contravariant_G( 0 : e % spA % N , 0 : e % spA % N , 1:NCONS )
-         integer, pointer                 :: N
-         integer                          :: eq
-   
-         N => e % spA % N
- 
-         do eq = 1 , NCONS
+         class(QuadElement_t), intent(in) :: e
+         real(kind=RP), intent(in)        :: F(1:NCONS , 0:e % spA % N , 0:e % spA % N , 1:NDIM)
+         real(kind=RP)                    :: volInt(1:NCONS , 0:e % spA % N, 0:e % spA % N )
+!
+!        ---------------
+!        Local variables
+!        ---------------
+!
+         real(kind=RP)                    :: contravariant_F( 1:NCONS , 0 : e % spA % N , 0 : e % spA % N )
+         real(kind=RP)                    :: contravariant_G( 1:NCONS , 0 : e % spA % N , 0 : e % spA % N )
+         integer                          :: eq , i , j , l , N , dimID
+
+         N = e % spA % N 
+!
+!        Initialization
+!        -------------- 
+         contravariant_F = 0.0_RP
+         contravariant_G = 0.0_RP
+         volInt = 0.0_RP
+!
+!        Contravariant fluxes
+!        --------------------
+         do dimID = 1 , NDIM  ; do j = 0 , e % spA % N ; do i = 0 , e % spA % N 
 !           
 !           F flux (contravariant)
 !           ----------------------
-            contravariant_F(0:N,0:N,eq) = F(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,1) + F(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,1)
+            contravariant_F(:,i,j) = contravariant_F(:,i,j) + F(:,i,j,dimID) * e % Ja(i,j,dimID,IX) 
 
-         end do
-   
-         do eq = 1 , NCONS
+         end do               ; end do                 ; end do
+
+         do dimID = 1 , NDIM  ; do j = 0 , e % spA % N ; do i = 0 , e % spA % N 
 !           
 !           G flux (contravariant)
 !           ----------------------
-            contravariant_G(0:N,0:N,eq) = F(0:N,0:N,eq,IX) * e % Ja(0:N,0:N,1,2) + F(0:N,0:N,eq,IY) * e % Ja(0:N,0:N,2,2)
+            contravariant_G(:,i,j) = contravariant_G(:,i,j) + F(:,i,j,dimID) * e % Ja(i,j,dimID,IY) 
 
+         end do               ; end do                 ; end do
+!
+!        Compute the integral
+!        --------------------   
+         do l = 0 , e % spA % N
+            do j = 0 , e % spA % N ; do i = 0 , e % spA % N  
+               volInt(:,i,j) = volInt(:,i,j) + e % spA % hatD(i,l) * contravariant_F(:,l,j) + e % spA % hatD(j,l) * contravariant_G(:,i,l)
+            end do                 ; end do
          end do
-
-  
-
-         volInt =    MatrixMultiplyInIndex_F(contravariant_F , e % spA % hatD , N+1 , N+1 , NCONS , IX)          &
-                   + MatrixMultiplyInIndex_F(contravariant_G , e % spA % hatD , N+1 , N+1 , NCONS , IY)
-   
+     
       end function Scalar_StdVolumeGreen
 
       pure function Scalar_StdFace( ed , loc , F ) result ( faceInt )
@@ -188,8 +202,8 @@ module DGWeakIntegrals
          implicit none
          class(Edge_t), intent(in) :: ed
          integer,       intent(in) :: loc
-         real(kind=RP), intent(in) :: F  (0 : ed % storage(loc) % spA % N , 1:NCONS)
-         real(kind=RP)             :: faceInt(0 : ed % storage(loc) % spA % N , 0 : ed % storage(loc) % spA % N , 1:NCONS)
+         real(kind=RP), intent(in) :: F  (1:NCONS , 0 : ed % storage(loc) % spA % N )
+         real(kind=RP)             :: faceInt(1:NCONS , 0 : ed % storage(loc) % spA % N , 0 : ed % storage(loc) % spA % N )
 !        ------------------------------------------------------------------------------------------------------------------------
          integer     :: iXi , iEta , eq
 
@@ -208,9 +222,9 @@ module DGWeakIntegrals
 !                       while the test function is written in Eta=-1
 !              -----------------------------------------------------------            
 !
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = F(iXi,eq) * e % spA % lbw(iEta,LEFT)
-               end do ; end do ; end do
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = F(:,iXi) * e % spA % lbw(iEta,LEFT)
+               end do ; end do
 
             case (ERIGHT)
 !
@@ -219,9 +233,9 @@ module DGWeakIntegrals
 !                       while the test function is written in Xi=+1
 !              -----------------------------------------------------------            
 !
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = F(iEta,eq) * e % spA % lbw(iXi,RIGHT)
-               end do ; end do ; end do
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = F(:,iEta) * e % spA % lbw(iXi,RIGHT)
+               end do ; end do
                   
             case (ETOP)
 !
@@ -230,9 +244,9 @@ module DGWeakIntegrals
 !                       while the test function is written in Eta=+1
 !              -----------------------------------------------------------            
 !
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = F(iXi,eq) * e % spA % lbw(iEta,RIGHT)
-               end do ; end do ; end do
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = F(:,iXi) * e % spA % lbw(iEta,RIGHT)
+               end do ; end do
    
             case (ELEFT)
 !
@@ -241,9 +255,9 @@ module DGWeakIntegrals
 !                       while the test function is written in Xi=-1
 !              -----------------------------------------------------------            
 !
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = F(iEta,eq) * e % spA % lbw(iXi,LEFT)
-               end do ; end do ; end do
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = F(:,iEta) * e % spA % lbw(iXi,LEFT)
+               end do ; end do
 
          end select
       
@@ -274,8 +288,8 @@ module DGWeakIntegrals
          implicit none
          class(Edge_t), intent(in)     :: ed
          integer,       intent(in)     :: loc
-         real(kind=RP), intent(in)     :: F(0:ed % storage(loc) % spA % N,1:NCONS,1:NDIM)
-         real(kind=RP)                 :: faceInt(0:ed % storage(loc) % spA % N , 0:ed % storage(loc) % spA % N , 1:NCONS)
+         real(kind=RP), intent(in)     :: F(1:NCONS,0:ed % storage(loc) % spA % N,1:NDIM)
+         real(kind=RP)                 :: faceInt(1:NCONS,0:ed % storage(loc) % spA % N , 0:ed % storage(loc) % spA % N)
 !
 !        ---------------
 !        Local variables
@@ -284,11 +298,11 @@ module DGWeakIntegrals
          real(kind=RP)     :: Ja_xi(0:ed % storage(loc) % spA % N , 1:NDIM)
          real(kind=RP)     :: Ja_eta(0:ed % storage(loc) % spA % N , 1:NDIM)
          real(kind=RP)     :: jac(0:ed % storage(loc) % spA % N)
-         real(kind=RP)     :: F_contravariant( 0 : ed % storage(loc) % spA % N , 1:NCONS )
-         real(kind=RP)     :: G_contravariant( 0 : ed % storage(loc) % spA % N , 1:NCONS )
-         real(kind=RP)     :: dF             ( 0 : ed % storage(loc) % spA % N , 1:NCONS )
-         real(kind=RP)     :: dG             ( 0 : ed % storage(loc) % spA % N , 1:NCONS )
-         integer     :: iXi , iEta , eq , iDim
+         real(kind=RP)     :: F_contravariant( 1:NCONS , 0 : ed % storage(loc) % spA % N )
+         real(kind=RP)     :: G_contravariant( 1:NCONS , 0 : ed % storage(loc) % spA % N )
+         real(kind=RP)     :: dF             ( 1:NCONS , 0 : ed % storage(loc) % spA % N )
+         real(kind=RP)     :: dG             ( 1:NCONS , 0 : ed % storage(loc) % spA % N )
+         integer     :: iXi , iEta , eq , dimID , i , l
 
          associate ( e => ed % quads(loc) % e )
 !
@@ -301,29 +315,46 @@ module DGWeakIntegrals
             case (EBOTTOM)
 !
 !              -----------------------------------------------------------            
-!>             Bottom edge: Variables are defined for Xi-coordinate, 
+!>             Bottom edge: Variables are defined for the Xi-coordinate, 
 !                       while the test function is written in Eta=-1
 !              -----------------------------------------------------------            
 !
-               do iDim = 1 , NDIM
-                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,LEFT) , e % spA % N + 1 )
-                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,LEFT) , e % spA % N + 1 )
+               do dimID = 1 , NDIM         ! TODO   : improve this
+                  Ja_xi (:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IX) , e % spA % lb(:,LEFT) , e % spA % N + 1 )
+                  Ja_eta(:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IY) , e % spA % lb(:,LEFT) , e % spA % N + 1 )
                end do
                
                jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,LEFT) , e % spA % N + 1 )
 
-               do eq = 1 , NCONS
-                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
-                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
-               end do
+               F_contravariant = 0.0_RP
+               G_contravariant = 0.0_RP
+               
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  F_contravariant(:,i) = F_contravariant(:,i) + F(:,i,dimID) * Ja_xi (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  F_contravariant(:,i) = F_contravariant(:,i) / jac(i)
+               end do             
+
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  G_contravariant(:,i) = G_contravariant(:,i) + F(:,i,dimID) * Ja_eta (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  G_contravariant(:,i) = G_contravariant(:,i) / jac(i)
+               end do             
 !
 !              dF(i,eq) = hatD(m,i) * F(m,eq)
 !              ------------------------------
-               dF = Mat_x_Mat_F( e % spA % hatD , F_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
+               dF = 0.0_RP
+               do l = 0 , ed % storage(loc) % spA % N    ; do i = 0 , ed % storage(loc) % spA % N 
+                  dF(:,i)  = dF(:,i) + e % spA % hatD(i,l) * F_contravariant(:,l)
+               end do                                    ; end do
                
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = dF(iXi,eq) * e % spA % lbw(iEta,LEFT) +  G_contravariant(iXi,eq) * e % spA % dlbw(iEta,LEFT)
-               end do ;            end do ;                    end do
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = dF(:,iXi) * e % spA % lbw(iEta,LEFT) + G_contravariant(:,iXi) * e % spA % dlbw(iEta,LEFT)
+               end do ;                    end do
 
             case (ERIGHT)
 !
@@ -332,25 +363,42 @@ module DGWeakIntegrals
 !                       while the test function is written in Xi=+1
 !              -----------------------------------------------------------            
 !
-               do iDim = 1 , NDIM
-                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true. )
-                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true. )
+               do dimID = 1 , NDIM
+                  Ja_xi (:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IX) , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true. )
+                  Ja_eta(:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IY) , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true. )
                end do
                
                jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,RIGHT) , e % spA % N + 1 , trA = .true.)
 
-               do eq = 1 , NCONS
-                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
-                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               F_contravariant = 0.0_RP
+               G_contravariant = 0.0_RP
+               
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  F_contravariant(:,i) = F_contravariant(:,i) + F(:,i,dimID) * Ja_xi (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  F_contravariant(:,i) = F_contravariant(:,i) / jac(i)
+               end do
+
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  G_contravariant(:,i) = G_contravariant(:,i) + F(:,i,dimID) * Ja_eta (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  G_contravariant(:,i) = G_contravariant(:,i) / jac(i)
                end do
 !
 !              dG(i,eq) = hatD(m,i) * F(m,eq)
 !              ------------------------------
-               dG = Mat_x_Mat_F( e % spA % hatD , G_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
-               
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = F_contravariant(iEta,eq) * e % spA % dlbw(iXi,RIGHT) + dG(iEta,eq) * e % spA % lbw(iXi,RIGHT)
-               end do ;            end do ;                    end do
+               dG = 0.0_RP
+               do l = 0 , ed % storage(loc) % spA % N    ; do i = 0 , ed % storage(loc) % spA % N 
+                  dG(:,i)  = dG(:,i) + e % spA % hatD(i,l) * G_contravariant(:,l)
+               end do                                    ; end do
+
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = F_contravariant(:,iEta) * e % spA % dlbw(iXi,RIGHT) + dG(:,iEta) * e % spA % lbw(iXi,RIGHT)
+               end do ;                    end do
 
             case (ETOP)
 !
@@ -359,25 +407,42 @@ module DGWeakIntegrals
 !                       while the test function is written in Eta=1
 !              -----------------------------------------------------------            
 !
-               do iDim = 1 , NDIM
-                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
-                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
+               do dimID = 1 , NDIM
+                  Ja_xi (:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IX) , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
+                  Ja_eta(:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IY) , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
                end do
                
                jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,RIGHT) , e % spA % N + 1 )
 
-               do eq = 1 , NCONS
-                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
-                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               F_contravariant = 0.0_RP
+               G_contravariant = 0.0_RP
+               
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  F_contravariant(:,i) = F_contravariant(:,i) + F(:,i,dimID) * Ja_xi (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  F_contravariant(:,i) = F_contravariant(:,i) / jac(i)
+               end do
+
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  G_contravariant(:,i) = G_contravariant(:,i) + F(:,i,dimID) * Ja_eta (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  G_contravariant(:,i) = G_contravariant(:,i) / jac(i)
                end do
 !
 !              dF(i,eq) = hatD(m,i) * F(m,eq)
 !              ------------------------------
-               dF = Mat_x_Mat_F( e % spA % hatD , F_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
+               dF = 0.0_RP
+               do l = 0 , ed % storage(loc) % spA % N    ; do i = 0 , ed % storage(loc) % spA % N 
+                  dF(:,i)  = dF(:,i) + e % spA % hatD(i,l) * F_contravariant(:,l)
+               end do                                    ; end do
                
-               do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = dF(iXi,eq) * e % spA % lbw(iEta,RIGHT) +  G_contravariant(iXi,eq) * e % spA % dlbw(iEta,RIGHT)
-               end do ;            end do ;                    end do
+               do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta) = dF(:,iXi) * e % spA % lbw(iEta,RIGHT) +  G_contravariant(:,iXi) * e % spA % dlbw(iEta,RIGHT)
+               end do ;                    end do  
 
             case (ELEFT)
 !
@@ -386,24 +451,41 @@ module DGWeakIntegrals
 !                       while the test function is written in Xi=+0
 !              -----------------------------------------------------------            
 !
-               do iDim = 1 , NDIM
-                  Ja_xi (:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IX) , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true. )
-                  Ja_eta(:,iDim) = MatrixTimesVector_F( e % Ja(:,:,iDim,IY) , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true. )
+               do dimID = 1 , NDIM
+                  Ja_xi (:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IX) , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true. )
+                  Ja_eta(:,dimID) = MatrixTimesVector_F( e % Ja(:,:,dimID,IY) , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true. )
                end do
                
                jac = MatrixTimesVector_F( e % jac , e % spA % lb(:,LEFT) , e % spA % N + 1 , trA = .true.)
 
-               do eq = 1 , NCONS
-                  F_contravariant(:,eq) = ( F(:,eq,IX) * Ja_xi (:,IX) + F(:,eq,IY) * Ja_xi (:,IY) ) / jac
-                  G_contravariant(:,eq) = ( F(:,eq,IX) * Ja_eta(:,IX) + F(:,eq,IY) * Ja_eta(:,IY) ) / jac
+               F_contravariant = 0.0_RP
+               G_contravariant = 0.0_RP
+               
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  F_contravariant(:,i) = F_contravariant(:,i) + F(:,i,dimID) * Ja_xi (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  F_contravariant(:,i) = F_contravariant(:,i) / jac(i)
+               end do
+
+               do dimID = 1 , NDIM  ; do i = 0 , ed % storage(loc) % spA % N 
+                  G_contravariant(:,i) = G_contravariant(:,i) + F(:,i,dimID) * Ja_eta (i,dimID) 
+               end do               ; end do
+
+               do i = 0 , ed % storage(loc) % spA % N
+                  G_contravariant(:,i) = G_contravariant(:,i) / jac(i)
                end do
 !
 !              dG(i,eq) = hatD(m,i) * F(m,eq)
 !              ------------------------------
-               dG = Mat_x_Mat_F( e % spA % hatD , G_contravariant , e % spA % N + 1 , NCONS ,  trA = .true. ) 
-               
+               dG = 0.0_RP
+               do l = 0 , ed % storage(loc) % spA % N    ; do i = 0 , ed % storage(loc) % spA % N 
+                  dG(:,i)  = dG(:,i) + e % spA % hatD(i,l) * G_contravariant(:,l)
+               end do               ;                      end do
+
                do eq = 1 , NCONS ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
-                  faceInt(iXi,iEta,eq) = F_contravariant(iEta,eq) * e % spA % dlbw(iXi,LEFT) + dG(iEta,eq) * e % spA % lbw(iXi,LEFT)
+                  faceInt(:,iXi,iEta) = F_contravariant(:,iEta) * e % spA % dlbw(iXi,LEFT) + dG(:,iEta) * e % spA % lbw(iXi,LEFT)
                end do ;            end do ;                    end do
 
          end select
@@ -418,7 +500,7 @@ module DGWeakIntegrals
 !        ----------------------------------------
 !/////////////////////////////////////////////////////////////////////////////////////////////////
 !
-      function Vector_StdVolumeGreen( e , u ) result (volInt)
+      pure function Vector_StdVolumeGreen( e , u ) result (volInt)
 !
 !     ***************************************************************************
 !           Computes a weak volume integrals with:
@@ -440,48 +522,34 @@ module DGWeakIntegrals
 !
          use MatrixOperations
          implicit none
-         class(QuadElement_t), target     :: e
-         real(kind=RP), intent(in)        :: u(0:e % spA % N , 0:e % spA % N, 1:NCONS)
-         real(kind=RP)                    :: volInt(0:e % spA % N, 0:e % spA % N , 1:NDIM , 1:NCONS)
-!        ----------------------------------------------------------------------------------------------
-         integer, pointer                 :: N
-         real(kind=RP), pointer           :: JaXi(:,:,:) , JaEta(:,:,:)
-         real(kind=RP)                    :: contravariantU(0:e % spA % N, 0:e % spA % N, 1:NDIM)
-         integer                          :: eq
-   
-         N => e % spA % N
-         JaXi (0:,0:,1:)    => e % Ja(0:,0:,1:,IX)
-         JaEta(0:,0:,1:)    => e % Ja(0:,0:,1:,IY)
+         class(QuadElement_t), intent (in) :: e
+         real(kind=RP),        intent (in) :: u(1:NCONS , 0:e % spA % N , 0:e % spA % N)
+         real(kind=RP)                     :: volInt(1:NCONS , 0:e % spA % N, 0:e % spA % N , 1:NDIM)
 !
-!>       Perform the xi-component of the test function divergence
-!        --------------------------------------------------------
-         do eq = 1 , NCONS
+!        ---------------
+!        Local variables
+!        ---------------
 !
-!>          contravariantU^xi = U * Ja^xi
-!           -----------------------------
-            contravariantU(:,:,IX) = u(:,:,eq) * JaXi(:,:,IX) 
-            contravariantU(:,:,IY) = u(:,:,eq) * JaXi(:,:,IY) 
+         integer                          :: eq , i , j , l , dimID
+
+         volInt = 0.0_RP
 !
-!>          Compute the volume integral
-!           ---------------------------           
-            volInt(:,:,:,eq) = MatrixMultiplyInIndex_F( contravariantU , e % spA % hatD , N+1 , N+1 , NDIM , IX ) 
+!        Derivative in the local Xi coordinate
+!        -------------------------------------
+         do dimID = 1 , NDIM ; 
+            do j = 0 , e % spA % N ;  do l = 0 , e % spA % N ; do i = 0 , e % spA % N 
+               volInt(:,i,j,dimID) = volInt(:,i,j,dimID) + u(:,l,j) * e % Ja(l,j,dimID,IX) * e % spA % hatD(i,l)
+            end do                 ;  end do                 ; end do
          end do
 !
-!>       Perform the eta-component of the test function divergence
-!        ---------------------------------------------------------
-         do eq = 1 , NCONS
-!
-!>          contravariantU^eta = U * Ja^eta
-!           -------------------------------
-            contravariantU(:,:,IX) = u(:,:,eq) * JaEta(:,:,IX) 
-            contravariantU(:,:,IY) = u(:,:,eq) * JaEta(:,:,IY) 
-!
-!>          Compute the volume integral
-!           ---------------------------           
-            volInt(:,:,:,eq) =   volInt(:,:,:,eq)  &
-                               + MatrixMultiplyInIndex_F( contravariantU , e % spA % hatD , N+1 , N+1 , NDIM , IY ) 
+!        Derivative in the local Eta coordinate
+!        --------------------------------------
+         do dimID = 1 , NDIM ; 
+            do l = 0 , e % spA % N ;  do j = 0 , e % spA % N ; do i = 0 , e % spA % N 
+               volInt(:,i,j,dimID) = volInt(:,i,j,dimID) + u(:,i,l) * e % Ja(i,l,dimID,IY) * e % spA % hatD(j,l)
+            end do                 ;  end do                 ; end do
          end do
-!
+
       end function Vector_StdVolumeGreen
 
       pure function Vector_StdFace( ed , loc , Fu ) result ( faceInt )
@@ -509,14 +577,14 @@ module DGWeakIntegrals
          implicit none
          class(Edge_t), intent(in) :: ed
          integer,       intent(in) :: loc
-         real(kind=RP), intent(in) :: Fu (0 : ed % storage(loc) % spA % N , 1:NCONS , 1:NDIM)
-         real(kind=RP)             :: faceInt(0 : ed % storage(loc) % spA % N , 0 : ed % storage(loc) % spA % N , 1:NDIM , 1:NCONS)
+         real(kind=RP), intent(in) :: Fu (1:NCONS , 0 : ed % storage(loc) % spA % N , 1:NDIM)
+         real(kind=RP)             :: faceInt(1:NCONS , 0 : ed % storage(loc) % spA % N , 0 : ed % storage(loc) % spA % N , 1:NDIM )
 !
 !        ---------------
 !        Local variables
 !        ---------------
 !
-         integer                       :: iXi , iEta , eq , i 
+         integer                       :: iXi , iEta , eq , i , dimID
 
          associate ( e => ed % quads(loc) % e ) 
 
@@ -524,26 +592,26 @@ module DGWeakIntegrals
 
             case (EBOTTOM)
             
-               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,LEFT)
-               end do ; end do ; end do
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta,dimID) = Fu(:,iXi,dimID) * e % spA % lbw(iEta,LEFT)
+               end do ;              end do ;                   end do
       
             case (ERIGHT)
 
-               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,RIGHT) 
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta,dimID) = Fu(:,iEta,dimID) * e % spA % lbw(iXi,RIGHT) 
                end do ; end do ; end do
                   
             case (ETOP)
 
-               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iXi,eq,IX:IY) * e % spA % lbw(iEta,RIGHT)
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta,dimID) = Fu(:,iXi,dimID) * e % spA % lbw(iEta,RIGHT)
                end do ; end do ; end do
    
             case (ELEFT)
 
-               do eq = 1 , NCONS ; do iXi = 0 , e % spA % N ; do iEta = 0 , e % spA % N
-                  faceInt(iXi,iEta,IX:IY,eq) = Fu(iEta,eq,IX:IY) * e % spA % lbw(iXi,LEFT)
+               do dimID = 1 , NDIM ; do iEta = 0 , e % spA % N ; do iXi = 0 , e % spA % N
+                  faceInt(:,iXi,iEta,dimID) = Fu(:,iEta,dimID) * e % spA % lbw(iXi,LEFT)
                end do ; end do ; end do
 
             case default 

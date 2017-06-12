@@ -197,12 +197,14 @@ module QuadMeshClass
              integer                  :: iXi
              integer                  :: iEta
              real(kind=RP)            :: X(NDIM)
+             real(kind=RP)            :: ICval(NCONS)
 
              do eID = 1 , self % no_of_elements
                do iXi = 0 , self % elements(eID) % spA % N
                   do iEta = 0 , self % elements(eID) % spA % N
                      X = self % elements(eID) % X(iXi,iEta,IX:IY)
-                     self % elements(eID) % Q(iXi,iEta,1:NCONS)  = getDimensionlessVariables ( self % IC( X ) )
+                     ICval = self % IC(x)
+                     self % elements(eID) % Q(1:NCONS,iXi,iEta)  = getDimensionlessVariables ( ICval )
 
                   end do
                end do
