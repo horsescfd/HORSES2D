@@ -90,6 +90,7 @@ module MeshFileClass
             integer                     :: pRefZone
             integer, allocatable        :: zoneOrder
             character(len=STR_LEN_MESH) :: zoneID
+!$          integer                     :: omp_get_thread_num
 !
 !           ****************************************
 !           Read nodes, elements, and boundary edges
@@ -113,10 +114,18 @@ module MeshFileClass
 !
 !           Gather variables from the NetCDF mesh file
 !           ------------------------------------------
+!$omp parallel num_threads(4)
+!$ if ( omp_get_thread_num() .eq. 0 ) then
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_quads"     , mesh % points_of_elements  ) 
+!$ elseif ( omp_get_thread_num() .eq. 1 ) then
             call NetCDF_getVariable ( Setup % mesh_file , "points"              , mesh % points_coords       ) 
+!$ elseif ( omp_get_thread_num() .eq. 2 ) then
             call NetCDF_getVariable ( Setup % mesh_file , "points_of_bdryedges" , mesh % points_of_bdryedges ) 
+!$ elseif ( omp_get_thread_num() .eq. 3 ) then
             call NetCDF_getVariable ( Setup % mesh_file , "bdrymarker_of_edges" , mesh % bdrymarker_of_edges ) 
+!$ end if 
+!$omp barrier
+!$omp end parallel
 !
 !           Assign the default polynomial order until replaced by the pRefinement polynomial order if proceeds
 !           --------------------------------------------------------------------------------------------------
@@ -404,6 +413,7 @@ module MeshFileClass
 !
 !           This subroutine removes the divided edges information
 !           -----------------------------------------------------
+!$omp parallel do default(private) shared(mesh)
 mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
                oneDArray = threeEdgesNode
                edges = mesh % points_of_edges % SearchIfPresent( ONE , oneDArray , POINTS_PER_QUAD , atts) 
@@ -482,6 +492,7 @@ mainloop:   do threeEdgesNode = 1 , mesh % no_of_nodes
                end do
 
             end do   mainloop
+!$omp end parallel do
 
          end subroutine mergeDividedFaces
 

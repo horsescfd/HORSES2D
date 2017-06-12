@@ -100,7 +100,7 @@ submodule (DGViscousMethods)  DGViscous_BR1
 !        Perform the scaling with the jacobian
 !        -------------------------------------
 !$omp barrier
-!$omp do private(iDim,eq) schedule(runtime)
+!$omp do private(dimID,i,j) schedule(runtime)
          do eID = 1 , mesh % no_of_elements
             do dimID = 1 , NDIM   ; do i = 0 , mesh % elements(eID) % spA % N  ; do j = 0 , mesh % elements(eID) % spA % N 
                mesh % elements(eID) % dQ(:,i,j,dimID) = mesh % elements(eID) % dQ(:,i,j,dimID) / mesh % elements(eID) % jac(i,j)
